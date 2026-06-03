@@ -6,10 +6,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.time.LocalDate;
 import java.util.logging.Logger;
 
 /**
@@ -41,9 +40,10 @@ public class SampleDataLoader implements CommandLineRunner {
     private PasswordEncoder passwordEncoder;
 
     @Override
+    @Transactional
     public void run(String... args) throws Exception {
-        // Check if sample data already exists
-        if (userRepository.findByUsername("admin").isPresent()) {
+        // Check if sample data already exists - check for teacher1 instead of admin
+        if (userRepository.findByUsername("teacher1").isPresent()) {
             logger.info("Sample data already exists. Skipping initialization.");
             return;
         }

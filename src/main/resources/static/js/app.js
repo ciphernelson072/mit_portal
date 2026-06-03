@@ -420,9 +420,9 @@ logoutButton?.addEventListener('click', () => { clearSession(); showLogin(); });
 window.addEventListener('load', async () => {
     if (getToken()) await showDashboard();
 
-    // Register Service Worker for PWA functionality
+    // Register Service Worker for PWA functionality - CORRECTED PATH
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js')
+        navigator.serviceWorker.register('./service-worker.js')
             .then(() => console.log("Service Worker Registered successfully"))
             .catch(err => console.log("Service Worker Registration Failed", err));
     }

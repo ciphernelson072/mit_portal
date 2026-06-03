@@ -4,28 +4,34 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0d6efd">
-    <link rel="manifest" href="/manifest.json">
-    <script src="js/app.js"></script>
-    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <meta name="description" content="School Information System - Progressive Web App">
+    <link rel="manifest" href="./manifest.json">
+    <link rel="apple-touch-icon" href="./icons/icon-192.png">
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
     
+    <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Chart.js for Analytics -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
+    <!-- Custom Styles -->
     <link rel="stylesheet" href="./css/style.css" />
+    
     <title>School Portal PWA</title>
 </head>
 <body class="bg-light">
 
     <div class="container py-5">
+        <!-- Header -->
         <header class="text-center mb-5" id="headerSection">
-            <h1 class="display-5 fw-bold text-primary">School Portal</h1>
-            <p class="lead text-muted">Progressive Web Application for Students, Teachers, and Admins</p>
-            <button id="publicPortalLink" class="btn btn-link text-decoration-none p-0">View Public Portal</button>
+            <h1 class="display-5 fw-bold text-light">School Portal</h1>
+            <p class="lead text-light">Progressive Web Application for Students, Teachers, and Admins</p>
+            <button id="publicPortalLink" class="btn btn-light">View Public Portal</button>
         </header>
 
+        <!-- Alert Container -->
         <div id="alertContainer" class="mb-4"></div>
 
+        <!-- Login Section -->
         <div id="loginSection" class="card shadow-sm mx-auto" style="max-width: 450px;">
             <div class="card-body p-4 p-md-5">
                 <div class="text-center mb-4">
@@ -45,10 +51,16 @@
                     <button id="loginButton" type="submit" class="btn btn-primary w-100 py-2">Sign In</button>
                 </form>
 
-                <p class="text-muted text-center mt-4 small">Demo: admin / admin123</p>
+                <p class="text-muted text-center mt-4 small">
+                    <strong>Demo Credentials:</strong><br>
+                    Admin: admin / admin123<br>
+                    Teacher: teacher1 / teacher123<br>
+                    Student: student1 / student123
+                </p>
             </div>
         </div>
 
+        <!-- Dashboard Section -->
         <div id="dashboardSection" class="d-none">
             <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
                 <div>
@@ -58,6 +70,7 @@
                 <button id="logoutButton" class="btn btn-outline-danger">Logout</button>
             </div>
 
+            <!-- Dashboard Tabs -->
             <ul class="nav nav-pills mb-4" id="dashboardTabs">
                 <li class="nav-item">
                     <button class="nav-link active" onclick="switchTab('overview')">Overview</button>
@@ -67,15 +80,20 @@
                 </li>
             </ul>
 
+            <!-- Tab Content -->
             <div id="tab-content">
+                <!-- Overview Tab -->
                 <div id="content-overview">
+                    <!-- Announcements -->
                     <div id="announcementsSection" class="mb-4">
                         <h3 class="h6 text-uppercase fw-bold text-secondary mb-3">📢 Announcements</h3>
                         <div id="announcementsList" class="row g-3"></div>
                     </div>
+                    <!-- Dashboard Content -->
                     <div id="dashboardContent" class="row g-4"></div>
                 </div>
 
+                <!-- Charts Tab -->
                 <div id="content-charts" class="d-none">
                     <div class="row g-4">
                         <div class="col-md-6 col-lg-4">
@@ -101,6 +119,7 @@
             </div>
         </div>
 
+        <!-- Public Portal Section -->
         <div id="publicPortalSection" class="d-none">
             <div class="card border-0 shadow-sm p-4">
                 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -116,13 +135,18 @@
         </div>
     </div>
 
+    <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- App Script (Loaded once, with defer) -->
     <script src="./js/app.js" defer></script>
     
+    <!-- Service Worker Registration -->
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW registration failed', err));
+                navigator.serviceWorker.register('./service-worker.js')
+                    .then(reg => console.log('Service Worker registered'))
+                    .catch(err => console.log('SW registration failed:', err));
             });
         }
     </script>

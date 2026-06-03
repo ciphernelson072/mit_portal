@@ -1,144 +1,307 @@
+/* Custom Styles */
 :root {
-  --primary: #6366f1;
-  --primary-dark: #4f46e5;
-  --secondary: #f59e0b;
-  --background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-  --surface: #ffffff;
-  --surface-hover: #f8fafc;
-  --text: #1e293b;
-  --text-muted: #64748b;
-  --border: #e2e8f0;
-  --shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-  --shadow-hover: 0 20px 40px rgba(0, 0, 0, 0.15);
-  --radius: 16px;
-  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --primary-color: #0d6efd;
+    --secondary-color: #6c757d;
+    --success-color: #198754;
+    --danger-color: #dc3545;
+    --warning-color: #ffc107;
+    --info-color: #0dcaf0;
+    --light-color: #f8f9fa;
+    --dark-color: #212529;
 }
 
 * {
-  box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
 
 body {
-  background: var(--background);
-  color: var(--text);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  line-height: 1.6;
-  margin: 0;
-  min-height: 100vh;
-  -webkit-font-smoothing: antialiased;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background-color: #f5f7fa;
+    color: #333;
 }
 
-.container {
-  max-width: 1200px;
+/* Header Styles */
+header {
+    background: linear-gradient(135deg, var(--primary-color) 0%, #0056cc 100%);
+    color: white;
+    padding: 3rem 0;
+    border-radius: 12px;
+    margin-bottom: 2rem;
 }
 
-/* Typography */
-h1 {
-  font-size: 2.5rem;
-  font-weight: 700;
-  letter-spacing: -0.025em;
-  background: linear-gradient(135deg, var(--primary), var(--secondary));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+header h1 {
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-/* Dashboard Navigation Pills */
-.nav-pills .nav-link {
-  border-radius: 8px;
-  color: var(--text-muted);
-  font-weight: 600;
-  transition: var(--transition);
-  padding: 0.5rem 1.25rem;
+header p {
+    font-size: 1.1rem;
+    opacity: 0.95;
 }
 
-.nav-pills .nav-link.active {
-  background: var(--primary);
-  color: white !important;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
-}
-
-/* Card & Component Styling */
+/* Card Styles */
 .card {
-  background: var(--surface);
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
-  border-radius: var(--radius) !important;
-  box-shadow: var(--shadow);
-  transition: var(--transition);
-  backdrop-filter: blur(10px);
+    border: none;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    background-color: white;
 }
 
 .card:hover {
-  box-shadow: var(--shadow-hover);
-  transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12) !important;
+    transform: translateY(-2px);
 }
 
-/* Forms & Buttons */
+.card-body {
+    padding: 1.5rem;
+}
+
+/* Form Styles */
 .form-control {
-  border: 2px solid var(--border);
-  border-radius: 8px;
-  padding: 0.75rem;
-  transition: var(--transition);
+    border-radius: 6px;
+    border: 1px solid #e0e0e0;
+    padding: 0.75rem 1rem;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
 }
 
 .form-control:focus {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-  outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
 }
 
+.form-label {
+    font-weight: 500;
+    color: #495057;
+    margin-bottom: 0.5rem;
+}
+
+/* Button Styles */
 .btn {
-  border-radius: 8px;
-  font-weight: 600;
-  transition: var(--transition);
+    border-radius: 6px;
+    font-weight: 500;
+    padding: 0.6rem 1.25rem;
+    transition: all 0.2s ease;
+    border: none;
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-  border: none;
+    background-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+    background-color: #0b5ed7;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(13, 110, 253, 0.4);
 }
 
 .btn-outline-danger {
-  border: 2px solid #fee2e2;
-  color: #ef4444;
+    color: var(--danger-color);
+    border: 1px solid var(--danger-color);
 }
 
 .btn-outline-danger:hover {
-  background-color: #ef4444;
-  border-color: #ef4444;
-  color: white;
+    background-color: var(--danger-color);
+    border-color: var(--danger-color);
 }
 
-/* Alerts - Sticky and Clear */
+/* Alert Styles */
 .alert {
-  border-radius: 12px;
-  border: none;
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(8px);
-  position: sticky;
-  top: 1rem;
-  z-index: 1050;
+    border-radius: 6px;
+    border: none;
+    animation: slideDown 0.3s ease;
 }
 
-/* Animations */
-#dashboardSection, #loginSection, #publicPortalSection {
-  animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(30px); }
-  to { opacity: 1; transform: translateY(0); }
+.alert-info {
+    background-color: #cfe2ff;
+    color: #084298;
 }
 
-/* Responsive Adjustments */
+.alert-success {
+    background-color: #d1e7dd;
+    color: #0f5132;
+}
+
+.alert-danger {
+    background-color: #f8d7da;
+    color: #842029;
+}
+
+.alert-warning {
+    background-color: #fff3cd;
+    color: #664d03;
+}
+
+/* Tab Navigation */
+.nav-pills {
+    gap: 0.5rem;
+}
+
+.nav-link {
+    border-radius: 6px;
+    color: #6c757d;
+    border: none;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.nav-link:hover {
+    background-color: #e9ecef;
+    color: var(--primary-color);
+}
+
+.nav-link.active {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+/* Dashboard Styles */
+#dashboardSection h2 {
+    color: #212529;
+    font-weight: 600;
+}
+
+#dashboardSubtitle {
+    font-size: 0.95rem;
+}
+
+/* Chart Container */
+canvas {
+    max-height: 300px;
+    margin-top: 1rem;
+}
+
+/* Stats Card */
+.card h6 {
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.card h3 {
+    color: var(--primary-color);
+    font-weight: 700;
+}
+
+/* Announcements */
+#announcementsSection h3 {
+    color: #495057;
+    border-bottom: 2px solid #e9ecef;
+    padding-bottom: 1rem;
+}
+
+/* Public Portal */
+#publicContent {
+    color: #495057;
+}
+
+#publicContent h5 {
+    color: var(--primary-color);
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+/* Login Section */
+#loginSection {
+    border-radius: 12px;
+    background-color: white;
+}
+
+#loginSection .card-body {
+    padding: 2rem;
+}
+
+/* Responsive */
 @media (max-width: 768px) {
-  h1 { font-size: 2rem; }
-  .py-5 { padding-top: 2rem !important; padding-bottom: 2rem !important; }
-  .btn { width: 100%; margin-bottom: 0.5rem; }
+    header {
+        padding: 2rem 0;
+    }
+    
+    header h1 {
+        font-size: 1.75rem;
+    }
+    
+    header p {
+        font-size: 1rem;
+    }
+    
+    #loginSection {
+        margin: 0 1rem;
+    }
+    
+    .container {
+        padding: 1.5rem;
+    }
 }
 
-/* Custom Scrollbar */
-::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-track { background: #f1f1f1; }
-::-webkit-scrollbar-thumb { background: #ccc; border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+@media (max-width: 576px) {
+    header {
+        padding: 1.5rem 0;
+        border-radius: 8px;
+    }
+    
+    header h1 {
+        font-size: 1.5rem;
+    }
+    
+    .card {
+        margin-bottom: 1rem;
+    }
+    
+    .btn {
+        width: 100%;
+    }
+}
+
+/* Loading Spinner */
+.spinner-border {
+    width: 1rem;
+    height: 1rem;
+    border-width: 0.2em;
+}
+
+/* Accessibility */
+a:focus,
+button:focus,
+input:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* Dark Mode Support (Optional) */
+@media (prefers-color-scheme: dark) {
+    body {
+        background-color: #1a1a1a;
+        color: #e0e0e0;
+    }
+    
+    .card {
+        background-color: #2d2d2d;
+        color: #e0e0e0;
+    }
+    
+    .form-control {
+        background-color: #3a3a3a;
+        border-color: #555;
+        color: #e0e0e0;
+    }
+    
+    header {
+        color: white;
+    }
+}
