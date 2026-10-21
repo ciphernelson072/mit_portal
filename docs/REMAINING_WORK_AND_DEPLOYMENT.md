@@ -100,8 +100,12 @@ Checked on 21 October 2026 after the requested fresh TiDB test setup:
 
 Complete before creating the Render Blueprint:
 
-- [ ] Push this source to a Git provider and connect the repository to Render.
-  The current workspace has no Git repository or remote configured.
+- [ ] Publish the prepared `ready-project-2026-10-21` branch to the existing
+  GitHub repository `ciphernelson072/mit_portal` and connect it to Render.
+  The local Git repository and `origin` are configured, but this workspace
+  cannot authenticate the GitHub push. The existing public `main` branch has
+  unrelated history; publish a separate branch and review/merge it with a pull
+  request. Do not force-push or overwrite `main`.
 - [ ] Provision a reachable MySQL-compatible database. Render's managed
   relational database is PostgreSQL and is not compatible with this app's
   MySQL JDBC driver and MySQL-specific Flyway migrations.

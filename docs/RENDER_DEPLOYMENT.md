@@ -4,8 +4,12 @@ The repository includes a root-level `render.yaml` Blueprint for a single
 Docker web service. In Render, create a Blueprint from this repository and
 provide the prompted `sync: false` environment variables. Do not deploy the
 production profile until the database and public URLs are configured.
-The current workspace has no Git repository or remote configured, so push this
-source to a Git provider and connect it to Render before creating the Blueprint.
+The local Git repository is configured with `origin` pointing to
+`ciphernelson072/mit_portal`, but the prepared branch has not been pushed because
+GitHub authentication is required. That existing repository is public. Publish
+the `ready-project-2026-10-21` branch and review it through a pull request;
+the existing remote `main` has unrelated history, so do not force-push. Connect
+the reviewed repository to Render before creating the Blueprint.
 For a copyable environment-variable starting point, use the root
 `.env.render.example` with Render's **Add from .env** control. Replace every
 `REPLACE_WITH_...` value with deployment-specific values before applying it;

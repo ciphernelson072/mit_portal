@@ -122,7 +122,11 @@ See the full UI/backend/provider inventory in [INTEGRATION_GAPS.md](./INTEGRATIO
 ## Evidence still required before final submission
 
 - [ ] Verify production secrets, database access, proxy/TLS boundaries, private monitoring, persistent uploads, and sample-data disablement against the actual deployment environment.
-- [ ] Push this source to a Git provider and connect the repository to Render.
+- [ ] Publish `ready-project-2026-10-21` to
+  `ciphernelson072/mit_portal` and connect the repository to Render. The
+  local `origin` is configured, but GitHub authentication is required to push.
+  The remote `main` has unrelated history; publish a separate branch and use a
+  reviewed pull request rather than force-pushing.
 - [ ] Verify V31 and any required course-catalog migration against the intended database after a reviewed backup and schema adoption plan.
 - [ ] Verify Flyway V32 and the first-admin bootstrap against the intended Render database before importing production data.
 - [ ] Ask users to re-approve any reports approved by the pre-V31 in-memory implementation; those old approvals cannot be recovered from the database.
