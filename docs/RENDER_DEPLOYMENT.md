@@ -7,19 +7,21 @@ production profile until the database and public URLs are configured.
 The current workspace has no Git repository or remote configured, so push this
 source to a Git provider and connect it to Render before creating the Blueprint.
 For a copyable environment-variable starting point, use the root
-`.env.render.example` with Render's **Add from .env** control for the persistent
-disk configuration. For a disposable Free-tier test, use `.env.render.free`.
-Replace every `REPLACE_WITH_...` value first; do not use the local `.env`. Generate
-`JWT_SECRET` and `PAYMENT_WEBHOOK_SECRET` directly in Render and replace the
-placeholder values. The Free-tier file uses Resend's HTTPS email API (port 443),
-so create a Resend account, verify a sender address/domain, create an API key,
-and configure `MAIL_API_KEY` and `MAIL_FROM_EMAIL`. The application uses Resend
-for verification, password reset, notification, and admin test emails when
-`MAIL_PROVIDER=resend`; it sends plain-text message bodies. The SMTP-specific
-Actuator mail health check is disabled for this API mode, while the admin system
-status reports provider configuration and the time of its latest accepted test
-email. The Free-tier file writes uploads to ephemeral `/tmp`; files can be lost
-on restart, redeploy, or spin-down and must not be treated as durable.
+`.env.render.example` with Render's **Add from .env** control. Replace every
+`REPLACE_WITH_...` value with deployment-specific values before applying it;
+do not use the local `.env` or an exported environment file. Keep credentials
+and generated secrets in Render's secret environment fields. The example uses
+the Blueprint's persistent upload disk at `/var/data/uploads`. Do not change
+this to an ephemeral path if uploaded files must survive restarts or deploys.
+
+Email stays disabled until an approved provider is configured. For Render Free,
+the application supports Resend over HTTPS: configure `MAIL_PROVIDER=resend`,
+`MAIL_API_KEY`, and `MAIL_FROM_EMAIL` as Render environment values, and verify
+the sender domain first. The application uses Resend for verification, password
+reset, notification, and admin test emails when configured; it sends plain-text
+message bodies. The SMTP-specific Actuator mail health check is disabled for
+this API mode, while the admin system status reports provider configuration and
+the time of its latest accepted test email.
 For a phased list of all remaining work, post-deploy acceptance, and real-data
 gates, follow [REMAINING_WORK_AND_DEPLOYMENT.md](./REMAINING_WORK_AND_DEPLOYMENT.md).
 

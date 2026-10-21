@@ -10,6 +10,7 @@ playwright-report/
 .env.*
 !.env.example
 !.env.cloudflare-tidb.example
+!.env.render.example
 .DS_Store
 Thumbs.db
 uploads/
