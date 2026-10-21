@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MIT Portal - File Management</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="css/admin-style.css">
+</head>
+<body>
+  <main class="main-content">
+    <header class="admin-header">
+      <div class="header-title"><h1>File Management</h1><p>Inspect and manage stored upload files.</p></div>
+      <div class="header-actions"><a class="btn-secondary" href="admin-dashboard.html">Back to Admin</a></div>
+    </header>
+    <section class="module active">
+      <div class="module-header">
+        <h2>Stored files</h2>
+        <button id="refreshFiles" class="btn-secondary" type="button">Refresh list</button>
+      </div>
+      <p class="file-help">Files are listed from the configured uploads directory. The list is capped at 500 files; search by stored relative path. Files referenced by student, teacher, research, course, or accreditation records cannot be deleted here.</p>
+      <form id="fileSearchForm" class="filters">
+        <input id="fileSearch" class="search-input" type="search" placeholder="Search file path" autocomplete="off">
+      </form>
+      <div id="fileListStatus" role="status" aria-live="polite"></div>
+      <div class="file-table-wrap">
+        <table class="admin-table">
+          <thead><tr><th>Stored path</th><th>Size</th><th>Modified</th><th>Actions</th></tr></thead>
+          <tbody id="fileList"></tbody>
+        </table>
+      </div>
+      <div class="module-header"><h2>Inspect a file by path</h2></div>
+      <form id="fileLookupForm" class="filters">
+        <input id="filePath" class="search-input" placeholder="Relative file path (for example students/1/avatar.png)" required>
+        <button class="btn-primary" type="submit">Inspect</button>
+      </form>
+      <div id="fileStatus" role="status"></div>
+      <div id="fileDetails" hidden>
+        <p><strong>Exists:</strong> <span id="fileExists"></span></p>
+        <p><strong>Size:</strong> <span id="fileSize"></span></p>
+        <div class="modal-actions">
+          <button id="downloadFile" class="btn-secondary" type="button">Download</button>
+          <button id="deleteFile" class="btn-small delete" type="button">Delete</button>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script src="js/deployment-config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/file-management.js"></script>
+</body>
+</html>

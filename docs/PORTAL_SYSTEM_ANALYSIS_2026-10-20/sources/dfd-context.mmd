@@ -1,0 +1,18 @@
+flowchart LR
+  Student[Student]
+  Teacher[Teacher]
+  Admin[Administrator]
+  Portal((Student Information Portal))
+  Database[(Application database)]
+  FileStore[(Private upload storage)]
+  Email[Email provider, if configured]
+  Student -->|Login, profile, academic requests| Portal
+  Portal -->|Courses, grades, fees, notifications| Student
+  Teacher -->|Roster, attendance, grades, materials| Portal
+  Portal -->|Assigned-course information, workflow status| Teacher
+  Admin -->|Administration, review, reports, exports| Portal
+  Portal -->|Operational records, review queues, reports| Admin
+  Portal -->|Read/write application records| Database
+  Database -->|Authorized query results| Portal
+  Portal -->|Store/retrieve private files| FileStore
+  Portal -. configured mail delivery .-> Email

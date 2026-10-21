@@ -1,0 +1,447 @@
+:root {
+  color-scheme: light;
+  --brand-navy: #12304a;
+  --brand-teal: #0f766e;
+  --brand-gold: #c6a15b;
+  --brand-ink: #182b3a;
+  --brand-muted: #5b6b78;
+  --brand-paper: #f7f9fb;
+  --brand-soft-blue: #edf3f7;
+  --mit-white: #fff;
+  --brand-line: #dce5eb;
+  --brand-shadow: 0 18px 44px rgba(18, 48, 74, .1);
+  font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+  color: var(--brand-ink);
+  background: var(--brand-paper);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 100px; }
+body { min-width: 320px; margin: 0; line-height: 1.65; }
+button, input, select { font: inherit; }
+a { color: inherit; }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible {
+  outline: 3px solid var(--brand-gold);
+  outline-offset: 3px;
+}
+.skip-link {
+  position: absolute;
+  z-index: 100;
+  top: 8px;
+  left: 8px;
+  padding: 10px 14px;
+  transform: translateY(-150%);
+  color: var(--mit-white);
+  background: var(--brand-navy);
+}
+.skip-link:focus { transform: translateY(0); }
+.site-header {
+  position: sticky;
+  z-index: 20;
+  top: 0;
+  margin-bottom: -88px;
+  color: var(--mit-white);
+  background: transparent;
+  box-shadow: none;
+  transition: background-color .2s ease, box-shadow .2s ease;
+}
+.site-header.is-scrolled {
+  background: rgba(18, 48, 74, .97);
+  box-shadow: 0 4px 18px rgba(18, 48, 74, .18);
+}
+.header-inner, .site-footer-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  width: min(100% - 48px, 1200px);
+  margin: 0 auto;
+}
+.header-inner { min-height: 88px; }
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-width: max-content;
+  color: var(--mit-white);
+  text-decoration: none;
+}
+.brand-mark {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, .7);
+  border-radius: 50%;
+  color: var(--brand-gold);
+  font-family: "Aptos Display", "Segoe UI", sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: -.06em;
+}
+.brand-logo {
+  display: block;
+  width: 72px;
+  height: 72px;
+  flex: 0 0 72px;
+  padding: 2px;
+  border: 1px solid rgba(255, 255, 255, .78);
+  border-radius: 8px;
+  background: #fff;
+  object-fit: contain;
+}
+.brand-name {
+  display: block;
+  font-family: "Aptos Display", "Segoe UI", sans-serif;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: .025em;
+}
+.brand-subtitle { display: block; margin-top: 3px; color: #dce8ef; font-size: 11px; }
+.menu-toggle {
+  display: none;
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid rgba(255, 255, 255, .5);
+  border-radius: 4px;
+  color: var(--mit-white);
+  background: transparent;
+  cursor: pointer;
+}
+.site-nav { display: flex; align-items: center; gap: clamp(14px, 2vw, 28px); }
+.site-nav a {
+  padding: 9px 0;
+  color: var(--mit-white);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  text-shadow: 0 1px 5px rgba(0, 0, 0, .38);
+}
+.site-nav a:hover, .site-nav a[aria-current="page"] { color: #e6c987; }
+.site-nav .nav-apply {
+  padding: 9px 16px;
+  border: 1px solid var(--brand-gold);
+  border-radius: 3px;
+  color: var(--brand-navy);
+  background: var(--brand-gold);
+  text-shadow: none;
+}
+.site-nav .nav-apply:hover { color: var(--brand-navy); background: #d7b975; }
+.page-shell { min-height: 62vh; }
+.container { width: min(100% - 48px, 1200px); margin: 0 auto; }
+.hero {
+  position: relative;
+  overflow: hidden;
+  color: var(--mit-white);
+  background: linear-gradient(118deg, #12304a 0%, #173c58 66%, #1b4b62 100%);
+}
+.hero::after {
+  position: absolute;
+  right: -110px;
+  bottom: -220px;
+  width: 510px;
+  height: 510px;
+  border: 1px solid rgba(198, 161, 91, .3);
+  border-radius: 50%;
+  box-shadow: 0 0 0 36px rgba(198, 161, 91, .04), 0 0 0 80px rgba(198, 161, 91, .04);
+  content: "";
+}
+.hero-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1.15fr .85fr;
+  align-items: center;
+  gap: 48px;
+  min-height: 570px;
+  padding-top: 144px;
+  padding-bottom: 64px;
+}
+.eyebrow {
+  margin: 0 0 14px;
+  color: var(--brand-teal);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+.hero .eyebrow { color: #e6c987; }
+h1, h2, h3 {
+  margin-top: 0;
+  font-family: "Aptos Display", "Segoe UI", Arial, sans-serif;
+  line-height: 1.2;
+}
+h1 { margin-bottom: 20px; font-size: clamp(38px, 5.5vw, 66px); letter-spacing: -.045em; }
+h2 { margin-bottom: 14px; font-size: clamp(27px, 3.2vw, 39px); letter-spacing: -.035em; }
+h3 { margin-bottom: 10px; font-size: 19px; }
+.hero-copy { max-width: 640px; margin-bottom: 26px; color: #e4edf2; font-size: clamp(16px, 1.7vw, 19px); }
+.hero-actions, .action-row { display: flex; flex-wrap: wrap; gap: 12px; }
+.button-link {
+  display: inline-flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  padding: 11px 20px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  font-size: 14px;
+  font-weight: 800;
+  text-decoration: none;
+  transition: background-color .18s ease, color .18s ease, transform .18s ease;
+}
+.button-link:hover { transform: translateY(-2px); }
+.button-primary { color: #142b3e; background: #d2b36f; }
+.button-primary:hover { background: #dfc58f; }
+.button-outline { border-color: rgba(255, 255, 255, .72); color: var(--mit-white); background: transparent; }
+.button-outline:hover { color: var(--brand-navy); background: var(--mit-white); }
+.button-dark { color: var(--mit-white); background: var(--brand-navy); }
+.button-dark:hover { background: #1b4563; }
+.install-app-button { font-family: inherit; cursor: pointer; }
+.install-app-button[hidden] { display: none; }
+.install-app-status { min-height: 1.65em; margin: 12px 0 0; color: #e4edf2; font-size: 13px; }
+.hero-art {
+  position: relative;
+  display: grid;
+  min-height: 310px;
+  align-content: end;
+  overflow: hidden;
+  margin: 0;
+  border: 1px solid rgba(255, 255, 255, .3);
+  background: #244c62;
+}
+.hero-art img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 42%;
+}
+.photo-caption {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  padding: 12px;
+  color: var(--mit-white);
+  background: rgba(13, 34, 52, .82);
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+}
+.section { padding: 78px 0; }
+.section-soft { background: var(--brand-soft-blue); }
+.section-heading { max-width: 700px; margin-bottom: 32px; }
+.section-action { margin-top: 28px; }
+.section-heading p:last-child { margin-bottom: 0; color: var(--brand-muted); }
+.feature-grid, .program-grid, .info-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.feature-card, .program-card, .info-card {
+  min-width: 0;
+  padding: 24px;
+  border: 1px solid var(--brand-line);
+  background: var(--mit-white);
+  box-shadow: 0 5px 20px rgba(18, 48, 74, .035);
+}
+.feature-card { transition: color .18s ease, background-color .18s ease, border-color .18s ease; }
+.feature-card:hover, .feature-card:focus-within { border-color: var(--brand-teal); color: var(--mit-white); background: var(--brand-teal); }
+.icon-circle {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  margin-bottom: 18px;
+  place-items: center;
+  border: 1px solid var(--brand-teal);
+  border-radius: 50%;
+  color: var(--brand-teal);
+  font-family: "Aptos Display", "Segoe UI", sans-serif;
+  font-size: 17px;
+  font-weight: 800;
+}
+.feature-card:hover .icon-circle, .feature-card:focus-within .icon-circle { border-color: #e6c987; color: var(--brand-navy); background: #e6c987; }
+.feature-card p, .program-card p, .info-card p { margin-bottom: 0; color: var(--brand-muted); }
+.feature-card:hover p, .feature-card:focus-within p { color: #e5f0f1; }
+.feature-card a { display: inline-block; margin-top: 14px; color: var(--brand-teal); font-weight: 800; }
+.feature-card:hover a, .feature-card:focus-within a { color: #e6c987; }
+.program-card { display: flex; flex-direction: column; gap: 8px; }
+.program-card .program-award { color: var(--brand-teal); font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.program-card h3 { margin: 0; }
+.program-card .program-code { margin-top: auto; padding-top: 12px; color: var(--brand-muted); font-size: 12px; }
+.loading-message, .notice {
+  padding: 16px 18px;
+  border-left: 4px solid var(--brand-teal);
+  color: var(--brand-ink);
+  background: var(--brand-soft-blue);
+}
+.notice-error { border-left-color: #b42318; background: #fff0ee; }
+.availability { display: inline-flex; align-items: center; gap: 9px; margin: 0 0 20px; color: #fff; font-size: 14px; }
+.availability::before { width: 9px; height: 9px; border-radius: 50%; background: #d2b36f; content: ""; }
+.prose { max-width: 820px; }
+.prose p { color: var(--brand-muted); }
+.split-section { display: grid; grid-template-columns: .9fr 1.1fr; align-items: center; gap: 54px; }
+.callout {
+  padding: 36px;
+  color: var(--mit-white);
+  background: var(--brand-navy);
+}
+.callout p { color: #e4edf2; }
+.steps { display: grid; gap: 14px; padding: 0; list-style: none; counter-reset: steps; }
+.steps li {
+  position: relative;
+  min-height: 70px;
+  padding: 17px 20px 17px 68px;
+  border: 1px solid var(--brand-line);
+  background: var(--mit-white);
+  counter-increment: steps;
+}
+.steps li::before {
+  position: absolute;
+  top: 14px;
+  left: 19px;
+  color: var(--brand-teal);
+  content: "0" counter(steps);
+  font-family: "Aptos Display", "Segoe UI", sans-serif;
+  font-size: 19px;
+  font-weight: 800;
+}
+.faq-list { display: grid; gap: 10px; max-width: 900px; }
+.faq-list details {
+  padding: 17px 20px;
+  border: 1px solid var(--brand-line);
+  background: var(--mit-white);
+}
+.faq-list summary { color: var(--brand-navy); font-weight: 800; cursor: pointer; }
+.faq-list details p { margin: 12px 0 0; color: var(--brand-muted); }
+.faq-list a, .applicant-privacy-note a { color: var(--brand-teal); font-weight: 700; }
+.contact-number { color: var(--brand-teal); font-family: "Aptos Display", "Segoe UI", sans-serif; font-size: clamp(24px, 4vw, 38px); font-weight: 800; text-decoration: none; }
+.site-footer { padding: 36px 0; color: #f2f6f8; background: #0d2234; }
+.site-footer-inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+}
+.footer-brand { max-width: 320px; }
+.footer-brand p { margin: 10px 0 0; color: #c9d6df; font-size: 13px; }
+.footer-links { display: flex; flex-wrap: wrap; gap: 10px 20px; }
+.footer-links a { color: #f2f6f8; font-size: 13px; text-decoration: none; }
+.footer-links a:hover { color: #e6c987; text-decoration: underline; }
+.footer-social { max-width: 320px; }
+.footer-social h2 { margin-bottom: 8px; color: #f2f6f8; font-size: 17px; letter-spacing: 0; }
+.footer-social > p { margin: 0 0 12px; color: #c9d6df; font-size: 11px; line-height: 1.55; }
+.footer-social .social-note { margin-top: 10px; color: #bdcbd5; }
+.footer-social .social-note a { color: #f2f6f8; font-weight: 700; }
+.social-list { display: flex; flex-wrap: wrap; gap: 9px; margin: 0; padding: 0; list-style: none; }
+.social-list li { display: grid; width: 44px; height: 44px; place-items: center; }
+.social-link { display: block; border-radius: 50%; text-decoration: none; }
+.social-link:focus-visible { outline: 3px solid var(--brand-gold); outline-offset: 3px; }
+.social-icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, .2);
+  border-radius: 50%;
+  color: #bdcbd5;
+  font-family: Arial, sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+}
+.social-facebook { font-family: Arial, sans-serif; font-size: 25px; }
+.social-linkedin { font-size: 15px; }
+.social-icon svg { width: 19px; height: 19px; fill: currentColor; }
+.copyright { width: min(100% - 48px, 1200px); margin: 24px auto 0; padding-top: 18px; border-top: 1px solid rgba(255, 255, 255, .18); color: #bdcbd5; font-size: 12px; }
+
+/* The public admissions page reuses the portal's verified application workflow. */
+.public-admissions { min-height: 100vh; background: var(--brand-paper); }
+.public-admissions .workspace { width: min(100% - 48px, 1200px); margin: 0 auto; padding: 50px 0 70px; }
+.public-admissions .workspace { padding-top: 138px; }
+.public-admissions .result-panel {
+  margin-bottom: 22px;
+  padding: clamp(22px, 4vw, 38px);
+  border: 1px solid var(--brand-line);
+  border-radius: 4px;
+  background: var(--mit-white);
+  box-shadow: var(--brand-shadow);
+}
+.public-admissions .result-panel h1 { font-size: clamp(32px, 4vw, 46px); }
+.public-admissions .result-panel h2 { font-size: clamp(25px, 3vw, 32px); }
+.public-admissions .result-panel > p { max-width: 850px; color: var(--brand-muted); }
+.public-admissions .applicant-privacy-note { font-size: 13px; }
+.public-admissions .application-confirmation {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 18px;
+  border-left: 4px solid var(--brand-teal);
+  background: var(--brand-soft-blue);
+}
+.public-admissions .application-confirmation[hidden] { display: none; }
+.public-admissions .application-confirmation p { margin: 0; color: var(--brand-muted); }
+.public-admissions .application-confirmation strong { color: var(--brand-navy); font-size: 20px; overflow-wrap: anywhere; }
+.public-admissions .field-grid label { display: grid; gap: 6px; color: var(--brand-ink); font-size: 13px; font-weight: 700; }
+.public-admissions .field-grid input, .public-admissions .field-grid select {
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 1px solid #aab9c4;
+  border-radius: 4px;
+  color: var(--brand-ink);
+  background: var(--mit-white);
+}
+.public-admissions .field-grid button { min-height: 46px; align-self: end; }
+.public-admissions .button.primary { border: 0; border-radius: 4px; color: #142b3e; background: #d2b36f; font-weight: 800; }
+.public-admissions .button.secondary { border-radius: 4px; color: var(--mit-white); background: var(--brand-navy); font-weight: 800; }
+.public-admissions .status { border-left-color: var(--brand-teal); border-radius: 2px; color: var(--brand-ink); background: var(--brand-soft-blue); }
+.public-admissions .status.error { border-left-color: #b42318; background: #fff0ee; }
+.public-admissions .result-content { color: var(--brand-ink); background: var(--brand-soft-blue); border-radius: 2px; font: 14px/1.6 "Segoe UI", Tahoma, sans-serif; }
+.public-admissions .admissions-return { margin-top: 24px; }
+.public-admissions .admissions-return a { color: var(--brand-teal); font-weight: 800; }
+
+@media (max-width: 820px) {
+  .site-header { margin-bottom: -76px; }
+  .header-inner { position: relative; min-height: 76px; }
+  .brand-logo { width: 62px; height: 62px; flex-basis: 62px; }
+  .menu-toggle { display: inline-flex; align-items: center; justify-content: center; }
+  .site-nav {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    left: 0;
+    display: none;
+    align-items: stretch;
+    gap: 0;
+    padding: 8px 24px 18px;
+    background: rgba(18, 48, 74, .98);
+    box-shadow: 0 12px 16px rgba(18, 48, 74, .2);
+  }
+  .site-nav.is-open { display: flex; flex-direction: column; }
+  .site-nav a { padding: 11px 2px; }
+  .site-nav .nav-apply { margin-top: 6px; text-align: center; }
+  .hero-grid { grid-template-columns: 1fr; gap: 30px; min-height: 0; }
+  .hero-art { min-height: 250px; }
+  .feature-grid, .program-grid, .info-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .split-section { grid-template-columns: 1fr; gap: 30px; }
+}
+@media (max-width: 560px) {
+  .header-inner, .container, .public-admissions .workspace { width: min(100% - 32px, 1200px); }
+  .header-inner { gap: 10px; }
+  .brand { min-width: 0; gap: 8px; }
+  .brand-logo { width: 52px; height: 52px; flex-basis: 52px; }
+  .brand-name { width: min(190px, calc(100vw - 160px)); max-width: 190px; font-size: 12px; }
+  .brand-subtitle { font-size: 10px; }
+  .hero-grid { padding-top: 44px; padding-bottom: 48px; }
+  .hero-art { min-height: 210px; }
+  .section { padding: 56px 0; }
+  .feature-grid, .program-grid, .info-grid { grid-template-columns: 1fr; }
+  .feature-card, .program-card, .info-card { padding: 21px; }
+  .site-footer-inner { grid-template-columns: 1fr; width: min(100% - 32px, 1200px); gap: 24px; }
+  .footer-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .copyright { width: min(100% - 32px, 1200px); }
+  .public-admissions .field-grid { grid-template-columns: 1fr; }
+  .public-admissions .result-panel { padding: 20px; }
+  .public-admissions .field-grid button { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+}

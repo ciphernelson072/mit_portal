@@ -1,0 +1,56 @@
+CREATE TABLE IF NOT EXISTS campuses (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  code VARCHAR(30) NOT NULL UNIQUE,
+  name VARCHAR(150) NOT NULL,
+  address VARCHAR(500),
+  active TINYINT(1) NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS faculties (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  code VARCHAR(30) NOT NULL UNIQUE,
+  name VARCHAR(150) NOT NULL,
+  campus_id BIGINT NOT NULL,
+  active TINYINT(1) NOT NULL DEFAULT 1,
+  CONSTRAINT fk_faculty_campus FOREIGN KEY (campus_id) REFERENCES campuses(id)
+);
+
+CREATE TABLE IF NOT EXISTS departments (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  code VARCHAR(30) NOT NULL UNIQUE,
+  name VARCHAR(150) NOT NULL,
+  faculty_id BIGINT NOT NULL,
+  active TINYINT(1) NOT NULL DEFAULT 1,
+  CONSTRAINT fk_department_faculty FOREIGN KEY (faculty_id) REFERENCES faculties(id)
+);
+
+CREATE TABLE IF NOT EXISTS programs (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  code VARCHAR(30) NOT NULL UNIQUE,
+  name VARCHAR(200) NOT NULL,
+  award_title VARCHAR(150) NOT NULL,
+  department_id BIGINT NOT NULL,
+  duration_years INT NOT NULL,
+  active TINYINT(1) NOT NULL DEFAULT 1,
+  CONSTRAINT fk_program_department FOREIGN KEY (department_id) REFERENCES departments(id)
+);
+
+CREATE TABLE IF NOT EXISTS academic_years (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  code VARCHAR(20) NOT NULL UNIQUE,
+  name VARCHAR(100) NOT NULL,
+  start_date DATE NOT NULL,
+  end_date DATE NOT NULL,
+  active TINYINT(1) NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS academic_terms (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  code VARCHAR(30) NOT NULL UNIQUE,
+  name VARCHAR(100) NOT NULL,
+  academic_year_id BIGINT NOT NULL,
+  start_date DATE NOT NULL,
+  end_date DATE NOT NULL,
+  registration_open TINYINT(1) NOT NULL DEFAULT 0,
+  CONSTRAINT fk_term_academic_year FOREIGN KEY (academic_year_id) REFERENCES academic_years(id)
+);

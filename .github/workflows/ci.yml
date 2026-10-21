@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Run backend tests
+        run: ./mvnw -q test
+
+      - name: Validate Flyway migrations against MySQL
+        run: ./mvnw -q -Pmysql-integration -Dtest=MySqlSchemaIntegrationTest test
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install frontend test dependencies
+        run: npm ci
+
+      - name: Run service worker tests
+        run: npm run test:unit
+
+      - name: Parse frontend JavaScript
+        shell: bash
+        run: |
+          find src/main/resources/static/js -name '*.js' -print0 | xargs -0 -n1 node --check
+
+      - name: Build isolated E2E server
+        run: ./mvnw -q -DskipTests package
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser end-to-end tests
+        shell: bash
+        run: |
+          java -jar target/sis-0.0.1-SNAPSHOT.jar \
+            '--spring.datasource.url=jdbc:h2:mem:sis_e2e;MODE=MySQL;DB_CLOSE_DELAY=-1' \
+            --spring.datasource.username=sa \
+            --spring.datasource.password= \
+            --spring.datasource.driver-class-name=org.h2.Driver \
+            --spring.jpa.hibernate.ddl-auto=create-drop \
+            --spring.flyway.enabled=false \
+            --sis.sample-data.enabled=true \
+            --jwt.secret=CiOnlySecretKeyMustNeverBeUsedOutsideTests \
+            --server.address=127.0.0.1 \
+            --server.port=8080 \
+            --app.security.cookie-secure=false \
+            --app.frontend.url=http://127.0.0.1:8080 \
+            --cors.allowed-origins=http://127.0.0.1:8080 \
+            --file.upload.directory=/tmp/sis-e2e-uploads \
+            --ratelimit.auth.capacity=1000 \
+            --ratelimit.auth.refill-per-minute=1000 \
+            --ratelimit.admissions.capacity=1000 \
+            --ratelimit.admissions.refill-per-minute=1000 \
+            >/tmp/sis-e2e.log 2>&1 &
+          app_pid=$!
+          trap 'kill "$app_pid" 2>/dev/null || true' EXIT
+
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:8080/actuator/health >/dev/null; then
+              break
+            fi
+            if ! kill -0 "$app_pid" 2>/dev/null; then
+              cat /tmp/sis-e2e.log
+              exit 1
+            fi
+            sleep 2
+          done
+
+          if ! curl --fail --silent http://127.0.0.1:8080/actuator/health >/dev/null; then
+            cat /tmp/sis-e2e.log
+            exit 1
+          fi
+
+          npm run test:e2e -- --workers=1

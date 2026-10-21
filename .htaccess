@@ -1,0 +1,3 @@
+# This repository must never be served as a browsable Apache directory.
+Options -Indexes
+Require all denied

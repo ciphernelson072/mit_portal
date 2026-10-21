@@ -1,0 +1,28 @@
+sequenceDiagram
+  actor User
+  participant Browser
+  participant API as Spring Security / Auth API
+  participant Auth as Authentication service
+  participant DB as User database
+  User->>Browser: Submit username and password
+  Browser->>API: POST /api/auth/login
+  API->>Auth: Validate credentials and role state
+  Auth->>DB: Find normalized account and credential state
+  DB-->>Auth: Account / role / MFA state
+  Auth-->>API: Authentication result
+  alt Credentials valid and MFA not required
+    API-->>Browser: Set HttpOnly, Secure, SameSite cookie
+    Browser->>API: Request protected page/API with cookie
+    API->>Auth: Validate cookie and required authority
+    Auth-->>API: Subject and authorities
+    API-->>Browser: Authorized response
+  else MFA challenge required
+    API-->>Browser: OTP challenge; no authenticated session yet
+    User->>Browser: Submit authenticator code
+    Browser->>API: Verify OTP
+    API->>Auth: Verify TOTP and issue session on success
+    Auth-->>API: Verification result
+    API-->>Browser: Authenticated cookie or explicit error
+  else Invalid or disabled account
+    API-->>Browser: Reject; no authenticated cookie
+  end

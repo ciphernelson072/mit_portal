@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Browse the courses offered by Makerere Institute of Technology.">
+  <meta name="theme-color" content="#0f766e">
+  <title>Course Catalogue - MIT Portal</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="css/dashboard-style.css">
+  <link rel="stylesheet" href="css/course-catalog.css">
+</head>
+<body>
+  <header class="header">
+    <div class="header-container">
+      <a class="header-logo" href="index.html">
+        <img src="icons/logo.jpg" alt="" class="logo-icon">
+        <span class="brand-text"><strong>MIT Portal</strong><span>Course catalogue</span></span>
+      </a>
+      <div class="catalog-actions">
+        <button class="btn-secondary" id="catalogThemeToggle" type="button" data-theme-toggle aria-label="Switch colour theme">🌙</button>
+        <a class="btn-secondary" id="catalogBackLink" href="index.html">Back to portal</a>
+        <a class="btn-primary" href="admissions.html#admissionForm">Apply now</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="course-catalog-main">
+    <section class="catalog-intro">
+      <p class="catalog-eyebrow">MIT ACADEMICS</p>
+      <h1>Course catalogue</h1>
+      <p>Browse available courses. Course information is shared across the portal; registration and course materials remain available according to your account and enrollment.</p>
+    </section>
+
+    <section class="catalog-content" aria-labelledby="catalogHeading">
+      <div class="catalog-toolbar">
+        <div>
+          <h2 id="catalogHeading">Available courses</h2>
+          <p id="courseCatalogCount" class="catalog-count"></p>
+        </div>
+        <label class="catalog-search-label" for="courseCatalogSearch">Search courses</label>
+        <input id="courseCatalogSearch" class="catalog-search" type="search" placeholder="Search by code, name, category, or instructor">
+      </div>
+      <p id="courseCatalogStatus" class="catalog-status" role="status" aria-live="polite">Loading courses…</p>
+      <div id="courseCatalogGrid" class="course-catalog-grid" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <footer class="catalog-footer">© 2026 Makerere Institute of Technology</footer>
+  <script src="js/backend-only.js"></script>
+  <script src="js/deployment-config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/theme.js"></script>
+  <script src="js/course-catalog.js"></script>
+</body>
+</html>

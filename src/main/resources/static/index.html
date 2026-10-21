@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="theme-color" content="#1a3a8c"/>
+  <title>MIT Student Portal – Login</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icons/pwa-180.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="page-wrapper">
+
+  <!-- Error Alert -->
+  <div class="alert" id="alert">
+    <div class="alert-icon"></div>
+    <div class="alert-body">
+      <div class="alert-title" id="alertTitle">Error</div>
+      <div class="alert-text" id="alertText">Please check your input and try again.</div>
+    </div>
+    <button class="alert-close" onclick="dismissAlert()">×</button>
+  </div>
+
+  <!-- Login Card -->
+  <div class="card">
+    
+    <!-- Card Header -->
+    <div class="card-header">
+      <div class="logo-shield">
+        <img src="icons/logo.jpg" alt="MIT Logo" class="logo-img">
+      </div>
+      <div class="header-text">
+        <h1>Makerere Institute<br>of Technology</h1>
+        <div class="tagline">Student Portal</div>
+      </div>
+    </div>
+
+    <!-- Card Body - Steps Container -->
+    <div class="card-body">
+      <form id="studentLoginForm" autocomplete="on" onsubmit="handleLogin(event)">
+      <div class="step active" id="step1">
+        <div class="step-header">
+          <h2>Welcome Back</h2>
+          <p>Sign in with your student ID or email and password</p>
+        </div>
+        <div class="input-wrap">
+          <span class="icon">👤</span>
+          <input
+            type="text"
+            id="username"
+            name="username"
+            placeholder="Student ID or Email"
+            autocomplete="username"
+            autocapitalize="none"
+            autocorrect="off"
+            spellcheck="false"
+            required
+          />
+        </div>
+        <div class="input-wrap password-wrap">
+          <span class="icon">🔒</span>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            placeholder="Password"
+            autocomplete="current-password"
+            required
+          />
+          <button type="button" class="toggle-password" onclick="togglePasswordVisibility()" aria-label="Show password">👁️</button>
+        </div>
+        <div class="input-wrap" id="otpGroup" hidden>
+          <span class="icon">🔐</span>
+          <input
+            type="text"
+            id="otp"
+            name="one-time-code"
+            placeholder="6-digit authenticator code"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            pattern="[0-9]{6}"
+            maxlength="6"
+          />
+        </div>
+        <button type="submit" class="btn-next" id="loginSubmitBtn">
+          SIGN IN <span class="arrow">›</span>
+        </button>
+        <div class="form-links">
+          <a href="#" class="forgot-link" onclick="requestPasswordReset(event)">Forgot Password?</a>
+        </div>
+      </div>
+      </form>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <div class="card-footer">
+    <p class="terms">By logging in, I agree to the <a href="terms.html">Terms &amp; Conditions</a></p>
+    <p class="help-text">New student? <a href="admissions.html">Apply for admission</a>. A portal login is created after administrator approval and enrollment.</p>
+    <p class="help-text"><strong>Need Help?</strong> Contact Support at <a href="tel:+256741902525">+256 741 902525</a></p>
+  </div>
+
+</div>
+
+<script src="js/deployment-config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/script.js"></script>
+</body>
+</html>
