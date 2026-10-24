@@ -5,6 +5,8 @@ import com.sis.entity.Grade;
 import com.sis.entity.Student;
 import com.sis.entity.User;
 import com.sis.repository.AuditLogRepository;
+import com.sis.repository.UserRepository;
+import com.sis.entity.AuditLog;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
@@ -23,13 +25,18 @@ class GradeImportServiceTest {
 
     private SchoolService schoolService;
     private AuditLogRepository auditLogRepository;
+    private UserRepository userRepository;
     private GradeImportService service;
 
     @BeforeEach
     void setUp() {
         schoolService = mock(SchoolService.class);
         auditLogRepository = mock(AuditLogRepository.class);
-        service = new GradeImportService(schoolService, auditLogRepository);
+        userRepository = mock(UserRepository.class);
+        User actor = new User();
+        actor.setId(99L);
+        when(userRepository.findByUsernameNormalized("admin-user")).thenReturn(Optional.of(actor));
+        service = new GradeImportService(schoolService, auditLogRepository, userRepository);
     }
 
     @Test
@@ -58,10 +65,13 @@ class GradeImportServiceTest {
                 ("student_id,course_id,grade_value,remarks\n"
                         + "1,2,A,\"Outstanding, consistent progress\"\n").getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
-        var imported = service.importGrades(file);
+        var imported = service.importGrades(file, "admin-user");
 
         assertEquals(1, imported.size());
         assertEquals("Outstanding, consistent progress", imported.get(0).getRemarks());
+        org.mockito.ArgumentCaptor<AuditLog> audit = org.mockito.ArgumentCaptor.forClass(AuditLog.class);
+        verify(auditLogRepository).save(audit.capture());
+        assertEquals(99L, audit.getValue().getUserId());
     }
 
     @Test
@@ -91,7 +101,7 @@ class GradeImportServiceTest {
                         + "1,2,A,,\"Outstanding progress,\ncontinues to improve\"\r\n")
                         .getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
-        var imported = service.importGrades(file);
+        var imported = service.importGrades(file, "admin-user");
 
         assertEquals(1, imported.size());
         assertEquals(remarks, imported.get(0).getRemarks());
@@ -105,7 +115,7 @@ class GradeImportServiceTest {
                 "text/csv",
                 "student_id,course_id,remarks\n1,2,Missing grade\n".getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
-        assertThrows(IllegalArgumentException.class, () -> service.importGrades(file));
+        assertThrows(IllegalArgumentException.class, () -> service.importGrades(file, "admin-user"));
         verify(schoolService, never()).saveGrade(any(), any(), any(), any());
     }
 
@@ -118,7 +128,7 @@ class GradeImportServiceTest {
                 ("student_id,course_id,grade_value,remarks\n"
                         + "1,2,A,\"Unclosed remark\n").getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
-        assertThrows(IllegalArgumentException.class, () -> service.importGrades(file));
+        assertThrows(IllegalArgumentException.class, () -> service.importGrades(file, "admin-user"));
         verify(schoolService, never()).saveGrade(any(), any(), any(), any());
     }
 }

@@ -97,6 +97,10 @@ public class PermissionSecurity {
         return hasAnyAuthority("ADMIN", "PERM_PORTAL_SETTINGS_MANAGE");
     }
 
+    public boolean canManageRolePermissions() {
+        return hasAnyAuthority("ADMIN");
+    }
+
     public boolean canManageExams() {
         return hasAnyAuthority("ADMIN", "PERM_EXAM_MANAGE");
     }

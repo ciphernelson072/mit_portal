@@ -16,7 +16,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/permissions")
-@PreAuthorize("@permissionSecurity.canManagePortalSettings()")
+@PreAuthorize("@permissionSecurity.canManageRolePermissions()")
 public class PermissionController {
     private final PermissionService permissions;
 

@@ -10,6 +10,8 @@ public class AdminFeeDto {
     private String studentUsername;
     private String description;
     private BigDecimal amount;
+    private BigDecimal amountPaid;
+    private BigDecimal balance;
     private boolean paid;
     private LocalDate dueDate;
     private LocalDate paidDate;
@@ -23,6 +25,8 @@ public class AdminFeeDto {
         this.studentUsername = studentUsername;
         this.description = description;
         this.amount = amount;
+        this.amountPaid = paid ? amount : BigDecimal.ZERO;
+        this.balance = paid ? BigDecimal.ZERO : amount;
         this.paid = paid;
         this.dueDate = dueDate;
         this.paidDate = paidDate;
@@ -34,7 +38,14 @@ public class AdminFeeDto {
     public String getStudentUsername() { return studentUsername; }
     public String getDescription() { return description; }
     public BigDecimal getAmount() { return amount; }
+    public BigDecimal getAmountPaid() { return amountPaid; }
+    public BigDecimal getBalance() { return balance; }
     public boolean isPaid() { return paid; }
     public LocalDate getDueDate() { return dueDate; }
     public LocalDate getPaidDate() { return paidDate; }
+
+    public void setSettlementAmounts(BigDecimal amountPaid, BigDecimal balance) {
+        this.amountPaid = amountPaid;
+        this.balance = balance;
+    }
 }

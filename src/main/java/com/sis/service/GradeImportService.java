@@ -7,6 +7,7 @@ import com.sis.entity.Grade;
 import com.sis.entity.Student;
 import com.sis.exception.ResourceNotFoundException;
 import com.sis.repository.AuditLogRepository;
+import com.sis.repository.UserRepository;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
@@ -28,14 +29,20 @@ public class GradeImportService {
 
     private final SchoolService schoolService;
     private final AuditLogRepository auditLogRepository;
+    private final UserRepository userRepository;
 
-    public GradeImportService(SchoolService schoolService, AuditLogRepository auditLogRepository) {
+    public GradeImportService(SchoolService schoolService, AuditLogRepository auditLogRepository,
+                              UserRepository userRepository) {
         this.schoolService = schoolService;
         this.auditLogRepository = auditLogRepository;
+        this.userRepository = userRepository;
     }
 
     @Transactional
-    public List<AdminGradeDto> importGrades(MultipartFile file) {
+    public List<AdminGradeDto> importGrades(MultipartFile file, String importedBy) {
+        Long actorId = userRepository.findByUsernameNormalized(importedBy)
+                .orElseThrow(() -> new IllegalStateException("Authenticated user not found: " + importedBy))
+                .getId();
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("Grade import file is required.");
         }
@@ -62,7 +69,9 @@ public class GradeImportService {
                 grade = schoolService.updateGradeScore(grade, row.getGpaScore());
             }
 
-            auditLogRepository.save(new com.sis.entity.AuditLog(null, "GRADE_IMPORTED_FILE", "Grade imported from file for student " + student.getId()));
+            auditLogRepository.save(new com.sis.entity.AuditLog(actorId, "GRADE_IMPORTED_FILE",
+                    "Grade " + grade.getId() + " imported for student " + student.getId()
+                            + " in course " + course.getId()));
             output.add(new AdminGradeDto(
                     grade.getId(),
                     student.getId(),

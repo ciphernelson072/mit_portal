@@ -12,10 +12,13 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.validation.Valid;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Admin Controller - Handles all administrative operations.
@@ -66,39 +69,69 @@ public class AdminController {
     }
 
     @PostMapping("/users")
+    @Transactional
     public ResponseEntity<UserDto> createUser(@Valid @RequestBody CreateUserRequest request) {
         UserDto created = adminService.createUser(request);
+        auditAdminAccountChange("ADMIN_USER_CREATED", created.getId(),
+                "Created account with role " + created.getRole());
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @PutMapping("/users/{id}")
+    @Transactional
     public ResponseEntity<UserDto> updateUser(@PathVariable Long id, @Valid @RequestBody UpdateUserRequest request) {
         if (id.equals(currentAdminId())) {
             throw new IllegalArgumentException("Administrators cannot change their own account role here");
         }
-        return ResponseEntity.ok(adminService.updateUser(id, request));
+        UserDto before = adminService.getUserById(id);
+        UserDto updated = adminService.updateUser(id, request);
+        List<String> changedFields = new ArrayList<>();
+        if (!Objects.equals(before.getRole(), updated.getRole())) {
+            changedFields.add("role " + before.getRole() + " -> " + updated.getRole());
+        }
+        if (!Objects.equals(before.getEmail(), updated.getEmail())) changedFields.add("email");
+        if (!Objects.equals(before.getPhone(), updated.getPhone())) changedFields.add("phone");
+        if (request.getPassword() != null && !request.getPassword().isBlank()) changedFields.add("password");
+        if (!changedFields.isEmpty()) {
+            auditAdminAccountChange("ADMIN_USER_UPDATED", id,
+                    "Updated account fields: " + String.join(", ", changedFields));
+        }
+        return ResponseEntity.ok(updated);
     }
 
     private Long currentAdminId() {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         return schoolService.getUserByUsername(username)
             .map(user -> user.getId())
-            .orElse(null);
+            .orElseThrow(() -> new IllegalStateException("Authenticated administrator account not found"));
+    }
+
+    private void auditAdminAccountChange(String action, Long targetUserId, String details) {
+        auditLogRepository.save(new AuditLog(currentAdminId(), action,
+                "Target account #" + targetUserId + ": " + details));
     }
 
     /** Soft delete user (deactivate account). */
     @DeleteMapping("/users/{id}")
+    @Transactional
     public ResponseEntity<String> removeUser(@PathVariable Long id) {
         if (id.equals(currentAdminId())) {
             throw new IllegalArgumentException("Administrators cannot deactivate their own account");
         }
+        UserDto target = adminService.getUserById(id);
         adminService.removeUser(id);
+        auditAdminAccountChange("ADMIN_USER_DEACTIVATED", id,
+                "Deactivated account with role " + target.getRole());
         return ResponseEntity.ok("User account deactivated successfully");
     }
 
     @PostMapping("/users/{id}/restore")
+    @Transactional
     public ResponseEntity<String> restoreUser(@PathVariable Long id) {
+        UserDto target = adminService.getUserById(id);
         adminService.restoreUser(id);
+        auditAdminAccountChange("ADMIN_USER_RESTORED", id,
+                "Restored account with role " + target.getRole());
         return ResponseEntity.ok("User account restored successfully");
     }
 
@@ -253,8 +286,7 @@ public class AdminController {
         long totalCourses = schoolService.listCourseDtos().size();
 
         BigDecimal totalRevenue = fees.stream()
-                .filter(AdminFeeDto::isPaid)
-                .map(AdminFeeDto::getAmount)
+                .map(AdminFeeDto::getAmountPaid)
                 .filter(amount -> amount != null)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
@@ -264,8 +296,8 @@ public class AdminController {
                 stats.getTotalUsers(),
                 totalCourses,
                 (long) fees.size(),
-                fees.stream().filter(AdminFeeDto::isPaid).count(),
-                fees.stream().filter(fee -> !fee.isPaid()).count(),
+                fees.stream().filter(fee -> fee.getBalance() != null && fee.getBalance().signum() == 0).count(),
+                fees.stream().filter(fee -> fee.getBalance() == null || fee.getBalance().signum() > 0).count(),
                 totalRevenue);
 
         return ResponseEntity.ok(overview);
@@ -299,7 +331,9 @@ public class AdminController {
         if (request.getGpaScore() != null) {
             grade = schoolService.updateGradeScore(grade, request.getGpaScore());
         }
-        auditLogRepository.save(new AuditLog(null, "GRADE_IMPORTED", "Grade imported for student " + student.getId()));
+        auditLogRepository.save(new AuditLog(currentAdminId(), "GRADE_IMPORTED",
+                "Grade " + grade.getId() + " imported for student " + student.getId()
+                        + " in course " + course.getId()));
         return ResponseEntity.status(HttpStatus.CREATED).body(new AdminGradeDto(
                 grade.getId(),
                 student.getId(),
@@ -319,7 +353,8 @@ public class AdminController {
 
     @PostMapping("/grades/import-file")
     public ResponseEntity<List<AdminGradeDto>> importGradesFile(@RequestParam("file") MultipartFile file) {
-        List<AdminGradeDto> imported = gradeImportService.importGrades(file);
+        String importedBy = SecurityContextHolder.getContext().getAuthentication().getName();
+        List<AdminGradeDto> imported = gradeImportService.importGrades(file, importedBy);
         return ResponseEntity.status(HttpStatus.CREATED).body(imported);
     }
 

@@ -18,56 +18,56 @@
   </div>
 
   <nav class="sidebar-nav">
-    <a href="#" class="nav-item active" onclick="switchModule('dashboard', this)">
+    <a href="#" class="nav-item active" data-module="dashboard" onclick="switchModule('dashboard', this)">
       <span class="icon">📊</span>
       <span>Dashboard</span>
     </a>
-    <a href="#" class="nav-item" onclick="switchModule('students', this)">
+    <a href="#" class="nav-item" data-module="students" onclick="switchModule('students', this)">
       <span class="icon">👥</span>
       <span>Students</span>
       <span class="badge" id="studentNavCount">0</span>
     </a>
-    <a href="#" class="nav-item" onclick="switchModule('courses', this)">
+    <a href="#" class="nav-item" data-module="courses" onclick="switchModule('courses', this)">
       <span class="icon">📚</span>
       <span>Courses</span>
       <span class="badge" id="courseNavCount">0</span>
     </a>
-    <a href="#" class="nav-item" onclick="switchModule('course-categories', this)">
+    <a href="#" class="nav-item" data-module="course-categories" onclick="switchModule('course-categories', this)">
       <span class="icon">🗂️</span>
       <span>Course Categories</span>
     </a>
-    <a href="#" class="nav-item" onclick="switchModule('staff', this)">
+    <a href="#" class="nav-item" data-module="staff" onclick="switchModule('staff', this)">
       <span class="icon">👨‍🏫</span>
       <span>Staff</span>
       <span class="badge" id="staffNavCount">0</span>
     </a>
-    <a href="#" class="nav-item" onclick="switchModule('users', this)">
+    <a href="#" class="nav-item" data-module="users" onclick="switchModule('users', this)">
       <span class="icon">🛡️</span>
       <span>Users</span>
     </a>
-    <a href="#" class="nav-item" onclick="switchModule('requests', this)">
+    <a href="#" class="nav-item" data-module="requests" onclick="switchModule('requests', this)">
       <span class="icon">🎫</span>
       <span>Requests</span>
       <span class="badge" id="requestNavCount">0</span>
     </a>
-    <a href="#" class="nav-item" onclick="switchModule('admissions', this)">
+    <a href="#" class="nav-item" data-module="admissions" onclick="switchModule('admissions', this)">
       <span class="icon">📝</span>
       <span>Admissions</span>
       <span class="badge" id="admissionsNavCount">0</span>
     </a>
-    <a href="#" class="nav-item" onclick="switchModule('grades', this)">
+    <a href="#" class="nav-item" data-module="grades" onclick="switchModule('grades', this)">
       <span class="icon">📊</span>
       <span>Grades</span>
     </a>
-    <a href="#" class="nav-item" onclick="switchModule('academic', this)">
+    <a href="#" class="nav-item" data-module="academic" onclick="switchModule('academic', this)">
       <span class="icon">🗓️</span>
       <span>Academic Operations</span>
     </a>
-    <a href="#" class="nav-item" onclick="switchModule('finance', this)">
+    <a href="#" class="nav-item" data-module="finance" onclick="switchModule('finance', this)">
       <span class="icon">💰</span>
       <span>Finance</span>
     </a>
-    <a href="#" class="nav-item" onclick="switchModule('reports', this)">
+    <a href="#" class="nav-item" data-module="reports" onclick="switchModule('reports', this)">
       <span class="icon">📈</span>
       <span>Reports</span>
     </a>
@@ -75,7 +75,7 @@
       <span class="icon">✉️</span>
       <span>Messages</span>
     </a>
-    <a href="#" class="nav-item" onclick="switchModule('settings', this)">
+    <a href="#" class="nav-item" data-module="settings" onclick="switchModule('settings', this)">
       <span class="icon">⚙️</span>
       <span>Settings</span>
     </a>
@@ -671,6 +671,18 @@
       <table class="table admin-table" id="paymentAttemptTable">
         <thead><tr><th>Attempt</th><th>Student</th><th>Fee</th><th>Channel</th><th>Amount</th><th>Provider reference</th><th>Submitted</th><th>Review</th></tr></thead>
         <tbody><tr><td colspan="8">Select Finance to load pending payment attempts.</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="module-header">
+      <h3>Refund review queue</h3>
+      <button class="btn-secondary" type="button" onclick="loadAdminRefunds()">Refresh refunds</button>
+    </div>
+    <p>Refund requests remain pending until a different finance user verifies the external refund and records its reference.</p>
+    <div class="table-responsive">
+      <table class="table admin-table" id="refundReviewTable">
+        <thead><tr><th>Refund</th><th>Payment attempt</th><th>Fee</th><th>Amount</th><th>Requested by</th><th>Reason</th><th>External reference</th><th>Review</th></tr></thead>
+        <tbody><tr><td colspan="8">Select Finance to load pending refund requests.</td></tr></tbody>
       </table>
     </div>
   </section>

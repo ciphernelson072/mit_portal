@@ -60,6 +60,9 @@ manager, not committed to source files or placed in a built image. At minimum:
   database.
 - Set unique, randomly generated `JWT_SECRET` and `PAYMENT_WEBHOOK_SECRET`
   values; keep them private and persistent across restarts.
+- Flutterwave is optional. Set both `FLUTTERWAVE_SECRET_KEY` and
+  `FLUTTERWAVE_WEBHOOK_SECRET_HASH` only after completing the test-mode setup in
+  [PAYMENT_CONFIGURATION.md](./PAYMENT_CONFIGURATION.md); keep both server-side.
 - Use HTTPS for `FRONTEND_URL` and only trusted HTTPS origins in
   `CORS_ALLOWED_ORIGINS`.
 - Set a persistent, writable `UPLOAD_DIR` and keep `COOKIE_SECURE=true`.

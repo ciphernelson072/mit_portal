@@ -13,7 +13,8 @@ class PdfDocumentServiceTest {
     @Test
     void invoiceIsGeneratedAsPdf() throws Exception {
         byte[] document = new PdfDocumentService()
-                .invoice("INV-1", "Tuition", "2000000", "2026-12-15", "PENDING");
+                .invoice("INV-1", "Tuition", "2000000", "500000", "1500000",
+                        "2026-12-15", "PARTIALLY PAID");
 
         assertTrue(document.length > 100);
         assertArrayEquals("%PDF".getBytes(StandardCharsets.US_ASCII), java.util.Arrays.copyOf(document, 4));

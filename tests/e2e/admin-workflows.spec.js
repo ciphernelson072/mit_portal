@@ -13,6 +13,36 @@ async function loginAdmin(page) {
   await page.goto('/admin-dashboard.html');
 }
 
+test('admin sidebar buttons open their matching modules and external workspaces', async ({ page }) => {
+  await loginAdmin(page);
+  await page.route('**/api/**', route => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: '[]',
+  }));
+
+  const moduleLinks = page.locator('.sidebar-nav .nav-item[data-module]');
+  await expect(moduleLinks).toHaveCount(13);
+  for (const link of await moduleLinks.all()) {
+    const moduleName = await link.getAttribute('data-module');
+    const module = page.locator(`#${moduleName}Module`);
+    await expect(module).toHaveCount(1);
+    await link.click();
+    await expect(module).toBeVisible();
+    await expect(link).toHaveClass(/active/);
+  }
+
+  const workspaceLinks = [
+    { name: 'Messages', href: 'messages.html' },
+    { name: 'File Management', href: 'file-management.html' },
+    { name: 'Operations Workspace', href: 'operations.html' },
+  ];
+  for (const workspace of workspaceLinks) {
+    await expect(page.locator('.sidebar-nav .nav-item').filter({ hasText: workspace.name }))
+      .toHaveAttribute('href', workspace.href);
+  }
+});
+
 test('admin can create a user account from user management', async ({ page }) => {
   await loginAdmin(page);
   const users = [{ id: 1, username: 'admin', role: 'ADMIN', isActive: true }];

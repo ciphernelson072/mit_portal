@@ -239,6 +239,40 @@ stored in `%LOCALAPPDATA%\MITPortal\logs`. To remove the automatic task, run:
 .\ops\install-cloudflare-tidb-autostart.ps1 -Uninstall
 ```
 
+### Start the public pilot manually whenever you need it
+
+Open PowerShell as the same Windows user that owns `.env.cloudflare-tidb`,
+then run this from the project directory:
+
+```powershell
+Set-Location 'C:\laragon\www\student_portal\mit_portal-main'
+.\ops\start-cloudflare-tidb-at-logon.ps1
+```
+
+This starts a fresh Quick Tunnel and the TiDB-backed app, prints the new public
+URL, saves it to
+`$env:LOCALAPPDATA\MITPortal\portal-url.txt`, and opens it in your browser.
+The PowerShell command stays active while the public pilot is running. Use a
+second PowerShell window to read the latest URL:
+
+```powershell
+Get-Content "$env:LOCALAPPDATA\MITPortal\portal-url.txt"
+```
+
+If the pilot is already running, do not start another copy; read the saved URL
+instead. To use the Scheduled Task already installed for this Windows account
+when the app is stopped, run:
+
+```powershell
+Start-ScheduledTask -TaskName 'MIT Student Portal Cloudflare TiDB'
+```
+
+Every new Quick Tunnel has a different hostname. Share the current URL, not a
+URL from a previous run. Keep the startup PowerShell session open while using
+the manual mode. The service is globally reachable only while this PC, its
+internet connection, Java process, and tunnel remain running; it is a temporary
+pilot, not permanent hosting.
+
 This runs after the Windows user signs in, not before anyone logs in. The PC
 must have power and internet, and must not sleep, for students to reach the
 portal. Quick Tunnel URLs are temporary and are not an uptime guarantee or a

@@ -613,6 +613,10 @@ public class SchoolService {
         return feeService.getFeesForStudent(studentId);
     }
 
+    public Optional<FeeDto> getFeeForStudent(Long feeId, Long studentId) {
+        return feeService.getFeeForStudent(feeId, studentId);
+    }
+
     public List<AdminFeeDto> getAllFees() {
         return feeService.getAllFees();
     }

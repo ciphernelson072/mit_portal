@@ -1,5 +1,6 @@
 package com.sis.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import javax.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -22,6 +23,16 @@ public class PaymentAttempt {
 
     @Column(name = "provider_reference", nullable = false, length = 120)
     private String providerReference;
+
+    @Column(name = "provider_transaction_id", length = 80, unique = true)
+    private String providerTransactionId;
+
+    @JsonIgnore
+    @Column(name = "checkout_url", length = 500)
+    private String checkoutUrl;
+
+    @Column(name = "checkout_expires_at")
+    private LocalDateTime checkoutExpiresAt;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "payment_channel", nullable = false, length = 30)
@@ -56,6 +67,12 @@ public class PaymentAttempt {
     public void setAmount(BigDecimal amount) { this.amount = amount; }
     public String getProviderReference() { return providerReference; }
     public void setProviderReference(String providerReference) { this.providerReference = providerReference; }
+    public String getProviderTransactionId() { return providerTransactionId; }
+    public void setProviderTransactionId(String providerTransactionId) { this.providerTransactionId = providerTransactionId; }
+    public String getCheckoutUrl() { return checkoutUrl; }
+    public void setCheckoutUrl(String checkoutUrl) { this.checkoutUrl = checkoutUrl; }
+    public LocalDateTime getCheckoutExpiresAt() { return checkoutExpiresAt; }
+    public void setCheckoutExpiresAt(LocalDateTime checkoutExpiresAt) { this.checkoutExpiresAt = checkoutExpiresAt; }
     public PaymentChannel getPaymentChannel() { return paymentChannel; }
     public void setPaymentChannel(PaymentChannel paymentChannel) { this.paymentChannel = paymentChannel; }
     public PaymentAttemptStatus getStatus() { return status; }

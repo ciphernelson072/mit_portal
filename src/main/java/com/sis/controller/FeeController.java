@@ -76,8 +76,13 @@ public class FeeController {
                 .flatMap(student -> feeRepository.findById(feeId).filter(fee -> fee.getStudent().getId().equals(student.getId())))
                 .map(fee -> {
                     try {
-                        byte[] pdf = pdfDocuments.invoice("INV-" + fee.getId(), fee.getDescription(), fee.getAmount(),
-                                fee.getDueDate(), fee.isPaid() ? "PAID" : "PENDING");
+                        FeeDto settlement = schoolService.getFeeForStudent(feeId, fee.getStudent().getId())
+                                .orElseThrow(() -> new IllegalStateException("Fee settlement details are unavailable"));
+                        String status = settlement.getBalance().signum() == 0 ? "SETTLED"
+                                : settlement.getAmountPaid().signum() > 0 ? "PARTIALLY PAID" : "PENDING";
+                        byte[] pdf = pdfDocuments.invoice("INV-" + fee.getId(), fee.getDescription(),
+                                fee.getAmount(), settlement.getAmountPaid(), settlement.getBalance(),
+                                fee.getDueDate(), status);
                         return pdfResponse(pdf, "invoice-" + fee.getId() + ".pdf");
                     } catch (java.io.IOException e) {
                         throw new IllegalStateException("Unable to generate invoice", e);

@@ -142,7 +142,7 @@
         body: JSON.stringify({ currentPassword: password.value, otp: otp.value.trim() }),
       });
       showMessage('Two-factor authentication enabled. Sign in again to continue.');
-      await logout('/index.html');
+      await logout();
     } catch (error) {
       showMessage(error.message || 'The authenticator code could not be verified.', true);
     } finally {
@@ -162,7 +162,7 @@
         body: JSON.stringify({ currentPassword: password.value, otp: otp.value.trim() }),
       });
       showMessage('Two-factor authentication disabled. Sign in again to continue.');
-      await logout('/index.html');
+      await logout();
     } catch (error) {
       showMessage(error.message || 'Two-factor authentication could not be disabled.', true);
     } finally {
@@ -175,8 +175,7 @@
     revokeAllSessionsButton.disabled = true;
     try {
       await apiFetch('/auth/sessions/revoke-all', { method: 'POST' });
-      clearSession();
-      window.location.href = '/index.html';
+      await logout();
     } catch (error) {
       showMessage(error.message || 'Could not revoke sessions.', true);
       revokeAllSessionsButton.disabled = false;

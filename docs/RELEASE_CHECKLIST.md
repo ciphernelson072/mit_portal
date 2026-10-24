@@ -5,8 +5,21 @@ the phased runbook for closing these items and deploying to Render. This
 checklist records evidence; do not mark an item complete until verified in the
 actual target environment.
 
-## Latest verification record - 21 October 2026
+## Verification records (latest: 22 October 2026)
 
+- [x] 22 Oct 2026 pilot smoke check: production-profile app connected to TiDB
+  with TLS identity verification; Flyway validated all 36 migrations and
+  reported the `mit_student_portal` schema up to date. Local and temporary
+  HTTPS tunnel health endpoints returned `UP`; the public landing page and
+  admin/student login pages loaded. Direct unauthenticated requests to the
+  student and teacher dashboards redirected to Access restricted. This did
+  not exercise authenticated role workflows or external email delivery.
+- [x] 22 Oct 2026 manual restart procedure verified: the current-user launcher
+  created a fresh Quick Tunnel, updated only the ignored pilot origin settings,
+  and started the app against the current TiDB schema. Local readiness and the
+  public homepage/readiness endpoints returned `UP`/HTTP 200. The URL is
+  written to `%LOCALAPPDATA%\MITPortal\portal-url.txt`; it changes on each
+  Quick Tunnel restart.
 - [x] `mvnw.cmd test -q` completed successfully in this workspace.
 - [x] `npm run test:unit` - 10 passed.
 - [x] `node --check` - all 28 static frontend JavaScript files passed.

@@ -139,6 +139,8 @@ try {
     Set-PilotOrigin -Path $environmentPath -Origin $publicOrigin
     Set-Content -LiteralPath $publicUrlFile -Value $publicOrigin -Encoding UTF8
     Write-RunLog "Quick Tunnel created at $publicOrigin."
+    Write-Output "Public portal URL: $publicOrigin"
+    Write-Output "Saved current URL to $publicUrlFile"
 
     & $runCloudflareScript -Port $Port -ValidateOnly
 

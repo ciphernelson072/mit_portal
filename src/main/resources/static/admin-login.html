@@ -299,7 +299,12 @@
         return;
       }
 
-      setSession(data.role, data.username);
+      setSession(data.role, data.username, data.passwordChangeRequired);
+
+      if (data.passwordChangeRequired) {
+        window.location.href = 'force-password-change.html';
+        return;
+      }
 
       if (data.role === 'ADMIN') {
         window.location.href = 'admin-dashboard.html';

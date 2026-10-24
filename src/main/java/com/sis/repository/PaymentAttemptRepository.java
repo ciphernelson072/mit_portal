@@ -16,6 +16,12 @@ public interface PaymentAttemptRepository extends JpaRepository<PaymentAttempt, 
     List<PaymentAttempt> findByStudentIdOrderByCreatedAtDesc(Long studentId);
     List<PaymentAttempt> findByStatusOrderByCreatedAtAsc(com.sis.entity.PaymentAttemptStatus status);
     Optional<PaymentAttempt> findByProviderReference(String providerReference);
+    Optional<PaymentAttempt> findByProviderReferenceAndPaymentChannel(
+            String providerReference, com.sis.entity.PaymentChannel paymentChannel);
+    Optional<PaymentAttempt> findByProviderReferenceAndStudentIdAndPaymentChannel(
+            String providerReference, Long studentId, com.sis.entity.PaymentChannel paymentChannel);
+    Optional<PaymentAttempt> findFirstByFeeIdAndStudentIdAndPaymentChannelAndStatusOrderByCreatedAtDesc(
+            Long feeId, Long studentId, com.sis.entity.PaymentChannel paymentChannel, PaymentAttemptStatus status);
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select p from PaymentAttempt p where p.id = :id")
     Optional<PaymentAttempt> findByIdForUpdate(@Param("id") Long id);

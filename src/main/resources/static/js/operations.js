@@ -284,7 +284,7 @@ document.getElementById('resultContent').addEventListener('click', async event =
 });
 document.getElementById('searchInput').addEventListener('input', renderDomains);
 document.getElementById('domainFilter').addEventListener('change', renderDomains);
-document.getElementById('logoutButton').addEventListener('click', () => logout('index.html'));
+document.getElementById('logoutButton').addEventListener('click', () => logout(getLoginPageForRole(state.role)));
 document.getElementById('clearResult').addEventListener('click', () => { document.getElementById('resultPanel').hidden = true; document.getElementById('resultContent').textContent = ''; });
 document.getElementById('roleBadge').textContent = state.role || 'Guest';
 function renderDomainFilter() {
@@ -305,6 +305,7 @@ async function loadAuthorities() {
     state.authoritiesLoaded = true;
     state.role = ['ADMIN', 'TEACHER', 'STUDENT'].find(role => state.authorities.has(role)) || 'USER';
     document.getElementById('roleBadge').textContent = state.role;
+    document.getElementById('homeLink').href = getPortalPageForRole(state.role);
     renderDomainFilter();
     renderDomains();
   } catch (error) {

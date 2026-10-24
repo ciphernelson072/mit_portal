@@ -89,8 +89,10 @@ docker compose down -v && docker compose up --build
 
 Docker requires the variables in `.env.example` to be set; copy that file to `.env`
 and replace every placeholder before startup. Compose binds the application to
-`127.0.0.1` by default; put a TLS-terminating reverse proxy on the same host for
-remote production access. For a deliberate LAN demo on a trusted Private network,
+`127.0.0.1` by default and restarts the app and database after host restarts; put
+a TLS-terminating reverse proxy on the same host for remote production access.
+phpMyAdmin is disabled unless the `admin-tools` profile is enabled and remains
+bound to loopback. For a deliberate LAN demo on a trusted Private network,
 set `APP_BIND_ADDRESS` to the host's exact Wi-Fi IPv4 address (never `0.0.0.0`)
 and set matching `CORS_ALLOWED_ORIGINS` and `FRONTEND_URL` values. Do not enable
 LAN access while Windows classifies the network as Public. The
@@ -285,6 +287,10 @@ For a controlled Render test deployment, follow [docs/RENDER_DEPLOYMENT.md](docs
 and create a Blueprint from the root-level `render.yaml`. The application
 currently requires an external MySQL-compatible database; Render's managed
 PostgreSQL is not compatible without a database/driver/migration conversion.
+
+For Serv00, use [docs/SERV00_DEPLOYMENT.md](docs/SERV00_DEPLOYMENT.md) and run
+`.\ops\prepare-serv00.ps1` from the project root to build a verified archive
+without the optional demo seeder or sample SQL.
 
 The Docker Compose stack mounts the host backup directory read-only inside the
 app container. `run-sis.bat docker-up` starts the database first and attempts a

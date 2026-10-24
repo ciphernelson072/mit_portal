@@ -39,7 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       localStorage.setItem('mitPasswordChangeRequired', 'false');
       message.textContent = 'Password changed. Please sign in with your new password.';
-      await logout('index.html');
+      await logout();
     } catch (error) {
       message.setAttribute('role', 'alert');
       message.textContent = error.message || 'Unable to change your password.';

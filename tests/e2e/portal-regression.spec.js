@@ -39,6 +39,59 @@ test('Prometheus metrics are available only after authentication', async ({ page
   expect(await authenticatedResponse.text()).toContain('jvm_memory_used_bytes');
 });
 
+test('admin login routes first-time password changes before opening the dashboard', async ({ page }) => {
+  await page.route('**/api/auth/login', route => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      role: 'ADMIN',
+      username: 'ciphernelson072',
+      passwordChangeRequired: true,
+    }),
+  }));
+
+  await page.goto('/admin-login.html');
+  await page.evaluate(() => {
+    localStorage.setItem('mitRole', 'STUDENT');
+    localStorage.setItem('mitUsername', 'old-student-session');
+  });
+  await page.locator('#username').fill('ciphernelson072');
+  await page.locator('#password').fill('temporary-password');
+  await page.locator('.btn-login').click();
+
+  await expect(page).toHaveURL(/force-password-change\.html/);
+  await expect(page.locator('#passwordChangeForm')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => ({
+    role: localStorage.getItem('mitRole'),
+    username: localStorage.getItem('mitUsername'),
+    passwordChangeRequired: localStorage.getItem('mitPasswordChangeRequired'),
+  }))).toEqual({
+    role: 'ADMIN',
+    username: 'ciphernelson072',
+    passwordChangeRequired: 'true',
+  });
+});
+
+test('admin password change returns to the staff login form', async ({ page }) => {
+  await page.route('**/api/auth/change-password', route => route.fulfill({ status: 200 }));
+  await page.route('**/api/auth/logout', route => route.fulfill({ status: 200 }));
+  await page.goto('/admin-login.html');
+  await page.evaluate(() => {
+    localStorage.setItem('mitRole', 'ADMIN');
+    localStorage.setItem('mitUsername', 'ciphernelson072');
+    localStorage.setItem('mitPasswordChangeRequired', 'true');
+  });
+  await page.goto('/force-password-change.html');
+
+  await page.locator('#currentPassword').fill('temporary-password');
+  await page.locator('#newPassword').fill('New-strong-password-2026!');
+  await page.locator('#confirmPassword').fill('New-strong-password-2026!');
+  await page.locator('#passwordChangeSubmit').click();
+
+  await expect(page).toHaveURL(/admin-login\.html/);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('mitRole'))).toBeNull();
+});
+
 test.describe('responsive portal surfaces', () => {
   test.use({ viewport: { width: 390, height: 800 } });
 
@@ -752,6 +805,35 @@ test.describe('responsive portal surfaces', () => {
     await page.locator('.endpoint button').filter({ hasText: 'Open' }).first().click();
     await expect(page.locator('#fieldGrid [data-field]')).not.toHaveCount(0);
     await expect(page.locator('#requestDialog')).toBeVisible();
+  });
+
+  test('Operations home and logout destinations follow the authenticated role', async ({ page }) => {
+    const roleCases = [
+      { username: 'admin', password: 'admin123', adminLogin: true, role: 'ADMIN', dashboard: 'admin-dashboard.html', loginPage: 'admin-login.html' },
+      { username: 'teacher1', password: 'teacher123', adminLogin: true, role: 'TEACHER', dashboard: 'teacher-dashboard.html', loginPage: 'admin-login.html' },
+      { username: 'student1', password: 'student123', adminLogin: false, role: 'STUDENT', dashboard: 'dashboard.html', loginPage: 'index.html' },
+    ];
+
+    for (const roleCase of roleCases) {
+      const loginResponse = await page.request.post('/api/auth/login', {
+        data: { username: roleCase.username, password: roleCase.password },
+        headers: { 'x-forwarded-for': `198.51.100.${authTestClient++}` },
+      });
+      expect(loginResponse.ok()).toBeTruthy();
+      expect(await loginResponse.json()).toMatchObject({ role: roleCase.role });
+      await page.goto('/admin-login.html');
+      await page.evaluate(({ role, username }) => {
+        localStorage.setItem('mitRole', role);
+        localStorage.setItem('mitUsername', username);
+      }, { role: roleCase.role, username: roleCase.username });
+      await page.goto('/operations.html');
+      await expect(page.locator('#roleBadge')).toHaveText(roleCase.role);
+      await expect(page.locator('#homeLink')).toHaveAttribute('href', roleCase.dashboard);
+      await page.locator('#logoutButton').click();
+      await expect(page).toHaveURL(new RegExp(`/${roleCase.loginPage}$`));
+      await page.waitForLoadState('domcontentloaded');
+      expect(await page.evaluate(() => localStorage.getItem('mitRole'))).toBeNull();
+    }
   });
 
   test('Operations does not trust a forged localStorage administrator role', async ({ page }) => {

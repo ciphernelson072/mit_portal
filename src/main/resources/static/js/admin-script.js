@@ -154,12 +154,19 @@ function setupNavigation() {
 }
 
 function switchModule(moduleName, clickedElement = null) {
+  const moduleEl = document.getElementById(moduleName + 'Module');
+  if (!moduleEl) {
+    console.error(`Admin dashboard module "${moduleName}" was not found.`);
+    return;
+  }
+
   document.querySelectorAll('.module').forEach(mod => mod.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
-
-  const moduleEl = document.getElementById(moduleName + 'Module');
-  if (moduleEl) moduleEl.classList.add('active');
-  if (clickedElement) clickedElement.classList.add('active');
+  moduleEl.classList.add('active');
+  const activeNavigationItem = clickedElement?.closest('.nav-item')
+    || Array.from(document.querySelectorAll('.sidebar-nav .nav-item[data-module]'))
+      .find(item => item.dataset.module === moduleName);
+  activeNavigationItem?.classList.add('active');
 
   if (moduleName === 'students') loadStudents();
   else if (moduleName === 'courses') loadCourses();
@@ -758,17 +765,23 @@ async function loadAdminFinance() {
       apiGet('/admin/fees'), apiGet('/finance/payments/attempts/pending'),
     ]);
     const total = fees.reduce((sum, fee) => sum + Number(fee.amount || 0), 0);
-    const paid = fees.filter(fee => fee.paid).reduce((sum, fee) => sum + Number(fee.amount || 0), 0);
-    const pending = total - paid;
+    const paid = fees.reduce((sum, fee) => sum + Number(fee.amountPaid || (fee.paid ? fee.amount : 0)), 0);
+    const pending = fees.reduce((sum, fee) => sum + Number(fee.balance ?? (fee.paid ? 0 : fee.amount)), 0);
     const cards = document.querySelectorAll('#financeModule .finance-card .value');
     if (cards[0]) cards[0].textContent = `UGX ${paid.toLocaleString()}`;
     if (cards[1]) cards[1].textContent = `UGX ${pending.toLocaleString()}`;
-    if (cards[2]) cards[2].textContent = `UGX ${fees.filter(fee => !fee.paid && fee.dueDate && fee.dueDate < new Date().toISOString().slice(0, 10)).reduce((sum, fee) => sum + Number(fee.amount || 0), 0).toLocaleString()}`;
+    if (cards[2]) cards[2].textContent = `UGX ${fees.filter(fee => Number(fee.balance ?? (fee.paid ? 0 : fee.amount)) > 0 && fee.dueDate && fee.dueDate < new Date().toISOString().slice(0, 10)).reduce((sum, fee) => sum + Number(fee.balance ?? (fee.paid ? 0 : fee.amount)), 0).toLocaleString()}`;
     if (cards[3]) cards[3].textContent = total ? `${Math.round((paid / total) * 100)}%` : '0%';
     const tbody = document.querySelector('#financeModule table tbody');
-    if (tbody) tbody.innerHTML = fees.length ? fees.map(fee => `<tr><td>${escapeHtml(fee.studentName)} (${escapeHtml(fee.studentUsername)})</td><td>UGX ${Number(fee.amount).toLocaleString()}</td><td>${fee.paid ? `UGX ${Number(fee.amount).toLocaleString()}` : 'UGX 0'}</td><td>UGX ${fee.paid ? '0' : Number(fee.amount).toLocaleString()}</td><td>${escapeHtml(fee.dueDate || 'Not set')}</td><td><span class="badge ${fee.paid ? 'success' : 'pending'}">${fee.paid ? 'Paid' : 'Pending'}</span></td></tr>`).join('') : '<tr><td colspan="6">No fee records found.</td></tr>';
+    if (tbody) tbody.innerHTML = fees.length ? fees.map(fee => {
+      const amountPaid = Number(fee.amountPaid ?? (fee.paid ? fee.amount : 0));
+      const balance = Number(fee.balance ?? (fee.paid ? 0 : fee.amount));
+      const settled = balance <= 0;
+      return `<tr><td>${escapeHtml(fee.studentName)} (${escapeHtml(fee.studentUsername)})</td><td>UGX ${Number(fee.amount).toLocaleString()}</td><td>UGX ${amountPaid.toLocaleString()}</td><td>UGX ${balance.toLocaleString()}</td><td>${escapeHtml(fee.dueDate || 'Not set')}</td><td><span class="badge ${settled ? 'success' : 'pending'}">${settled ? 'Settled' : amountPaid > 0 ? 'Partially paid' : 'Pending'}</span></td></tr>`;
+    }).join('') : '<tr><td colspan="6">No fee records found.</td></tr>';
     renderAdminPaymentAttempts(attempts);
     window._adminFees = fees;
+    await loadAdminRefunds();
   } catch (err) { console.error('Failed to load finance data', err); }
 }
 
@@ -783,7 +796,17 @@ async function loadAdminPaymentAttempts() {
 function renderAdminPaymentAttempts(attempts) {
   const tbody = document.querySelector('#paymentAttemptTable tbody');
   if (!tbody) return;
-  tbody.innerHTML = attempts.length ? attempts.map(attempt => `
+  tbody.innerHTML = attempts.length ? attempts.map(attempt => {
+    const isFlutterwave = attempt.paymentChannel === 'FLUTTERWAVE';
+    const checkoutExpired = attempt.checkoutExpiresAt
+      && new Date(attempt.checkoutExpiresAt).getTime() <= Date.now();
+    const reviewActions = isFlutterwave
+      ? checkoutExpired
+        ? `<span>Checkout expired</span><button class="btn-small danger" onclick="rejectAdminPaymentAttempt(${Number(attempt.id)})">Close attempt</button>`
+        : '<span>Awaiting verified Flutterwave result</span>'
+      : `<button class="btn-small" onclick="confirmAdminPaymentAttempt(${Number(attempt.id)})">Confirm verified</button>
+          <button class="btn-small danger" onclick="rejectAdminPaymentAttempt(${Number(attempt.id)})">Reject</button>`;
+    return `
     <tr>
       <td>#${Number(attempt.id)}</td>
       <td>Student #${Number(attempt.studentId)}</td>
@@ -792,9 +815,9 @@ function renderAdminPaymentAttempts(attempts) {
       <td>UGX ${Number(attempt.amount).toLocaleString()}</td>
       <td>${escapeHtml(attempt.providerReference)}</td>
       <td>${escapeHtml((attempt.createdAt || '').replace('T', ' ').slice(0, 16))}</td>
-      <td><button class="btn-small" onclick="confirmAdminPaymentAttempt(${Number(attempt.id)})">Confirm verified</button>
-          <button class="btn-small danger" onclick="rejectAdminPaymentAttempt(${Number(attempt.id)})">Reject</button></td>
-    </tr>`).join('') : '<tr><td colspan="8">No pending payment attempts.</td></tr>';
+      <td>${reviewActions}</td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="8">No pending payment attempts.</td></tr>';
 }
 
 async function confirmAdminPaymentAttempt(id) {
@@ -814,6 +837,50 @@ async function rejectAdminPaymentAttempt(id) {
     });
     await loadAdminFinance();
   } catch (err) { alert(err.message || 'Unable to reject the payment attempt.'); }
+}
+
+async function loadAdminRefunds() {
+  const tbody = document.querySelector('#refundReviewTable tbody');
+  if (!tbody) return;
+  try {
+    const refunds = await apiGet('/finance/refunds');
+    tbody.innerHTML = refunds.length ? refunds.map(refund => `
+      <tr>
+        <td>#${Number(refund.id)}</td>
+        <td>#${Number(refund.paymentAttemptId)}</td>
+        <td>#${Number(refund.feeId)}</td>
+        <td>UGX ${Number(refund.amount).toLocaleString()}</td>
+        <td>${escapeHtml(refund.processedBy || '—')}</td>
+        <td>${escapeHtml(refund.reason || '—')}</td>
+        <td>${escapeHtml(refund.refundReference || '—')}</td>
+        <td><button class="btn-small" onclick="completeAdminRefund(${Number(refund.id)})">Confirm external refund</button>
+            <button class="btn-small danger" onclick="rejectAdminRefund(${Number(refund.id)})">Reject</button></td>
+      </tr>`).join('') : '<tr><td colspan="8">No pending refund requests.</td></tr>';
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="8">${escapeHtml(err.message || 'Unable to load refund requests.')}</td></tr>`;
+  }
+}
+
+async function completeAdminRefund(id) {
+  const refundReference = prompt('Enter the verified bank or provider refund reference:');
+  if (!refundReference?.trim()) return;
+  try {
+    await apiFetch(`/finance/refunds/${id}/complete`, {
+      method: 'POST', body: JSON.stringify({ refundReference: refundReference.trim() }),
+    });
+    await loadAdminFinance();
+  } catch (err) { alert(err.message || 'Unable to complete the refund review.'); }
+}
+
+async function rejectAdminRefund(id) {
+  const reason = prompt('Why is this refund request being rejected?');
+  if (!reason?.trim()) return;
+  try {
+    await apiFetch(`/finance/refunds/${id}/reject`, {
+      method: 'POST', body: JSON.stringify({ reason: reason.trim() }),
+    });
+    await loadAdminRefunds();
+  } catch (err) { alert(err.message || 'Unable to reject the refund request.'); }
 }
 
 async function createAdminFee() {

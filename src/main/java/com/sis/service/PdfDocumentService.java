@@ -34,11 +34,14 @@ public class PdfDocumentService {
         return renderAcademicTranscript(report);
     }
 
-    public byte[] invoice(String invoiceNumber, String description, Object amount, Object dueDate, String status) throws IOException {
+    public byte[] invoice(String invoiceNumber, String description, Object amount, Object amountPaid,
+                          Object balance, Object dueDate, String status) throws IOException {
         return render("FEE INVOICE", List.of(
                 "Invoice number: " + invoiceNumber,
                 "Description: " + description,
                 "Amount: UGX " + amount,
+                "Amount paid: UGX " + amountPaid,
+                "Balance due: UGX " + balance,
                 "Due date: " + dueDate,
                 "Status: " + status,
                 "Issued: " + LocalDateTime.now().format(DATE_TIME)

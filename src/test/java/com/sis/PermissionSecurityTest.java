@@ -72,9 +72,23 @@ class PermissionSecurityTest {
     void portalSettingsPermissionIsDistinctFromAdminRole() {
         SecurityContextHolder.getContext().setAuthentication(authentication("PERM_PORTAL_SETTINGS_MANAGE"));
         assertTrue(permissionSecurity.canManagePortalSettings());
+        assertFalse(permissionSecurity.canManageRolePermissions());
 
         SecurityContextHolder.getContext().setAuthentication(authentication("TEACHER"));
         assertFalse(permissionSecurity.canManagePortalSettings());
+        assertFalse(permissionSecurity.canManageRolePermissions());
+
+        SecurityContextHolder.getContext().setAuthentication(authentication("ADMIN"));
+        assertTrue(permissionSecurity.canManageRolePermissions());
+    }
+
+    @Test
+    void privilegedPermissionNamesAreReservedFromThePermissionCatalogAdmin() {
+        SecurityContextHolder.getContext().setAuthentication(authentication("PERM_PORTAL_SETTINGS_MANAGE"));
+        assertFalse(permissionSecurity.canManageRolePermissions());
+
+        SecurityContextHolder.getContext().setAuthentication(authentication("ADMIN"));
+        assertTrue(permissionSecurity.canManageRolePermissions());
     }
 
     private UsernamePasswordAuthenticationToken authentication(String authority) {

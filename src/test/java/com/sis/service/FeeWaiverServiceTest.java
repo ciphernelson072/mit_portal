@@ -10,6 +10,7 @@ import com.sis.repository.FeeRepository;
 import com.sis.repository.FeeWaiverRepository;
 import com.sis.repository.PaymentAllocationRepository;
 import com.sis.repository.PaymentAttemptRepository;
+import com.sis.repository.PaymentRefundRepository;
 import com.sis.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 
@@ -34,6 +35,7 @@ class FeeWaiverServiceTest {
         PaymentAttemptRepository attempts = mock(PaymentAttemptRepository.class);
         AuditLogRepository auditLogs = mock(AuditLogRepository.class);
         UserRepository users = mock(UserRepository.class);
+        PaymentRefundRepository refunds = mock(PaymentRefundRepository.class);
 
         Fee fee = new Fee();
         fee.setId(71L);
@@ -52,7 +54,7 @@ class FeeWaiverServiceTest {
                 .thenReturn(new BigDecimal("20.00"));
 
         FeeWaiverService service = new FeeWaiverService(
-                waivers, fees, allocations, attempts, auditLogs, users);
+                waivers, fees, allocations, attempts, auditLogs, users, refunds);
         CreateFeeWaiverRequest request = new CreateFeeWaiverRequest();
         request.setFeeId(71L);
         request.setAmount(new BigDecimal("35.00"));

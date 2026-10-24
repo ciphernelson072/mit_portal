@@ -75,7 +75,10 @@ function initModuleData() {
   const page = window.location.pathname.split('/').pop();
   if (page === 'academics.html') loadAcademicsData();
   else if (page === 'attendance.html') loadAttendanceData();
-  else if (page === 'finance.html') loadFinanceData();
+  else if (page === 'finance.html') {
+    loadFinanceData();
+    handleFlutterwaveReturn();
+  }
   else if (page === 'profile.html') loadProfileData();
   else if (page === 'campus-support.html') {
     loadServiceRequests('.tickets-table tbody');
@@ -689,7 +692,12 @@ function showFinanceUnavailable(amountSelector, contentSelector, message) {
 function renderInvoices(fees) {
   const container = document.querySelector('.invoices-list');
   if (!container) return;
-  container.innerHTML = fees.length ? fees.map(fee => `<article class="invoice-item"><div class="invoice-header"><p class="invoice-number">Invoice #${fee.id}</p><span class="invoice-amount">UGX ${Number(fee.amount).toLocaleString()}</span></div><div class="invoice-details"><p>${escapeHtml(fee.description)}</p><p>Due: ${escapeHtml(fee.dueDate || 'Not set')}</p><p>Status: ${fee.paid ? 'Paid' : 'Pending'}</p></div><div class="invoice-actions"><button class="btn-secondary" onclick="viewInvoice(${fee.id})">View</button><button class="btn-secondary" onclick="downloadInvoice(${fee.id})">Download</button>${fee.paid ? '' : `<button class="btn-primary" onclick="selectPaymentMethod(${fee.id})">Pay</button>`}</div></article>`).join('') : '<p>No invoices found.</p>';
+  container.innerHTML = fees.length ? fees.map(fee => {
+    const amountPaid = Number(fee.amountPaid ?? (fee.paid ? fee.amount : 0));
+    const balance = Number(fee.balance ?? (fee.paid ? 0 : fee.amount));
+    const status = balance <= 0 ? 'Settled' : amountPaid > 0 ? 'Partially paid' : 'Pending';
+    return `<article class="invoice-item"><div class="invoice-header"><p class="invoice-number">Invoice #${fee.id}</p><span class="invoice-amount">UGX ${Number(fee.amount).toLocaleString()}</span></div><div class="invoice-details"><p>${escapeHtml(fee.description)}</p><p>Due: ${escapeHtml(fee.dueDate || 'Not set')}</p><p>Paid: UGX ${amountPaid.toLocaleString()} · Balance: UGX ${balance.toLocaleString()}</p><p>Status: ${status}</p></div><div class="invoice-actions"><button class="btn-secondary" onclick="viewInvoice(${fee.id})">View</button><button class="btn-secondary" onclick="downloadInvoice(${fee.id})">Download</button>${balance > 0 ? `<button class="btn-primary" onclick="selectPaymentMethod(${fee.id})">Pay balance</button>` : ''}</div></article>`;
+  }).join('') : '<p>No invoices found.</p>';
 }
 
 function renderScholarships(scholarships, applications = []) {
@@ -706,15 +714,18 @@ function renderPaymentTransactions(payments) {
   if (!tbody) return;
   tbody.innerHTML = payments.length ? payments.map(payment => `
     <tr><td>TX-${payment.id}</td><td>UGX ${Number(payment.amount).toLocaleString()}</td>
-    <td>${escapeHtml((payment.createdAt || '').slice(0, 10))}</td><td>Portal</td>
-    <td>Fee #${payment.feeId}</td><td><button class="btn-secondary small" onclick="downloadReceipt(${payment.id})">📥</button></td></tr>`).join('') : '<tr><td colspan="6">No payment transactions found.</td></tr>';
+    <td>${escapeHtml((payment.createdAt || '').slice(0, 10))}</td>
+    <td>${escapeHtml((payment.paymentChannel || 'PORTAL').replaceAll('_', ' '))}</td>
+    <td>Fee #${Number(payment.feeId)}${payment.providerReference ? `<br><small>Ref: ${escapeHtml(payment.providerReference)}</small>` : ''}</td>
+    <td><button class="btn-secondary small" onclick="downloadReceipt(${Number(payment.id)})">Download receipt</button></td></tr>`).join('') : '<tr><td colspan="6">No payment transactions found.</td></tr>';
 }
 
 function renderFinanceSummary(fees) {
-  const unpaid = fees.filter(f => !f.paid);
-  const paid = fees.filter(f => f.paid);
-  const totalDue = unpaid.reduce((sum, f) => sum + Number(f.amount), 0);
-  const totalPaid = paid.reduce((sum, f) => sum + Number(f.amount), 0);
+  const balanceFor = fee => Number(fee.balance ?? (fee.paid ? 0 : fee.amount));
+  const amountPaidFor = fee => Number(fee.amountPaid ?? (fee.paid ? fee.amount : 0));
+  const unpaid = fees.filter(fee => balanceFor(fee) > 0);
+  const totalDue = fees.reduce((sum, fee) => sum + balanceFor(fee), 0);
+  const totalPaid = fees.reduce((sum, fee) => sum + amountPaidFor(fee), 0);
   const nextDue = unpaid
     .filter(f => f.dueDate)
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
@@ -755,12 +766,12 @@ function renderFinanceSummary(fees) {
     <tr>
       <td>${escapeHtml(f.description)}</td>
       <td>${Number(f.amount).toLocaleString()}</td>
-      <td><span class="status-badge ${f.paid ? 'paid-status' : 'pending-status'}">${f.paid ? 'Paid' : 'Pending'}</span></td>
+      <td><span class="status-badge ${balanceFor(f) <= 0 ? 'paid-status' : 'pending-status'}">${balanceFor(f) <= 0 ? 'Settled' : amountPaidFor(f) > 0 ? 'Partially paid' : 'Pending'}</span></td>
     </tr>`);
   rows.push(`
     <tr class="total-row">
       <td><strong>Total</strong></td>
-      <td><strong>UGX ${(totalDue + totalPaid).toLocaleString()}</strong></td>
+      <td><strong>UGX ${fees.reduce((sum, fee) => sum + Number(fee.amount), 0).toLocaleString()}</strong></td>
       <td><strong>${unpaid.length ? 'Due' : 'Settled'}</strong></td>
     </tr>`);
   tbody.innerHTML = rows.join('');
@@ -770,20 +781,21 @@ function renderPendingPayments(fees) {
   const container = document.querySelector('.pending-payments');
   if (!container) return;
 
-  const unpaid = fees.filter(f => !f.paid);
+  const unpaid = fees.filter(f => Number(f.balance ?? (f.paid ? 0 : f.amount)) > 0);
   if (!unpaid.length) {
     container.innerHTML = `<p style="color:var(--text-secondary,#666);">No pending payments. You're all caught up.</p>`;
     return;
   }
 
   container.innerHTML = unpaid.map(f => {
+    const balance = Number(f.balance ?? (f.paid ? 0 : f.amount));
     const pendingAttempt = (window._paymentAttempts || []).some(attempt =>
       attempt.feeId === f.id && attempt.status === 'PENDING');
     return `
     <div class="payment-card">
       <div class="payment-header">
         <h3>${escapeHtml(f.description)}</h3>
-        <span class="payment-amount">UGX ${Number(f.amount).toLocaleString()}</span>
+        <span class="payment-amount">UGX ${balance.toLocaleString()} due</span>
       </div>
       <div class="payment-body">
         <div class="payment-detail">
@@ -1073,7 +1085,7 @@ async function downloadReport(type) {
 async function initiatePayment() {
   try {
     const fees = await apiGet('/fees');
-    const unpaid = fees.find(fee => !fee.paid);
+    const unpaid = fees.find(fee => Number(fee.balance ?? (fee.paid ? 0 : fee.amount)) > 0);
     if (unpaid) await selectPaymentMethod(unpaid.id);
     else alert('There are no pending fees to pay.');
   } catch (err) { alert(err.message || 'Unable to load fees.'); }
@@ -1083,10 +1095,12 @@ async function selectPaymentMethod(type) {
   const feeId = Number(type);
   const fee = (window._studentFees || []).find(item => item.id === feeId);
   if (!fee) { alert('Fee is not available in the current records.'); return; }
+  const balance = Number(fee.balance ?? (fee.paid ? 0 : fee.amount));
+  if (balance <= 0) { alert('This fee is already settled.'); return; }
   const dialog = document.getElementById('paymentDialog');
   if (!dialog) return;
   window._selectedPaymentFee = fee;
-  document.getElementById('paymentFeeSummary').innerHTML = `<strong>${escapeHtml(fee.description)}</strong><span>UGX ${Number(fee.amount).toLocaleString()}</span>`;
+  document.getElementById('paymentFeeSummary').innerHTML = `<strong>${escapeHtml(fee.description)}</strong><span>Balance due: UGX ${balance.toLocaleString()}</span>`;
   document.getElementById('providerReference').value = '';
   document.getElementById('paymentFormStatus').textContent = '';
   document.getElementById('submitPayment').disabled = true;
@@ -1098,6 +1112,8 @@ function renderPaymentChannels() {
   const container = document.getElementById('paymentChannels');
   const instructions = document.getElementById('selectedPaymentInstructions');
   const submit = document.getElementById('submitPayment');
+  const referenceGroup = document.getElementById('manualPaymentReferenceGroup');
+  const referenceInput = document.getElementById('providerReference');
   const destinations = window._paymentDestinations || [];
   container.innerHTML = destinations.map(destination => `
     <label class="payment-channel-option ${destination.available ? '' : 'unavailable'}">
@@ -1110,9 +1126,16 @@ function renderPaymentChannels() {
       const destination = destinations.find(item => item.channel === input.value);
       if (!destination) return;
       instructions.innerHTML = `<strong>${escapeHtml(destination.destination)}</strong><p>${escapeHtml(destination.instructions)}</p>`;
+      const isFlutterwave = destination.channel === 'FLUTTERWAVE';
+      referenceGroup.hidden = isFlutterwave;
+      referenceInput.required = !isFlutterwave;
+      submit.textContent = isFlutterwave ? 'Continue to secure checkout' : 'Submit for verification';
       submit.disabled = false;
     });
   });
+  referenceGroup.hidden = false;
+  referenceInput.required = true;
+  submit.textContent = 'Submit for verification';
   instructions.innerHTML = '<p>Select an available channel to view its destination and instructions.</p>';
   submit.disabled = true;
 }
@@ -1129,14 +1152,29 @@ function setupPaymentDialog() {
     const providerReference = document.getElementById('providerReference').value.trim();
     const status = document.getElementById('paymentFormStatus');
     const submit = document.getElementById('submitPayment');
-    if (!fee || !channel || !providerReference) return;
+    const isFlutterwave = channel === 'FLUTTERWAVE';
+    if (!fee || !channel || (!isFlutterwave && !providerReference)) return;
     submit.disabled = true;
-    status.textContent = 'Submitting payment request…';
+    status.textContent = isFlutterwave ? 'Creating your secure checkout…' : 'Submitting payment request…';
     try {
-      await apiFetch('/finance/payments/attempts', {
+      const response = await apiFetch(isFlutterwave
+        ? '/finance/payments/flutterwave/checkout'
+        : '/finance/payments/attempts', {
         method: 'POST',
-        body: JSON.stringify({ feeId: fee.id, amount: Number(fee.amount), paymentChannel: channel, providerReference }),
+        body: JSON.stringify(isFlutterwave
+          ? { feeId: fee.id }
+          : { feeId: fee.id, amount: Number(fee.balance ?? (fee.paid ? 0 : fee.amount)), paymentChannel: channel, providerReference }),
       });
+      if (isFlutterwave) {
+        const checkout = await response.json();
+        const checkoutUrl = new URL(checkout.checkoutUrl);
+        if (checkoutUrl.protocol !== 'https:' || checkoutUrl.hostname !== 'checkout.flutterwave.com') {
+          throw new Error('The secure checkout link could not be validated.');
+        }
+        status.textContent = 'Redirecting to Flutterwave secure checkout…';
+        window.location.assign(checkoutUrl.href);
+        return;
+      }
       status.textContent = 'Submitted. Your fee remains pending until finance verifies the payment.';
       await loadFinanceData();
       window.setTimeout(() => dialog.close(), 900);
@@ -1147,15 +1185,64 @@ function setupPaymentDialog() {
   });
 }
 
+async function handleFlutterwaveReturn() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('payment') !== 'return') return;
+
+  const status = document.getElementById('flutterwaveReturnStatus');
+  const txRef = params.get('tx_ref');
+  const transactionId = Number(params.get('transaction_id'));
+  window.history.replaceState({}, document.title, `${window.location.pathname}${window.location.hash}`);
+  if (!txRef || !Number.isSafeInteger(transactionId) || transactionId <= 0) {
+    if (status) status.textContent = 'Checkout was not completed or no transaction ID was returned. The fee has not been marked paid.';
+    return;
+  }
+
+  if (status) status.textContent = 'Verifying the payment directly with Flutterwave…';
+  try {
+    const response = await apiFetch('/finance/payments/flutterwave/verify', {
+      method: 'POST',
+      body: JSON.stringify({ txRef, transactionId }),
+    });
+    const attempt = await response.json();
+    const providerStatus = (params.get('status') || '').toLowerCase();
+    if (status) {
+      status.textContent = attempt.status === 'COMPLETED'
+        ? 'Payment verified and applied to your fee.'
+        : attempt.status === 'FAILED'
+          ? 'Flutterwave reports that this payment did not complete. The fee remains unpaid.'
+          : ['failed', 'cancelled'].includes(providerStatus)
+            ? 'Flutterwave did not complete this attempt. Your fee remains unpaid; retry from the finance page if the checkout is still active.'
+          : 'Payment is still processing. Your fee will update after Flutterwave confirms it.';
+    }
+    await loadFinanceData();
+  } catch (error) {
+    if (status) {
+      status.textContent = `${error.message || 'Payment verification is unavailable.'} Your fee has not been marked paid.`;
+    }
+  }
+}
+
 function viewPaymentDetails() {
-  const fee = (window._studentFees || []).find(item => !item.paid) || (window._studentFees || [])[0];
-  alert(fee ? `${fee.description}\nAmount: UGX ${Number(fee.amount).toLocaleString()}\nStatus: ${fee.paid ? 'Paid' : 'Pending'}\nDue: ${fee.dueDate || 'Not set'}` : 'No fee records found.');
+  const fee = (window._studentFees || []).find(item => Number(item.balance ?? (item.paid ? 0 : item.amount)) > 0)
+    || (window._studentFees || [])[0];
+  if (!fee) { alert('No fee records found.'); return; }
+  const amountPaid = Number(fee.amountPaid ?? (fee.paid ? fee.amount : 0));
+  const balance = Number(fee.balance ?? (fee.paid ? 0 : fee.amount));
+  alert(`${fee.description}\nAmount: UGX ${Number(fee.amount).toLocaleString()}\nPaid: UGX ${amountPaid.toLocaleString()}\nBalance: UGX ${balance.toLocaleString()}\nStatus: ${balance <= 0 ? 'Settled' : amountPaid > 0 ? 'Partially paid' : 'Pending'}\nDue: ${fee.dueDate || 'Not set'}`);
 }
 
 function viewInvoice(invoiceId) {
   const fee = (window._studentFees || []).find(item => String(item.id) === String(invoiceId))
     || (window._studentFees || []).find(item => item.description?.toLowerCase().includes(String(invoiceId).toLowerCase()));
-  alert(fee ? `${fee.description}\nUGX ${Number(fee.amount).toLocaleString()}\n${fee.paid ? 'Paid' : 'Pending'}` : `Invoice ${invoiceId} is not available in the current fee records.`);
+  if (!fee) {
+    alert(`Invoice ${invoiceId} is not available in the current fee records.`);
+    return;
+  }
+  const amountPaid = Number(fee.amountPaid ?? (fee.paid ? fee.amount : 0));
+  const balance = Number(fee.balance ?? (fee.paid ? 0 : fee.amount));
+  const status = balance <= 0 ? 'Settled' : amountPaid > 0 ? 'Partially paid' : 'Pending';
+  alert(`${fee.description}\nAmount: UGX ${Number(fee.amount).toLocaleString()}\nPaid: UGX ${amountPaid.toLocaleString()}\nBalance: UGX ${balance.toLocaleString()}\nStatus: ${status}`);
 }
 
 function downloadInvoice(invoiceId) {

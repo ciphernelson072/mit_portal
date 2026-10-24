@@ -1417,7 +1417,7 @@ class SecurityIntegrationTest {
         assertEquals(HttpStatus.OK, destinations.getStatusCode());
         assertTrue(destinations.getBody().contains("MIT Test Collections"));
         assertTrue(destinations.getBody().contains("\"channel\":\"MASTERCARD\""));
-        assertTrue(destinations.getBody().contains("Hosted card gateway not configured"));
+        assertTrue(destinations.getBody().contains("This legacy direct-card channel is not enabled"));
 
         String reference = "bank-proof-" + System.nanoTime();
         String body = "{\"feeId\":" + fee.getId()
@@ -1482,17 +1482,38 @@ class SecurityIntegrationTest {
 
         String requestBody = "{\"paymentAttemptId\":" + savedAttempt.getId()
                 + ",\"amount\":\"10.00\",\"reason\":\"Duplicate payment\"}";
-        assertEquals(HttpStatus.CREATED,
-            exchangeAs("admin", "admin123", "/api/finance/refunds", HttpMethod.POST, requestBody)
-                .getStatusCode());
+        ResponseEntity<String> refund = exchangeAs("admin", "admin123",
+                "/api/finance/refunds", HttpMethod.POST, requestBody);
+        assertEquals(HttpStatus.CREATED, refund.getStatusCode());
+        assertTrue(refund.getBody().contains("\"status\":\"PENDING\""));
 
         AuditLog audit = auditLogRepository.findAll().stream()
-            .filter(event -> "FINANCE_PAYMENT_REFUNDED".equals(event.getAction()))
+            .filter(event -> "FINANCE_REFUND_REQUESTED".equals(event.getAction()))
             .filter(event -> adminId.equals(event.getUserId()))
             .filter(event -> event.getDetails().contains("payment attempt #" + savedAttempt.getId()))
             .findFirst()
             .orElseThrow();
         assertTrue(audit.getDetails().contains("Duplicate payment"));
+    }
+
+    @Test
+    void portalSettingsPermissionCannotManageRolePermissions() {
+        Permission settingsPermission = permissionRepository.findByCode("PORTAL_SETTINGS_MANAGE")
+                .orElseThrow();
+        boolean alreadyAssigned = rolePermissionRepository
+                .existsByRoleAndPermissionId(Role.TEACHER, settingsPermission.getId());
+        AssignPermissionRequest request = new AssignPermissionRequest();
+        request.setRole(Role.TEACHER);
+        request.setPermissionId(settingsPermission.getId());
+        if (!alreadyAssigned) permissionService.assign(request, "admin");
+
+        try {
+            ResponseEntity<String> response = exchangeAs("teacher1", "teacher123",
+                    "/api/permissions", HttpMethod.GET, null);
+            assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+        } finally {
+            if (!alreadyAssigned) permissionService.revoke(request, "admin");
+        }
     }
 
     @Test

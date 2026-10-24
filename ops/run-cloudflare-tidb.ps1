@@ -27,6 +27,8 @@ $allowedVariables = @(
     'DB_PASSWORD',
     'JWT_SECRET',
     'PAYMENT_WEBHOOK_SECRET',
+    'FLUTTERWAVE_SECRET_KEY',
+    'FLUTTERWAVE_WEBHOOK_SECRET_HASH',
     'FRONTEND_URL',
     'CORS_ALLOWED_ORIGINS',
     'COOKIE_SECURE',
@@ -109,6 +111,14 @@ if ($values.JWT_SECRET.Length -lt 32) {
 }
 if ($values.PAYMENT_WEBHOOK_SECRET.Length -lt 32) {
     throw 'PAYMENT_WEBHOOK_SECRET must contain at least 32 characters.'
+}
+if ([string]::IsNullOrWhiteSpace($values.FLUTTERWAVE_SECRET_KEY) -xor
+    [string]::IsNullOrWhiteSpace($values.FLUTTERWAVE_WEBHOOK_SECRET_HASH)) {
+    throw 'Set both FLUTTERWAVE_SECRET_KEY and FLUTTERWAVE_WEBHOOK_SECRET_HASH, or leave both blank.'
+}
+if (-not [string]::IsNullOrWhiteSpace($values.FLUTTERWAVE_WEBHOOK_SECRET_HASH) -and
+    $values.FLUTTERWAVE_WEBHOOK_SECRET_HASH.Length -lt 32) {
+    throw 'FLUTTERWAVE_WEBHOOK_SECRET_HASH must contain at least 32 characters.'
 }
 if ($values.MFA_ENABLED -eq 'true') {
     try {

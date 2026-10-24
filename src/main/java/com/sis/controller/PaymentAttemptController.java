@@ -1,11 +1,15 @@
 package com.sis.controller;
 
 import com.sis.dto.CreatePaymentAttemptRequest;
+import com.sis.dto.FlutterwaveCheckoutRequest;
+import com.sis.dto.FlutterwaveCheckoutResponse;
+import com.sis.dto.FlutterwaveVerifyRequest;
 import com.sis.dto.PaymentDestinationView;
 import com.sis.dto.RejectPaymentAttemptRequest;
 import com.sis.entity.PaymentAttempt;
 import com.sis.service.PaymentDestinationService;
 import com.sis.service.PaymentAttemptService;
+import com.sis.service.FlutterwavePaymentService;
 import com.sis.service.SchoolService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -21,12 +25,14 @@ public class PaymentAttemptController {
     private final PaymentAttemptService paymentService;
     private final PaymentDestinationService destinations;
     private final SchoolService schoolService;
+    private final FlutterwavePaymentService flutterwave;
 
     public PaymentAttemptController(PaymentAttemptService paymentService, PaymentDestinationService destinations,
-                                    SchoolService schoolService) {
+                                    SchoolService schoolService, FlutterwavePaymentService flutterwave) {
         this.paymentService = paymentService;
         this.destinations = destinations;
         this.schoolService = schoolService;
+        this.flutterwave = flutterwave;
     }
 
     @GetMapping("/destinations")
@@ -40,6 +46,26 @@ public class PaymentAttemptController {
     public ResponseEntity<PaymentAttempt> create(@Valid @RequestBody CreatePaymentAttemptRequest request) {
         return schoolService.getStudentByUsername(username())
                 .map(student -> ResponseEntity.status(201).body(paymentService.create(request, student.getId())))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/flutterwave/checkout")
+    @PreAuthorize("hasAuthority('STUDENT')")
+    public ResponseEntity<FlutterwaveCheckoutResponse> createFlutterwaveCheckout(
+            @Valid @RequestBody FlutterwaveCheckoutRequest request) {
+        return schoolService.getStudentByUsername(username())
+                .map(student -> ResponseEntity.status(201)
+                        .body(flutterwave.createCheckout(request.getFeeId(), student.getId())))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/flutterwave/verify")
+    @PreAuthorize("hasAuthority('STUDENT')")
+    public ResponseEntity<PaymentAttempt> verifyFlutterwavePayment(
+            @Valid @RequestBody FlutterwaveVerifyRequest request) {
+        return schoolService.getStudentByUsername(username())
+                .map(student -> ResponseEntity.ok(flutterwave.verifyForStudent(
+                        request.getTxRef(), request.getTransactionId(), student.getId())))
                 .orElse(ResponseEntity.notFound().build());
     }
 

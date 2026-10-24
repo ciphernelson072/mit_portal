@@ -154,6 +154,12 @@ function getPortalPageForRole(roleValue) {
   }
 }
 
+function getLoginPageForRole(roleValue = getRole()) {
+  return ['ADMIN', 'TEACHER'].includes(normalizeRole(roleValue))
+    ? 'admin-login.html'
+    : 'index.html';
+}
+
 function getRole() { return localStorage.getItem(ROLE_KEY); }
 function getUsername() { return localStorage.getItem(USERNAME_KEY); }
 function getPasswordChangeRequired() {
@@ -389,7 +395,7 @@ function requireRole(allowedRoles, loginPage = 'index.html') {
   return true;
 }
 
-async function logout(redirectTo = 'index.html') {
+async function logout(redirectTo = getLoginPageForRole()) {
   try {
     await fetch(`${API}/auth/logout`, { method: 'POST', credentials: 'include' });
   } catch (e) {
