@@ -1,9 +1,11 @@
 const { test, expect } = require('@playwright/test');
 
+let authTestClient = 1;
+
 async function loginAdmin(page) {
   const response = await page.request.post('/api/auth/login', {
     data: { username: 'admin', password: 'admin123' },
-    headers: { 'x-forwarded-for': `198.51.100.${Math.floor(Math.random() * 200) + 1}` },
+    headers: { 'x-forwarded-for': `198.51.100.${((authTestClient++ - 1) % 254) + 1}` },
   });
   expect(response.ok()).toBeTruthy();
   await page.addInitScript(() => {
@@ -112,7 +114,7 @@ test('admin can admit a student and refresh the student roster', async ({ page }
   await page.locator('#admitStudentForm [name="className"]').fill('BSc Computing Year 1');
   await page.getByRole('button', { name: 'Admit Student' }).click();
 
-  await expect(page.locator('#studentsModule tbody')).toContainText('Isolated Test Applicant');
+  await expect(page.locator('#studentsTable tbody')).toContainText('Isolated Test Applicant');
   expect(submittedStudent).toMatchObject({
     fullName: 'Isolated Test Applicant',
     username: 'isolated-student',
