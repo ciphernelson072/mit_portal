@@ -63,6 +63,10 @@ public class GradeImportService {
                     .orElseThrow(() -> new ResourceNotFoundException("Student not found: " + row.getStudentId()));
             Course course = schoolService.getCourseById(row.getCourseId())
                     .orElseThrow(() -> new ResourceNotFoundException("Course not found: " + row.getCourseId()));
+            if (!schoolService.studentEnrolledInCourse(student.getId(), course.getId())) {
+                throw new IllegalArgumentException("Student " + student.getId()
+                        + " is not enrolled in course " + course.getId() + ".");
+            }
 
             Grade grade = schoolService.saveGrade(student, course, row.getGradeValue(), row.getRemarks());
             if (row.getGpaScore() != null) {

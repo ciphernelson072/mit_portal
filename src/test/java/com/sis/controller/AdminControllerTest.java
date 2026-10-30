@@ -93,6 +93,7 @@ class AdminControllerTest {
         grade.setId(45L);
         when(schoolService.getStudentById(24L)).thenReturn(java.util.Optional.of(student));
         when(schoolService.getCourseById(31L)).thenReturn(java.util.Optional.of(course));
+        when(schoolService.studentEnrolledInCourse(24L, 31L)).thenReturn(true);
         when(schoolService.saveGrade(student, course, "A", "Reviewed")).thenReturn(grade);
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken("audit-admin", "n/a",

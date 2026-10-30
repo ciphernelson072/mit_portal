@@ -327,6 +327,9 @@ public class AdminController {
             .orElseThrow(() -> new ResourceNotFoundException("Student not found"));
         Course course = schoolService.getCourseById(request.getCourseId())
             .orElseThrow(() -> new ResourceNotFoundException("Course not found"));
+        if (!schoolService.studentEnrolledInCourse(student.getId(), course.getId())) {
+            throw new IllegalArgumentException("Student is not enrolled in the grade course.");
+        }
         Grade grade = schoolService.saveGrade(student, course, request.getGradeValue(), request.getRemarks());
         if (request.getGpaScore() != null && request.getGpaScore().compareTo(grade.getGpaScore()) != 0) {
             throw new IllegalArgumentException("GPA score is calculated from the institutional grade mapping.");

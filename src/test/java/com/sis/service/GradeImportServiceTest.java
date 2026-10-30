@@ -56,6 +56,7 @@ class GradeImportServiceTest {
         grade.setId(3L);
         when(schoolService.getStudentById(1L)).thenReturn(Optional.of(student));
         when(schoolService.getCourseById(2L)).thenReturn(Optional.of(course));
+        when(schoolService.studentEnrolledInCourse(1L, 2L)).thenReturn(true);
         when(schoolService.saveGrade(student, course, "A", "Outstanding, consistent progress")).thenReturn(grade);
 
         MockMultipartFile file = new MockMultipartFile(
@@ -91,6 +92,7 @@ class GradeImportServiceTest {
         grade.setId(3L);
         when(schoolService.getStudentById(1L)).thenReturn(Optional.of(student));
         when(schoolService.getCourseById(2L)).thenReturn(Optional.of(course));
+        when(schoolService.studentEnrolledInCourse(1L, 2L)).thenReturn(true);
         when(schoolService.saveGrade(student, course, "A", remarks)).thenReturn(grade);
 
         MockMultipartFile file = new MockMultipartFile(
@@ -127,6 +129,26 @@ class GradeImportServiceTest {
                 "text/csv",
                 ("student_id,course_id,grade_value,remarks\n"
                         + "1,2,A,\"Unclosed remark\n").getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+        assertThrows(IllegalArgumentException.class, () -> service.importGrades(file, "admin-user"));
+        verify(schoolService, never()).saveGrade(any(), any(), any(), any());
+    }
+
+    @Test
+    void rejectsStudentNotEnrolledInImportedCourse() {
+        Student student = new Student();
+        student.setId(1L);
+        Course course = new Course();
+        course.setId(2L);
+        when(schoolService.getStudentById(1L)).thenReturn(Optional.of(student));
+        when(schoolService.getCourseById(2L)).thenReturn(Optional.of(course));
+        when(schoolService.studentEnrolledInCourse(1L, 2L)).thenReturn(false);
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "grades.csv",
+                "text/csv",
+                ("student_id,course_id,grade_value,remarks\n1,2,A,Reviewed\n")
+                        .getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
         assertThrows(IllegalArgumentException.class, () -> service.importGrades(file, "admin-user"));
         verify(schoolService, never()).saveGrade(any(), any(), any(), any());
