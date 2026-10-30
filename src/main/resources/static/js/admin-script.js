@@ -680,10 +680,8 @@ async function loadUsers() {
 }
 
 function openUserForm(user = null) {
-  const roleOptions = user
-    ? ['STUDENT', 'TEACHER', 'ADMIN'].map(role =>
-        `<option value="${role}" ${user.role === role ? 'selected' : ''}>${role}</option>`).join('')
-    : '<option value="ADMIN">ADMIN</option>';
+  const roleOptions = ['STUDENT', 'TEACHER', 'ADMIN'].map(role =>
+    `<option value="${role}" ${user?.role === role ? 'selected' : ''}>${role}</option>`).join('');
   openModal(`<span class="modal-close" onclick="closeModal()">&times;</span><h2>${user ? 'Edit' : 'Add Administrator'}</h2><form id="userForm"><div class="modal-field"><label>Username</label><input name="username" value="${escapeHtml(user?.username || '')}" required ${user ? 'readonly' : ''}></div><div class="modal-field"><label>Password</label><input name="password" type="password" ${user ? '' : 'required'}></div><div class="modal-field"><label>Role</label><select name="role">${roleOptions}</select></div><div class="modal-field"><label>Email</label><input name="email" type="email" value="${escapeHtml(user?.email || '')}"></div><div class="modal-field"><label>Phone</label><input name="phone" value="${escapeHtml(user?.phone || '')}"></div><div class="modal-actions"><button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button><button class="btn-primary">Save</button></div></form>`);
   document.getElementById('userForm').addEventListener('submit', async event => {
     event.preventDefault();
