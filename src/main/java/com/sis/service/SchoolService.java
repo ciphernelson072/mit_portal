@@ -134,6 +134,11 @@ public class SchoolService {
             student.setEmail(request.getEmail());
             student.setPhone(request.getPhone());
             student.setAddress(request.getAddress());
+            student.setDateOfBirth(request.getDateOfBirth());
+            student.setGender(request.getGender());
+            student.setAlternativePhone(request.getAlternativePhone());
+            student.setCity(request.getCity());
+            student.setCountry(request.getCountry());
             studentRepository.save(student);
             return getStudentProfile(student.getId());
         });
