@@ -59,9 +59,18 @@ public class GradeImportService {
             throw new IllegalArgumentException("Grade import file must contain at least one data row.");
         }
 
-        List<AdminGradeDto> output = new ArrayList<>();
+        Set<String> importKeys = new HashSet<>();
         for (AdminGradeImportRequest row : rows) {
             validate(row);
+            String importKey = row.getStudentId() + ":" + row.getCourseId();
+            if (!importKeys.add(importKey)) {
+                throw new IllegalArgumentException("Duplicate grade row for student " + row.getStudentId()
+                        + " and course " + row.getCourseId() + ".");
+            }
+        }
+
+        List<AdminGradeDto> output = new ArrayList<>();
+        for (AdminGradeImportRequest row : rows) {
             Student student = schoolService.getStudentById(row.getStudentId())
                     .orElseThrow(() -> new ResourceNotFoundException("Student not found: " + row.getStudentId()));
             Course course = schoolService.getCourseById(row.getCourseId())

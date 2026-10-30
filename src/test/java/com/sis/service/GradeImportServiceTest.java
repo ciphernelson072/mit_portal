@@ -161,4 +161,17 @@ class GradeImportServiceTest {
         assertThrows(IllegalArgumentException.class, () -> service.importGrades(file, "admin-user"));
         verify(schoolService, never()).saveGrade(any(), any(), any(), any());
     }
+
+    @Test
+    void rejectsDuplicateStudentCourseRows() {
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "grades.csv", "text/csv",
+                ("student_id,course_id,grade_value,remarks\n"
+                        + "1,2,A,First\n"
+                        + "1,2,B,Duplicate\n")
+                        .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+        assertThrows(IllegalArgumentException.class, () -> service.importGrades(file, "admin-user"));
+        verify(schoolService, never()).saveGrade(any(), any(), any(), any());
+    }
 }
