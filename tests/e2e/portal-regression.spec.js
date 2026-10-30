@@ -2,9 +2,13 @@ const { test, expect } = require('@playwright/test');
 
 let authTestClient = 1;
 
+function nextForwardedIp() {
+  return `198.51.100.${((authTestClient++ - 1) % 254) + 1}`;
+}
+
 async function login(page, username, password, adminLogin = false) {
   const role = adminLogin ? (username === 'admin' ? 'ADMIN' : 'TEACHER') : (username === 'admin' ? 'ADMIN' : username === 'teacher1' ? 'TEACHER' : 'STUDENT');
-  const forwardedIp = `198.51.100.${authTestClient++}`;
+  const forwardedIp = nextForwardedIp();
   const loginResponse = await page.request.post('/api/auth/login', {
     data: { username, password },
     headers: { 'x-forwarded-for': forwardedIp },
@@ -834,7 +838,7 @@ test.describe('responsive portal surfaces', () => {
     for (const roleCase of roleCases) {
       const loginResponse = await page.request.post('/api/auth/login', {
         data: { username: roleCase.username, password: roleCase.password },
-        headers: { 'x-forwarded-for': `198.51.100.${authTestClient++}` },
+        headers: { 'x-forwarded-for': nextForwardedIp() },
       });
       expect(loginResponse.ok()).toBeTruthy();
       expect(await loginResponse.json()).toMatchObject({ role: roleCase.role });
