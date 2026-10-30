@@ -9,7 +9,7 @@ the [Render deployment details](./RENDER_DEPLOYMENT.md), the
 [release checklist](./RELEASE_CHECKLIST.md), and the
 [integration inventory](./INTEGRATION_GAPS.md).
 
-## Source and documentation update (27 October 2026)
+## Source and documentation update (31 October 2026)
 
 This source tree contains Flyway migrations V1-V45. The corrected V37-V42
 sequence has now been applied successfully to the TiDB pilot after a verified
@@ -20,8 +20,9 @@ passed after V44 on 26 October: 327 tests, zero failures, zero errors, and zero 
 provider sandbox testing, or establish production-environment acceptance.
 Migration V45 persists administrator review acknowledgment against the exact
 assessment/result fingerprint and requires the same fingerprint at approval.
-The 27 October full backend suite passed 328 tests; all 87 isolated Playwright
-tests and all 10 frontend unit tests passed.
+The 31 October full backend suite passed 381 tests after reconciliation
+reference hardening; all 87 isolated Playwright tests and all 10 frontend unit
+tests passed in the latest recorded browser run.
 
 The source includes course-specific assessment components, separate mark
 records, weighted-mark calculation with missing marks distinguished from zero,
