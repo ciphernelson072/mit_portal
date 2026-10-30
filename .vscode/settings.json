@@ -1,5 +1,6 @@
 {
-  "files.autoSave": "off",
+  "files.autoSave": "afterDelay",
+  "files.autoSaveDelay": 1000,
   "java.configuration.runtimes": [
     {
       "name": "JavaSE-21",
