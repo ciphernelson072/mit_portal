@@ -135,6 +135,18 @@ class GradeImportServiceTest {
     }
 
     @Test
+    void rejectsCsvWithHeaderButNoDataRows() {
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "grades.csv",
+                "text/csv",
+                "student_id,course_id,grade_value,remarks\n".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+        assertThrows(IllegalArgumentException.class, () -> service.importGrades(file, "admin-user"));
+        verify(schoolService, never()).saveGrade(any(), any(), any(), any());
+    }
+
+    @Test
     void rejectsStudentNotEnrolledInImportedCourse() {
         Student student = new Student();
         student.setId(1L);

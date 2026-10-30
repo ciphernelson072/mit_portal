@@ -2732,11 +2732,6 @@ async function fetchAllAdminPages(path, pageSize = 250) {
   return content;
 }
 
-function downloadJson(name, value) {
-  const response = new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' });
-  triggerBlobDownload(response, name.replace(/\.json$/i, '.json'));
-}
-
 function downloadAdminCsv(dataset) {
   const data = window._adminExportData?.[dataset];
   if (dataset === 'statistics' && data && typeof data === 'object' && !Array.isArray(data)) {
@@ -2764,7 +2759,17 @@ async function exportAdminData() {
       apiGet('/admin/grades'), apiGet('/admin/fees'), apiGet('/portal/admin/audit'),
     ]);
     window._adminExportData = { statistics, users, students, teachers, courses, grades, fees, audit };
-    downloadJson('portal-admin-data-export.json', { exportedAt: new Date().toISOString(), ...window._adminExportData });
+    downloadCsv('portal-admin-export-summary.csv', [{
+      exportedAt: new Date().toISOString(),
+      statistics: Object.keys(window._adminExportData.statistics || {}).length,
+      users: window._adminExportData.users.length,
+      students: window._adminExportData.students.length,
+      teachers: window._adminExportData.teachers.length,
+      courses: window._adminExportData.courses.length,
+      grades: window._adminExportData.grades.length,
+      fees: window._adminExportData.fees.length,
+      audit: window._adminExportData.audit.length,
+    }]);
     document.getElementById('adminCsvExports').hidden = false;
   }
   catch (err) { alert(err.message || 'Admin data export failed.'); }

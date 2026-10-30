@@ -324,7 +324,9 @@ function csvCell(value) {
 }
 
 function recordsToCsv(records) {
-  if (!records.length) throw new Error('There are no records to export.');
+  if (!records.length) {
+    return '\uFEFF"message"\r\n"No records found"';
+  }
   const columns = [];
   const seen = new Set();
   records.forEach(record => {
@@ -349,7 +351,7 @@ function recordsToCsv(records) {
 
 function downloadCsv(filename, records) {
   const csv = recordsToCsv(Array.isArray(records) ? records : [records]);
-  triggerBlobDownload(new Blob([csv], { type: 'text/csv;charset=utf-8' }), filename);
+  triggerBlobDownload(new Blob([csv], { type: 'text/csv;charset=utf-8' }), safeDownloadFilename(filename, 'export.csv'));
 }
 
 async function downloadResponse(response, fallbackFilename = 'download') {

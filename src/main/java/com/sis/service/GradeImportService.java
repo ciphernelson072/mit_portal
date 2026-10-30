@@ -55,6 +55,9 @@ public class GradeImportService {
         } else {
             throw new IllegalArgumentException("Unsupported grade import format. Use CSV, XLS, or XLSX.");
         }
+        if (rows.isEmpty()) {
+            throw new IllegalArgumentException("Grade import file must contain at least one data row.");
+        }
 
         List<AdminGradeDto> output = new ArrayList<>();
         for (AdminGradeImportRequest row : rows) {
