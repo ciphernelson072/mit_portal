@@ -45,3 +45,15 @@ test('authenticated file downloads honor a safe server-provided filename', async
   expect(download.suggestedFilename()).toBe('report.pdf');
   expect(await fs.readFile(await download.path(), 'utf8')).toBe('verified file content');
 });
+
+test('empty CSV exports produce a valid downloadable file', async ({ page }) => {
+  await loginAdmin(page);
+  const downloadPromise = page.waitForEvent('download');
+  await page.evaluate(() => downloadCsv('empty-export.csv', []));
+  const download = await downloadPromise;
+
+  expect(download.suggestedFilename()).toBe('empty-export.csv');
+  const contents = await fs.readFile(await download.path(), 'utf8');
+  expect(contents).toContain('"message"');
+  expect(contents).toContain('"No records found"');
+});

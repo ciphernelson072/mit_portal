@@ -2701,7 +2701,7 @@ async function generateFinanceReport() {
 
 function downloadReportData(filename, report) {
   if (typeof report === 'string') {
-    triggerBlobDownload(new Blob([report], { type: 'text/plain;charset=utf-8' }), `${filename}.txt`);
+    downloadCsv(`${filename}.csv`, [{ report }]);
     return;
   }
   if (Array.isArray(report)) {
