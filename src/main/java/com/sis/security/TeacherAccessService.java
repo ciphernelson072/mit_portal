@@ -94,4 +94,27 @@ public class TeacherAccessService {
                                 teacher.getId(), studentId, RegistrationStatus.REGISTERED))
                 .orElse(false);
     }
+
+    public boolean teachesStudentInCourse(Long studentId, Long courseId) {
+        if (studentId == null || courseId == null) {
+            return false;
+        }
+
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getAuthorities() == null) {
+            return false;
+        }
+
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ADMIN".equals(authority.getAuthority()));
+        if (isAdmin) {
+            return true;
+        }
+
+        String username = authentication.getName();
+        return teacherRepository.findByUserUsername(username)
+                .map(teacher -> courseRepository.existsByIdAndTeacherUserUsername(courseId, username)
+                        && courseRepository.existsEnrolledStudent(courseId, studentId))
+                .orElse(false);
+    }
 }

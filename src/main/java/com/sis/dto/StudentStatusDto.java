@@ -22,6 +22,10 @@ public class StudentStatusDto {
     private String studentProgramName;
     private String studentLifecycleStatus;
     private List<GradeDto> grades;
+    private String resultPublicationStatus;
+    private Integer creditsEarned;
+    private String academicStandingStatus;
+    private List<String> missingResultCourses;
     private long attendanceCount;
     private long presentAttendanceCount;
 }

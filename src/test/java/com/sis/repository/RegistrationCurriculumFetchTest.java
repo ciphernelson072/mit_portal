@@ -120,6 +120,11 @@ class RegistrationCurriculumFetchTest {
         registration.setStatus(RegistrationStatus.REGISTERED);
         registration = registrations.saveAndFlush(registration);
 
+        assertThat(courses.findByStudentIdWithTeacherAndCategoryIncludingRegistrations(student.getId()))
+                .extracting(Course::getId).containsExactly(course.getId());
+        assertThat(students.findByCourseIdIncludingRegistrations(course.getId()))
+                .extracting(com.sis.entity.Student::getId).containsExactly(student.getId());
+
         Program program = saveProgram();
         CurriculumCourse curriculumCourse = new CurriculumCourse();
         curriculumCourse.setProgram(program);

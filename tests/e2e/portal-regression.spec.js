@@ -348,9 +348,23 @@ test.describe('responsive portal surfaces', () => {
       let body = [];
       if (url.pathname === '/api/student/grades') {
         body = [
-          { id: 1, courseCode: 'CS401', courseName: 'Database Systems', credits: 3, gradeValue: 'A', gpaScore: 4, semester: 'Semester 4', status: 'APPROVED' },
-          { id: 2, courseCode: 'CS402', courseName: 'Data Mining', credits: 2, gradeValue: 'B', gpaScore: 3, semester: 'Semester 4', status: 'APPROVED' },
+          { id: 1, courseCode: 'CS401', courseName: 'Database Systems', credits: 3, grade: 'A', totalMark: 84, gpaScore: 4, semester: 'Semester 4', status: 'APPROVED', assessmentComponents: [
+            { componentType: 'COURSEWORK', displayName: 'Coursework', score: 36, maxScore: 40 },
+            { componentType: 'FINAL_PAPER', displayName: 'Final paper', score: 48, maxScore: 60 },
+          ] },
+          { id: 2, courseCode: 'CS402', courseName: 'Data Mining', credits: 2, grade: 'B', gpaScore: 3, semester: 'Semester 4', status: 'APPROVED' },
         ];
+      } else if (url.pathname === '/api/reports/academic/7/status') {
+        body = {
+          approved: true,
+          published: true,
+          publishedBy: 'Academic Office',
+          publishedAt: '2026-10-01',
+          semesterGpa: 3.60,
+          latestSemester: 'Semester 4',
+          creditsEarned: 5,
+          academicStandingStatus: 'NORMAL_PROGRESS',
+        };
       } else if (url.pathname === '/api/student/profile') {
         body = { id: 7, cgpa: 3.5 };
       } else if (url.pathname === '/api/academic-records/7/transcript') {
@@ -360,7 +374,10 @@ test.describe('responsive portal surfaces', () => {
     });
     await page.goto('/academics.html#grades');
     const row = page.locator('.grades-table tbody tr').first();
-    await expect(row.locator('td')).toHaveText(['CS401', 'Database Systems', '3', 'A', '4.00', 'Semester 4']);
+    await expect(row.locator('td')).toHaveText([
+      'CS401', 'Database Systems', 'Coursework: 36/40', 'Final paper: 48/60',
+      '—', '84.00', 'A', '4.00', 'APPROVED',
+    ]);
     await expect(page.locator('.gpa-card .gpa-value').nth(1)).toHaveText('3.60');
     await expect(page.locator('.gpa-card .gpa-value').nth(2)).toHaveText('5');
   });
@@ -947,11 +964,22 @@ test.describe('responsive portal surfaces', () => {
       { id: 102, studentId: 8, studentUsername: 'student2', studentName: 'Brian Student', courseId: 2, courseName: 'Computer Science', gradeValue: 'C', gpaScore: 2.0, status: 'PENDING', submittedBy: 'teacher1', remarks: 'Needs review' },
     ];
     let rejectionReason;
+    let reviewAcknowledged = false;
     await page.route('**/api/**', async route => {
       const url = new URL(route.request().url());
       if (url.pathname === '/api/admin/grades' && route.request().method() === 'GET') {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(grades) });
+      } else if (url.pathname === '/api/teacher/grades/101/assessment-marks') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify([{ componentId: 1, componentCode: 'CW', displayName: 'Coursework', componentType: 'COURSEWORK', score: 80, maxScore: 100, weightPercentage: 100 }]),
+        });
+      } else if (url.pathname === '/api/admin/grades/101/review' && route.request().method() === 'POST') {
+        reviewAcknowledged = true;
+        await route.fulfill({ status: 204 });
       } else if (url.pathname === '/api/admin/grades/101/approve' && route.request().method() === 'POST') {
+        expect(reviewAcknowledged).toBe(true);
         grades = grades.map(grade => grade.id === 101 ? { ...grade, status: 'APPROVED', approvedBy: 'admin' } : grade);
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(grades[0]) });
       } else if (url.pathname === '/api/admin/grades/102/reject' && route.request().method() === 'POST') {
@@ -969,6 +997,9 @@ test.describe('responsive portal surfaces', () => {
     await expect(gradeRows).toHaveCount(2);
 
     const approvalRow = gradeRows.filter({ hasText: 'Alice Student' });
+    await approvalRow.getByRole('button', { name: 'Review marks' }).click();
+    await expect(page.getByRole('heading', { name: /Assessment review/ })).toBeVisible();
+    await page.getByRole('button', { name: 'Mark reviewed' }).click();
     await approvalRow.getByRole('button', { name: 'Approve' }).click();
     await expect(approvalRow).toContainText('APPROVED');
 
@@ -978,6 +1009,112 @@ test.describe('responsive portal surfaces', () => {
     await expect(rejectionRow).toContainText('REJECTED');
     await expect(rejectionRow).toContainText('Missing assessment evidence');
     expect(rejectionReason).toBe('Missing assessment evidence');
+  });
+
+  test('admin configures a course-specific 100-percent assessment structure', async ({ page }) => {
+    await login(page, 'admin', 'admin123', true);
+    let savedStructure;
+    await page.route('**/api/**', async route => {
+      const url = new URL(route.request().url());
+      if (url.pathname === '/api/teacher/courses/501/assessment-components' && route.request().method() === 'GET') {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+      } else if (url.pathname === '/api/admin/courses/501/assessment-components' && route.request().method() === 'PUT') {
+        savedStructure = route.request().postDataJSON();
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(savedStructure) });
+      } else {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+      }
+    });
+    await page.goto('/admin-dashboard.html');
+    await page.evaluate(() => configureCourseAssessments(501));
+    const row = page.locator('.assessment-component-row').first();
+    await row.locator('[name="componentCode"]').fill('CW');
+    await row.locator('[name="displayName"]').fill('Coursework');
+    await row.locator('[name="componentType"]').selectOption('COURSEWORK');
+    await row.locator('[name="weightPercentage"]').fill('40');
+    await row.locator('[name="maxScore"]').fill('40');
+    await page.getByRole('button', { name: 'Add component' }).click();
+    const second = page.locator('.assessment-component-row').nth(1);
+    await second.locator('[name="componentCode"]').fill('FINAL');
+    await second.locator('[name="displayName"]').fill('Final paper');
+    await second.locator('[name="componentType"]').selectOption('FINAL_PAPER');
+    await second.locator('[name="weightPercentage"]').fill('60');
+    await second.locator('[name="maxScore"]').fill('100');
+    await page.getByRole('button', { name: 'Save assessment structure' }).click();
+    await expect.poll(() => savedStructure?.length).toBe(2);
+    expect(savedStructure.reduce((sum, component) => sum + component.weightPercentage, 0)).toBe(100);
+    expect(savedStructure[1].componentType).toBe('FINAL_PAPER');
+  });
+
+  test('teacher records per-component marks and displays server-calculated grade', async ({ page }) => {
+    await login(page, 'teacher1', 'teacher123');
+    let submittedMarks;
+    let grades = [];
+    await page.route('**/api/**', async route => {
+      const url = new URL(route.request().url());
+      if (url.pathname === '/api/teacher/my-courses') {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([{ id: 2, courseCode: 'CSC201', name: 'Computer Science' }]) });
+      } else if (url.pathname === '/api/teacher/courses/2/students') {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([{ id: 7, fullName: 'Alice Student', registrationNumber: 'MIT/2024/00001' }]) });
+      } else if (url.pathname === '/api/teacher/courses/2/assessment-components') {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([{ id: 12, componentCode: 'CW', displayName: 'Coursework', componentType: 'COURSEWORK', weightPercentage: 100, maxScore: 100, required: true }]) });
+      } else if (url.pathname === '/api/teacher/courses/2/grades') {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(grades) });
+      } else if (url.pathname === '/api/teacher/courses/2/students/7/grade' && route.request().method() === 'POST') {
+        await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ id: 31 }) });
+      } else if (url.pathname === '/api/teacher/grades/31/assessment-marks' && route.request().method() === 'PUT') {
+        submittedMarks = route.request().postDataJSON();
+        grades = [{ id: 31, studentId: 7, studentName: 'Alice Student', gradeValue: 'A', totalMark: 80, gpaScore: 5, retakeRequired: false, status: 'PENDING', attemptNumber: 1, attemptType: 'ORIGINAL_ATTEMPT' }];
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ gradeId: 31, status: 'COMPLETE', complete: true, totalMark: 80 }) });
+      } else {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+      }
+    });
+    await page.goto('/teacher-dashboard.html');
+    await page.locator('#gradeStudent').selectOption('7');
+    await page.locator('[data-component-score="12"]').fill('80');
+    await page.locator('#gradeRemarks').fill('Assessed coursework');
+    await page.getByRole('button', { name: 'Save assessment marks' }).click();
+    await expect(page.locator('#gradeStatus')).toContainText('Calculated total: 80.00%');
+    expect(submittedMarks).toEqual({ marks: [{ componentId: 12, score: 80 }], remarks: 'Assessed coursework' });
+    await expect(page.locator('#teacherGradeList')).toContainText('80.00%');
+    await expect(page.locator('#teacherGradeList')).toContainText('A');
+  });
+
+  test('admin authorizes a correction for an approved grade with a reason', async ({ page }) => {
+    await login(page, 'admin', 'admin123', true);
+
+    let correctionRequest;
+    const grades = [
+      { id: 103, studentId: 9, studentUsername: 'student3', studentName: 'Chris Student', courseId: 3, courseName: 'Applied Computing', gradeValue: 'B', gpaScore: 3.0, status: 'APPROVED', approvedBy: 'admin' },
+    ];
+    await page.route('**/api/**', async route => {
+      const url = new URL(route.request().url());
+      if (url.pathname === '/api/admin/grades' && route.request().method() === 'GET') {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(grades) });
+      } else if (url.pathname === '/api/admin/grades/103/corrections' && route.request().method() === 'POST') {
+        correctionRequest = route.request().postDataJSON();
+        await route.fulfill({
+          status: 201,
+          contentType: 'application/json',
+          body: JSON.stringify({ id: 7, gradeId: 103, status: 'AUTHORIZED', reason: correctionRequest.reason }),
+        });
+      } else {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+      }
+    });
+
+    await page.addInitScript(() => {
+      window.prompt = () => 'Approved coursework mark needs correction';
+      window.confirm = () => true;
+      window.alert = () => {};
+    });
+    await page.goto('/admin-dashboard.html');
+    await page.evaluate(() => switchModule('grades'));
+    const row = page.locator('#gradesModule table tbody tr').filter({ hasText: 'Chris Student' });
+    await expect(row.getByRole('button', { name: 'Authorize correction' })).toBeVisible();
+    await row.getByRole('button', { name: 'Authorize correction' }).click();
+    expect(correctionRequest).toEqual({ reason: 'Approved coursework mark needs correction' });
   });
 
   test('teacher sees leave workflow but not admin-only HR actions', async ({ page }) => {
@@ -994,8 +1131,28 @@ test.describe('responsive portal surfaces', () => {
       const url = new URL(route.request().url());
       const responses = {
         '/api/student/courses': [],
-        '/api/student/grades': [],
+        '/api/student/grades': [{
+          id: 8,
+          courseCode: 'CS101',
+          courseName: 'Intro to Computing',
+          gradeValue: 'A',
+          gpaScore: 5,
+          totalMark: 82,
+          status: 'APPROVED',
+          credits: 3,
+          assessmentComponents: [{ componentCode: 'CW', displayName: 'Coursework', componentType: 'COURSEWORK', score: 32, maxScore: 40 }],
+        }],
         '/api/student/profile': { id: 44, fullName: 'Test Student', cgpa: 3.5 },
+        '/api/reports/academic/44/status': {
+          approved: true,
+          published: true,
+          publishedBy: 'Academic Office',
+          publishedAt: '2026-10-01',
+          creditsEarned: 3,
+          semesterGpa: 5,
+          latestSemester: 'Semester 1',
+        },
+        '/api/student/my-status': { resultPublicationStatus: 'PUBLISHED', creditsEarned: 3, missingResultCourses: [] },
         '/api/portal/student/assignments': [],
         '/api/portal/student/exams': [],
         '/api/academic/student/timetable': [],
@@ -1023,9 +1180,54 @@ test.describe('responsive portal surfaces', () => {
     await page.getByRole('button', { name: /Academic Records/ }).click();
     await expect(page.locator('#transcriptSummary')).toContainText('Test Student');
     await expect(page.locator('#transcriptTable tbody')).toContainText('CS101');
+    await expect(page.locator('.grades-table tbody')).toContainText('Coursework: 32/40');
+    await expect(page.locator('.grades-table tbody')).toContainText('A');
     await expect(page.locator('#degreeAuditSummary')).toContainText('1/2 required courses complete');
     await expect(page.locator('#missingCoursesTable tbody')).toContainText('CS102');
     await expect(page.locator('#downloadTranscript')).toBeEnabled();
+  });
+
+  test('student sees pending submissions without unpublished grades or calculations', async ({ page }) => {
+    await login(page, 'student1', 'student123');
+    await page.route('**/api/**', async route => {
+      const url = new URL(route.request().url());
+      const responses = {
+        '/api/student/courses': [{ id: 2, courseCode: 'CSC201', name: 'Computer Science', semester: 'Semester 1' }],
+        '/api/student/grades': [],
+        '/api/student/profile': { id: 44, fullName: 'Test Student', cgpa: null },
+        '/api/reports/academic/44/status': {
+          approved: false,
+          published: false,
+          publicationStatus: 'PENDING',
+          cgpa: null,
+          creditsEarned: null,
+          semesterGpa: null,
+          awardClassification: null,
+          courseGrades: [],
+        },
+        '/api/student/my-status': {
+          resultPublicationStatus: 'PENDING',
+          creditsEarned: null,
+          academicStandingStatus: 'NOT_FINALIZED',
+          missingResultCourses: ['CSC201 · Computer Science'],
+        },
+        '/api/portal/student/assignments': [],
+        '/api/portal/student/exams': [],
+        '/api/academic/student/timetable': [],
+        '/api/academic/student/exam-results': [],
+        '/api/student/exam-permits': [],
+        '/api/student/attendance': [],
+      };
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(responses[url.pathname] ?? []) });
+    });
+    await page.goto('/academics.html');
+    await page.getByRole('button', { name: /Grades/ }).click();
+    await expect(page.locator('#gradePublicationStatus')).toContainText('PENDING ADMIN APPROVAL');
+    await expect(page.locator('#gradeCgpaNoticeText')).toContainText('shown after results are approved and published');
+    await expect(page.locator('#missingResultCourses')).toContainText('CSC201 · Computer Science');
+    await expect(page.locator('.gpa-card .gpa-value').first()).toHaveText('NOT FINALIZED');
+    await expect(page.locator('.grades-table tbody')).not.toContainText('82.00');
+    await expect(page.locator('.grades-table tbody')).not.toContainText('A');
   });
 });
 
@@ -1339,7 +1541,12 @@ test('admin report approval uses an in-page form instead of a browser prompt', a
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ approved: true, approvedBy: 'admin', approvedAt: '2026-10-07T12:00:00' }),
+        body: JSON.stringify({
+          approved: true,
+          approvedBy: 'admin',
+          approvedAt: '2026-10-07T12:00:00',
+          resultsVersion: 'version-7',
+        }),
       });
       return;
     }
@@ -1347,12 +1554,14 @@ test('admin report approval uses an in-page form instead of a browser prompt', a
   });
 
   await page.getByRole('link', { name: /Reports/ }).click();
-  await page.locator('#reportsModule .report-card').filter({ hasText: 'Approve Student Report' }).click();
+  await page.locator('#reportsModule .report-card').filter({ hasText: 'Review & Publish Student Results' }).click();
   await expect(page.getByRole('heading', { name: 'Approve student report', exact: true })).toBeVisible();
   await page.locator('#approveStudentReportId').fill('7');
-  await page.getByRole('button', { name: 'Approve report' }).click();
+  await page.getByRole('button', { name: 'Approve current version' }).click();
 
-  await expect(page.locator('#approveStudentReportMessage')).toContainText("Student 7's academic report was approved");
+  await expect(page.locator('#approveStudentReportMessage')).toContainText(
+    'Version version-7 approved. Students cannot see it until you publish this exact version.',
+  );
   expect(approvedStudentId).toBe(7);
 });
 
@@ -1463,6 +1672,7 @@ test('admin can configure institution directory and activate an academic year', 
   await page.locator('#programCode').fill('BSC-CS');
   await page.locator('#programName').fill('Bachelor of Computer Science');
   await page.locator('#programAwardTitle').fill('Bachelor of Science');
+  await page.locator('#programAwardType').selectOption('BACHELOR');
   await page.locator('#programDurationYears').fill('3');
   await page.getByRole('button', { name: 'Add Programme' }).click();
   await expect(page.locator('#institutionProgramList')).toContainText('Bachelor of Computer Science');

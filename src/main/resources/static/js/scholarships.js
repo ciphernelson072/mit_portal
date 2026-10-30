@@ -11,7 +11,7 @@ async function loadScholarships() {
     ]);
 
     const appMap = new Map((applications || []).map(app => [app.scholarshipId, app]));
-    if (summary) summary.textContent = `${scholarships.length} available funding option${scholarships.length === 1 ? '' : 's'}`;
+    if (summary) summary.textContent = `${scholarships.length} funding option${scholarships.length === 1 ? '' : 's'}`;
 
     if (!scholarshipList) return;
     scholarshipList.innerHTML = scholarships.length ? scholarships.map(item => {

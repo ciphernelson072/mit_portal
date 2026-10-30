@@ -26,6 +26,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -79,6 +80,38 @@ class AcademicRecordServiceTest {
 
         assertEquals(saved, result);
         verify(gradeRepository).findByIdWithStudentUserAndCourse(8L);
+    }
+
+    @Test
+    void approvedGradesCannotBeUpdatedThroughLegacyAcademicRecordService() {
+        GradeRepository gradeRepository = Mockito.mock(GradeRepository.class);
+        AttendanceRepository attendanceRepository = Mockito.mock(AttendanceRepository.class);
+        FeeService feeService = Mockito.mock(FeeService.class);
+        AcademicRecordService service = new AcademicRecordService(gradeRepository, attendanceRepository, feeService);
+        Grade approved = new Grade();
+        approved.setStatus(GradeStatus.APPROVED);
+
+        IllegalStateException error = assertThrows(IllegalStateException.class,
+                () -> service.updateGrade(approved, "B", "changed", null));
+
+        assertTrue(error.getMessage().contains("controlled correction workflow"));
+        Mockito.verifyNoInteractions(gradeRepository);
+    }
+
+    @Test
+    void approvedGradesCannotBeDeletedThroughLegacyAcademicRecordService() {
+        GradeRepository gradeRepository = Mockito.mock(GradeRepository.class);
+        AttendanceRepository attendanceRepository = Mockito.mock(AttendanceRepository.class);
+        FeeService feeService = Mockito.mock(FeeService.class);
+        AcademicRecordService service = new AcademicRecordService(gradeRepository, attendanceRepository, feeService);
+        Grade approved = new Grade();
+        approved.setStatus(GradeStatus.APPROVED);
+
+        IllegalStateException error = assertThrows(IllegalStateException.class,
+                () -> service.deleteGrade(approved));
+
+        assertTrue(error.getMessage().contains("controlled correction workflow"));
+        Mockito.verifyNoInteractions(gradeRepository);
     }
 
     @Test

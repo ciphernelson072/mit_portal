@@ -30,11 +30,26 @@ public class HrService {
     }
 
     public Staff createStaff(CreateStaffRequest request) {
+        User employeeUser = users.findById(request.getUserId())
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        if (!Boolean.TRUE.equals(employeeUser.getIsActive())) {
+            throw new IllegalArgumentException("An active account is required for an HR staff profile");
+        }
+        if (employeeUser.getRole() != Role.ADMIN && employeeUser.getRole() != Role.TEACHER) {
+            throw new IllegalArgumentException("HR staff profiles can only be linked to administrator or teacher accounts");
+        }
+        if (staff.existsByUser_Id(employeeUser.getId())) {
+            throw new IllegalArgumentException("This account already has an HR staff profile");
+        }
+        String employeeNumber = request.getEmployeeNumber().trim();
+        if (staff.existsByEmployeeNumber(employeeNumber)) {
+            throw new IllegalArgumentException("Employee number is already in use");
+        }
         Staff item = new Staff();
-        item.setUser(users.findById(request.getUserId()).orElseThrow(() -> new IllegalArgumentException("User not found")));
-        item.setEmployeeNumber(request.getEmployeeNumber());
-        item.setFullName(request.getFullName());
-        item.setTitle(request.getTitle());
+        item.setUser(employeeUser);
+        item.setEmployeeNumber(employeeNumber);
+        item.setFullName(request.getFullName().trim());
+        item.setTitle(request.getTitle().trim());
         item.setDepartmentId(request.getDepartmentId());
         item.setHireDate(request.getHireDate());
         return staff.save(item);

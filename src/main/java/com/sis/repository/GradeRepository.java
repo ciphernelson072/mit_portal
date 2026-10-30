@@ -18,11 +18,16 @@ public interface GradeRepository extends JpaRepository<Grade, Long> {
 
     List<Grade> findByStudentId(Long studentId);
 
+    @Query("SELECT c.id FROM Course c JOIN c.students s WHERE s.id = :studentId AND c.core = true")
+    List<Long> findCoreCourseIdsByStudentId(@Param("studentId") Long studentId);
+
     List<Grade> findByStudentIdAndStatus(Long studentId, GradeStatus status);
+    List<Grade> findByStudentIdAndCourseIdOrderByAttemptNumberAsc(Long studentId, Long courseId);
     List<Grade> findByStudentIdAndStatusOrderByApprovedAtDescIdDesc(Long studentId, GradeStatus status);
     List<Grade> findTop5ByStudentIdAndStatusOrderByApprovedAtDescIdDesc(Long studentId, GradeStatus status);
         boolean existsByStudentIdAndCourseIdAndStatusAndGpaScoreGreaterThanEqual(
             Long studentId, Long courseId, GradeStatus status, BigDecimal minimumGpa);
+        boolean existsByCourseIdAndStatus(Long courseId, GradeStatus status);
 
     public List<Grade> findByStudent(Student student);
 

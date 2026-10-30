@@ -10,7 +10,10 @@ import com.sis.dto.StudentProfileDto;
 import com.sis.dto.TeacherProfileDto;
 import com.sis.entity.AuditLog;
 import com.sis.entity.Course;
+import com.sis.entity.CourseAssessmentComponent;
+import com.sis.entity.AssessmentComponentType;
 import com.sis.entity.Grade;
+import com.sis.entity.GradeAssessmentMark;
 import com.sis.entity.GradeStatus;
 import com.sis.service.NotificationService;
 import com.sis.entity.Student;
@@ -18,6 +21,8 @@ import com.sis.entity.User;
 import com.sis.repository.AuditLogRepository;
 import com.sis.repository.AttendanceRepository;
 import com.sis.repository.GradeRepository;
+import com.sis.repository.CourseAssessmentComponentRepository;
+import com.sis.repository.GradeAssessmentMarkRepository;
 import com.sis.repository.StudentRepository;
 import com.sis.repository.UserRepository;
 import com.sis.service.AcademicRecordService;
@@ -139,14 +144,34 @@ class GradeApprovalWorkflowTest {
         Mockito.verifyNoInteractions(auditLogs);
     }
 
+    @Test
+    void approvedGradesCannotBeResubmittedByTeacher() {
+        GradeRepository gradeRepository = Mockito.mock(GradeRepository.class);
+        StudentRepository studentRepository = Mockito.mock(StudentRepository.class);
+        com.sis.service.StudentService studentService = Mockito.mock(com.sis.service.StudentService.class);
+        AuditLogRepository auditLogs = Mockito.mock(AuditLogRepository.class);
+        UserRepository users = Mockito.mock(UserRepository.class);
+        GradeApprovalService service = new GradeApprovalService(gradeRepository, studentRepository,
+                studentService, auditLogs, users, Mockito.mock(NotificationService.class));
+        Grade approved = new Grade();
+        approved.setStatus(GradeStatus.APPROVED);
+
+        assertThrows(IllegalStateException.class, () -> service.submitForApproval(approved, "teacher"));
+        Mockito.verifyNoInteractions(gradeRepository, auditLogs);
+    }
+
         @Test
-        void gradeSubmissionApprovalAndRejectionAreAudited() {
+        void gradeReviewIsAuditedAndApprovalRequiresTheReviewedResultState() {
         GradeRepository gradeRepository = Mockito.mock(GradeRepository.class);
         StudentRepository studentRepository = Mockito.mock(StudentRepository.class);
         com.sis.service.StudentService studentService = Mockito.mock(com.sis.service.StudentService.class);
         AuditLogRepository auditLogs = Mockito.mock(AuditLogRepository.class);
         UserRepository users = Mockito.mock(UserRepository.class);
         NotificationService notifications = Mockito.mock(NotificationService.class);
+        CourseAssessmentComponentRepository components = Mockito.mock(CourseAssessmentComponentRepository.class);
+        GradeAssessmentMarkRepository assessmentMarks = Mockito.mock(GradeAssessmentMarkRepository.class);
+        com.sis.service.AssessmentCalculationService calculations =
+                new com.sis.service.AssessmentCalculationService();
         User actor = new User();
         actor.setId(31L);
         Mockito.when(users.findByUsernameNormalized(Mockito.anyString())).thenReturn(java.util.Optional.of(actor));
@@ -159,21 +184,56 @@ class GradeApprovalWorkflowTest {
         student.setId(14L);
         student.setUser(studentUser);
         Course course = new Course();
+        course.setId(7L);
         course.setName("Database Systems");
+        course.setCredits(3);
+        CourseAssessmentComponent component = new CourseAssessmentComponent();
+        component.setId(17L);
+        component.setCourse(course);
+        component.setComponentCode("TOTAL");
+        component.setDisplayName("Course total");
+        component.setComponentType(AssessmentComponentType.COURSEWORK);
+        component.setWeightPercentage(new BigDecimal("100"));
+        component.setMaxScore(new BigDecimal("100"));
+        component.setRequired(true);
+        Mockito.when(components.findByCourseIdOrderByIdAsc(7L)).thenReturn(List.of(component));
         Grade submitted = new Grade();
         submitted.setId(51L);
         submitted.setStudent(student);
+        submitted.setCourse(course);
+        submitted.setGradeValue("A");
+        submitted.setGpaScore(new BigDecimal("5.0"));
+        submitted.setGradingPolicyVersion("UG_5_POINT_V1");
+        submitted.setTotalMark(new BigDecimal("80.00"));
+        submitted.setRetakeRequired(false);
+        submitted.setStatus(GradeStatus.PENDING);
         Grade toApprove = new Grade();
         toApprove.setId(52L);
         toApprove.setStudent(student);
         toApprove.setCourse(course);
+        toApprove.setGradeValue("A");
+        toApprove.setGpaScore(new BigDecimal("5.0"));
+        toApprove.setGradingPolicyVersion("UG_5_POINT_V1");
+        toApprove.setRetakeRequired(false);
         toApprove.setStatus(GradeStatus.PENDING);
+        toApprove.setTotalMark(new BigDecimal("80.00"));
+        GradeAssessmentMark submittedMark = new GradeAssessmentMark();
+        submittedMark.setGrade(submitted);
+        submittedMark.setComponent(component);
+        submittedMark.setScore(new BigDecimal("80"));
+        GradeAssessmentMark approvedMark = new GradeAssessmentMark();
+        approvedMark.setGrade(toApprove);
+        approvedMark.setComponent(component);
+        approvedMark.setScore(new BigDecimal("80"));
+        Mockito.when(assessmentMarks.findByGradeId(51L)).thenReturn(List.of(submittedMark));
+        Mockito.when(assessmentMarks.findByGradeId(52L)).thenReturn(List.of(approvedMark));
         Grade toReject = new Grade();
         toReject.setId(53L);
         toReject.setStudent(student);
         toReject.setStatus(GradeStatus.PENDING);
         Mockito.when(gradeRepository.findByIdForUpdate(52L)).thenReturn(java.util.Optional.of(toApprove));
         Mockito.when(gradeRepository.findByIdForUpdate(53L)).thenReturn(java.util.Optional.of(toReject));
+        Mockito.when(gradeRepository.findByIdForUpdate(51L)).thenReturn(java.util.Optional.of(submitted));
         Mockito.when(gradeRepository.findByIdWithStudentUserAndCourse(Mockito.anyLong()))
             .thenAnswer(invocation -> {
                 Long id = invocation.getArgument(0);
@@ -184,22 +244,48 @@ class GradeApprovalWorkflowTest {
             });
 
         GradeApprovalService service = new GradeApprovalService(gradeRepository, studentRepository,
-            studentService, auditLogs, users, notifications);
+            studentService, auditLogs, users, notifications,
+            Mockito.mock(com.sis.service.AcademicResultCorrectionService.class),
+            components, assessmentMarks, calculations);
         service.submitForApproval(submitted, "teacher1");
+        service.acknowledgeAssessmentReview(52L, "admin");
         service.approve(52L, "admin");
         service.reject(53L, "admin", "Missing assessment evidence");
 
         org.mockito.ArgumentCaptor<AuditLog> auditCaptor = org.mockito.ArgumentCaptor.forClass(AuditLog.class);
-        Mockito.verify(auditLogs, Mockito.times(3)).save(auditCaptor.capture());
+        Mockito.verify(auditLogs, Mockito.times(4)).save(auditCaptor.capture());
         List<AuditLog> events = auditCaptor.getAllValues();
-        assertEquals(List.of("GRADE_SUBMITTED_FOR_APPROVAL", "GRADE_APPROVED", "GRADE_REJECTED"),
+        assertEquals(List.of("GRADE_SUBMITTED_FOR_APPROVAL", "GRADE_ASSESSMENT_REVIEWED",
+                "GRADE_APPROVED", "GRADE_REJECTED"),
             events.stream().map(AuditLog::getAction).collect(java.util.stream.Collectors.toList()));
         assertTrue(events.stream().allMatch(event -> Long.valueOf(31L).equals(event.getUserId())));
         assertTrue(events.get(0).getDetails().contains("Grade #51"));
-        assertTrue(events.get(1).getDetails().contains("Grade #52"));
-        assertTrue(events.get(2).getDetails().contains("Grade #53"));
-        Mockito.verify(notifications).create(42L, "Grade available",
-            "Your grade for Database Systems is now available.", com.sis.entity.NotificationCategory.GRADE);
+        assertTrue(events.get(1).getDetails().contains("grade #52"));
+        assertTrue(events.get(2).getDetails().contains("Grade #52"));
+        assertTrue(events.get(3).getDetails().contains("Grade #53"));
+        Mockito.verifyNoInteractions(notifications);
+
+        Grade changedAfterReview = new Grade();
+        changedAfterReview.setId(54L);
+        changedAfterReview.setStudent(student);
+        changedAfterReview.setCourse(course);
+        changedAfterReview.setGradeValue("A");
+        changedAfterReview.setGpaScore(new BigDecimal("5.0"));
+        changedAfterReview.setGradingPolicyVersion("UG_5_POINT_V1");
+        changedAfterReview.setTotalMark(new BigDecimal("80.00"));
+        changedAfterReview.setRetakeRequired(false);
+        changedAfterReview.setStatus(GradeStatus.PENDING);
+        GradeAssessmentMark unchangedMark = new GradeAssessmentMark();
+        unchangedMark.setGrade(changedAfterReview);
+        unchangedMark.setComponent(component);
+        unchangedMark.setScore(new BigDecimal("80"));
+        Mockito.when(gradeRepository.findByIdForUpdate(54L))
+                .thenReturn(java.util.Optional.of(changedAfterReview));
+        Mockito.when(assessmentMarks.findByGradeId(54L)).thenReturn(List.of(unchangedMark));
+
+        service.acknowledgeAssessmentReview(54L, "admin");
+        changedAfterReview.setRemarks("Changed after reviewer acknowledgment");
+        assertThrows(IllegalStateException.class, () -> service.approve(54L, "admin"));
         }
 
     @Test

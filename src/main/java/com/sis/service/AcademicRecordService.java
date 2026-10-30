@@ -44,6 +44,7 @@ public class AcademicRecordService {
     private final FeeService feeService;
     private final StudentRepository studentRepository;
     private final StudentProgramRepository studentPrograms;
+    private final AcademicResultCorrectionService resultCorrections;
 
     public AcademicRecordService(GradeRepository gradeRepository,
                                   AttendanceRepository attendanceRepository,
@@ -56,15 +57,23 @@ public class AcademicRecordService {
         this(gradeRepository, attendanceRepository, feeService, studentRepository, null);
     }
 
-    @Autowired
     public AcademicRecordService(GradeRepository gradeRepository, AttendanceRepository attendanceRepository,
                                   FeeService feeService, StudentRepository studentRepository,
                                   StudentProgramRepository studentPrograms) {
+        this(gradeRepository, attendanceRepository, feeService, studentRepository, studentPrograms, null);
+    }
+
+    @Autowired
+    public AcademicRecordService(GradeRepository gradeRepository, AttendanceRepository attendanceRepository,
+                                  FeeService feeService, StudentRepository studentRepository,
+                                  StudentProgramRepository studentPrograms,
+                                  AcademicResultCorrectionService resultCorrections) {
         this.gradeRepository = gradeRepository;
         this.attendanceRepository = attendanceRepository;
         this.feeService = feeService;
         this.studentRepository = studentRepository;
         this.studentPrograms = studentPrograms;
+        this.resultCorrections = resultCorrections;
     }
 
     public Grade saveGrade(Student student, Course course, String gradeValue, String remarks) {
@@ -74,6 +83,8 @@ public class AcademicRecordService {
     public Grade saveGrade(Student student, Course course, String gradeValue, String remarks, String submittedBy) {
         Grade grade = new Grade(student, course, gradeValue, remarks);
         grade.setGpaScore(GradeCalculationService.gradeToGpa(gradeValue));
+        grade.setGradingPolicyVersion(UgandanTertiaryGradingPolicy.VERSION);
+        grade.setRetakeRequired(grade.getGpaScore().compareTo(UgandanTertiaryGradingPolicy.PASS_GRADE_POINT) < 0);
         grade.setStatus(GradeStatus.PENDING);
         grade.setSubmittedBy(submittedBy);
         grade.setSubmittedAt(LocalDateTime.now());
@@ -83,7 +94,14 @@ public class AcademicRecordService {
     }
 
     public Grade updateGradeScore(Grade grade, BigDecimal gpaScore) {
-        grade.setGpaScore(gpaScore);
+        ensureGradeIsNotApproved(grade, "updated");
+        BigDecimal calculatedGpa = GradeCalculationService.gradeToGpa(grade.getGradeValue());
+        if (gpaScore == null || gpaScore.compareTo(calculatedGpa) != 0) {
+            throw new IllegalArgumentException("Grade points are calculated from the institutional grade mapping.");
+        }
+        grade.setGpaScore(calculatedGpa);
+        grade.setGradingPolicyVersion(UgandanTertiaryGradingPolicy.VERSION);
+        grade.setRetakeRequired(calculatedGpa.compareTo(UgandanTertiaryGradingPolicy.PASS_GRADE_POINT) < 0);
         grade.setStatus(GradeStatus.PENDING);
         Grade saved = gradeRepository.save(grade);
         refreshCgpa(saved.getStudent().getId());
@@ -91,12 +109,34 @@ public class AcademicRecordService {
     }
 
     public Grade updateGrade(Grade grade, String gradeValue, String remarks, BigDecimal gpaScore) {
+        return updateGrade(grade, gradeValue, remarks, gpaScore, null);
+    }
+
+    public Grade updateGrade(Grade grade, String gradeValue, String remarks, BigDecimal gpaScore, String actor) {
+        if (grade != null && grade.getStatus() == GradeStatus.APPROVED) {
+            if (resultCorrections == null) {
+                throw new IllegalStateException(
+                        "Approved grades cannot be updated directly. Use the controlled correction workflow.");
+            }
+            grade = resultCorrections.beginAuthorizedCorrection(grade.getId(), actor);
+        } else {
+            ensureGradeIsNotApproved(grade, "update");
+        }
         grade.setGradeValue(gradeValue);
         grade.setRemarks(remarks);
         grade.setGpaScore(GradeCalculationService.gradeToGpa(gradeValue));
-        if (gpaScore != null) grade.setGpaScore(gpaScore);
+        if (gpaScore != null && gpaScore.compareTo(grade.getGpaScore()) != 0) {
+            throw new IllegalArgumentException("Grade points are calculated from the institutional grade mapping.");
+        }
+        grade.setGradingPolicyVersion(UgandanTertiaryGradingPolicy.VERSION);
+        grade.setRetakeRequired(grade.getGpaScore().compareTo(UgandanTertiaryGradingPolicy.PASS_GRADE_POINT) < 0);
         grade.setStatus(GradeStatus.PENDING);
         grade.setSubmittedAt(LocalDateTime.now());
+        grade.setApprovedBy(null);
+        grade.setApprovedAt(null);
+        grade.setRejectedBy(null);
+        grade.setRejectedAt(null);
+        grade.setRejectionReason(null);
         Grade saved = gradeRepository.save(grade);
         refreshCgpa(saved.getStudent().getId());
         return reloadGradeForResponse(saved);
@@ -108,10 +148,21 @@ public class AcademicRecordService {
     }
 
     public void deleteGrade(Grade grade) {
+        ensureGradeIsNotApproved(grade, "delete");
+        if (resultCorrections != null && resultCorrections.hasHistory(grade.getId())) {
+            throw new IllegalStateException("Grades with correction history cannot be deleted.");
+        }
         Long studentId = grade.getStudent() != null ? grade.getStudent().getId() : null;
         gradeRepository.delete(grade);
         if (studentId != null) {
             refreshCgpa(studentId);
+        }
+    }
+
+    private void ensureGradeIsNotApproved(Grade grade, String action) {
+        if (grade != null && grade.getStatus() == GradeStatus.APPROVED) {
+            throw new IllegalStateException(
+                    "Approved grades cannot be " + action + "d directly. Use the controlled correction workflow.");
         }
     }
 
@@ -139,6 +190,25 @@ public class AcademicRecordService {
         dto.setSubmittedBy(grade.getSubmittedBy());
         dto.setApprovedBy(grade.getApprovedBy());
         dto.setRejectionReason(grade.getRejectionReason());
+        dto.setAttemptNumber(grade.getAttemptNumber());
+        dto.setOriginalAttemptId(grade.getOriginalAttempt() == null ? null : grade.getOriginalAttempt().getId());
+        dto.setAttemptType(grade.getOriginalAttempt() == null ? "ORIGINAL_ATTEMPT" : "RETAKE_ATTEMPT");
+        dto.setTotalMark(grade.getTotalMark());
+        dto.setRetakeRequired(grade.getRetakeRequired());
+        dto.setGradingPolicyVersion(grade.getGradingPolicyVersion());
+        dto.setAssessmentComponents(grade.getAssessmentMarks().stream()
+                .sorted(Comparator.comparing(mark -> mark.getComponent().getId()))
+                .map(mark -> {
+                    com.sis.dto.AssessmentMarkDto component = new com.sis.dto.AssessmentMarkDto();
+                    component.setComponentId(mark.getComponent().getId());
+                    component.setComponentCode(mark.getComponent().getComponentCode());
+                    component.setDisplayName(mark.getComponent().getDisplayName());
+                    component.setComponentType(mark.getComponent().getComponentType());
+                    component.setScore(mark.getScore());
+                    component.setMaxScore(mark.getComponent().getMaxScore());
+                    component.setWeightPercentage(mark.getComponent().getWeightPercentage());
+                    return component;
+                }).collect(Collectors.toList()));
         return dto;
     }
 
@@ -226,11 +296,16 @@ public class AcademicRecordService {
         if (studentId == null) {
             dto.setGrades(Collections.emptyList());
         } else {
+            List<Grade> allGrades = gradeRepository.findByStudentId(studentId);
             dto.setGrades(gradeRepository.findTop5ByStudentIdAndStatusOrderByApprovedAtDescIdDesc(
                             studentId, GradeStatus.APPROVED)
                     .stream().map(this::toGradeDto).collect(Collectors.toList()));
             dto.setAttendanceCount(attendanceRepository.countByStudentId(studentId));
             dto.setPresentAttendanceCount(attendanceRepository.countByStudentIdAndPresentTrue(studentId));
+            BigDecimal cgpa = studentRepository == null ? null
+                    : studentRepository.findById(studentId).map(Student::getCgpa).orElse(null);
+            dto.setAcademicStandingStatus(GradeCalculationService.academicStanding(
+                    cgpa, allGrades, gradeRepository.findCoreCourseIdsByStudentId(studentId)));
         }
         return dto;
     }

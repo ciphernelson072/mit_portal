@@ -59,7 +59,8 @@ class AcademicControllerFetchTest {
         AcademicController controller = new AcademicController(
                 schoolService, timetable,
                 mock(ExamResultRepository.class), mock(AcademicTermRepository.class), mock(ExamRepository.class),
-                mock(PdfDocumentService.class), mock(ExamPermitService.class), mock(NotificationService.class));
+                mock(PdfDocumentService.class), mock(ExamPermitService.class), mock(NotificationService.class),
+                mock(com.sis.service.AcademicReportService.class));
 
         assertEquals(2, controller.studentTimetable().getBody().size());
         verify(schoolService).getStudentWithCoursesByUsername("academic-student");
@@ -91,7 +92,8 @@ class AcademicControllerFetchTest {
         AcademicController controller = new AcademicController(
                 schoolService, mock(TimetableEntryRepository.class),
                 mock(ExamResultRepository.class), mock(AcademicTermRepository.class), exams,
-                pdfDocuments, examPermits, mock(NotificationService.class));
+                pdfDocuments, examPermits, mock(NotificationService.class),
+                mock(com.sis.service.AcademicReportService.class));
         ReflectionTestUtils.setField(exam, "id", 19L);
 
         var response = controller.hallTicket();

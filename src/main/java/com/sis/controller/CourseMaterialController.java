@@ -1,6 +1,7 @@
 package com.sis.controller;
 
 import com.sis.dto.CourseMaterialDto;
+import com.sis.entity.Role;
 import com.sis.entity.User;
 import com.sis.exception.ResourceNotFoundException;
 import com.sis.service.SchoolService;
@@ -100,7 +101,11 @@ public class CourseMaterialController {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + username));
         var course = schoolService.getCourseById(courseId)
             .orElseThrow(() -> new ResourceNotFoundException("Course not found with id: " + courseId));
-        if (!schoolService.teacherOwnsCourse(username, course)) {
+        boolean administrator = SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
+                .anyMatch(authority -> "ADMIN".equals(authority.getAuthority()));
+        boolean teacher = uploader.getRole() == Role.TEACHER
+                && schoolService.teacherOwnsCourse(username, course);
+        if (!administrator && !teacher) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
         try {

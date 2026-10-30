@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * Read-only representation of a Grade returned to API clients.
@@ -29,4 +30,11 @@ public class GradeDto {
     private String submittedBy;
     private String approvedBy;
     private String rejectionReason;
+    private Integer attemptNumber;
+    private Long originalAttemptId;
+    private String attemptType;
+    private BigDecimal totalMark;
+    private Boolean retakeRequired;
+    private String gradingPolicyVersion;
+    private List<AssessmentMarkDto> assessmentComponents;
 }

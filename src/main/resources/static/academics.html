@@ -420,7 +420,7 @@
       <div class="gpa-summary">
         <div class="gpa-card">
           <p class="gpa-label">Current CGPA</p>
-          <p class="gpa-value">3.87</p>
+          <p class="gpa-value">NOT FINALIZED</p>
           <p class="gpa-range">Out of 4.0</p>
         </div>
         <div class="gpa-card">
@@ -434,72 +434,35 @@
           <p class="gpa-range">From approved course grades</p>
         </div>
       </div>
+      <p id="gradePublicationStatus" class="status-badge warning" role="status" aria-live="polite">
+        Results pending administrative approval and publication.
+      </p>
+      <p id="missingResultCourses" class="status-badge warning" role="status" aria-live="polite" hidden></p>
+      <section class="grade-cgpa-notice" aria-live="polite">
+        <h3 id="gradeCgpaNoticeTitle">CGPA NOT YET AVAILABLE</h3>
+        <p id="gradeCgpaNoticeText">Final grades, GPA, credits earned, and academic standing will be shown after results are approved and published by the Academic Office.</p>
+      </section>
 
-      <table class="grades-table">
-        <thead>
-          <tr>
-            <th>Course Code</th>
-            <th>Course Name</th>
-            <th>Credits</th>
-            <th>Grade</th>
-            <th>Points</th>
-            <th>Semester</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>CS201</td>
-            <td>Database Systems</td>
-            <td>3</td>
-            <td><span class="grade-badge excellent">A</span></td>
-            <td>12.0</td>
-            <td>4</td>
-          </tr>
-          <tr>
-            <td>CS205</td>
-            <td>Web Development</td>
-            <td>4</td>
-            <td><span class="grade-badge excellent">A-</span></td>
-            <td>15.2</td>
-            <td>4</td>
-          </tr>
-          <tr>
-            <td>MATH201</td>
-            <td>Discrete Mathematics</td>
-            <td>3</td>
-            <td><span class="grade-badge good">B+</span></td>
-            <td>10.5</td>
-            <td>4</td>
-          </tr>
-          <tr>
-            <td>CS212</td>
-            <td>Network Security</td>
-            <td>3</td>
-            <td><span class="grade-badge excellent">A</span></td>
-            <td>12.0</td>
-            <td>4</td>
-          </tr>
-          <tr class="previous-semester-header">
-            <td colspan="6"><strong>Previous Semesters</strong></td>
-          </tr>
-          <tr>
-            <td>CS101</td>
-            <td>Intro to Programming</td>
-            <td>3</td>
-            <td><span class="grade-badge excellent">A</span></td>
-            <td>12.0</td>
-            <td>1</td>
-          </tr>
-          <tr>
-            <td>CS102</td>
-            <td>Data Structures</td>
-            <td>4</td>
-            <td><span class="grade-badge excellent">A-</span></td>
-            <td>15.2</td>
-            <td>1</td>
-          </tr>
-        </tbody>
-      </table>
+      <div class="table-container grades-table-scroll" tabindex="0" aria-label="Published course results table">
+        <table class="grades-table">
+          <thead>
+            <tr>
+              <th>Course Code</th>
+              <th>Course Title</th>
+              <th>Coursework (CW)</th>
+              <th>Final Paper</th>
+              <th>Others</th>
+              <th>Total Mark</th>
+              <th>Grade</th>
+              <th>Grade Points</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="9">Results pending administrative approval and publication.</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </section>
 
@@ -510,7 +473,7 @@
         <div>
           <h3 id="transcriptHeading">Official Transcript</h3>
           <p id="transcriptSummary" role="status">Loading transcript...</p>
-          <span id="officialTranscriptStatus" class="status-badge muted" style="display:none;">Official transcript pending approval</span>
+          <span id="officialTranscriptStatus" class="status-badge muted" style="display:none;">Official transcript pending publication</span>
         </div>
         <button id="downloadTranscript" class="btn-secondary" type="button" disabled>Download PDF</button>
       </div>

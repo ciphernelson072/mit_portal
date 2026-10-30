@@ -9,6 +9,7 @@ import com.sis.dto.StudentProfileDto;
 import com.sis.dto.StudentStatusDto;
 import com.sis.service.AttendanceService;
 import com.sis.service.SchoolService;
+import com.sis.service.AcademicReportService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -29,16 +30,20 @@ public class StudentController {
 
     private final SchoolService schoolService;
     private final AttendanceService attendanceService;
+    private final AcademicReportService academicReportService;
 
-    public StudentController(SchoolService schoolService, AttendanceService attendanceService) {
+    public StudentController(SchoolService schoolService, AttendanceService attendanceService,
+                             AcademicReportService academicReportService) {
         this.schoolService = schoolService;
         this.attendanceService = attendanceService;
+        this.academicReportService = academicReportService;
     }
 
     @GetMapping("/profile")
     public ResponseEntity<StudentProfileDto> profile() {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         StudentProfileDto profile = schoolService.getStudentProfileByUsername(username);
+        maskUnpublishedCgpa(profile);
         return profile != null ? ResponseEntity.ok(profile) : ResponseEntity.notFound().build();
     }
 
@@ -46,15 +51,24 @@ public class StudentController {
     public ResponseEntity<StudentProfileDto> updateProfile(@Valid @RequestBody UpdateStudentRequest request) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         return schoolService.updateStudentProfileByUsername(username, request)
+                .map(this::maskUnpublishedCgpa)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    private StudentProfileDto maskUnpublishedCgpa(StudentProfileDto profile) {
+        if (profile != null && !academicReportService.isOfficiallyPublished(profile.getId())) {
+            profile.setCgpa(null);
+        }
+        return profile;
     }
 
     @GetMapping("/grades")
     public ResponseEntity<List<GradeDto>> grades() {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         return schoolService.getStudentByUsername(username)
-                .map(student -> ResponseEntity.ok(schoolService.getGradeDtosForStudent(student.getId())))
+                .map(student -> ResponseEntity.ok(academicReportService.isOfficiallyPublished(student.getId())
+                        ? schoolService.getGradeDtosForStudent(student.getId()) : List.<GradeDto>of()))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -97,7 +111,22 @@ public class StudentController {
     public ResponseEntity<StudentStatusDto> getMyStatus() {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         return schoolService.getStudentByUsername(username)
-                .map(student -> ResponseEntity.ok(schoolService.getStudentStatus(student.getId())))
+                .map(student -> {
+                    StudentStatusDto status = schoolService.getStudentStatus(student.getId());
+                    var resultStatus = academicReportService.getStudentVisibleReport(student.getId());
+                    status.setResultPublicationStatus(resultStatus.getPublicationStatus());
+                    if (!Boolean.TRUE.equals(resultStatus.getPublished())) {
+                        status.setGrades(List.of());
+                        status.setCreditsEarned(null);
+                        status.setAcademicStandingStatus("NOT_FINALIZED");
+                        status.setMissingResultCourses(schoolService.getMissingResultCourseNames(student.getId()));
+                    } else {
+                        status.setCreditsEarned(resultStatus.getCreditsEarned());
+                        status.setAcademicStandingStatus(resultStatus.getAcademicStandingStatus());
+                        status.setMissingResultCourses(List.of());
+                    }
+                    return ResponseEntity.ok(status);
+                })
                 .orElse(ResponseEntity.notFound().build());
     }
 }

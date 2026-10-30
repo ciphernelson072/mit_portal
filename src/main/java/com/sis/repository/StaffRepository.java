@@ -7,6 +7,9 @@ import java.util.Optional;
 import java.util.List;
 
 public interface StaffRepository extends JpaRepository<Staff, Long> {
+    boolean existsByUser_Id(Long userId);
+    boolean existsByEmployeeNumber(String employeeNumber);
+
     @EntityGraph(attributePaths = "user")
     List<Staff> findAll();
 

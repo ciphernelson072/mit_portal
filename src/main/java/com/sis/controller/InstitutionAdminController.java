@@ -7,6 +7,7 @@ import com.sis.dto.CreateCampusRequest;
 import com.sis.dto.CreateDepartmentRequest;
 import com.sis.dto.CreateFacultyRequest;
 import com.sis.dto.CreateProgramRequest;
+import com.sis.dto.UpdateProgramAwardTypeRequest;
 import com.sis.entity.AcademicYear;
 import com.sis.entity.AcademicTerm;
 import com.sis.entity.Campus;
@@ -33,7 +34,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admin/institution")
-@PreAuthorize("@permissionSecurity.canManageAcademicOperations() or @permissionSecurity.canManageRegistration()")
+@PreAuthorize("@permissionSecurity.canManageInstitutionStructure()")
 public class InstitutionAdminController {
     private final CampusRepository campuses;
     private final FacultyRepository faculties;
@@ -143,11 +144,21 @@ public class InstitutionAdminController {
         program.setCode(request.getCode().trim());
         program.setName(request.getName().trim());
         program.setAwardTitle(request.getAwardTitle().trim());
+        program.setAwardType(request.getAwardType());
         program.setDepartment(department);
         program.setDurationYears(request.getDurationYears());
         program.setActive(true);
         Program saved = programs.save(program);
         return ResponseEntity.status(HttpStatus.CREATED).body(programResponse(saved));
+    }
+
+    @PutMapping("/programs/{programId}/award-type")
+    public Map<String, Object> updateProgramAwardType(@PathVariable Long programId,
+                                                       @Valid @RequestBody UpdateProgramAwardTypeRequest request) {
+        Program program = programs.findById(programId)
+                .orElseThrow(() -> new ResourceNotFoundException("Programme not found: " + programId));
+        program.setAwardType(request.getAwardType());
+        return programResponse(programs.save(program));
     }
 
     @GetMapping("/academic-years")
@@ -271,7 +282,8 @@ public class InstitutionAdminController {
 
     private Map<String, Object> programResponse(Program item) {
         return map("id", item.getId(), "code", item.getCode(), "name", item.getName(),
-                "awardTitle", item.getAwardTitle(), "durationYears", item.getDurationYears(),
+                "awardTitle", item.getAwardTitle(), "awardType", item.getAwardType(),
+                "durationYears", item.getDurationYears(),
                 "departmentId", item.getDepartment().getId());
     }
 

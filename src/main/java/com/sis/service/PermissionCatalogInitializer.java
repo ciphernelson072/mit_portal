@@ -16,7 +16,7 @@ public class PermissionCatalogInitializer {
             Map.entry("FINANCE_REFUND", "Process payment refunds"),
             Map.entry("FINANCE_RECONCILIATION", "Import and review bank reconciliation entries"),
             Map.entry("FINANCE_WAIVER", "Approve fee waivers"),
-            Map.entry("GRADE_APPROVAL_MANAGE", "Review and approve or reject submitted grades"),
+            Map.entry("GRADE_APPROVAL_MANAGE", "Reserved for administrator grade-review operations; assignment alone does not authorize these actions"),
             Map.entry("EMAIL_CAMPAIGN_MANAGE", "View eligible email recipients and send bulk email campaigns"),
             Map.entry("PROCUREMENT_MANAGE", "Manage suppliers, procurement requests, and assets"),
             Map.entry("RESEARCH_REVIEW", "Review research projects and thesis submissions"),
@@ -28,7 +28,7 @@ public class PermissionCatalogInitializer {
             Map.entry("REGISTRATION_MANAGE", "Manage academic course sections, curriculum, and prerequisites"),
             Map.entry("SERVICE_REQUEST_MANAGE", "Review and update student and staff service requests"),
             Map.entry("EXAM_PERMIT_MANAGE", "Review and approve or reject exam permit requests"),
-            Map.entry("EXAM_RESULT_PUBLISH", "Publish entered examination results to students"),
+            Map.entry("EXAM_RESULT_PUBLISH", "Reserved for administrator result-publication operations; assignment alone does not authorize these actions"),
             Map.entry("EXAM_MANAGE", "Manage exam scheduling, venues, and exam records"),
             Map.entry("ASSIGNMENT_MANAGE", "Create and manage class assignments and submissions"),
             Map.entry("ANNOUNCEMENT_MANAGE", "Create and manage official announcements"),
@@ -38,7 +38,7 @@ public class PermissionCatalogInitializer {
             Map.entry("LEAVE_REQUEST", "Submit and approve leave requests and staff attendance adjustments"),
             Map.entry("PORTAL_SETTINGS_MANAGE", "Manage portal settings, audit logs, and configuration"),
             Map.entry("REPORTS_VIEW", "View institution-wide student, class, and staff reports"),
-            Map.entry("REPORTS_APPROVE", "Approve and release official student academic reports")
+            Map.entry("REPORTS_APPROVE", "Reserved for administrator academic-report approval; assignment alone does not authorize this action")
         );
 
     private final PermissionRepository permissions;

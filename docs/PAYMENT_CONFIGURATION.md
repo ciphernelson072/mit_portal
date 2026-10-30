@@ -38,7 +38,11 @@ Recommended Flutterwave setup sequence:
 
 1. Create a Flutterwave merchant account and obtain test credentials from its API settings.
 2. Configure `FLUTTERWAVE_SECRET_KEY` and a private random `FLUTTERWAVE_WEBHOOK_SECRET_HASH` on the server; do not commit these values.
-3. Run the database migrations, including `V37__add_flutterwave_checkout_metadata.sql`.
+3. Run the database migrations through the latest source version, including
+   `V37__add_flutterwave_checkout_metadata.sql` and any later pending migrations.
+   The source currently includes migrations through V43; follow the release
+   checklist to validate all pending migrations against the target database
+   before production use.
 4. Register the HTTPS webhook URL and matching secret hash in the Flutterwave dashboard; enable webhook retries.
 5. Use a test student with a valid profile email, create a small UGX fee, and exercise success, failure, cancellation, duplicate webhook, and delayed webhook cases.
 6. Confirm the student sees a receipt only after server verification. Reconcile Flutterwave settlement reports against portal allocations before switching to live mode.

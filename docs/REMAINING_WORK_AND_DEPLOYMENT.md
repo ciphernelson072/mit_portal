@@ -1,6 +1,6 @@
 # Remaining Work and Render Deployment Runbook
 
-Last reviewed: 21 October 2026
+Last reviewed: 27 October 2026
 
 This document consolidates the remaining release work and the steps for a
 controlled Render test deployment. It is not evidence that Render, an external
@@ -8,6 +8,36 @@ database, email, or production operations have been provisioned. Use it with
 the [Render deployment details](./RENDER_DEPLOYMENT.md), the
 [release checklist](./RELEASE_CHECKLIST.md), and the
 [integration inventory](./INTEGRATION_GAPS.md).
+
+## Source and documentation update (27 October 2026)
+
+This source tree contains Flyway migrations V1-V45. The corrected V37-V42
+sequence has now been applied successfully to the TiDB pilot after a verified
+database backup. A separate disposable MySQL 8.0 database applied V1-V43, and
+the application passed Hibernate schema validation. The full Maven test suite
+passed after V44 on 26 October: 327 tests, zero failures, zero errors, and zero skipped
+(`.\mvnw.cmd test`, 26 October 2026). This source-level run does not verify V44 or V45 against MySQL or TiDB, replace
+provider sandbox testing, or establish production-environment acceptance.
+Migration V45 persists administrator review acknowledgment against the exact
+assessment/result fingerprint and requires the same fingerprint at approval.
+The 27 October full backend suite passed 328 tests; all 87 isolated Playwright
+tests and all 10 frontend unit tests passed.
+
+The source includes course-specific assessment components, separate mark
+records, weighted-mark calculation with missing marks distinguished from zero,
+administrator-only result snapshot approval/publication, linked retake
+attempts, administrator-authorized approved-grade corrections, and persisted
+administrator review acknowledgment. V44 adds
+the supplied five-point grade bands, pass/retake validation, core-course
+standing, and degree/diploma award classification. V44 and V45 have not yet
+been validated on MySQL or rolled out to the live TiDB pilot. Retake replacement,
+retake credit treatment, and CGPA rounding remain unspecified and are not
+guessed. See the [academic results workflow](./ACADEMIC_RESULTS_WORKFLOW.md).
+
+Flutterwave hosted-checkout and server-side verification code is present.
+Live-provider readiness is not established until sandbox flows, webhook
+registration/retries, settlement reconciliation, and environment-specific
+acceptance are completed. See [payment configuration](./PAYMENT_CONFIGURATION.md).
 
 ## Latest local readiness check
 
@@ -44,7 +74,69 @@ Checked on 21 October 2026 after the requested fresh TiDB test setup:
   support ownership, restore rehearsal, and semester operations sign-off
   remain unverified. Use only applicant data explicitly approved for testing.
 
-## Current verified state
+## Pilot status update (26 October 2026)
+
+The public test pilot is **online** at
+<https://mins-applications-essentially-rouge.trycloudflare.com>. This is a
+temporary Cloudflare Quick Tunnel URL and may change whenever the tunnel
+restarts. The production-profile application is bound to `127.0.0.1:8080`;
+the public route is provided by the tunnel, not by an inbound port-forward.
+The scheduled task `MIT Student Portal Cloudflare TiDB` is enabled and running.
+
+The latest restart verified local `/actuator/health` as `UP`, the public root
+and public health routes as HTTP 200, and unauthenticated student grades,
+profile, and academic-report APIs as HTTP 401. An unauthenticated request to
+`/admin-dashboard.html` redirects to `/unauthorized.html` using an HTTPS
+`Location`, confirming the forwarded-header setting is effective. The runner
+successfully cleaned up the previous app/tunnel, removed the stale URL, and
+published the new URL only after public readiness.
+
+The same public checks were repeated after the Maven run: the root and health
+routes returned HTTP 200, the protected student APIs returned HTTP 401, and
+the administrator page returned an HTTPS redirect. One intervening Cloudflare
+request returned HTTP 530; subsequent `curl.exe` and application-level checks
+returned HTTP 200, so the pilot is currently reachable but still has no
+availability guarantee.
+
+Before database repair, a verified TiDB Dumpling snapshot was created at
+`%LOCALAPPDATA%\MITPortal\backups\database-20261026-114513.zip`. Its SHA-256
+is `1DB3E5DF1520298CD4D2E2B324B1719054F3CCAFD4C5DB5D806DA8A0BBE8A141`;
+the archive checksum and critical table/history contents were verified. The
+failed V37 Flyway history row was repaired only after that backup was
+available, then V37-V42 completed successfully. TiDB now reports V42 as the
+latest successful migration. Earlier incomplete `mysqldump` attempts are not
+backups and must not be used for recovery.
+
+The V37, V38, and V42 migrations separate column creation from indexes and
+constraints that reference those columns, avoiding the TiDB multi-clause
+`ALTER TABLE` failure. The complete V1-V42 sequence was also applied to a
+disposable MySQL 8.0 database, and production-profile startup passed Hibernate
+schema validation there. `server.forward-headers-strategy=framework` is
+configured for HTTPS-aware redirects behind the tunnel.
+
+The source includes V43 for administrator-authorized correction records and
+prior-result snapshots, V44 for the five-point policy, and V45 for assessment
+review acknowledgment. V1-V43 were applied successfully to a
+disposable MySQL 8.0 database, followed by Hibernate schema validation. The
+Testcontainers variant could not start because the configured Docker client
+uses API 1.32 while the Docker daemon requires at least 1.40. The application code and V43-V45 migrations are not yet running on the public
+pilot; the TiDB schema remains at V42 pending a current verified database/upload
+backup and controlled V43-V45 rollout and acceptance checks.
+
+This is still a **temporary test pilot, not a production service**. The Quick
+Tunnel has no uptime guarantee or stable institution-controlled hostname.
+Continue to use only data explicitly approved for testing. Institutional
+hosting/privacy/retention approvals, encrypted off-host backups and restore
+rehearsal, official grading/retake policy decisions, approval of the
+correction/appeal procedure, support ownership, and Flutterwave
+sandbox/reconciliation acceptance
+remain release gates.
+
+## Historical verification state (through 21 October 2026)
+
+The following entries preserve dated checks and environment limitations. They
+are historical evidence and are superseded where they conflict with the
+26 October pilot update above.
 
 - On 19 October 2026, the failed TiDB migrations were diagnosed and recovered
   without recreating the database. V34 and V36 now use ordered, separate
@@ -66,10 +158,13 @@ Checked on 21 October 2026 after the requested fresh TiDB test setup:
   is available; Flyway and outbound mail are disabled in that fallback mode.
   This fallback is only for local demo/testing, not a substitute for the
   production database or migration verification.
-- The repository now contains migrations V1-V36. The successful MySQL 8
-  validation below covered only V1-V32 and predates V33-V36; it does not
-  establish MySQL 8 compatibility for V33-V36. Current V34-V36 execution was
-  verified against TiDB Cloud's MySQL-compatible endpoint.
+- At the time of this 21 October 2026 pilot check, the source contained
+  migrations V1-V36. The successful MySQL 8 validation covered only V1-V32
+  and predates V33-V36; it does not establish MySQL 8 compatibility for V33-V36.
+  V34-V36 execution was verified against TiDB Cloud's MySQL-compatible endpoint.
+  Migrations V37-V42 were added later; their database compatibility is not
+  established by that historical pilot evidence. V1-V43 have since been
+  validated on disposable MySQL 8.0 as described above.
 - On 17 October 2026, `mvn test` passed 238 backend tests; this standard run
   excludes the MySQL/Testcontainers profile.
 - On 17 October 2026, `npm run test:unit` passed 10 tests, all static frontend
@@ -231,9 +326,10 @@ demo is **not** an acceptable substitute for a campus-user pilot over HTTPS.
    email, and password values from Render. Store the administrator credential
    securely and rotate it according to institutional policy.
 
-The initial deployment applies the bundled Flyway migrations (currently
-V1-V36) to an empty database. Do not enable bootstrap against a populated
-database or treat it as an account recovery mechanism.
+The initial deployment applies all bundled Flyway migrations (currently
+V1-V45) to an empty database. Validate the complete migration set against the
+selected database engine before deployment. Do not enable bootstrap against a
+populated database or treat it as an account recovery mechanism.
 
 ### Phase 2 - Verify the deployed test instance
 

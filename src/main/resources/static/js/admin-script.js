@@ -11,6 +11,8 @@ document.addEventListener('DOMContentLoaded', function() {
   setupNavigation();
   setupAdminFilters();
   setupHeaderDropdowns();
+  document.getElementById('hrStaffForm')?.addEventListener('submit', createHrStaffRecord);
+  document.getElementById('adminLeaveForm')?.addEventListener('submit', submitAdminLeaveRequest);
   loadDashboard();
   loadAdminAttendance();
   loadAdminNotifications();
@@ -34,6 +36,24 @@ function setupHeaderDropdowns() {
       document.querySelectorAll('.dropdown.active').forEach(dropdown => {
         dropdown.classList.remove('active');
       });
+    }
+
+    async function saveProgramAwardType(programId) {
+      const awardType = document.getElementById(`program-award-type-${programId}`)?.value;
+      if (!awardType) {
+        setAdminStatus('programStatus', 'Select Bachelor or Diploma before saving the award type.', 'error');
+        return;
+      }
+      try {
+        const response = await apiFetch(`/admin/institution/programs/${programId}/award-type`, {
+          method: 'PUT',
+          body: JSON.stringify({ awardType }),
+        });
+        const program = await response.json();
+        setAdminStatus('programStatus', `Award type saved for ${program.name}.`, 'success');
+      } catch (err) {
+        setAdminStatus('programStatus', err.message || 'Unable to save award type.', 'error');
+      }
     }
   });
 }
@@ -171,7 +191,7 @@ function switchModule(moduleName, clickedElement = null) {
   if (moduleName === 'students') loadStudents();
   else if (moduleName === 'courses') loadCourses();
   else if (moduleName === 'course-categories') loadCourseCategories();
-  else if (moduleName === 'staff') loadStaff();
+  else if (moduleName === 'staff') { loadStaff(); loadHrManagement(); }
   else if (moduleName === 'requests') loadRequests();
   else if (moduleName === 'admissions') loadAdmissionApplications();
   else if (moduleName === 'dashboard') loadDashboard();
@@ -255,6 +275,7 @@ function setupAcademicForms() {
         code: document.getElementById('programCode').value.trim(),
         name: document.getElementById('programName').value.trim(),
         awardTitle: document.getElementById('programAwardTitle').value.trim(),
+        awardType: document.getElementById('programAwardType').value,
         durationYears: Number(document.getElementById('programDurationYears').value),
       }) });
       const program = await response.json();
@@ -499,7 +520,7 @@ async function loadSetupPrograms(departmentId) {
   try {
     const programs = await apiGet(`/admin/institution/programs?departmentId=${encodeURIComponent(departmentId)}`);
     list.innerHTML = programs.length
-      ? `<ul>${programs.map(program => `<li>${escapeHtml(program.code)} · ${escapeHtml(program.name)} (${escapeHtml(program.awardTitle)})</li>`).join('')}</ul>`
+      ? `<ul>${programs.map(program => `<li>${escapeHtml(program.code)} · ${escapeHtml(program.name)} (${escapeHtml(program.awardTitle)}) <label>Award type <select id="program-award-type-${program.id}"><option value="">Unclassified</option><option value="BACHELOR" ${program.awardType === 'BACHELOR' ? 'selected' : ''}>Bachelor's Degree</option><option value="DIPLOMA" ${program.awardType === 'DIPLOMA' ? 'selected' : ''}>Diploma</option></select></label> <button type="button" class="btn-small" onclick="saveProgramAwardType(${program.id})">Save type</button></li>`).join('')}</ul>`
       : '<p>No active programmes in this department.</p>';
   } catch (err) {
     list.textContent = err.message || 'Unable to load programmes.';
@@ -659,7 +680,11 @@ async function loadUsers() {
 }
 
 function openUserForm(user = null) {
-  openModal(`<span class="modal-close" onclick="closeModal()">&times;</span><h2>${user ? 'Edit' : 'Add'} User</h2><form id="userForm"><div class="modal-field"><label>Username</label><input name="username" value="${escapeHtml(user?.username || '')}" required ${user ? 'readonly' : ''}></div><div class="modal-field"><label>Password</label><input name="password" type="password" ${user ? '' : 'required'}></div><div class="modal-field"><label>Role</label><select name="role"><option ${user?.role === 'STUDENT' ? 'selected' : ''}>STUDENT</option><option ${user?.role === 'TEACHER' ? 'selected' : ''}>TEACHER</option><option ${user?.role === 'ADMIN' ? 'selected' : ''}>ADMIN</option></select></div><div class="modal-field"><label>Email</label><input name="email" type="email" value="${escapeHtml(user?.email || '')}"></div><div class="modal-field"><label>Phone</label><input name="phone" value="${escapeHtml(user?.phone || '')}"></div><div class="modal-actions"><button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button><button class="btn-primary">Save</button></div></form>`);
+  const roleOptions = user
+    ? ['STUDENT', 'TEACHER', 'ADMIN'].map(role =>
+        `<option value="${role}" ${user.role === role ? 'selected' : ''}>${role}</option>`).join('')
+    : '<option value="ADMIN">ADMIN</option>';
+  openModal(`<span class="modal-close" onclick="closeModal()">&times;</span><h2>${user ? 'Edit' : 'Add Administrator'}</h2><form id="userForm"><div class="modal-field"><label>Username</label><input name="username" value="${escapeHtml(user?.username || '')}" required ${user ? 'readonly' : ''}></div><div class="modal-field"><label>Password</label><input name="password" type="password" ${user ? '' : 'required'}></div><div class="modal-field"><label>Role</label><select name="role">${roleOptions}</select></div><div class="modal-field"><label>Email</label><input name="email" type="email" value="${escapeHtml(user?.email || '')}"></div><div class="modal-field"><label>Phone</label><input name="phone" value="${escapeHtml(user?.phone || '')}"></div><div class="modal-actions"><button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button><button class="btn-primary">Save</button></div></form>`);
   document.getElementById('userForm').addEventListener('submit', async event => {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(event.target));
@@ -689,16 +714,17 @@ async function loadAdminGrades() {
   try {
     const grades = await apiGet('/admin/grades');
     window._adminGrades = grades;
+    window._adminReviewedAssessmentIds = new Set();
     tbody.innerHTML = grades.length ? grades.map(grade => {
       const finalized = grade.status === 'APPROVED' || grade.status === 'REJECTED';
       const actions = finalized
-        ? `<span class="badge ${grade.status === 'APPROVED' ? 'success' : 'danger'}">${escapeHtml(grade.status)}</span>`
-        : `<div class="row-actions"><button class="btn-small" onclick="approveGrade(${grade.id})">Approve</button><button class="btn-small danger" onclick="rejectGrade(${grade.id})">Reject</button></div>`;
+        ? `<span class="badge ${grade.status === 'APPROVED' ? 'success' : 'danger'}">${escapeHtml(grade.status)}</span>${grade.status === 'APPROVED' ? `${grade.retakeRequired ? `<button class="btn-small" onclick="createGradeRetake(${grade.id})">Create retake</button>` : ''}<button class="btn-small" onclick="authorizeGradeCorrection(${grade.id})">Authorize correction</button>` : ''}`
+        : `<div class="row-actions"><button class="btn-small" onclick="reviewGradeAssessments(${grade.id})">Review marks</button><button class="btn-small" data-approve-grade="${grade.id}" onclick="approveGrade(${grade.id})" disabled>Approve</button><button class="btn-small danger" onclick="rejectGrade(${grade.id})">Reject</button></div>`;
       return `<tr>
       <td>${escapeHtml(grade.studentUsername)}</td>
       <td>${escapeHtml(grade.studentName)}</td>
       <td>${escapeHtml(grade.courseName)}</td>
-      <td><span class="grade">${escapeHtml(grade.gradeValue)}</span></td>
+      <td><span class="grade">${escapeHtml(grade.gradeValue)}</span>${grade.retakeRequired ? ' <span class="badge danger">Retake required</span>' : ''}</td>
       <td>${grade.gpaScore == null ? '—' : Number(grade.gpaScore).toFixed(2)}</td>
       <td><span class="badge ${grade.status === 'APPROVED' ? 'success' : grade.status === 'REJECTED' ? 'danger' : 'pending'}">${escapeHtml(grade.status || 'PENDING')}</span></td>
       <td>${escapeHtml(grade.submittedBy || '—')}</td>
@@ -712,11 +738,57 @@ async function loadAdminGrades() {
   } catch (err) { tbody.innerHTML = `<tr><td colspan="12">${escapeHtml(err.message)}</td></tr>`; }
 }
 
-async function approveGrade(id) {
+async function reviewGradeAssessments(id) {
   try {
-    const grade = await apiFetch(`/admin/grades/${id}/approve`, { method: 'POST' });
+    const marks = await apiGet(`/teacher/grades/${id}/assessment-marks`);
+    const grade = (window._adminGrades || []).find(item => Number(item.id) === Number(id));
+    const missing = marks.filter(mark => mark.score == null);
+    const rows = marks.length ? marks.map(mark => `<tr>
+      <td>${escapeHtml(mark.displayName)} (${escapeHtml(mark.componentType)})</td>
+      <td>${mark.score == null ? '<span class="badge pending">MISSING</span>' : `${escapeHtml(mark.score)} / ${escapeHtml(mark.maxScore)}`}</td>
+      <td>${escapeHtml(mark.weightPercentage)}%</td>
+    </tr>`).join('') : '<tr><td colspan="3">No assessment structure is configured for this course.</td></tr>';
+    openModal(`<button type="button" class="modal-close" onclick="closeModal()" aria-label="Close">&times;</button>
+      <h2>Assessment review · ${escapeHtml(grade?.courseName || `Grade ${id}`)}</h2>
+      <p>Calculated result: ${escapeHtml(grade?.totalMark ?? 'NOT FINALIZED')}% · ${escapeHtml(grade?.gradeValue || '—')} · ${grade?.gpaScore == null ? '—' : `${Number(grade.gpaScore).toFixed(2)} grade points`}</p>
+      <div class="roster-wrap"><table class="admin-table"><thead><tr><th>Assessment component</th><th>Mark</th><th>Weight</th></tr></thead><tbody>${rows}</tbody></table></div>
+      <p class="teacher-status ${missing.length ? 'error' : 'success'}" role="status">${missing.length ? `${missing.length} assessment mark(s) are missing. Approval will be rejected until all required marks are entered.` : 'All configured assessment components have marks. The server will recompute and validate the weighted result during approval.'}</p>
+      <div class="modal-actions"><button type="button" class="btn-secondary" onclick="closeModal()">Close</button><button type="button" class="btn-primary" ${missing.length || !marks.length ? 'disabled' : ''} onclick="acknowledgeGradeReview(${id}, ${missing.length === 0 && marks.length > 0})">Mark reviewed</button></div>`);
+  } catch (error) {
+    alert(error.message || 'Unable to load assessment details.');
+  }
+}
+
+async function acknowledgeGradeReview(id, complete) {
+  if (!complete) return;
+  try {
+    await apiFetch(`/admin/grades/${id}/review`, { method: 'POST' });
+    closeModal();
+    window._adminReviewedAssessmentIds = window._adminReviewedAssessmentIds || new Set();
+    window._adminReviewedAssessmentIds.add(Number(id));
+    const approve = document.querySelector(`[data-approve-grade="${Number(id)}"]`);
+    if (approve) approve.disabled = false;
+  } catch (error) {
+    alert(error.message || 'Unable to record the assessment review.');
+  }
+}
+
+async function approveGrade(id) {
+  if (!window._adminReviewedAssessmentIds?.has(Number(id))) {
+    return alert('Review the assessment marks and validation status before approving this grade.');
+  }
+  try {
+    await apiFetch(`/admin/grades/${id}/approve`, { method: 'POST' });
     await loadAdminGrades();
   } catch (err) { alert(err.message); }
+}
+
+async function createGradeRetake(id) {
+  if (!confirm('Create a separate retake attempt? The original grade and marks will remain unchanged.')) return;
+  try {
+    await apiFetch(`/admin/grades/${id}/retakes`, { method: 'POST' });
+    await loadAdminGrades();
+  } catch (err) { alert(err.message || 'Unable to create the retake attempt.'); }
 }
 
 async function rejectGrade(id) {
@@ -727,6 +799,21 @@ async function rejectGrade(id) {
     const grade = await apiFetch(`/admin/grades/${id}/reject`, { method: 'POST', body: JSON.stringify({ reason }) });
     await loadAdminGrades();
   } catch (err) { alert(err.message); }
+}
+
+async function authorizeGradeCorrection(id) {
+  const reason = prompt('Required reason for reopening this approved result (max 2,000 characters):');
+  if (!reason || !reason.trim()) return;
+  if (reason.length > 2000) { alert('Correction reasons must be 2,000 characters or fewer.'); return; }
+  if (!confirm('The assigned teacher will be able to correct and resubmit this result. Student access will be locked as soon as a change begins, and the corrected result will require approval and publication again. Continue?')) return;
+  try {
+    await apiFetch(`/admin/grades/${id}/corrections`, {
+      method: 'POST',
+      body: JSON.stringify({ reason: reason.trim() })
+    });
+    alert('Correction authorized and previous result snapshot preserved.');
+    await loadAdminGrades();
+  } catch (err) { alert(err.message || 'Grade correction could not be authorized.'); }
 }
 
 async function importGrades() {
@@ -1817,9 +1904,10 @@ async function loadCourses(page = 0) {
           <p><strong>Category:</strong> ${escapeHtml(c.category || 'OTHER')}</p>
           <p><strong>Instructor:</strong> ${escapeHtml(c.teacherFullName || 'Unassigned')}</p>
           <p><strong>Course Units:</strong> ${c.credits ?? '—'}</p>
+          <p><strong>Requirement:</strong> ${c.core ? 'Core course' : 'Elective / not designated core'}</p>
           <p><strong>Status:</strong> <span class="badge active">Active</span></p>
         </div>
-        <div class="course-actions"><button class="btn-small edit" onclick="editCourse(${c.id})">Edit</button><button class="btn-small" onclick="viewCourseGrades(${c.id})">Grades</button></div>
+        <div class="course-actions"><button class="btn-small edit" onclick="editCourse(${c.id})">Edit</button><button class="btn-small" onclick="viewCourseGrades(${c.id})">Grades</button><button class="btn-small" onclick="configureCourseAssessments(${c.id})">Assessment structure</button></div>
       </div>`).join('') : `<p style="color:var(--text-secondary);">No courses created yet.</p>`;
     window._coursesCache = courses;
     window._courseUnitsCache = courseUnits;
@@ -1831,6 +1919,82 @@ async function loadCourses(page = 0) {
   } catch (err) {
     grid.innerHTML = `<p style="color:var(--danger);">${escapeHtml(err.message)}</p>`;
   }
+}
+
+function assessmentComponentRow(component = {}) {
+  const types = ['COURSEWORK', 'FINAL_PAPER', 'OTHER'];
+  return `<div class="assessment-component-row" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.5rem;margin:.75rem 0;">
+    <label>Code<input name="componentCode" maxlength="40" value="${escapeHtml(component.componentCode || '')}" required></label>
+    <label>Name<input name="displayName" maxlength="120" value="${escapeHtml(component.displayName || '')}" required></label>
+    <label>Type<select name="componentType">${types.map(type => `<option value="${type}" ${component.componentType === type ? 'selected' : ''}>${type.replace('_', ' ')}</option>`).join('')}</select></label>
+    <label>Weight (%)<input name="weightPercentage" type="number" min="0.01" max="100" step="0.01" value="${escapeHtml(component.weightPercentage ?? '')}" required></label>
+    <label>Maximum score<input name="maxScore" type="number" min="0.01" step="0.01" value="${escapeHtml(component.maxScore ?? '100')}" required></label>
+    <button class="btn-secondary" type="button" data-remove-assessment-component>Remove</button>
+  </div>`;
+}
+
+async function configureCourseAssessments(courseId) {
+  let components;
+  try {
+    components = await apiGet(`/teacher/courses/${courseId}/assessment-components`);
+  } catch (error) {
+    alert(error.message || 'Unable to load the course assessment structure.');
+    return;
+  }
+  openModal(`<button type="button" class="modal-close" onclick="closeModal()" aria-label="Close">&times;</button>
+    <h2>Course assessment structure</h2>
+    <p>Define course-specific components. Weights must total exactly 100%. Once any marks are submitted, the structure is locked to preserve result history.</p>
+    <form id="courseAssessmentStructureForm">
+      <div id="assessmentComponentRows">${(components.length ? components : [{}]).map(assessmentComponentRow).join('')}</div>
+      <button id="addAssessmentComponentRow" type="button" class="btn-secondary">Add component</button>
+      <p id="assessmentStructureStatus" role="status" aria-live="polite"></p>
+      <div class="modal-actions"><button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button><button type="submit" class="btn-primary">Save assessment structure</button></div>
+    </form>`);
+  const form = document.getElementById('courseAssessmentStructureForm');
+  document.getElementById('addAssessmentComponentRow').addEventListener('click', () => {
+    document.getElementById('assessmentComponentRows').insertAdjacentHTML('beforeend', assessmentComponentRow());
+  });
+  form.addEventListener('click', event => {
+    if (event.target.matches('[data-remove-assessment-component]')) {
+      const rows = form.querySelectorAll('.assessment-component-row');
+      if (rows.length === 1) return;
+      event.target.closest('.assessment-component-row').remove();
+    }
+  });
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+    const status = document.getElementById('assessmentStructureStatus');
+    const rows = [...form.querySelectorAll('.assessment-component-row')];
+    const payload = rows.map(row => ({
+      componentCode: row.querySelector('[name="componentCode"]').value.trim(),
+      displayName: row.querySelector('[name="displayName"]').value.trim(),
+      componentType: row.querySelector('[name="componentType"]').value,
+      weightPercentage: Number(row.querySelector('[name="weightPercentage"]').value),
+      maxScore: Number(row.querySelector('[name="maxScore"]').value),
+    }));
+    const weightTotal = payload.reduce((sum, component) => sum + component.weightPercentage, 0);
+    if (Math.abs(weightTotal - 100) > 0.000001) {
+      status.textContent = `Assessment component weights total ${weightTotal}%. They must total exactly 100%.`;
+      status.className = 'teacher-status error';
+      return;
+    }
+    const button = form.querySelector('[type="submit"]');
+    button.disabled = true;
+    try {
+      await apiFetch(`/admin/courses/${courseId}/assessment-components`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      });
+      status.textContent = 'Assessment structure saved.';
+      status.className = 'teacher-status success';
+      await new Promise(resolve => setTimeout(resolve, 500));
+      closeModal();
+    } catch (error) {
+      status.textContent = error.message || 'Unable to save the assessment structure.';
+      status.className = 'teacher-status error';
+      button.disabled = false;
+    }
+  });
 }
 
 function renderCourseUnits(units) {
@@ -1962,6 +2126,7 @@ async function openCourseForm() {
       <div class="modal-field"><label>Course Name *</label><input name="name" required></div>
       <div class="modal-row"><div class="modal-field"><label>Course Code *</label><input name="courseCode" placeholder="CSC201" required></div><div class="modal-field"><label>Category *</label><select name="categoryId" required><option value="">Choose a category…</option>${categoryOptions}</select></div></div>
       <div class="modal-row"><div class="modal-field"><label>Semester</label><input name="semester"></div><div class="modal-field"><label>Course Units</label><input name="credits" type="number" min="1" max="30" value="3" required></div></div>
+      <div class="modal-field"><label><input name="core" type="checkbox" value="true"> Core course unit</label></div>
       <div class="modal-field">
         <label>Instructor *</label>
         <select name="teacherId" required>
@@ -1982,7 +2147,7 @@ async function openCourseForm() {
     try {
       await apiFetch('/admin/courses', {
         method: 'POST',
-        body: JSON.stringify({ name: fd.get('name'), courseCode: fd.get('courseCode'), categoryId: Number(fd.get('categoryId')), teacherId: Number(fd.get('teacherId')), semester: fd.get('semester'), credits: Number(fd.get('credits') || 3) }),
+        body: JSON.stringify({ name: fd.get('name'), courseCode: fd.get('courseCode'), categoryId: Number(fd.get('categoryId')), teacherId: Number(fd.get('teacherId')), semester: fd.get('semester'), credits: Number(fd.get('credits') || 3), core: fd.get('core') === 'true' }),
       });
       closeModal();
       loadCourses();
@@ -2054,6 +2219,7 @@ async function editCourse(courseId) {
       <div class="modal-field"><label>Course Name *</label><input name="name" value="${escapeHtml(course.name)}" required></div>
       <div class="modal-row"><div class="modal-field"><label>Course Code *</label><input name="courseCode" value="${escapeHtml(course.courseCode || '')}" required></div><div class="modal-field"><label>Category *</label><select name="categoryId" required>${categoryOptions}</select></div></div>
       <div class="modal-row"><div class="modal-field"><label>Semester</label><input name="semester" value="${escapeHtml(course.semester || '')}"></div><div class="modal-field"><label>Course Units</label><input name="credits" type="number" min="1" max="30" value="${course.credits ?? 3}" required></div></div>
+      <div class="modal-field"><label><input name="core" type="checkbox" value="true" ${course.core ? 'checked' : ''}> Core course unit</label></div>
       <div class="modal-field"><label>Instructor *</label><select name="teacherId" required>${teacherOptions}</select></div>
       <div class="modal-actions"><button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button><button type="submit" class="btn-primary">Save Changes</button></div>
     </form>`);
@@ -2061,7 +2227,7 @@ async function editCourse(courseId) {
     e.preventDefault();
     const fd = new FormData(e.target);
     try {
-      await apiFetch(`/admin/courses/${courseId}`, { method: 'PUT', body: JSON.stringify({ name: fd.get('name'), courseCode: fd.get('courseCode'), categoryId: Number(fd.get('categoryId')), teacherId: Number(fd.get('teacherId')), semester: fd.get('semester'), credits: Number(fd.get('credits') || 3) }) });
+      await apiFetch(`/admin/courses/${courseId}`, { method: 'PUT', body: JSON.stringify({ name: fd.get('name'), courseCode: fd.get('courseCode'), categoryId: Number(fd.get('categoryId')), teacherId: Number(fd.get('teacherId')), semester: fd.get('semester'), credits: Number(fd.get('credits') || 3), core: fd.get('core') === 'true' }) });
       closeModal();
       loadCourses();
     } catch (err) { alert(err.message); }
@@ -2104,6 +2270,116 @@ async function loadStaff(page = 0) {
     renderPagination('staffModule', data, loadStaff);
   } catch (err) {
     tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--danger);">${escapeHtml(err.message)}</td></tr>`;
+  }
+}
+
+async function loadHrManagement() {
+  const staffBody = document.querySelector('#hrStaffTable tbody');
+  const leaveBody = document.querySelector('#hrPendingLeaveTable tbody');
+  if (!staffBody || !leaveBody) return;
+  staffBody.innerHTML = '<tr><td colspan="7">Loading HR staff records…</td></tr>';
+  leaveBody.innerHTML = '<tr><td colspan="4">Loading pending leave requests…</td></tr>';
+
+  try {
+    const [staff, pendingLeaves, users] = await Promise.all([
+      apiGet('/hr/staff'),
+      apiGet('/hr/leave/pending'),
+      apiGet('/admin/users'),
+    ]);
+    const assignedUserIds = new Set(staff.map(item => Number(item.user?.id)).filter(Number.isFinite));
+    const eligibleUsers = users.filter(user => {
+      const active = user.isActive ?? user.active;
+      return active && ['ADMIN', 'TEACHER'].includes(String(user.role).toUpperCase())
+        && !assignedUserIds.has(Number(user.id));
+    });
+    const accountSelect = document.getElementById('hrStaffUser');
+    if (accountSelect) {
+      accountSelect.innerHTML = '<option value="">Select an active admin/teacher account</option>'
+        + eligibleUsers.map(user => `<option value="${Number(user.id)}">${escapeHtml(user.username)} · ${escapeHtml(user.role)} · ${escapeHtml(user.email || 'no email')}</option>`).join('');
+    }
+
+    staffBody.innerHTML = staff.length ? staff.map(item => `
+      <tr><td>${escapeHtml(item.employeeNumber)}</td><td>${escapeHtml(item.fullName)}</td>
+      <td>${escapeHtml(item.title)}</td><td>${escapeHtml(item.user?.username || '—')}</td>
+      <td>${escapeHtml(item.departmentId ?? '—')}</td><td>${escapeHtml(item.hireDate || '—')}</td>
+      <td>${item.active ? 'Active' : 'Inactive'}</td></tr>`).join('')
+      : '<tr><td colspan="7">No HR staff records are configured.</td></tr>';
+
+    leaveBody.innerHTML = pendingLeaves.length ? pendingLeaves.map(item => `
+      <tr><td>${escapeHtml(item.staff?.fullName || item.staff?.user?.username || '—')}</td>
+      <td>${escapeHtml(item.startDate)} – ${escapeHtml(item.endDate)}</td>
+      <td>${escapeHtml(item.reason)}</td><td>
+      <button class="btn-small edit" type="button" onclick="reviewHrLeave(${Number(item.id)}, 'APPROVED')">Approve</button>
+      <button class="btn-small delete" type="button" onclick="reviewHrLeave(${Number(item.id)}, 'REJECTED')">Reject</button>
+      </td></tr>`).join('')
+      : '<tr><td colspan="4">No pending leave requests.</td></tr>';
+    setAdminStatus('hrStaffStatus', '', '');
+    setAdminStatus('hrLeaveStatus', '', '');
+    await loadAdminLeaveRequests();
+  } catch (err) {
+    staffBody.innerHTML = `<tr><td colspan="7">${escapeHtml(err.message || 'Unable to load HR staff records.')}</td></tr>`;
+    leaveBody.innerHTML = `<tr><td colspan="4">${escapeHtml(err.message || 'Unable to load pending leave requests.')}</td></tr>`;
+    setAdminStatus('hrStaffStatus', err.message || 'Unable to load HR management data.', 'error');
+  }
+}
+
+async function createHrStaffRecord(event) {
+  event.preventDefault();
+  const departmentValue = document.getElementById('hrStaffDepartment').value.trim();
+  try {
+    await apiFetch('/hr/staff', { method: 'POST', body: JSON.stringify({
+      userId: Number(document.getElementById('hrStaffUser').value),
+      employeeNumber: document.getElementById('hrStaffNumber').value.trim(),
+      fullName: document.getElementById('hrStaffName').value.trim(),
+      title: document.getElementById('hrStaffTitle').value.trim(),
+      departmentId: departmentValue ? Number(departmentValue) : null,
+      hireDate: document.getElementById('hrStaffHireDate').value,
+    }) });
+    event.target.reset();
+    setAdminStatus('hrStaffStatus', 'HR staff profile created. The employee can now use staff leave services.', 'success');
+    await loadHrManagement();
+  } catch (err) {
+    setAdminStatus('hrStaffStatus', err.message || 'Unable to create the HR staff profile.', 'error');
+  }
+}
+
+async function loadAdminLeaveRequests() {
+  const list = document.getElementById('adminLeaveList');
+  if (!list) return;
+  try {
+    const requests = await apiGet('/hr/leave/mine');
+    list.innerHTML = requests.length ? requests.map(item => `
+      <div class="teacher-request-item"><strong>${escapeHtml(item.startDate)} – ${escapeHtml(item.endDate)}</strong>
+      <span>${escapeHtml(item.status)} · ${escapeHtml(item.reason)}</span></div>`).join('')
+      : '<p>No leave requests submitted yet.</p>';
+  } catch (err) {
+    list.textContent = err.message || 'Unable to load your leave requests.';
+  }
+}
+
+async function submitAdminLeaveRequest(event) {
+  event.preventDefault();
+  try {
+    await apiFetch('/hr/leave', { method: 'POST', body: JSON.stringify({
+      startDate: document.getElementById('adminLeaveStart').value,
+      endDate: document.getElementById('adminLeaveEnd').value,
+      reason: document.getElementById('adminLeaveReason').value.trim(),
+    }) });
+    event.target.reset();
+    setAdminStatus('adminLeaveStatus', 'Leave request submitted.', 'success');
+    await Promise.all([loadAdminLeaveRequests(), loadHrManagement()]);
+  } catch (err) {
+    setAdminStatus('adminLeaveStatus', err.message || 'Unable to submit your leave request.', 'error');
+  }
+}
+
+async function reviewHrLeave(id, status) {
+  try {
+    await apiFetch(`/hr/leave/${id}/review`, { method: 'POST', body: JSON.stringify({ status }) });
+    setAdminStatus('hrLeaveStatus', `Leave request ${status.toLowerCase()}.`, 'success');
+    await loadHrManagement();
+  } catch (err) {
+    setAdminStatus('hrLeaveStatus', err.message || 'Unable to review leave request.', 'error');
   }
 }
 
@@ -2308,10 +2584,10 @@ async function generateStudentReport() {
   if (!studentId) return;
   try {
     const report = await apiGet(`/reports/academic/${studentId}`);
-    if (report?.approved) {
+    if (report?.published) {
       await downloadPdf(`/reports/academic/${studentId}/official/download`, `official-academic-report-${studentId}.pdf`, 'Official academic report is not available.');
     } else {
-      await downloadPdf(`/reports/academic/${studentId}/download`, `academic-report-${studentId}.pdf`, 'Academic report is not available.');
+      alert(`Results are ${report?.publicationStatus || 'not finalized'}. The official PDF is available only after an administrator publishes the approved version.`);
     }
   } catch (err) { alert(err.message || 'Academic report failed.'); }
 }
@@ -2322,10 +2598,15 @@ async function refreshStudentReportApprovalStatus(studentId) {
   try {
     const report = await apiGet(`/reports/academic/${studentId}/status`);
     badge.style.display = 'inline-block';
-    badge.className = report && report.approved ? 'status-badge success' : 'status-badge muted';
-    badge.textContent = report && report.approved
-      ? `Approved: Student ${studentId} by ${report.approvedBy || 'ADMIN'} (${report.approvedAt || 'recent'})`
-      : `No official approval yet for Student ${studentId}`;
+    badge.className = report?.published ? 'status-badge success'
+      : report?.approved ? 'status-badge warning' : 'status-badge muted';
+    badge.textContent = report?.published
+      ? `Published: Student ${studentId} · version ${report.resultsVersion} · ${report.publishedBy || 'ADMIN'} (${report.publishedAt || 'recent'})`
+      : report?.approved
+        ? `Approved, not published: Student ${studentId} · version ${report.resultsVersion}`
+        : report?.publicationStatus === 'CHANGES_REQUIRED'
+          ? `Changes require reapproval for Student ${studentId}`
+          : `Pending approval for Student ${studentId}`;
   } catch (err) {
     badge.style.display = 'inline-block';
     badge.className = 'status-badge muted';
@@ -2345,7 +2626,8 @@ async function approveStudentReport() {
       <p id="approveStudentReportMessage" class="status-badge muted" role="status" aria-live="polite"></p>
       <div class="modal-actions">
         <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
-        <button type="submit" class="btn-primary">Approve report</button>
+        <button id="approveStudentReportSubmit" type="submit" class="btn-primary">Approve current version</button>
+        <button id="publishStudentReportButton" type="button" class="btn-primary" onclick="publishStudentReport()" hidden>Publish approved version</button>
       </div>
     </form>
   `);
@@ -2362,18 +2644,53 @@ async function submitStudentReportApproval(event) {
   submitButton.disabled = true;
   try {
     const report = await apiFetch(`/reports/academic/${studentId}/approve`, { method: 'POST' });
+    const approved = await report.json();
     const badge = document.getElementById('studentReportApprovalStatus');
     if (badge) {
       badge.style.display = 'inline-block';
-      badge.className = 'status-badge success';
-      badge.textContent = `Approved: Student ${studentId} by ${report.approvedBy || 'ADMIN'} (${report.approvedAt || 'recent'})`;
+      badge.className = 'status-badge warning';
+      badge.textContent = `Approved, not published: Student ${studentId} · version ${approved.resultsVersion}`;
     }
-    message.className = 'status-badge success';
-    message.textContent = `Student ${studentId}'s academic report was approved.`;
+    form.dataset.resultsVersion = approved.resultsVersion;
+    message.className = 'status-badge warning';
+    message.textContent = `Version ${approved.resultsVersion} approved. Students cannot see it until you publish this exact version.`;
+    submitButton.hidden = true;
+    document.getElementById('publishStudentReportButton').hidden = false;
   } catch (err) {
     message.className = 'status-badge error';
     message.textContent = err.message || 'Unable to approve academic report.';
     submitButton.disabled = false;
+  }
+}
+
+async function publishStudentReport() {
+  const form = document.getElementById('approveStudentReportForm');
+  const studentId = Number(new FormData(form).get('studentId'));
+  const resultsVersion = form.dataset.resultsVersion;
+  const button = document.getElementById('publishStudentReportButton');
+  const message = document.getElementById('approveStudentReportMessage');
+  if (!Number.isSafeInteger(studentId) || studentId <= 0 || !resultsVersion) return;
+  if (!confirm(`Publish result version ${resultsVersion} for student ${studentId}?`)) return;
+  button.disabled = true;
+  try {
+    const response = await apiFetch(`/reports/academic/${studentId}/publish`, {
+      method: 'POST',
+      body: JSON.stringify({ resultsVersion }),
+    });
+    const published = await response.json();
+    const badge = document.getElementById('studentReportApprovalStatus');
+    if (badge) {
+      badge.style.display = 'inline-block';
+      badge.className = 'status-badge success';
+      badge.textContent = `Published: Student ${studentId} · version ${published.resultsVersion} · ${published.publishedAt || 'now'}`;
+    }
+    message.className = 'status-badge success';
+    message.textContent = `Version ${published.resultsVersion} is now published to the student.`;
+    button.hidden = true;
+  } catch (err) {
+    message.className = 'status-badge error';
+    message.textContent = err.message || 'Unable to publish academic results.';
+    button.disabled = false;
   }
 }
 

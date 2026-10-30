@@ -38,7 +38,7 @@ public class MessagingService {
                         ann.getTitle(),
                         ann.getContent(),
                         ann.getCreatedAt(),
-                        ann.getAuthor().getUsername()))
+                        authorUsername(ann)))
                 .collect(Collectors.toList());
     }
 
@@ -48,16 +48,20 @@ public class MessagingService {
     }
 
     public List<Map<String, Object>> getPublicAnnouncements() {
-        return announcementRepository.findAll().stream()
+        return announcementRepository.findAllByOrderByCreatedAtDesc().stream()
                 .map(ann -> {
                     Map<String, Object> map = new HashMap<>();
                     map.put("title", ann.getTitle());
                     map.put("content", ann.getContent());
                     map.put("createdAt", ann.getCreatedAt());
-                    map.put("authorName", ann.getAuthor().getUsername());
+                    map.put("authorName", authorUsername(ann));
                     return map;
                 })
                 .collect(Collectors.toList());
+    }
+
+    private String authorUsername(Announcement announcement) {
+        return announcement.getAuthor() == null ? "System" : announcement.getAuthor().getUsername();
     }
 
     // --- Messages ---
@@ -75,8 +79,10 @@ public class MessagingService {
     }
 
     public boolean markMessageRead(Long messageId, Long userId) {
-        return messageRepository.findById(messageId)
-                .filter(message -> message.getReceiver().getId().equals(userId))
+        if (messageId == null || userId == null) {
+            return false;
+        }
+        return messageRepository.findByIdAndReceiverId(messageId, userId)
                 .map(message -> {
             message.setRead(true);
             messageRepository.save(message);

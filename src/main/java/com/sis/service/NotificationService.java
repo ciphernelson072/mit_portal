@@ -35,8 +35,10 @@ public class NotificationService {
 
     @Transactional(readOnly = true)
     public List<Notification> listVisibleForUser(Long userId) {
+        List<Boolean> visibility = preferencePolicyService.notificationVisibility(userId);
         return repository.findByUserIdOrderByCreatedAtDesc(userId).stream()
-                .filter(notification -> preferencePolicyService.isNotificationCategoryVisible(userId, notification.getCategory()))
+                .filter(notification -> preferencePolicyService.isNotificationCategoryVisible(
+                        notification.getCategory(), visibility))
                 .toList();
     }
 

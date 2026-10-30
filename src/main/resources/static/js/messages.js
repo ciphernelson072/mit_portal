@@ -80,7 +80,8 @@ async function loadMessages() {
       apiGet('/messages/sent'),
     ]);
 
-    if (summary) summary.textContent = `${received.length} unread in inbox · ${sent.length} sent`;
+    const unreadCount = received.filter(message => !message.read).length;
+    if (summary) summary.textContent = `${unreadCount} unread in inbox · ${sent.length} sent`;
 
     if (inboxList) {
       inboxList.innerHTML = received.length ? received.map(message => `

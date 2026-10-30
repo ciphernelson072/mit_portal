@@ -43,6 +43,17 @@ department. Existing free-text teacher department values are preserved as subjec
 specializations and are not automatically mapped to departments because those
 values may be ambiguous.
 
+Institution directory and academic-term administration requires an administrator
+or an explicitly granted academic-operations/registration permission; the base
+teacher role alone does not grant these setup capabilities. Teacher attendance
+reads are restricted to courses assigned to that teacher, while a teacher's
+student-wide attendance requests return only those assigned-course records.
+Student course feeds, assignments, exams, and teacher course rosters include
+active course-section registrations as well as legacy course-roster links.
+Custom permission codes cannot reuse built-in role names, and any pre-existing
+role assignment with such an alias is ignored when authorities are loaded. This
+prevents delegated permission naming from shadowing ADMIN, TEACHER, or STUDENT.
+
 Programme discovery and admission now require the complete campus → faculty →
 department → programme chain to be active. This is enforced both when public
 applicants list or submit a programme and when staff enroll an accepted applicant;
@@ -219,3 +230,22 @@ Delegated grants must remain narrow. For example:
 ## Validation
 
 The focused security integration suite remains the source of truth for authorization boundaries. The current green run validates the delegated-permission behavior, including positive and negative flows across finance, reporting, admissions, procurement, HR, and library permissions.
+
+HR onboarding is an explicit administrator action; the application does not invent
+employee identifiers or employment dates. Staff records can only be linked to active
+administrator or teacher accounts, and leave self-service remains scoped to the
+authenticated user's own active staff profile.
+
+Scholarship administration is administrator-only. Student applications are accepted
+only while the scholarship is open; submission is serialized on the scholarship
+record, duplicate submissions remain idempotent, and administrator review may only
+finalize a submitted application as approved or rejected.
+
+Campus event registration and cancellation are limited to the authenticated
+student's own registration. The event record is locked while changing registration
+state, and no new registration or cancellation is accepted after the event starts.
+Retries for an already active registration remain idempotent and do not create a
+new registration after the event has started.
+Hostel allocation serializes on the student record and rejects any additional room
+assignment while an active allocation already exists; additional open applications
+are closed when one is successfully assigned.

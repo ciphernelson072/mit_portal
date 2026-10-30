@@ -19,6 +19,9 @@ For administrator procedures and synthetic practice data, see
 [`docs/ADMIN_OPERATIONS_PRACTICE_GUIDE.docx`](docs/ADMIN_OPERATIONS_PRACTICE_GUIDE.docx).
 For the reviewed system gaps, corrections, and readiness recommendations, see
 [`docs/SYSTEM_ANALYSIS_AND_RECOMMENDATIONS.docx`](docs/SYSTEM_ANALYSIS_AND_RECOMMENDATIONS.docx).
+For the implemented assessment, retake, approval, and publication workflow and
+its unresolved academic-policy decisions, see
+[`docs/ACADEMIC_RESULTS_WORKFLOW.md`](docs/ACADEMIC_RESULTS_WORKFLOW.md).
 
 ## Screenshots
 
@@ -769,36 +772,46 @@ The dashboard tracks:
 
 ## CGPA System
 
-### Calculation Method
+### Current implementation and policy boundary
 
 ```
 CGPA = Sum(GPA_Score * Course_Credits) / Total_Credits
 ```
 
-### Grade to GPA Conversion
+The application calculates credit-weighted CGPA from approved grades only.
+Final reports are versioned and remain unavailable to students until an
+administrator approves and separately publishes the current results version.
+Changing a result invalidates approval for the changed version. See the
+[academic results workflow](docs/ACADEMIC_RESULTS_WORKFLOW.md) for endpoints,
+roles, and release checks.
 
-| Grade | GPA |
-|-------|-----|
-| A+, A | 4.0 |
-| A-    | 3.7 |
-| B+    | 3.3 |
-| B     | 3.0 |
-| B-    | 2.7 |
-| C+    | 2.3 |
-| C     | 2.0 |
-| C-    | 1.7 |
-| D+    | 1.3 |
-| D     | 1.0 |
-| D-    | 0.7 |
-| F     | 0.0 |
+The grade-to-GPA values currently retained in code are legacy compatibility
+values, not a confirmed Makerere Institute of Technology policy. Do not use
+them as an official scale until the institution approves the exact grade
+boundaries, grade points, rounding, and credit rules.
 
-### Automatic Recalculation
+### Result approval and publication
 
-CGPA is automatically recalculated when:
-- New grades are added
-- Grades are updated
-- Grades are deleted
-- Admin manually triggers calculation
+Student-facing academic results, CGPA, transcripts, and report downloads are
+locked until an administrator approves and publishes the current results
+version. Approval records a versioned snapshot; publication is a separate
+administrator action. Changes to any grade after approval change the result
+version and require approval and publication again. Approval and publication
+events are recorded in the audit log, and students receive an in-app
+notification only after publication.
+
+Course assessment components and marks are stored separately. Component
+weights are course-specific, must total exactly 100%, and missing marks remain
+missing rather than counting as zero. Retakes are represented as separate
+grade attempts linked to the original attempt; no attempt is automatically
+selected to replace another.
+
+The system does not infer mark-to-letter-grade bands, pass thresholds, retake
+treatment for GPA/credits, or academic-standing criteria. The assessment
+calculation service refuses to assign a final letter grade without configured
+grade boundaries, and CGPA finalization is blocked when retake attempts are
+present until the institutional retake policy is configured. Academic standing
+therefore remains not finalized.
 
 ---
 

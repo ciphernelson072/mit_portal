@@ -98,6 +98,7 @@ CREATE TABLE IF NOT EXISTS courses (
   teacher_id BIGINT NOT NULL COMMENT 'Foreign key to teachers table',
   semester VARCHAR(50) COMMENT 'Academic semester (e.g., Fall 2024, Spring 2024)',
   credits INT DEFAULT 3 COMMENT 'Credit hours for GPA calculations',
+  is_core TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Whether passing this course unit is required for normal progress',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_course_teacher FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE RESTRICT,
@@ -148,7 +149,13 @@ CREATE TABLE IF NOT EXISTS grades (
   student_id BIGINT NOT NULL COMMENT 'Foreign key to students table',
   course_id BIGINT NOT NULL COMMENT 'Foreign key to courses table',
   grade_value VARCHAR(5) NOT NULL COMMENT 'Letter grade (A, B, C, D, F, etc.)',
-  gpa_score DECIMAL(3,2) DEFAULT 0.00 COMMENT 'Numeric GPA equivalent (0.00-4.00)',
+  gpa_score DECIMAL(3,2) DEFAULT 0.00 COMMENT 'Numeric grade point equivalent (0.00-5.00)',
+  grading_policy_version VARCHAR(32) NOT NULL DEFAULT 'UG_5_POINT_V1',
+  retake_required TINYINT(1) NOT NULL DEFAULT 0,
+  attempt_number INT NOT NULL DEFAULT 1,
+  original_attempt_id BIGINT NULL,
+  total_mark DECIMAL(6,2) NULL,
+  row_version BIGINT NOT NULL DEFAULT 0,
   remarks VARCHAR(1024) COMMENT 'Additional feedback or remarks on performance',
   status VARCHAR(20) NOT NULL DEFAULT 'PENDING' COMMENT 'Submission workflow state: PENDING, APPROVED, REJECTED',
   submitted_by VARCHAR(255) NULL COMMENT 'Teacher username who submitted the grade',
@@ -158,13 +165,78 @@ CREATE TABLE IF NOT EXISTS grades (
   submitted_at TIMESTAMP NULL,
   approved_at TIMESTAMP NULL,
   rejected_at TIMESTAMP NULL,
+  assessment_review_fingerprint CHAR(64) NULL,
+  assessment_reviewed_by VARCHAR(255) NULL,
+  assessment_reviewed_at DATETIME(6) NULL,
   recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_grade_student FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
   CONSTRAINT fk_grade_course FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+  CONSTRAINT fk_grade_original_attempt FOREIGN KEY (original_attempt_id) REFERENCES grades(id) ON DELETE RESTRICT,
   INDEX idx_student (student_id),
   INDEX idx_course (course_id),
-  INDEX idx_grade_status (status)
+  INDEX idx_grade_status (status),
+  INDEX idx_grade_original_attempt (original_attempt_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS course_assessment_components (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  course_id BIGINT NOT NULL,
+  component_code VARCHAR(40) NOT NULL,
+  display_name VARCHAR(120) NOT NULL,
+  component_type VARCHAR(20) NOT NULL DEFAULT 'OTHER',
+  weight_percentage DECIMAL(5,2) NOT NULL,
+  max_score DECIMAL(7,2) NOT NULL,
+  required_component TINYINT(1) NOT NULL DEFAULT 1,
+  row_version BIGINT NOT NULL DEFAULT 0,
+  CONSTRAINT uk_course_assessment_component_code UNIQUE (course_id, component_code),
+  CONSTRAINT fk_course_assessment_component_course
+    FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS grade_assessment_marks (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  grade_id BIGINT NOT NULL,
+  assessment_component_id BIGINT NOT NULL,
+  score DECIMAL(7,2) NULL,
+  remarks VARCHAR(1024) NULL,
+  CONSTRAINT uk_grade_assessment_mark UNIQUE (grade_id, assessment_component_id),
+  CONSTRAINT fk_grade_assessment_mark_grade
+    FOREIGN KEY (grade_id) REFERENCES grades(id) ON DELETE CASCADE,
+  CONSTRAINT fk_grade_assessment_mark_component
+    FOREIGN KEY (assessment_component_id) REFERENCES course_assessment_components(id) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS grade_correction_requests (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  grade_id BIGINT NOT NULL,
+  reason VARCHAR(2000) NOT NULL,
+  previous_snapshot LONGTEXT NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'AUTHORIZED',
+  authorized_by VARCHAR(255) NOT NULL,
+  authorized_at DATETIME(6) NOT NULL,
+  submitted_at DATETIME(6) NULL,
+  completed_at DATETIME(6) NULL,
+  row_version BIGINT NOT NULL DEFAULT 0,
+  CONSTRAINT fk_grade_correction_grade
+    FOREIGN KEY (grade_id) REFERENCES grades(id) ON DELETE RESTRICT,
+  INDEX idx_grade_correction_grade_status (grade_id, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS academic_result_snapshots (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  student_id BIGINT NOT NULL,
+  results_version CHAR(64) NOT NULL,
+  snapshot_payload LONGTEXT NOT NULL,
+  approved_by VARCHAR(255) NOT NULL,
+  approved_at DATETIME(6) NOT NULL,
+  published_by VARCHAR(255) NULL,
+  published_at DATETIME(6) NULL,
+  row_version BIGINT NOT NULL DEFAULT 0,
+  CONSTRAINT uk_academic_result_snapshot_version UNIQUE (student_id, results_version),
+  CONSTRAINT fk_academic_result_snapshot_student
+    FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
+  INDEX idx_academic_result_snapshot_student_published (student_id, published_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Announcements table: School announcements and notices
@@ -384,9 +456,14 @@ CREATE TABLE IF NOT EXISTS payment_transactions (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   fee_id BIGINT NOT NULL,
   student_id BIGINT NOT NULL,
+  payment_attempt_id BIGINT NULL,
+  payment_channel VARCHAR(30) NULL,
+  provider_reference VARCHAR(120) NULL,
+  provider_transaction_id VARCHAR(80) NULL,
   amount DECIMAL(10,2) NOT NULL,
   status VARCHAR(30) NOT NULL DEFAULT 'COMPLETED',
   created_at DATETIME NOT NULL,
+  CONSTRAINT uk_payment_transaction_attempt UNIQUE (payment_attempt_id),
   CONSTRAINT fk_transaction_fee FOREIGN KEY (fee_id) REFERENCES fees(id) ON DELETE CASCADE,
   CONSTRAINT fk_transaction_student FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
   INDEX idx_transaction_student (student_id)
@@ -555,6 +632,7 @@ CREATE TABLE IF NOT EXISTS programs (
   code VARCHAR(30) NOT NULL UNIQUE,
   name VARCHAR(200) NOT NULL,
   award_title VARCHAR(150) NOT NULL,
+  award_type VARCHAR(20) NULL COMMENT 'BACHELOR or DIPLOMA; required for award classification',
   department_id BIGINT NOT NULL,
   duration_years INT NOT NULL,
   active TINYINT(1) NOT NULL DEFAULT 1,
@@ -697,6 +775,9 @@ CREATE TABLE IF NOT EXISTS payment_attempts (
   student_id BIGINT NOT NULL,
   amount DECIMAL(10,2) NOT NULL,
   provider_reference VARCHAR(120) NOT NULL UNIQUE,
+  provider_transaction_id VARCHAR(80) NULL UNIQUE,
+  checkout_url VARCHAR(500) NULL,
+  checkout_expires_at DATETIME NULL,
   status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   confirmed_at DATETIME NULL,
@@ -705,6 +786,10 @@ CREATE TABLE IF NOT EXISTS payment_attempts (
   INDEX idx_payment_attempt_student (student_id),
   INDEX idx_payment_attempt_fee_status (fee_id, status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+ALTER TABLE payment_transactions
+  ADD CONSTRAINT fk_payment_transaction_attempt
+    FOREIGN KEY (payment_attempt_id) REFERENCES payment_attempts(id);
 
 CREATE TABLE IF NOT EXISTS payment_allocations (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -737,8 +822,12 @@ CREATE TABLE IF NOT EXISTS payment_refunds (
   amount DECIMAL(10,2) NOT NULL,
   reason VARCHAR(1000) NOT NULL,
   processed_by VARCHAR(255) NOT NULL,
-  status VARCHAR(20) NOT NULL DEFAULT 'COMPLETED',
+  status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  reviewed_by VARCHAR(255) NULL,
+  reviewed_at DATETIME NULL,
+  review_note VARCHAR(1000) NULL,
+  refund_reference VARCHAR(120) NULL UNIQUE,
   CONSTRAINT fk_refund_attempt FOREIGN KEY (payment_attempt_id) REFERENCES payment_attempts(id),
   CONSTRAINT fk_refund_fee FOREIGN KEY (fee_id) REFERENCES fees(id),
   CONSTRAINT fk_refund_student FOREIGN KEY (student_id) REFERENCES students(id),

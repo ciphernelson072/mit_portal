@@ -95,12 +95,16 @@ public class PdfDocumentService {
         lines.add("Student: " + report.getStudentName());
         lines.add("Class / Program: " + report.getClassName());
         lines.add("CGPA: " + report.getCgpa());
+        if (report.getAwardClassification() != null) {
+            lines.add("Award classification: " + report.getAwardClassification());
+        }
         lines.add("Average grade: " + report.getAverageGrade());
         lines.add("Total courses: " + report.getTotalCourses());
         lines.add("");
         for (CourseGradeDto grade : report.getCourseGrades()) {
             lines.add(grade.getCourseName() + " | " + grade.getGrade() + " | GPA " + grade.getGpaScore()
-                    + " | Credits " + grade.getCredits());
+                    + " | Credits " + grade.getCredits()
+                    + (Boolean.TRUE.equals(grade.getRetakeRequired()) ? " | RETAKE REQUIRED" : ""));
         }
         lines.add("");
         lines.add("Summary: " + report.getPerformanceSummary());
@@ -113,6 +117,9 @@ public class PdfDocumentService {
             PDPage page = new PDPage(PDRectangle.A4);
             document.addPage(page);
             try (PDPageContentStream content = new PDPageContentStream(document, page)) {
+                if (!Boolean.TRUE.equals(report.getPublished())) {
+                    throw new IllegalStateException("Official academic report PDFs require a published result version.");
+                }
                 drawTranscriptHeader(document, page, content, report);
                 drawTranscriptMetadata(content, report);
                 drawTranscriptCourseGrid(content, report);
@@ -132,22 +139,22 @@ public class PdfDocumentService {
         content.fill();
         content.setNonStrokingColor(new PDColor(new float[]{1f, 1f, 1f}, PDDeviceRGB.INSTANCE));
         content.beginText();
-        content.setFont(PDType1Font.HELVETICA_BOLD, 20);
+        content.setFont(PDType1Font.HELVETICA_BOLD, 17);
         content.newLineAtOffset(80, 750);
-        content.showText("UGANDA CHRISTIAN");
+        content.showText("MAKERERE INSTITUTE");
         content.newLineAtOffset(0, -18);
-        content.showText("UNIVERSITY");
+        content.showText("OF TECHNOLOGY");
         content.endText();
 
         content.setNonStrokingColor(new PDColor(new float[]{0.12f, 0.12f, 0.12f}, PDDeviceRGB.INSTANCE));
         content.beginText();
         content.setFont(PDType1Font.HELVETICA, 9);
         content.newLineAtOffset(380, 751);
-        content.showText("P.O Box, Mukono, Uganda");
+        content.showText("Academic Performance Report");
         content.newLineAtOffset(0, -14);
-        content.showText("Email: registrar@ucu.ac.ug");
+        content.showText("CGPA Summary");
         content.newLineAtOffset(0, -14);
-        content.showText("Website: www.ucu.ac.ug");
+        content.showText(SCHOOL_ADDRESS);
         content.endText();
 
         try {
@@ -157,7 +164,8 @@ public class PdfDocumentService {
                         logoResource.getInputStream().readAllBytes(), "mit-logo");
                 content.drawImage(logo, 42, 750, 30, 30);
             }
-        } catch (IOException ignored) {
+        } catch (IOException ex) {
+            throw new IOException("Unable to load the Makerere Institute of Technology crest.", ex);
         }
     }
 
@@ -203,19 +211,34 @@ public class PdfDocumentService {
         content.showText("Current CGPA:");
         content.setFont(PDType1Font.HELVETICA, 12);
         content.newLineAtOffset(95, 0);
-        content.showText(report.getCgpa() == null ? "0.00" : report.getCgpa().setScale(2, java.math.RoundingMode.HALF_UP).toPlainString());
+        content.showText(report.getCgpa() == null ? "NOT FINALIZED" : report.getCgpa().setScale(2, java.math.RoundingMode.HALF_UP).toPlainString());
         content.endText();
 
         content.beginText();
         content.setFont(PDType1Font.HELVETICA_BOLD, 14);
-        content.newLineAtOffset(160, 628);
-        content.showText("Faculty: Faculty of Agricultural Sciences");
+        content.newLineAtOffset(70, 640);
+        content.showText("Semester GPA: "
+                + (report.getSemesterGpa() == null ? "N/A" : report.getSemesterGpa().setScale(2, java.math.RoundingMode.HALF_UP).toPlainString())
+                + " | Credits earned: " + (report.getCreditsEarned() == null ? "N/A" : report.getCreditsEarned())
+                + " | Standing: " + (report.getAcademicStandingStatus() == null ? "NOT FINALIZED" : report.getAcademicStandingStatus()));
         content.endText();
 
         content.beginText();
         content.setFont(PDType1Font.HELVETICA_BOLD, 14);
-        content.newLineAtOffset(160, 610);
-        content.showText("Program: Bachelor of Agricultural Science and Entrepreneurship");
+        content.newLineAtOffset(70, 620);
+        content.showText("Award: " + (report.getAwardClassification() == null ? "NOT CLASSIFIED" : report.getAwardClassification()));
+        content.endText();
+
+        content.beginText();
+        content.setFont(PDType1Font.HELVETICA_BOLD, 14);
+        content.newLineAtOffset(160, 602);
+        content.showText("Generated: " + (report.getGeneratedDate() == null ? "N/A" : report.getGeneratedDate()));
+        content.endText();
+
+        content.beginText();
+        content.setFont(PDType1Font.HELVETICA_BOLD, 14);
+        content.newLineAtOffset(160, 584);
+        content.showText("Status: " + (Boolean.TRUE.equals(report.getPublished()) ? "PUBLISHED" : "PENDING"));
         content.endText();
     }
 
@@ -252,9 +275,9 @@ public class PdfDocumentService {
         content.beginText();
         content.setFont(PDType1Font.HELVETICA_BOLD, 10);
         content.newLineAtOffset(columnX, currentY);
-        content.showText(left ? "COURSE NAME" : "COURSE NAME");
+        content.showText("COURSE NAME");
         content.newLineAtOffset(120, 0);
-        content.showText("MARK");
+        content.showText("GRADE");
         content.newLineAtOffset(45, 0);
         content.showText("CU");
         content.newLineAtOffset(28, 0);
@@ -294,16 +317,20 @@ public class PdfDocumentService {
         content.beginText();
         content.setFont(PDType1Font.HELVETICA_BOLD, 13);
         content.newLineAtOffset(150, 118);
-        content.showText("The results will be displayed as shown above");
+        content.showText(Boolean.TRUE.equals(report.getPublished())
+                ? "Official academic results"
+                : "PENDING · NOT AN OFFICIAL RESULT");
         content.endText();
 
-        if (Boolean.TRUE.equals(report.getApproved())) {
+        if (Boolean.TRUE.equals(report.getPublished())) {
             content.beginText();
             content.setFont(PDType1Font.HELVETICA_BOLD, 12);
             content.newLineAtOffset(420, 90);
             content.showText("Approved by: " + (report.getApprovedBy() == null ? "ADMIN" : report.getApprovedBy()));
             content.newLineAtOffset(0, -14);
-            content.showText("Approved at: " + (report.getApprovedAt() == null ? "N/A" : report.getApprovedAt()));
+            content.showText("Published by: " + (report.getPublishedBy() == null ? "ADMIN" : report.getPublishedBy()));
+            content.newLineAtOffset(0, -14);
+            content.showText("Published at: " + (report.getPublishedAt() == null ? "N/A" : report.getPublishedAt()));
             content.endText();
         }
     }

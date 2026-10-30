@@ -9,6 +9,7 @@ import com.sis.repository.AuditLogRepository;
 import com.sis.repository.PermissionRepository;
 import com.sis.repository.RolePermissionRepository;
 import com.sis.repository.UserRepository;
+import com.sis.security.PermissionAuthorityPolicy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,8 +32,12 @@ public class PermissionService {
     }
 
     public Permission create(CreatePermissionRequest request, String createdBy) {
+        String code = request.getCode().trim().toUpperCase(java.util.Locale.ROOT);
+        if (PermissionAuthorityPolicy.isReservedRoleAuthority(code)) {
+            throw new IllegalArgumentException("Permission code cannot shadow a built-in role authority.");
+        }
         Permission permission = new Permission();
-        permission.setCode(request.getCode().trim().toUpperCase());
+        permission.setCode(code);
         permission.setDescription(request.getDescription());
         Permission saved = permissions.save(permission);
         audit(createdBy, "PERMISSION_CREATED", "Permission " + saved.getCode() + " created");

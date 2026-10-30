@@ -304,6 +304,50 @@
       </tbody>
     </table>
 
+    <div class="module-header">
+      <h2>HR Staff Records</h2>
+      <button class="btn-secondary" type="button" onclick="loadHrManagement()">↻ Refresh HR</button>
+    </div>
+    <p>Only create staff records after confirming the employee number, title, and hire date with HR.</p>
+    <form id="hrStaffForm">
+      <div class="teacher-field"><label for="hrStaffUser">Account</label><select id="hrStaffUser" required><option value="">Loading eligible accounts…</option></select></div>
+      <div class="teacher-field"><label for="hrStaffNumber">Employee number</label><input id="hrStaffNumber" maxlength="40" required></div>
+      <div class="teacher-field"><label for="hrStaffName">Full name</label><input id="hrStaffName" maxlength="200" required></div>
+      <div class="teacher-field"><label for="hrStaffTitle">Job title</label><input id="hrStaffTitle" maxlength="150" required></div>
+      <div class="teacher-field"><label for="hrStaffDepartment">Department ID (optional)</label><input id="hrStaffDepartment" type="number" min="1"></div>
+      <div class="teacher-field"><label for="hrStaffHireDate">Hire date</label><input id="hrStaffHireDate" type="date" required></div>
+      <div class="teacher-actions"><button class="btn-primary" type="submit">Create HR staff record</button></div>
+    </form>
+    <div id="hrStaffStatus" class="teacher-status" role="status"></div>
+    <div class="roster-wrap">
+      <table class="table admin-table" id="hrStaffTable">
+        <thead><tr><th>Employee No.</th><th>Name</th><th>Title</th><th>Account</th><th>Department</th><th>Hire date</th><th>Status</th></tr></thead>
+        <tbody><tr><td colspan="7">Loading HR staff records…</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="module-header">
+      <h2>Pending Leave Requests</h2>
+    </div>
+    <div id="hrLeaveStatus" class="teacher-status" role="status"></div>
+    <div class="roster-wrap">
+      <table class="table admin-table" id="hrPendingLeaveTable">
+        <thead><tr><th>Employee</th><th>Dates</th><th>Reason</th><th>Actions</th></tr></thead>
+        <tbody><tr><td colspan="4">Loading pending leave requests…</td></tr></tbody>
+      </table>
+    </div>
+    <div class="module-header">
+      <h2>My Leave Request</h2>
+    </div>
+    <form id="adminLeaveForm">
+      <div class="teacher-field"><label for="adminLeaveStart">Start date</label><input id="adminLeaveStart" type="date" required></div>
+      <div class="teacher-field"><label for="adminLeaveEnd">End date</label><input id="adminLeaveEnd" type="date" required></div>
+      <div class="teacher-field"><label for="adminLeaveReason">Reason</label><textarea id="adminLeaveReason" maxlength="1000" required></textarea></div>
+      <div class="teacher-actions"><button class="btn-primary" type="submit">Submit leave request</button></div>
+    </form>
+    <div id="adminLeaveStatus" class="teacher-status" role="status"></div>
+    <div id="adminLeaveList" class="teacher-request-list" aria-live="polite"></div>
+
   </section>
 
   <!-- ===== COURSES MODULE ===== -->
@@ -445,7 +489,7 @@
       <button class="btn-primary" onclick="importGrades()">📥 Import Grades</button>
       <button class="btn-secondary" type="button" onclick="downloadGradeImportTemplate()">Download CSV Template</button>
       <button class="btn-secondary" onclick="exportGrades()">📤 Export Grades</button>
-      <p class="module-help">Use the CSV template for imports. Required columns: studentId, courseId, gradeValue. Imported grades remain pending approval.</p>
+      <p class="module-help">Use the CSV template for legacy grade imports. Imported grades remain pending and cannot be approved until the course assessment structure and component marks are recorded.</p>
     </div>
 
     <table class="table admin-table">
@@ -514,6 +558,7 @@
           <div class="setting-item"><label for="programCode">Programme code</label><input id="programCode" maxlength="30" required></div>
           <div class="setting-item"><label for="programName">Programme name</label><input id="programName" maxlength="200" required></div>
           <div class="setting-item"><label for="programAwardTitle">Award title</label><input id="programAwardTitle" maxlength="150" required></div>
+          <div class="setting-item"><label for="programAwardType">Award classification type</label><select id="programAwardType" required><option value="">Select type</option><option value="BACHELOR">Bachelor's Degree</option><option value="DIPLOMA">Diploma</option></select></div>
           <div class="setting-item"><label for="programDurationYears">Duration (years)</label><input id="programDurationYears" type="number" min="1" step="1" required></div>
           <button id="createProgramButton" class="btn-primary" type="submit" disabled>Add Programme</button>
         </form>
@@ -736,10 +781,10 @@
       </div>
       <div class="report-card" onclick="approveStudentReport()">
         <div class="report-icon">✅</div>
-        <h3>Approve Student Report</h3>
-        <p>Officially approve a student's academic report as Admin or HR</p>
+        <h3>Review &amp; Publish Student Results</h3>
+        <p>Approve a specific result version, then explicitly publish it. Changes after approval require review again.</p>
       </div>
-      <div id="studentReportApprovalStatus" class="status-badge muted" style="display:none; margin: 0 0 12px;">No official report approval yet</div>
+      <div id="studentReportApprovalStatus" class="status-badge muted" style="display:none; margin: 0 0 12px;">No result version approved</div>
       <div class="report-card" onclick="generateReport('class')">
         <div class="report-icon">🏫</div>
         <h3>Class Statistics</h3>

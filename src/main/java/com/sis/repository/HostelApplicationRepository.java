@@ -11,6 +11,8 @@ import javax.persistence.LockModeType;
 
 public interface HostelApplicationRepository extends JpaRepository<HostelApplication, Long> {
     List<HostelApplication> findByStudentIdOrderByCreatedAtDesc(Long studentId);
+    List<HostelApplication> findByStudentIdAndStatus(Long studentId, String status);
+    List<HostelApplication> findByStatusOrderByCreatedAtAsc(String status);
     Optional<HostelApplication> findByIdAndStatus(Long id, String status);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

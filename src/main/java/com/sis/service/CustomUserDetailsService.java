@@ -3,6 +3,7 @@ package com.sis.service;
 import com.sis.entity.User;
 import com.sis.repository.UserRepository;
 import com.sis.repository.RolePermissionRepository;
+import com.sis.security.PermissionAuthorityPolicy;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -34,6 +35,8 @@ public class CustomUserDetailsService implements UserDetailsService {
             authorities.add(user.getRole().name());
             rolePermissionRepository.findByRole(user.getRole()).stream()
                 .filter(assignment -> Boolean.TRUE.equals(assignment.getPermission().getActive()))
+                .filter(assignment -> !PermissionAuthorityPolicy.isReservedRoleAuthority(
+                        assignment.getPermission().getCode()))
                 .map(assignment -> "PERM_" + assignment.getPermission().getCode())
                 .forEach(authorities::add);
         }

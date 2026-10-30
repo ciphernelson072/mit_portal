@@ -130,21 +130,14 @@ test('teacher can select a course grade and submit it for approval', async ({ pa
   });
 
   let submittedGradeId;
+  let submittedMarks;
   await page.route('**/api/**', async route => {
     const url = new URL(route.request().url());
     if (url.pathname === '/api/teacher/me') {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 3, fullName: 'Ruth Nakato' }) });
-    } else if (url.pathname === '/api/teacher/course-units') {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([
-        { id: 5, unitCode: 'CSC201', name: 'Data Structures', courseId: 2, courseName: 'Computer Science', courseCode: 'CSC201' },
-      ]) });
     } else if (url.pathname === '/api/teacher/my-courses') {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([
         { id: 2, courseCode: 'CSC201', name: 'Data Structures' },
-      ]) });
-    } else if (url.pathname === '/api/teacher/course-units/5/students') {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([
-        { id: 7, fullName: 'Alice Student', registrationNumber: 'MIT-007', cgpa: 3.5 },
       ]) });
     } else if (url.pathname === '/api/teacher/courses/2/students') {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([
@@ -154,8 +147,19 @@ test('teacher can select a course grade and submit it for approval', async ({ pa
       await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
     } else if (url.pathname === '/api/teacher/courses/2/grades') {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([
-        { id: 61, studentId: 7, studentName: 'Alice Student', gradeValue: 'B+', remarks: 'Good work', status: 'PENDING' },
+        { id: 61, studentId: 7, studentName: 'Alice Student', gradeValue: 'PEND', totalMark: null, remarks: 'Good work', status: 'PENDING' },
       ]) });
+    } else if (url.pathname === '/api/teacher/courses/2/assessment-components') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([
+        { id: 12, componentCode: 'CW', displayName: 'Coursework', componentType: 'COURSEWORK', weightPercentage: 100, maxScore: 100, required: true },
+      ]) });
+    } else if (url.pathname === '/api/teacher/grades/61/assessment-marks' && route.request().method() === 'GET') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([
+        { componentId: 12, componentCode: 'CW', displayName: 'Coursework', componentType: 'COURSEWORK', score: null, maxScore: 100, weightPercentage: 100 },
+      ]) });
+    } else if (url.pathname === '/api/teacher/grades/61/assessment-marks' && route.request().method() === 'PUT') {
+      submittedMarks = route.request().postDataJSON();
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ gradeId: 61, status: 'COMPLETE', complete: true, totalMark: 80 }) });
     } else if (url.pathname === '/api/teacher/grades/61/submit') {
       submittedGradeId = 61;
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 61, status: 'PENDING' }) });
@@ -167,15 +171,17 @@ test('teacher can select a course grade and submit it for approval', async ({ pa
   await page.goto('/teacher-dashboard.html');
   const gradebook = page.locator('#teacherGradeList');
   await expect(gradebook).toContainText('Alice Student');
-  await expect(gradebook).toContainText('B+');
   await page.locator('[data-edit-grade="61"]').click();
   await expect(page.locator('#gradeRecordId')).toHaveValue('61');
   await expect(page.locator('#gradeStudent')).toHaveValue('7');
-  await expect(page.locator('#gradeValue')).toHaveValue('B+');
   await expect(page.locator('#gradeRemarks')).toHaveValue('Good work');
+  await page.locator('[data-component-score="12"]').fill('80');
+  await page.getByRole('button', { name: 'Save assessment marks' }).click();
+  await expect(page.locator('#gradeStatus')).toContainText('Calculated total: 80.00%');
   await gradebook.locator('[data-submit-grade="61"]').click();
   await expect(page.locator('#gradeStatus')).toContainText('Grade submitted for administrator approval');
   expect(submittedGradeId).toBe(61);
+  expect(submittedMarks).toMatchObject({ marks: [{ componentId: 12, score: 80 }], remarks: 'Good work' });
 });
 
 test('teacher can review materials across assigned courses', async ({ page }) => {

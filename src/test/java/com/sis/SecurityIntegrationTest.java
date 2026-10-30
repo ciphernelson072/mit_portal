@@ -720,7 +720,7 @@ class SecurityIntegrationTest {
         int originalCredentialVersion = studentUser.getCredentialVersion();
         try {
             UpdateUserRequest update = new UpdateUserRequest();
-            update.setRole(Role.TEACHER);
+            update.setRole(Role.ADMIN);
             adminService.updateUser(studentUser.getId(), update);
             assertEquals(originalCredentialVersion + 1,
                 userRepository.findByUsername("student1").orElseThrow().getCredentialVersion());
@@ -1080,12 +1080,15 @@ class SecurityIntegrationTest {
             restTemplate.exchange("/api/admin/grades/999999/approve", HttpMethod.POST, teacherRequest, String.class)
                 .getStatusCode());
         assertEquals(HttpStatus.FORBIDDEN,
+            restTemplate.exchange("/api/admin/grades/999999/review", HttpMethod.POST, teacherRequest, String.class)
+                .getStatusCode());
+        assertEquals(HttpStatus.FORBIDDEN,
             restTemplate.exchange("/api/admin/grades/999999/reject", HttpMethod.POST, teacherRequest, String.class)
                 .getStatusCode());
     }
 
     @Test
-    void gradeApprovalPermissionDelegatesReviewWithoutChangingDefaultAccess() throws Exception {
+    void gradeApprovalPermissionCannotGrantAdministratorReviewAccess() throws Exception {
         Permission permission = permissionRepository.findByCode("GRADE_APPROVAL_MANAGE").orElseThrow();
         RolePermission assignment = new RolePermission();
         assignment.setRole(Role.TEACHER);
@@ -1093,13 +1096,16 @@ class SecurityIntegrationTest {
         rolePermissionRepository.saveAndFlush(assignment);
 
         try {
-            assertEquals(HttpStatus.OK,
+            assertEquals(HttpStatus.FORBIDDEN,
                 exchangeAs("teacher1", "teacher123", "/api/admin/grades/pending",
                     HttpMethod.GET, null).getStatusCode());
-            assertEquals(HttpStatus.BAD_REQUEST,
+            assertEquals(HttpStatus.FORBIDDEN,
                 exchangeAs("teacher1", "teacher123", "/api/admin/grades/999999/approve",
                     HttpMethod.POST, null).getStatusCode());
-            assertEquals(HttpStatus.BAD_REQUEST,
+            assertEquals(HttpStatus.FORBIDDEN,
+                exchangeAs("teacher1", "teacher123", "/api/admin/grades/999999/review",
+                    HttpMethod.POST, null).getStatusCode());
+            assertEquals(HttpStatus.FORBIDDEN,
                 exchangeAs("teacher1", "teacher123", "/api/admin/grades/999999/reject",
                     HttpMethod.POST, "{\"reason\":\"Not supported\"}").getStatusCode());
             assertEquals(HttpStatus.FORBIDDEN,
@@ -1185,6 +1191,34 @@ class SecurityIntegrationTest {
         assertEquals(HttpStatus.OK,
             exchangeAs("teacher1", "teacher123", "/api/teacher/courses/" + courseId + "/students",
                 HttpMethod.GET, null).getStatusCode());
+        assertEquals(HttpStatus.OK,
+            exchangeAs("teacher1", "teacher123",
+                "/api/teacher/courses/" + courseId + "/assessment-components", HttpMethod.GET, null)
+                .getStatusCode());
+        assertEquals(HttpStatus.OK,
+            exchangeAs("admin", "admin123",
+                "/api/teacher/courses/" + courseId + "/assessment-components", HttpMethod.GET, null)
+                .getStatusCode());
+        assertEquals(HttpStatus.FORBIDDEN,
+            exchangeAs("student1", "student123",
+                "/api/teacher/courses/" + courseId + "/assessment-components", HttpMethod.GET, null)
+                .getStatusCode());
+        assertEquals(HttpStatus.FORBIDDEN,
+            exchangeAs("teacher1", "teacher123",
+                "/api/admin/courses/" + courseId + "/assessment-components", HttpMethod.PUT, "[]")
+                .getStatusCode());
+        assertEquals(HttpStatus.FORBIDDEN,
+            exchangeAs("student1", "student123",
+                "/api/teacher/courses/" + courseId + "/students/1/grade", HttpMethod.POST, null)
+                .getStatusCode());
+        assertEquals(HttpStatus.FORBIDDEN,
+            exchangeAs("student1", "student123",
+                "/api/teacher/grades/999999/assessment-marks", HttpMethod.GET, null)
+                .getStatusCode());
+        assertEquals(HttpStatus.FORBIDDEN,
+            exchangeAs("teacher1", "teacher123",
+                "/api/admin/grades/999999/retakes", HttpMethod.POST, null)
+                .getStatusCode());
     }
 
     @Test
@@ -1202,9 +1236,13 @@ class SecurityIntegrationTest {
         assertEquals(HttpStatus.OK, reportResponse.getStatusCode());
         JsonNode report = objectMapper.readTree(reportResponse.getBody());
         assertTrue(report.path("cgpa").isNull());
+        assertTrue(report.path("awardClassification").isNull());
+        assertTrue(report.path("creditsEarned").isNull());
+        assertTrue(report.path("latestSemester").isNull());
+        assertTrue(report.path("semesterGpa").isNull());
         assertEquals(0, report.path("totalCourses").asInt());
         assertTrue(report.path("courseGrades").isEmpty());
-        assertTrue(report.path("performanceSummary").asText().contains("no approved grades"));
+        assertTrue(report.path("performanceSummary").asText().contains("not yet available"));
 
         JsonNode adminStudents = objectMapper.readTree(exchangeAs(
             "admin", "admin123", "/api/admin/students?size=20", HttpMethod.GET, null).getBody());
@@ -1909,7 +1947,7 @@ class SecurityIntegrationTest {
     }
 
     @Test
-    void examResultPublicationRequiresDedicatedPermissionOrAdmin() {
+    void examResultPublicationRequiresAdministratorAccess() {
         String endpoint = "/api/academic/exam-results/999999/publish";
         assertEquals(HttpStatus.FORBIDDEN,
             exchangeAs("teacher1", "teacher123", endpoint, HttpMethod.POST, null).getStatusCode());
@@ -1921,7 +1959,7 @@ class SecurityIntegrationTest {
         rolePermissionRepository.saveAndFlush(assignment);
 
         try {
-            assertEquals(HttpStatus.BAD_REQUEST,
+            assertEquals(HttpStatus.FORBIDDEN,
                 exchangeAs("teacher1", "teacher123", endpoint, HttpMethod.POST, null).getStatusCode());
         } finally {
             jdbcTemplate.update("DELETE FROM role_permissions WHERE role_name = ? AND permission_id = ?",
@@ -2186,7 +2224,7 @@ class SecurityIntegrationTest {
             }
 
     @Test
-    void studentReportApprovalsRequireAdminOrHrPermission() {
+    void studentReportApprovalRequiresAdminAndSubmittedGrades() {
         Student student = studentRepository.findByUserUsername("student1").orElseThrow();
 
         assertEquals(HttpStatus.FORBIDDEN,
@@ -2195,23 +2233,23 @@ class SecurityIntegrationTest {
         assertEquals(HttpStatus.FORBIDDEN,
             exchangeAs("teacher1", "teacher123", "/api/reports/academic/" + student.getId() + "/approve", HttpMethod.POST, null)
                 .getStatusCode());
-        assertEquals(HttpStatus.OK,
+        assertEquals(HttpStatus.BAD_REQUEST,
             exchangeAs("admin", "admin123", "/api/reports/academic/" + student.getId() + "/approve", HttpMethod.POST, null)
                 .getStatusCode());
 
-        Permission hrPermission = permissionRepository.findByCode("HR_MANAGE").orElseThrow();
+        Permission approvalPermission = permissionRepository.findByCode("REPORTS_APPROVE").orElseThrow();
         RolePermission assignment = new RolePermission();
         assignment.setRole(Role.TEACHER);
-        assignment.setPermission(hrPermission);
+        assignment.setPermission(approvalPermission);
         rolePermissionRepository.saveAndFlush(assignment);
 
         try {
-            assertEquals(HttpStatus.OK,
+            assertEquals(HttpStatus.FORBIDDEN,
                 exchangeAs("teacher1", "teacher123", "/api/reports/academic/" + student.getId() + "/approve", HttpMethod.POST, null)
                     .getStatusCode());
         } finally {
             jdbcTemplate.update("DELETE FROM role_permissions WHERE role_name = ? AND permission_id = ?",
-                Role.TEACHER.name(), hrPermission.getId());
+                Role.TEACHER.name(), approvalPermission.getId());
         }
     }
 

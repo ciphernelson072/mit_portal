@@ -174,8 +174,8 @@ public class SampleDataLoader implements CommandLineRunner {
         logger.info("Courses created");
 
         // Create Grades
-        String[] grades = {"A", "B+", "A-", "B", "C+"};
-        BigDecimal[] gpaScores = {new BigDecimal("4.0"), new BigDecimal("3.3"), new BigDecimal("3.7"), new BigDecimal("3.0"), new BigDecimal("2.3")};
+        String[] grades = {"A", "B+", "B", "C+", "C"};
+        BigDecimal[] gpaScores = {new BigDecimal("5.0"), new BigDecimal("4.5"), new BigDecimal("4.0"), new BigDecimal("3.5"), new BigDecimal("3.0")};
 
         for (int i = 0; i < 5; i++) {
             Grade grade1 = new Grade();
@@ -190,7 +190,7 @@ public class SampleDataLoader implements CommandLineRunner {
             grade2.setStudent(students[i]);
             grade2.setCourse(english);
             grade2.setGradeValue(grades[(i + 1) % 5]);
-            grade2.setGpaScore(gpaScores[(i + 2) % 5]);
+            grade2.setGpaScore(gpaScores[(i + 1) % 5]);
             grade2.setRemarks("Excellent writing skills");
             gradeRepository.save(grade2);
         }

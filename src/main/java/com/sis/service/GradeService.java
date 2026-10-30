@@ -1,6 +1,7 @@
 package com.sis.service;
 
 import com.sis.entity.Grade;
+import com.sis.entity.GradeStatus;
 import com.sis.entity.Student;
 import com.sis.repository.GradeRepository;
 import com.sis.repository.StudentRepository;
@@ -26,6 +27,9 @@ public class GradeService {
     @Autowired
     private StudentRepository studentRepository;
 
+    @Autowired
+    private AcademicResultCorrectionService resultCorrections;
+
     /**
      * Get all grades for a student
      * @param studentId student ID
@@ -50,6 +54,10 @@ public class GradeService {
      * @return saved grade
      */
     public Grade recordGrade(Grade grade) {
+        BigDecimal mappedGradePoint = GradeCalculationService.gradeToGpa(grade.getGradeValue());
+        grade.setGpaScore(mappedGradePoint);
+        grade.setGradingPolicyVersion(UgandanTertiaryGradingPolicy.VERSION);
+        grade.setRetakeRequired(mappedGradePoint.compareTo(UgandanTertiaryGradingPolicy.PASS_GRADE_POINT) < 0);
         Grade savedGrade = gradeRepository.save(grade);
         
         // Automatically recalculate student's CGPA after adding grade
@@ -68,8 +76,15 @@ public class GradeService {
         Optional<Grade> existing = gradeRepository.findById(id);
         if (existing.isPresent()) {
             Grade grade = existing.get();
+            ensureGradeIsNotApproved(grade, "updated");
             grade.setGradeValue(updatedGrade.getGradeValue());
-            grade.setGpaScore(updatedGrade.getGpaScore());
+            BigDecimal mappedGradePoint = GradeCalculationService.gradeToGpa(updatedGrade.getGradeValue());
+            if (updatedGrade.getGpaScore() != null && updatedGrade.getGpaScore().compareTo(mappedGradePoint) != 0) {
+                throw new IllegalArgumentException("Grade points are calculated from the institutional grade mapping.");
+            }
+            grade.setGpaScore(mappedGradePoint);
+            grade.setGradingPolicyVersion(UgandanTertiaryGradingPolicy.VERSION);
+            grade.setRetakeRequired(mappedGradePoint.compareTo(UgandanTertiaryGradingPolicy.PASS_GRADE_POINT) < 0);
             grade.setRemarks(updatedGrade.getRemarks());
             
             Grade savedGrade = gradeRepository.save(grade);
@@ -89,6 +104,10 @@ public class GradeService {
     public void deleteGrade(Long id) {
         Optional<Grade> grade = gradeRepository.findById(id);
         if (grade.isPresent()) {
+            ensureGradeIsNotApproved(grade.get(), "deleted");
+            if (resultCorrections != null && resultCorrections.hasHistory(id)) {
+                throw new IllegalStateException("Grades with correction history cannot be deleted.");
+            }
             Long studentId = grade.get().getStudent().getId();
             gradeRepository.deleteById(id);
             
@@ -96,6 +115,13 @@ public class GradeService {
             updateStudentCGPA(studentId);
         } else {
             throw new RuntimeException("Grade not found with id: " + id);
+        }
+    }
+
+    private void ensureGradeIsNotApproved(Grade grade, String action) {
+        if (grade.getStatus() == GradeStatus.APPROVED) {
+            throw new IllegalStateException(
+                    "Approved grades cannot be " + action + " directly. Use the controlled correction workflow.");
         }
     }
 

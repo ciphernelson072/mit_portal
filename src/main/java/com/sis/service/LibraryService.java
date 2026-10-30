@@ -41,7 +41,7 @@ public class LibraryService {
 
     public LibraryLoan issue(CreateLibraryLoanRequest request) {
         students.findById(request.getStudentId()).orElseThrow(() -> new IllegalArgumentException("Student not found"));
-        LibraryItem item = items.findById(request.getLibraryItemId()).filter(value -> Boolean.TRUE.equals(value.getActive()))
+        LibraryItem item = items.findActiveByIdForUpdate(request.getLibraryItemId())
                 .orElseThrow(() -> new IllegalArgumentException("Library item not found"));
         if (item.getAvailableCopies() < 1) throw new IllegalStateException("No available copies");
         item.setAvailableCopies(item.getAvailableCopies() - 1);
@@ -60,11 +60,13 @@ public class LibraryService {
     }
 
     public LibraryLoan returnLoan(Long loanId) {
-        LibraryLoan loan = loans.findById(loanId).orElseThrow(() -> new IllegalArgumentException("Library loan not found"));
+        LibraryLoan loan = loans.findByIdForUpdate(loanId)
+                .orElseThrow(() -> new IllegalArgumentException("Library loan not found"));
         if (loan.getStatus() == LibraryLoanStatus.RETURNED) throw new IllegalStateException("Loan is already returned");
         loan.setStatus(LibraryLoanStatus.RETURNED);
         loan.setReturnedAt(LocalDateTime.now());
-        LibraryItem item = items.findById(loan.getLibraryItemId()).orElseThrow(() -> new IllegalArgumentException("Library item not found"));
+        LibraryItem item = items.findByIdForUpdate(loan.getLibraryItemId())
+                .orElseThrow(() -> new IllegalArgumentException("Library item not found"));
         item.setAvailableCopies(Math.min(item.getTotalCopies(), item.getAvailableCopies() + 1));
         items.save(item);
         return loans.save(loan);

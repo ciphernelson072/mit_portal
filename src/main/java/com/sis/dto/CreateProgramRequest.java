@@ -4,6 +4,8 @@ import javax.validation.constraints.Min;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
+import javax.validation.constraints.NotNull;
+import com.sis.entity.ProgramAwardType;
 
 public class CreateProgramRequest {
     @NotBlank
@@ -25,6 +27,9 @@ public class CreateProgramRequest {
     @Min(1)
     private Integer durationYears;
 
+    @NotNull
+    private ProgramAwardType awardType;
+
     public String getCode() { return code; }
     public void setCode(String code) { this.code = code; }
     public String getName() { return name; }
@@ -35,4 +40,6 @@ public class CreateProgramRequest {
     public void setDepartmentId(Long departmentId) { this.departmentId = departmentId; }
     public Integer getDurationYears() { return durationYears; }
     public void setDurationYears(Integer durationYears) { this.durationYears = durationYears; }
+    public ProgramAwardType getAwardType() { return awardType; }
+    public void setAwardType(ProgramAwardType awardType) { this.awardType = awardType; }
 }

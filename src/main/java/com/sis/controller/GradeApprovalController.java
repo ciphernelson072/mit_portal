@@ -56,6 +56,14 @@ public class GradeApprovalController {
         return ResponseEntity.ok(schoolService.toGradeDto(approved));
     }
 
+    @PostMapping("/admin/grades/{gradeId}/review")
+    @PreAuthorize("@permissionSecurity.canReviewGradeApprovals()")
+    public ResponseEntity<Void> acknowledgeAssessmentReview(@PathVariable Long gradeId) {
+        String admin = SecurityContextHolder.getContext().getAuthentication().getName();
+        gradeApprovalService.acknowledgeAssessmentReview(gradeId, admin);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/admin/grades/{gradeId}/reject")
     @PreAuthorize("@permissionSecurity.canReviewGradeApprovals()")
     public ResponseEntity<GradeDto> reject(@PathVariable Long gradeId, @Valid @RequestBody RejectionRequest body) {
@@ -90,7 +98,10 @@ public class GradeApprovalController {
                 grade.getSubmittedBy(),
                 grade.getApprovedBy(),
                 grade.getRejectedBy(),
-                grade.getRejectionReason()
+                grade.getRejectionReason(),
+                grade.getTotalMark(),
+                grade.getRetakeRequired(),
+                grade.getGradingPolicyVersion()
         );
     }
 }

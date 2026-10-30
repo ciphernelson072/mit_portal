@@ -25,6 +25,7 @@
       <a href="#teacher-materials" class="nav-item"><span class="icon">📚</span><span>Course Materials</span></a>
       <a href="#teacher-assignments" class="nav-item"><span class="icon">📅</span><span>Assignments</span></a>
       <a href="#teacher-requests" class="nav-item"><span class="icon">🎫</span><span>Registrar Requests</span></a>
+      <a href="#teacher-leave" class="nav-item"><span class="icon">🗓️</span><span>HR Leave</span></a>
       <a href="messages.html" class="nav-item"><span class="icon">✉️</span><span>Messages</span></a>
       <a href="operations.html" class="nav-item"><span class="icon">🧭</span><span>Operations Workspace</span></a>
       <a href="course-catalog.html" class="nav-item"><span class="icon">📖</span><span>Course Catalogue</span></a>
@@ -121,14 +122,13 @@
       </div>
 
       <div class="teacher-card" id="teacher-grades">
-        <h2>Record Grade</h2>
-        <p>Submit a grade for a student enrolled in your selected course.</p>
+        <h2>Record Assessment Marks</h2>
+        <p>Enter marks for the selected course. The system calculates the weighted total, grade, grade points, and retake status.</p>
         <form id="gradeForm">
           <div class="teacher-field"><label for="gradeStudent">Student</label><select id="gradeStudent" required><option value="">Load a roster first</option></select></div>
-          <div class="teacher-field"><label for="gradeValue">Grade</label><input id="gradeValue" maxlength="5" placeholder="A" required></div>
+          <div id="assessmentMarksFields" class="teacher-field"><p>Select a course to load its approved assessment structure.</p></div>
           <div class="teacher-field"><label for="gradeRemarks">Remarks</label><textarea id="gradeRemarks" rows="3" maxlength="1024"></textarea></div>
-          <button class="btn-primary" type="submit">Save Grade</button>
-          <button class="btn-secondary" type="button" onclick="updateGradeRecord()">Update selected grade</button>
+          <button class="btn-primary" type="submit" disabled>Save assessment marks</button>
           <input id="gradeRecordId" type="hidden">
         </form>
         <div id="gradeStatus" class="teacher-status" role="status"></div>
@@ -180,6 +180,7 @@
         <div id="assignmentStatus" class="teacher-status" role="status"></div>
         <h3>Published assignments</h3>
         <div id="teacherAssignmentList" class="teacher-request-list" aria-live="polite"><p>Loading assignments...</p></div>
+        <div id="teacherAssignmentSubmissions" class="teacher-request-list" aria-live="polite"></div>
       </div>
 
       <div class="teacher-card" id="teacher-requests">
@@ -193,6 +194,19 @@
         </form>
         <div id="teacherRequestStatus" class="teacher-status" role="status"></div>
         <div id="teacherRequestList" class="teacher-request-list"></div>
+      </div>
+
+      <div class="teacher-card" id="teacher-leave">
+        <h2>Staff Leave</h2>
+        <p>Submit and track leave requests using your active HR staff profile. Contact HR if you do not have one.</p>
+        <form id="teacherLeaveForm">
+          <div class="teacher-field"><label for="teacherLeaveStart">Start date</label><input id="teacherLeaveStart" type="date" required></div>
+          <div class="teacher-field"><label for="teacherLeaveEnd">End date</label><input id="teacherLeaveEnd" type="date" required></div>
+          <div class="teacher-field"><label for="teacherLeaveReason">Reason</label><textarea id="teacherLeaveReason" rows="3" maxlength="1000" required></textarea></div>
+          <button class="btn-primary" type="submit">Submit leave request</button>
+        </form>
+        <div id="teacherLeaveStatus" class="teacher-status" role="status"></div>
+        <div id="teacherLeaveList" class="teacher-request-list" aria-live="polite"><p>Loading leave requests...</p></div>
       </div>
     </section>
   </main>

@@ -43,6 +43,9 @@ class RequestValidationTest {
             submission.setContent("x".repeat(2001));
             assertThat(validator.validate(submission)).extracting(v -> v.getPropertyPath().toString())
                     .contains("content");
+            submission.setContent("  ");
+            assertThat(validator.validate(submission)).extracting(v -> v.getPropertyPath().toString())
+                    .contains("content");
 
             SaveSystemSettingRequest setting = new SaveSystemSettingRequest();
             setting.setValue("x".repeat(4001));
@@ -57,7 +60,9 @@ class RequestValidationTest {
         try (ValidatorFactory factory = Validation.buildDefaultValidatorFactory()) {
             assertThat(factory.getValidator().validate(new RejectionRequest())).isEmpty();
             assertThat(factory.getValidator().validate(new HostelApplicationRequest())).isEmpty();
-            assertThat(factory.getValidator().validate(new AssignmentSubmissionRequest())).isEmpty();
+            AssignmentSubmissionRequest submission = new AssignmentSubmissionRequest();
+            submission.setContent("Submitted work");
+            assertThat(factory.getValidator().validate(submission)).isEmpty();
             assertThat(factory.getValidator().validate(new SaveSystemSettingRequest())).isEmpty();
         }
     }

@@ -66,7 +66,9 @@ public class GradeImportService {
 
             Grade grade = schoolService.saveGrade(student, course, row.getGradeValue(), row.getRemarks());
             if (row.getGpaScore() != null) {
-                grade = schoolService.updateGradeScore(grade, row.getGpaScore());
+                if (row.getGpaScore().compareTo(grade.getGpaScore()) != 0) {
+                    throw new IllegalArgumentException("Imported GPA score does not match the configured grade mapping.");
+                }
             }
 
             auditLogRepository.save(new com.sis.entity.AuditLog(actorId, "GRADE_IMPORTED_FILE",
@@ -86,7 +88,10 @@ public class GradeImportService {
                     grade.getSubmittedBy(),
                     grade.getApprovedBy(),
                     grade.getRejectedBy(),
-                    grade.getRejectionReason()
+                    grade.getRejectionReason(),
+                    grade.getTotalMark(),
+                    grade.getRetakeRequired(),
+                    grade.getGradingPolicyVersion()
             ));
         }
         return output;

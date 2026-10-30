@@ -603,8 +603,34 @@ body.dark-mode .course-material-item {
 }
 
 .grades-table {
-  width: 100%;
+  width: max-content;
+  min-width: 100%;
   border-collapse: collapse;
+}
+
+.grades-table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.grade-cgpa-notice {
+  margin: 0 0 18px;
+  padding: 16px;
+  border: 1px solid #f0b54a;
+  border-radius: 8px;
+  background: #fff8e8;
+  color: #17345f;
+}
+
+.grade-cgpa-notice h3 {
+  margin: 0 0 6px;
+  color: #17345f;
+  font-size: 14px;
+}
+
+.grade-cgpa-notice p {
+  margin: 0;
+  line-height: 1.5;
 }
 
 .grades-table th {
@@ -620,6 +646,11 @@ body.dark-mode .course-material-item {
   padding: 12px;
   border-bottom: 1px solid var(--border-light);
   font-size: 13px;
+}
+
+.grades-table th,
+.grades-table td {
+  white-space: nowrap;
 }
 
 .previous-semester-header {

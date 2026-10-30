@@ -2,6 +2,8 @@ package com.sis.controller;
 
 import com.sis.dto.AllocateHostelRequest;
 import com.sis.dto.CreateHostelRoomRequest;
+import com.sis.dto.HostelAllocationDto;
+import com.sis.entity.HostelApplication;
 import com.sis.entity.HostelAllocation;
 import com.sis.entity.HostelRoom;
 import com.sis.service.AccommodationService;
@@ -35,6 +37,12 @@ public class AccommodationController {
         return ResponseEntity.status(201).body(accommodation.createRoom(request));
     }
 
+    @GetMapping("/applications/pending")
+    @PreAuthorize("@permissionSecurity.canManageAccommodation()")
+    public List<HostelApplication> pendingApplications() {
+        return accommodation.pendingApplications();
+    }
+
     @PostMapping("/allocations")
     @PreAuthorize("@permissionSecurity.canManageAccommodation()")
     public ResponseEntity<HostelAllocation> allocate(@Valid @RequestBody AllocateHostelRequest request) {
@@ -43,7 +51,7 @@ public class AccommodationController {
 
     @GetMapping("/allocations/mine")
     @PreAuthorize("hasAuthority('STUDENT')")
-    public ResponseEntity<List<HostelAllocation>> mine() {
+    public ResponseEntity<List<HostelAllocationDto>> mine() {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         return schoolService.getStudentByUsername(username)
                 .map(student -> ResponseEntity.ok(accommodation.studentAllocations(student.getId())))

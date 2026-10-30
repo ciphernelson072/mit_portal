@@ -61,8 +61,8 @@ class AcademicRecordsServiceTest {
         requiredCourse.setSemesterNumber(1);
         Grade approvedGrade = new Grade();
         approvedGrade.setCourse(course);
-        approvedGrade.setGradeValue("A");
-        approvedGrade.setGpaScore(new BigDecimal("4.00"));
+        approvedGrade.setGradeValue("D");
+        approvedGrade.setGpaScore(new BigDecimal("2.00"));
         approvedGrade.setStatus(GradeStatus.APPROVED);
 
         when(students.findById(42L)).thenReturn(Optional.of(student));
@@ -82,6 +82,51 @@ class AcademicRecordsServiceTest {
         assertThat(audit.get("academicRequirementsMet")).isEqualTo(true);
         assertThat(audit.get("financialClearanceGranted")).isEqualTo(true);
         assertThat(audit.get("eligibleForGraduation")).isEqualTo(true);
+    }
+
+    @Test
+    void graduationEligibilityRejectsApprovedGradeBelowInstitutionalPassThreshold() {
+        Student student = new Student();
+        student.setId(42L);
+        Program program = new Program();
+        program.setId(7L);
+        AcademicYear year = new AcademicYear();
+        year.setId(2026L);
+        StudentProgram enrollment = new StudentProgram();
+        enrollment.setStudent(student);
+        enrollment.setProgram(program);
+        enrollment.setAcademicYear(year);
+        enrollment.setStatus(StudentLifecycleStatus.ACTIVE);
+
+        Course course = new Course();
+        course.setId(99L);
+        course.setCourseCode("CSC101");
+        course.setName("Introduction to Computing");
+        CurriculumCourse requiredCourse = new CurriculumCourse();
+        requiredCourse.setCourse(course);
+        requiredCourse.setRequired(true);
+        requiredCourse.setSemesterNumber(1);
+        Grade belowPassGrade = new Grade();
+        belowPassGrade.setCourse(course);
+        belowPassGrade.setGradeValue("F");
+        belowPassGrade.setGpaScore(new BigDecimal("1.00"));
+        belowPassGrade.setStatus(GradeStatus.APPROVED);
+
+        when(students.findById(42L)).thenReturn(Optional.of(student));
+        when(studentPrograms.findByStudentIdAndProgramIdAndAcademicYearId(42L, 7L, 2026L))
+                .thenReturn(Optional.of(enrollment));
+        when(curriculum.findByProgramIdOrderBySemesterNumberAscCourseCourseCodeAsc(7L))
+                .thenReturn(List.of(requiredCourse));
+        when(grades.findByStudentIdAndStatus(42L, GradeStatus.APPROVED)).thenReturn(List.of(belowPassGrade));
+        when(programs.existsActiveInDirectory(7L)).thenReturn(true);
+        when(clearance.hasActiveFinancialHold(42L)).thenReturn(false);
+        when(clearance.hasOutstandingFees(42L)).thenReturn(false);
+
+        Map<String, Object> audit = service.degreeAudit(42L, 7L, 2026L);
+
+        assertThat(audit.get("completedRequiredCourses")).isEqualTo(0);
+        assertThat(audit.get("academicRequirementsMet")).isEqualTo(false);
+        assertThat(audit.get("eligibleForGraduation")).isEqualTo(false);
     }
 
     @Test

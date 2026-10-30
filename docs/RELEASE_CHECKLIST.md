@@ -5,7 +5,40 @@ the phased runbook for closing these items and deploying to Render. This
 checklist records evidence; do not mark an item complete until verified in the
 actual target environment.
 
-## Verification records (latest: 22 October 2026)
+## Verification records
+
+### Current source verification (27 October 2026)
+
+- [x] `mvn test` passed after V45; 328 tests with 0 failures, 0 errors, and
+  0 skipped (27 Oct 2026). MySQL/Testcontainers integration tests are excluded;
+  this does not validate V44/V45 against a live or disposable MySQL/TiDB database.
+- [x] `.\mvnw -q -DskipTests compile` completed successfully.
+- [x] Focused permission, assessment-calculation, grade-approval, academic
+  report persistence, security integration, and version-bound administrator
+  review acknowledgment tests passed.
+- [x] Current isolated Playwright run passed all 87 tests against a disposable
+  H2 database and loopback-only server. This exercises UI behavior but does not
+  establish MySQL/TiDB migration compatibility or live provider acceptance.
+- [x] `npm run test:unit` passed all 10 frontend unit tests; static JavaScript
+  files and updated browser specs passed `node --check`.
+- [x] Flyway V1-V43 applied to a disposable MySQL 8.0 database; production
+  application startup completed Hibernate schema validation. This was a
+  manual loopback-only validation; the Testcontainers profile remains blocked
+  by a Docker client/daemon API-version mismatch.
+- [x] Administrator-authorized result-correction API and admin dashboard
+  action implemented; backend tests and focused grade-review/correction
+  Playwright tests passed. Target TiDB rollout and authenticated teacher
+  correction-to-republication acceptance remain pending.
+- [x] Administrator assessment review is now stored with reviewer, timestamp,
+  and result-state fingerprint. Approval rejects unreviewed or changed result
+  states; teacher/student role checks and complete role-based browser flows pass.
+- [ ] The latest source-level test run is not a substitute for current browser,
+  provider-sandbox, production-database, backup/restore, or live operational
+  acceptance.
+- [ ] Validate V44 and V45 on disposable MySQL 8.0 and on the TiDB pilot after
+  a fresh verified backup, then test the complete correction-to-reapproval,
+  assessment-review, and publication path there; see
+  [academic results workflow](./ACADEMIC_RESULTS_WORKFLOW.md).
 
 - [x] 22 Oct 2026 pilot smoke check: production-profile app connected to TiDB
   with TLS identity verification; Flyway validated all 36 migrations and
@@ -47,7 +80,8 @@ actual target environment.
 - [x] One-time initial administrator bootstrap was exercised against that fresh database and the created administrator completed an API login; test credentials and database were disposable.
 - [x] `mvn test` - 238 tests, 0 failures, 0 errors (MySQL/Testcontainers test excluded; 17 Oct 2026).
 - [x] MySQL/Testcontainers test attempted on 17 Oct 2026 but blocked before test execution: local Testcontainers configuration forces the Npipe strategy for missing `//./pipe/docker_engine`. No migration assertion ran; rerun in GitHub Actions or after correcting the local Docker/Testcontainers environment.
-- [ ] Re-run the MySQL/Testcontainers migration test after V32 once the Testcontainers Windows Docker endpoint is corrected.
+- [ ] Correct the Docker client API compatibility for the MySQL/Testcontainers
+  profile; manual disposable MySQL 8.0 validation through V43 succeeded.
 - [x] `npm install`
 - [x] `npx playwright install` - browser available for local acceptance testing
 - [x] `npm run test:e2e -- --workers=1` - 52 passed against a loopback-only server using a disposable in-memory H2 database and test-only configuration; no shared Laragon data was used.
@@ -98,7 +132,14 @@ actual target environment.
 See the full UI/backend/provider inventory in [INTEGRATION_GAPS.md](./INTEGRATION_GAPS.md).
 
 - [ ] Verify approved production email delivery and account lifecycle: application receipts contain no credentials, admission credentials are sent only after acceptance/enrollment, and student accounts require a password change before portal access. Never email permanent passwords.
-- [ ] Keep payment channels disabled unless their provider checkout and provider-specific signed callback/reconciliation flows are implemented and tested. Confirm bank transfer reconciliation operating procedure.
+- [ ] Flutterwave provider code is present, but keep live payments disabled until
+  sandbox checkout, webhook/retry, settlement reconciliation, and target
+  environment acceptance are complete. Keep other online channels disabled
+  until their provider-specific flows are implemented and tested. Confirm the
+  bank-transfer reconciliation operating procedure.
+- [ ] Do not use legacy teacher grade update/delete endpoints to correct
+  approved results until the controlled correction workflow is implemented and
+  tested.
 - [x] Added the Spring-managed Prometheus registry and exposed `/actuator/prometheus`; isolated browser acceptance verified anonymous access is rejected and an authenticated administrator can scrape metrics (14 Oct 2026).
 - [ ] Configure monitoring-network scraping, central logs, error reporting, and tested alerts for the selected deployment.
 - [ ] Decide persistent/shared file storage and off-host scheduled backup integrations for the actual topology.
@@ -120,6 +161,15 @@ See the full UI/backend/provider inventory in [INTEGRATION_GAPS.md](./INTEGRATIO
 - [x] Flyway migrations are the schema strategy; existing production databases still require a reviewed baseline/adoption plan before deployment.
 - [x] Flyway V31 persists official academic-report approvals; review the migration and deployment backup/adoption plan before applying it to an existing production database.
 - [x] Flyway V32 adds a transactional, one-time initial-admin bootstrap claim; enable it only for a new empty database and disable/remove bootstrap credentials immediately afterward.
+- [ ] Apply and validate V44 and V45 against a fresh disposable MySQL 8.0
+  database and validate Hibernate mappings. TiDB V44/V45 application and review of a copy
+  of any existing production schema remain pending.
+- [x] Implement the supplied five-point mark bands, 50% pass threshold, retake
+  flag, NP/PP rules, and degree/diploma classification in policy version
+  `UG_5_POINT_V1`.
+- [ ] Confirm policy publication/sign-off with the institute and define CGPA
+  rounding, retake replacement, retake credit treatment, and attempt limits
+  before treating CGPA involving retakes as final.
 - [ ] Existing databases have run `ops/migrate-course-catalog.sql` before enabling course categories/codes.
 
 ## Browser acceptance

@@ -124,7 +124,7 @@ public class SecurityConfig {
                         .antMatchers("/api/admin/exam-permits/**")
                         .hasAnyAuthority("ADMIN", "PERM_EXAM_PERMIT_MANAGE")
                         .antMatchers("/api/admin/grades/**")
-                        .hasAnyAuthority("ADMIN", "PERM_GRADE_APPROVAL_MANAGE")
+                        .hasAuthority("ADMIN")
                         .antMatchers("/api/admin/email/**")
                         .hasAnyAuthority("ADMIN", "PERM_EMAIL_CAMPAIGN_MANAGE")
                         .antMatchers("/api/admin/fees")

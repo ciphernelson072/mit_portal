@@ -315,13 +315,7 @@ public class AuthenticationService {
      * @param email the email to verify
      */
     public void resendEmailVerification(String email) {
-        String normalizedEmail = email == null ? null : email.trim().toLowerCase(Locale.ROOT);
-        Optional<User> userOpt = normalizedEmail == null ? Optional.empty() : userRepository.findByEmailIgnoreCase(normalizedEmail);
-        if (userOpt.isEmpty()) {
-            userOpt = userRepository.findAll().stream()
-                    .filter(u -> u.getEmail() != null && u.getEmail().equalsIgnoreCase(normalizedEmail))
-                    .findFirst();
-        }
+        Optional<User> userOpt = userRepository.findByEmailNormalized(email);
 
         if (userOpt.isEmpty()) {
             return;

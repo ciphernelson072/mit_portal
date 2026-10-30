@@ -328,8 +328,8 @@ public class AdminController {
         Course course = schoolService.getCourseById(request.getCourseId())
             .orElseThrow(() -> new ResourceNotFoundException("Course not found"));
         Grade grade = schoolService.saveGrade(student, course, request.getGradeValue(), request.getRemarks());
-        if (request.getGpaScore() != null) {
-            grade = schoolService.updateGradeScore(grade, request.getGpaScore());
+        if (request.getGpaScore() != null && request.getGpaScore().compareTo(grade.getGpaScore()) != 0) {
+            throw new IllegalArgumentException("GPA score is calculated from the institutional grade mapping.");
         }
         auditLogRepository.save(new AuditLog(currentAdminId(), "GRADE_IMPORTED",
                 "Grade " + grade.getId() + " imported for student " + student.getId()
@@ -348,7 +348,10 @@ public class AdminController {
                 grade.getSubmittedBy(),
                 grade.getApprovedBy(),
                 grade.getRejectedBy(),
-                grade.getRejectionReason()));
+                grade.getRejectionReason(),
+                grade.getTotalMark(),
+                grade.getRetakeRequired(),
+                grade.getGradingPolicyVersion()));
     }
 
     @PostMapping("/grades/import-file")

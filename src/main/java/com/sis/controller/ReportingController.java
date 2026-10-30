@@ -2,6 +2,7 @@ package com.sis.controller;
 
 import com.sis.dto.AcademicReportDto;
 import com.sis.dto.ReportExportRequest;
+import com.sis.dto.PublishAcademicReportRequest;
 import com.sis.service.AcademicReportService;
 import com.sis.service.PdfDocumentService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import javax.validation.Valid;
 
@@ -36,17 +38,22 @@ public class ReportingController {
     @GetMapping("/academic/{studentId}")
     @PreAuthorize("@permissionSecurity.canViewInstitutionalReports() or @studentAccessService.isOwnStudent(#studentId) or @teacherAccessService.teachesStudent(#studentId)")
     public ResponseEntity<AcademicReportDto> generateAcademicReport(@PathVariable Long studentId) {
-        AcademicReportDto report = academicReportService.generateAcademicReport(studentId);
+        AcademicReportDto report = isStudentSession()
+                ? academicReportService.getStudentVisibleReport(studentId)
+                : academicReportService.generateAcademicReport(studentId);
         return ResponseEntity.ok(report);
     }
 
     @GetMapping("/academic/{studentId}/download")
     @PreAuthorize("@permissionSecurity.canViewInstitutionalReports() or @studentAccessService.isOwnStudent(#studentId) or @teacherAccessService.teachesStudent(#studentId)")
     public ResponseEntity<byte[]> downloadAcademicReport(@PathVariable Long studentId) {
+        if (!academicReportService.isOfficiallyPublished(studentId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         try {
             return ResponseEntity.ok().contentType(MediaType.APPLICATION_PDF)
                     .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"academic-report-" + studentId + ".pdf\"")
-                    .body(pdfDocuments.academicReport(academicReportService.generateAcademicReport(studentId)));
+                    .body(pdfDocuments.academicReport(academicReportService.getPublishedAcademicReport(studentId)));
         } catch (java.io.IOException e) {
             throw new IllegalStateException("Unable to generate academic report", e);
         }
@@ -55,14 +62,14 @@ public class ReportingController {
     @GetMapping("/academic/{studentId}/official/download")
     @PreAuthorize("@permissionSecurity.canApproveStudentReports() or @permissionSecurity.canViewInstitutionalReports() or @studentAccessService.isOwnStudent(#studentId)")
     public ResponseEntity<byte[]> downloadOfficialAcademicReport(@PathVariable Long studentId) {
-        if (!academicReportService.isOfficiallyApproved(studentId)) {
+        if (!academicReportService.isOfficiallyPublished(studentId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .build();
         }
         try {
             return ResponseEntity.ok().contentType(MediaType.APPLICATION_PDF)
                     .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"official-academic-report-" + studentId + ".pdf\"")
-                    .body(pdfDocuments.academicReport(academicReportService.generateAcademicReport(studentId)));
+                    .body(pdfDocuments.academicReport(academicReportService.getPublishedAcademicReport(studentId)));
         } catch (java.io.IOException e) {
             throw new IllegalStateException("Unable to generate official academic report", e);
         }
@@ -71,7 +78,10 @@ public class ReportingController {
     @GetMapping("/academic/{studentId}/status")
     @PreAuthorize("@permissionSecurity.canApproveStudentReports() or @permissionSecurity.canViewInstitutionalReports() or @studentAccessService.isOwnStudent(#studentId)")
     public ResponseEntity<AcademicReportDto> academicReportStatus(@PathVariable Long studentId) {
-        return ResponseEntity.ok(academicReportService.getApprovalStatus(studentId));
+        AcademicReportDto report = isStudentSession()
+                ? academicReportService.getStudentVisibleReport(studentId)
+                : academicReportService.getApprovalStatus(studentId);
+        return ResponseEntity.ok(report);
     }
 
     @PostMapping("/academic/{studentId}/approve")
@@ -79,6 +89,22 @@ public class ReportingController {
     public ResponseEntity<AcademicReportDto> approveAcademicReport(@PathVariable Long studentId) {
         String approver = SecurityContextHolder.getContext().getAuthentication().getName();
         return ResponseEntity.ok(academicReportService.approveAcademicReport(studentId, approver));
+    }
+
+    @PostMapping("/academic/{studentId}/publish")
+    @PreAuthorize("@permissionSecurity.canApproveStudentReports()")
+    public ResponseEntity<AcademicReportDto> publishAcademicReport(
+            @PathVariable Long studentId,
+            @Valid @RequestBody PublishAcademicReportRequest request) {
+        String publisher = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(academicReportService.publishAcademicReport(
+                studentId, request.getResultsVersion(), publisher));
+    }
+
+    private boolean isStudentSession() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        return authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(authority -> "STUDENT".equals(authority.getAuthority()));
     }
 
     /**

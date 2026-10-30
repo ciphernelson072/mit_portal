@@ -6,4 +6,5 @@ import java.util.List;
 
 public interface HostelAllocationRepository extends JpaRepository<HostelAllocation, Long> {
     List<HostelAllocation> findByStudentIdOrderByAllocatedAtDesc(Long studentId);
+    boolean existsByStudentIdAndStatus(Long studentId, String status);
 }

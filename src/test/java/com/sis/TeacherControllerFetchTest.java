@@ -34,16 +34,19 @@ class TeacherControllerFetchTest {
     }
 
     @Test
-    void studentProfileUsesEagerCourseFetchForTeacherAuthorization() {
+    void studentProfileAllowsRegisteredStudentsInTeacherCourses() {
         SchoolService schoolService = mock(SchoolService.class);
         Student student = new Student();
         student.setId(17L);
-        Course course = new Course();
+        Teacher teacher = new Teacher();
+        teacher.setId(12L);
+        CourseDto course = new CourseDto();
         course.setId(9L);
-        student.setCourses(Set.of(course));
         StudentProfileDto profile = new StudentProfileDto();
-        when(schoolService.getStudentWithCoursesAndTeachersById(17L)).thenReturn(Optional.of(student));
-        when(schoolService.teacherOwnsCourse("teacher", course)).thenReturn(true);
+        when(schoolService.getStudentById(17L)).thenReturn(Optional.of(student));
+        when(schoolService.getTeacherByUsername("teacher")).thenReturn(Optional.of(teacher));
+        when(schoolService.getCoursesForTeacher(12L)).thenReturn(List.of(course));
+        when(schoolService.studentEnrolledInCourse(17L, 9L)).thenReturn(true);
         when(schoolService.getStudentProfile(17L)).thenReturn(profile);
         authenticateTeacher();
 
@@ -51,7 +54,7 @@ class TeacherControllerFetchTest {
                 schoolService, mock(AttendanceService.class), mock(GradeRepository.class));
 
         assertEquals(profile, controller.getStudentProfile(17L).getBody());
-        verify(schoolService).getStudentWithCoursesAndTeachersById(17L);
+        verify(schoolService).studentEnrolledInCourse(17L, 9L);
     }
 
     @Test

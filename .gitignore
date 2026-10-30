@@ -4,6 +4,8 @@ node_modules/
 frontend-dist/
 test-results/
 playwright-report/
+*.log
+/mvnlog.txt
 .idea/
 *.iml
 .env

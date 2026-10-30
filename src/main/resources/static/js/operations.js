@@ -6,9 +6,10 @@ const operationDomains = [
     { label: 'Enroll an existing student account', method: 'POST', path: '/admissions/applications/{id}/enroll', permissions: ['PERM_ADMISSIONS_REVIEW'], body: { studentId: 0 } },
     { label: 'Create account and enroll accepted applicant', method: 'POST', path: '/admissions/applications/{id}/enroll-new', permissions: ['PERM_ADMISSIONS_REVIEW'], body: { username: '', fullName: '', email: '', phone: '' }, optionalFields: ['phone'] },
   ] },
-  { name: 'Accommodation', description: 'Manage rooms and review accommodation allocations.', roles: ['ADMIN', 'STUDENT'], endpoints: [
+  { name: 'Accommodation', description: 'Review pending student applications, manage rooms, and create allocations.', roles: ['ADMIN', 'STUDENT'], endpoints: [
     { label: 'List rooms', method: 'GET', path: '/accommodation/rooms', roles: ['ADMIN', 'STUDENT'], roleAccess: ['STUDENT'], permissions: ['PERM_ACCOMMODATION_MANAGE'] },
     { label: 'Create room', method: 'POST', path: '/accommodation/rooms', roles: ['ADMIN'], permissions: ['PERM_ACCOMMODATION_MANAGE'], body: { roomCode: '', building: '', capacity: 1 } },
+    { label: 'Pending applications', method: 'GET', path: '/accommodation/applications/pending', roles: ['ADMIN'], permissions: ['PERM_ACCOMMODATION_MANAGE'] },
     { label: 'Create allocation', method: 'POST', path: '/accommodation/allocations', roles: ['ADMIN'], permissions: ['PERM_ACCOMMODATION_MANAGE'], body: { applicationId: 0, hostelRoomId: 0 } },
     { label: 'My allocation', method: 'GET', path: '/accommodation/allocations/mine', roles: ['STUDENT'] },
   ] },
@@ -36,7 +37,13 @@ const operationDomains = [
     { label: 'My leave', method: 'GET', path: '/hr/leave/mine', roles: ['ADMIN', 'TEACHER'], roleAccess: ['ADMIN', 'TEACHER'], permissions: ['PERM_LEAVE_REQUEST'] },
     { label: 'Pending leave', method: 'GET', path: '/hr/leave/pending', roles: ['ADMIN'], permissions: ['PERM_HR_MANAGE'] },
     { label: 'Review leave', method: 'POST', path: '/hr/leave/{id}/review', roles: ['ADMIN'], permissions: ['PERM_HR_MANAGE'], body: { status: 'APPROVED' }, fieldOptions: { status: ['APPROVED', 'REJECTED'] } },
-    { label: 'Approve student report', method: 'POST', path: '/reports/academic/{studentId}/approve', roles: ['ADMIN'], permissions: ['PERM_REPORTS_APPROVE'] },
+  ] },
+  { name: 'Scholarships', description: 'Create funding opportunities, manage application availability, and review student applications.', roles: ['ADMIN'], endpoints: [
+    { label: 'List scholarships', method: 'GET', path: '/admin/scholarships' },
+    { label: 'Create scholarship', method: 'POST', path: '/admin/scholarships', body: { name: '', description: '', amount: 0.01 } },
+    { label: 'Open or close applications', method: 'PATCH', path: '/admin/scholarships/{id}/availability', query: { open: true } },
+    { label: 'List scholarship applications', method: 'GET', path: '/admin/scholarships/applications' },
+    { label: 'Review scholarship application', method: 'PATCH', path: '/admin/scholarships/applications/{id}/status', body: { status: 'APPROVED' }, fieldOptions: { status: ['APPROVED', 'REJECTED'] } },
   ] },
   { name: 'Library', description: 'Search the catalogue and manage loans.', roles: ['ADMIN', 'STUDENT', 'TEACHER'], endpoints: [
     { label: 'Search catalogue', method: 'GET', path: '/library/catalog' },
@@ -101,10 +108,10 @@ const operationDomains = [
     { label: 'Degree audit', method: 'GET', path: '/academic-records/{studentId}/degree-audit' },
     { label: 'Download transcript', method: 'GET', path: '/academic-records/{studentId}/transcript/download' },
   ] },
-  { name: 'Grade approvals', description: 'Review pending teacher-submitted grades.', roles: ['ADMIN', 'TEACHER'], endpoints: [
-    { label: 'Pending grade approvals', method: 'GET', path: '/admin/grades/pending', permissions: ['PERM_GRADE_APPROVAL_MANAGE'] },
-    { label: 'Approve grade', method: 'POST', path: '/admin/grades/{gradeId}/approve', permissions: ['PERM_GRADE_APPROVAL_MANAGE'] },
-    { label: 'Reject grade', method: 'POST', path: '/admin/grades/{gradeId}/reject', permissions: ['PERM_GRADE_APPROVAL_MANAGE'], body: { reason: '' } },
+  { name: 'Grade approvals', description: 'Administrators review pending teacher-submitted grades.', roles: ['ADMIN'], endpoints: [
+    { label: 'Pending grade approvals', method: 'GET', path: '/admin/grades/pending', roles: ['ADMIN'] },
+    { label: 'Approve grade', method: 'POST', path: '/admin/grades/{gradeId}/approve', roles: ['ADMIN'] },
+    { label: 'Reject grade', method: 'POST', path: '/admin/grades/{gradeId}/reject', roles: ['ADMIN'], body: { reason: '' } },
   ] },
   { name: 'Payments', description: 'Start and confirm student payment attempts.', roles: ['ADMIN', 'STUDENT'], endpoints: [
     { label: 'My payment attempts', method: 'GET', path: '/finance/payments/attempts/mine', roles: ['STUDENT'] },
@@ -160,7 +167,8 @@ function renderFields(body, fieldOptions = {}, pathParams = [], kind = 'body', o
     if (options) return `<label>${escapeHtml(label)} *<select ${fieldAttribute}="${escapeHtml(key)}" required>${options.map(option => `<option value="${escapeHtml(option)}" ${option === value ? 'selected' : ''}>${escapeHtml(option)}</option>`).join('')}</select></label>`;
     if (type === 'checkbox') return `<label class="field-check"><input ${fieldAttribute}="${escapeHtml(key)}" type="checkbox" ${value ? 'checked' : ''}> <span>${escapeHtml(label)}</span></label>`;
     if (type === 'textarea') return `<label>${escapeHtml(label)}${required ? ' *' : ''}<textarea ${fieldAttribute}="${escapeHtml(key)}" rows="3" ${required ? 'required' : ''}>${escapeHtml(value)}</textarea></label>`;
-    return `<label>${escapeHtml(label)}${required ? ' *' : ''}<input ${fieldAttribute}="${escapeHtml(key)}" type="${type}" value="${escapeHtml(value)}" ${required ? 'required' : ''}></label>`;
+    const numericStep = type === 'number' ? (Number.isInteger(value) ? '1' : 'any') : null;
+    return `<label>${escapeHtml(label)}${required ? ' *' : ''}<input ${fieldAttribute}="${escapeHtml(key)}" type="${type}" value="${escapeHtml(value)}" ${numericStep ? `step="${numericStep}"` : ''} ${required ? 'required' : ''}></label>`;
   });
   const routeFields = pathParams.map(key => {
     const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, char => char.toUpperCase());

@@ -14,6 +14,10 @@ public class Grade {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Version
+    @Column(name = "row_version", nullable = false)
+    private Long rowVersion;
+
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "student_id")
     private Student student;
@@ -25,7 +29,26 @@ public class Grade {
     @Column(nullable = false)
     private String gradeValue;
 
-    // Numeric GPA score for CGPA calculations (0.0 - 4.0)
+    @Column(name = "grading_policy_version", nullable = false, length = 32)
+    private String gradingPolicyVersion = "UG_5_POINT_V1";
+
+    @Column(name = "retake_required", nullable = false)
+    private Boolean retakeRequired = false;
+
+    @Column(name = "attempt_number", nullable = false)
+    private Integer attemptNumber = 1;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "original_attempt_id")
+    private Grade originalAttempt;
+
+    @Column(name = "total_mark", precision = 6, scale = 2)
+    private BigDecimal totalMark;
+
+    @OneToMany(mappedBy = "grade", fetch = FetchType.LAZY)
+    private java.util.List<GradeAssessmentMark> assessmentMarks = new java.util.ArrayList<>();
+
+    // Numeric grade point for CGPA calculations (0.0 - 5.0)
     @Column(nullable = false, precision = 3, scale = 2)
     private BigDecimal gpaScore = BigDecimal.ZERO;
 
@@ -56,6 +79,15 @@ public class Grade {
 
     @Column
     private LocalDateTime rejectedAt;
+
+    @Column(name = "assessment_review_fingerprint", columnDefinition = "CHAR(64)")
+    private String assessmentReviewFingerprint;
+
+    @Column(name = "assessment_reviewed_by")
+    private String assessmentReviewedBy;
+
+    @Column(name = "assessment_reviewed_at")
+    private LocalDateTime assessmentReviewedAt;
 
     public Grade() {
     }
@@ -99,6 +131,50 @@ public class Grade {
 
     public void setGradeValue(String gradeValue) {
         this.gradeValue = gradeValue;
+    }
+
+    public String getGradingPolicyVersion() {
+        return gradingPolicyVersion;
+    }
+
+    public void setGradingPolicyVersion(String gradingPolicyVersion) {
+        this.gradingPolicyVersion = gradingPolicyVersion;
+    }
+
+    public Boolean getRetakeRequired() {
+        return retakeRequired;
+    }
+
+    public void setRetakeRequired(Boolean retakeRequired) {
+        this.retakeRequired = retakeRequired;
+    }
+
+    public Integer getAttemptNumber() {
+        return attemptNumber;
+    }
+
+    public void setAttemptNumber(Integer attemptNumber) {
+        this.attemptNumber = attemptNumber;
+    }
+
+    public Grade getOriginalAttempt() {
+        return originalAttempt;
+    }
+
+    public void setOriginalAttempt(Grade originalAttempt) {
+        this.originalAttempt = originalAttempt;
+    }
+
+    public BigDecimal getTotalMark() {
+        return totalMark;
+    }
+
+    public void setTotalMark(BigDecimal totalMark) {
+        this.totalMark = totalMark;
+    }
+
+    public java.util.List<GradeAssessmentMark> getAssessmentMarks() {
+        return assessmentMarks;
     }
 
     public String getRemarks() {
@@ -171,6 +247,30 @@ public class Grade {
 
     public void setRejectedAt(LocalDateTime rejectedAt) {
         this.rejectedAt = rejectedAt;
+    }
+
+    public String getAssessmentReviewFingerprint() {
+        return assessmentReviewFingerprint;
+    }
+
+    public void setAssessmentReviewFingerprint(String assessmentReviewFingerprint) {
+        this.assessmentReviewFingerprint = assessmentReviewFingerprint;
+    }
+
+    public String getAssessmentReviewedBy() {
+        return assessmentReviewedBy;
+    }
+
+    public void setAssessmentReviewedBy(String assessmentReviewedBy) {
+        this.assessmentReviewedBy = assessmentReviewedBy;
+    }
+
+    public LocalDateTime getAssessmentReviewedAt() {
+        return assessmentReviewedAt;
+    }
+
+    public void setAssessmentReviewedAt(LocalDateTime assessmentReviewedAt) {
+        this.assessmentReviewedAt = assessmentReviewedAt;
     }
 
     /**

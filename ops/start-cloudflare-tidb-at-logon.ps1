@@ -31,6 +31,8 @@ $mutexAcquired = $false
 $tunnelProcess = $null
 $applicationProcess = $null
 $applicationListenerProcessId = $null
+$originalEnvironmentOriginLines = @{}
+$pilotOriginApplied = $false
 
 function Write-RunLog {
     param([string]$Message)
@@ -73,6 +75,28 @@ function Set-PilotOrigin {
             throw "Expected exactly one $name entry in the private pilot environment file."
         }
         $content = [regex]::Replace($content, $pattern, "$name=$Origin")
+    }
+    [IO.File]::WriteAllText($Path, $content, (New-Object System.Text.UTF8Encoding($false)))
+}
+
+function Restore-PilotOrigin {
+    param(
+        [string]$Path,
+        [hashtable]$OriginalLines
+    )
+
+    $content = [IO.File]::ReadAllText($Path)
+    foreach ($name in @('FRONTEND_URL', 'CORS_ALLOWED_ORIGINS')) {
+        $pattern = "(?m)^$name=.*$"
+        $matches = [regex]::Matches($content, $pattern)
+        if ($matches.Count -ne 1 -or -not $OriginalLines.ContainsKey($name)) {
+            throw "Expected exactly one $name entry while restoring the private pilot origin."
+        }
+        $replacement = [System.Text.RegularExpressions.MatchEvaluator]{
+            param($match)
+            return $OriginalLines[$name]
+        }
+        $content = [regex]::Replace($content, $pattern, $replacement)
     }
     [IO.File]::WriteAllText($Path, $content, (New-Object System.Text.UTF8Encoding($false)))
 }
@@ -136,11 +160,20 @@ try {
         throw "cloudflared did not report a Quick Tunnel URL within 90 seconds. Check its private logs in $logDirectory."
     }
 
+    $originalEnvironmentContent = [IO.File]::ReadAllText($environmentPath)
+    foreach ($name in @('FRONTEND_URL', 'CORS_ALLOWED_ORIGINS')) {
+        $originLines = [regex]::Matches($originalEnvironmentContent, "(?m)^$name=.*$")
+        if ($originLines.Count -ne 1) {
+            throw "Expected exactly one $name entry in the private pilot environment file."
+        }
+        $originalEnvironmentOriginLines[$name] = $originLines[0].Value
+    }
+    $pilotOriginApplied = $true
     Set-PilotOrigin -Path $environmentPath -Origin $publicOrigin
-    Set-Content -LiteralPath $publicUrlFile -Value $publicOrigin -Encoding UTF8
+    if (Test-Path -LiteralPath $publicUrlFile -PathType Leaf) {
+        Remove-Item -LiteralPath $publicUrlFile -Force
+    }
     Write-RunLog "Quick Tunnel created at $publicOrigin."
-    Write-Output "Public portal URL: $publicOrigin"
-    Write-Output "Saved current URL to $publicUrlFile"
 
     & $runCloudflareScript -Port $Port -ValidateOnly
 
@@ -159,6 +192,8 @@ try {
     $applicationDeadline = (Get-Date).AddSeconds($StartupTimeoutSeconds)
     while ((Get-Date) -lt $applicationDeadline) {
         if ($applicationProcess.HasExited) {
+            $applicationProcess.WaitForExit()
+            $applicationProcess.Refresh()
             throw "The Java launcher exited during startup with code $($applicationProcess.ExitCode). Check its private logs in $logDirectory."
         }
         try {
@@ -199,8 +234,11 @@ try {
     if ($publicReady) {
         Write-RunLog 'Public HTTPS portal returned HTTP 200.'
     } else {
-        Write-RunLog 'Local application is ready, but the public tunnel did not return HTTP 200 yet.'
+        throw 'The local application became ready, but the public tunnel did not return HTTP 200 within 60 seconds.'
     }
+    Set-Content -LiteralPath $publicUrlFile -Value $publicOrigin -Encoding UTF8
+    Write-Output "Public portal URL: $publicOrigin"
+    Write-Output "Saved current URL to $publicUrlFile"
     Start-Process $publicOrigin
     Write-RunLog "Opened the portal in the default browser. Current URL is saved in $publicUrlFile."
 
@@ -211,6 +249,8 @@ try {
         Start-Sleep -Seconds 15
     }
     if ($applicationProcess.ExitCode -ne 0) {
+        $applicationProcess.WaitForExit()
+        $applicationProcess.Refresh()
         throw "The Java launcher stopped with exit code $($applicationProcess.ExitCode). Check its private logs in $logDirectory."
     }
     Write-RunLog 'The Java application has stopped.'
@@ -218,29 +258,42 @@ try {
     Write-RunLog "Startup failed: $($_.Exception.Message)"
     throw
 } finally {
-    if ($applicationListenerProcessId) {
-        $listener = Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction SilentlyContinue |
-            Where-Object {
-                $_.LocalAddress -eq '127.0.0.1' -and
-                $_.OwningProcess -eq $applicationListenerProcessId
+    try {
+        if ($pilotOriginApplied) {
+            Restore-PilotOrigin -Path $environmentPath -OriginalLines $originalEnvironmentOriginLines
+            if (Test-Path -LiteralPath $publicUrlFile -PathType Leaf) {
+                $savedOrigin = (Get-Content -LiteralPath $publicUrlFile -Raw).Trim()
+                if ($savedOrigin -eq $publicOrigin) {
+                    Remove-Item -LiteralPath $publicUrlFile -Force
+                }
             }
-        if ($listener) {
-            $listenerProcess = Get-Process -Id $applicationListenerProcessId -ErrorAction SilentlyContinue
-            if ($listenerProcess -and $listenerProcess.ProcessName -eq 'java') {
-                Stop-Process -Id $applicationListenerProcessId -ErrorAction SilentlyContinue
-                Write-RunLog 'Stopped the Java process started by this task.'
+            Write-RunLog 'Restored the private environment origin and cleared the temporary public URL created for this run.'
+        }
+    } finally {
+        if ($applicationListenerProcessId) {
+            $listener = Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction SilentlyContinue |
+                Where-Object {
+                    $_.LocalAddress -eq '127.0.0.1' -and
+                    $_.OwningProcess -eq $applicationListenerProcessId
+                }
+            if ($listener) {
+                $listenerProcess = Get-Process -Id $applicationListenerProcessId -ErrorAction SilentlyContinue
+                if ($listenerProcess -and $listenerProcess.ProcessName -eq 'java') {
+                    Stop-Process -Id $applicationListenerProcessId -ErrorAction SilentlyContinue
+                    Write-RunLog 'Stopped the Java process started by this task.'
+                }
             }
         }
+        if ($applicationProcess -and -not $applicationProcess.HasExited) {
+            Stop-Process -Id $applicationProcess.Id -ErrorAction SilentlyContinue
+        }
+        if ($tunnelProcess -and -not $tunnelProcess.HasExited) {
+            Stop-Process -Id $tunnelProcess.Id -ErrorAction SilentlyContinue
+            Write-RunLog 'Stopped the Cloudflare tunnel process.'
+        }
+        if ($mutexAcquired) {
+            $mutex.ReleaseMutex()
+        }
+        $mutex.Dispose()
     }
-    if ($applicationProcess -and -not $applicationProcess.HasExited) {
-        Stop-Process -Id $applicationProcess.Id -ErrorAction SilentlyContinue
-    }
-    if ($tunnelProcess -and -not $tunnelProcess.HasExited) {
-        Stop-Process -Id $tunnelProcess.Id -ErrorAction SilentlyContinue
-        Write-RunLog 'Stopped the Cloudflare tunnel process.'
-    }
-    if ($mutexAcquired) {
-        $mutex.ReleaseMutex()
-    }
-    $mutex.Dispose()
 }

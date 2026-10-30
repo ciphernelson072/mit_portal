@@ -17,5 +17,6 @@ public class ScholarshipApplication {
     public Long getScholarshipId() { return scholarshipId; }
     public Long getStudentId() { return studentId; }
     public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
     public LocalDateTime getAppliedAt() { return appliedAt; }
 }

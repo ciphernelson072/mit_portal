@@ -1,6 +1,7 @@
 package com.sis.controller;
 
 import com.sis.service.AcademicRecordsService;
+import com.sis.service.AcademicReportService;
 import com.sis.service.PdfDocumentService;
 import org.junit.jupiter.api.Test;
 
@@ -14,7 +15,7 @@ import static org.mockito.Mockito.when;
 class AcademicRecordsControllerTest {
     private final AcademicRecordsService records = mock(AcademicRecordsService.class);
     private final AcademicRecordsController controller =
-            new AcademicRecordsController(records, mock(PdfDocumentService.class));
+            new AcademicRecordsController(records, mock(PdfDocumentService.class), mock(AcademicReportService.class));
 
     @Test
     void degreeAuditUsesExactProgrammeAndYearWhenProvided() {

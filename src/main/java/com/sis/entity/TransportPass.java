@@ -17,5 +17,6 @@ public class TransportPass {
     public Long getStudentId() { return studentId; }
     public String getPassType() { return passType; }
     public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
     public LocalDate getValidUntil() { return validUntil; }
 }

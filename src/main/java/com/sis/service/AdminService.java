@@ -179,6 +179,9 @@ public class AdminService {
     public UserDto createUser(CreateUserRequest request) {
         String normalizedUsername = normalizeUsername(request.getUsername());
         String normalizedEmail = normalizeEmail(request.getEmail());
+        if (request.getRole() == Role.STUDENT || request.getRole() == Role.TEACHER) {
+            throw new IllegalArgumentException("Student and teacher accounts must be created through their managed workflows");
+        }
 
         if (userRepository.findByUsernameIgnoreCase(normalizedUsername).isPresent()) {
             throw new IllegalArgumentException("Username already exists: " + normalizedUsername);
@@ -217,6 +220,14 @@ public class AdminService {
         boolean credentialsChanged = false;
         if (request.getRole() != null) {
             credentialsChanged = user.getRole() != request.getRole();
+            if (credentialsChanged && request.getRole() == Role.STUDENT
+                    && studentRepository.findByUserId(user.getId()).isEmpty()) {
+                throw new IllegalArgumentException("Cannot assign STUDENT role: the account has no student profile");
+            }
+            if (credentialsChanged && request.getRole() == Role.TEACHER
+                    && teacherRepository.findByUserId(user.getId()).isEmpty()) {
+                throw new IllegalArgumentException("Cannot assign TEACHER role: the account has no teacher profile");
+            }
             user.setRole(request.getRole());
         }
 
@@ -225,7 +236,11 @@ public class AdminService {
             user.setPasswordChangeRequired(user.getRole() == Role.STUDENT);
             credentialsChanged = true;
         }
-        if (user.getRole() != Role.STUDENT) user.setPasswordChangeRequired(false);
+        if (credentialsChanged && user.getRole() == Role.STUDENT) {
+            user.setPasswordChangeRequired(true);
+        } else if (user.getRole() != Role.STUDENT) {
+            user.setPasswordChangeRequired(false);
+        }
 
         if (credentialsChanged) {
             user.setCredentialVersion(user.getCredentialVersion() + 1);

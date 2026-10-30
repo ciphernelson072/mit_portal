@@ -30,6 +30,10 @@ public class PreferencePolicyService {
     }
 
     public boolean isNotificationCategoryVisible(Long userId, NotificationCategory category) {
+        return isNotificationCategoryVisible(category, notificationVisibility(userId));
+    }
+
+    public boolean isNotificationCategoryVisible(NotificationCategory category, List<Boolean> visibility) {
         if (category == null) {
             return true;
         }
@@ -37,7 +41,6 @@ public class PreferencePolicyService {
         if (index < 0) {
             return true;
         }
-        List<Boolean> visibility = notificationVisibility(userId);
         return Boolean.TRUE.equals(visibility.get(index));
     }
 

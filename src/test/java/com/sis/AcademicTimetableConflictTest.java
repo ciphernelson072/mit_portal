@@ -38,7 +38,7 @@ class AcademicTimetableConflictTest {
             schoolService, timetable,
             mock(ExamResultRepository.class), terms, mock(ExamRepository.class),
             mock(PdfDocumentService.class), mock(ExamPermitService.class),
-            mock(NotificationService.class));
+            mock(NotificationService.class), mock(com.sis.service.AcademicReportService.class));
 
     @AfterEach
     void clearSecurityContext() {

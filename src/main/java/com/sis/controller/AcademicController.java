@@ -38,6 +38,7 @@ import com.sis.service.PdfDocumentService;
 import com.sis.service.SchoolService;
 import com.sis.service.ExamPermitService;
 import com.sis.service.NotificationService;
+import com.sis.service.AcademicReportService;
 
 @RestController
 @RequestMapping("/api/academic")
@@ -50,12 +51,13 @@ public class AcademicController {
     private final PdfDocumentService pdfDocuments;
     private final ExamPermitService examPermits;
     private final NotificationService notifications;
+    private final AcademicReportService academicReports;
 
     public AcademicController(SchoolService schoolService, TimetableEntryRepository timetable,
                               ExamResultRepository results,
                               AcademicTermRepository academicTerms, ExamRepository exams,
                               PdfDocumentService pdfDocuments, ExamPermitService examPermits,
-                              NotificationService notifications) {
+                              NotificationService notifications, AcademicReportService academicReports) {
         this.schoolService = schoolService;
         this.timetable = timetable;
         this.academicTerms = academicTerms;
@@ -64,6 +66,7 @@ public class AcademicController {
         this.pdfDocuments = pdfDocuments;
         this.examPermits = examPermits;
         this.notifications = notifications;
+        this.academicReports = academicReports;
     }
 
     @GetMapping("/student/timetable")
@@ -128,7 +131,9 @@ public class AcademicController {
     @PreAuthorize("hasAuthority('STUDENT')")
     public ResponseEntity<List<ExamResult>> studentExamResults() {
         Student student = currentStudent();
-        return student == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(results.findByStudentIdAndPublishedTrue(student.getId()));
+        return student == null ? ResponseEntity.notFound().build()
+                : ResponseEntity.ok(academicReports.isOfficiallyPublished(student.getId())
+                        ? results.findByStudentIdAndPublishedTrue(student.getId()) : List.of());
     }
 
     @GetMapping("/student/hall-ticket")

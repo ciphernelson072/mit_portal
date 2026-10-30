@@ -84,7 +84,7 @@ class AdminStudentProvisioningTest {
     }
 
     @Test
-    void adminCreatedStudentUserAlsoRequiresPasswordChange() {
+    void standaloneCreationRejectsManagedStudentRoles() {
         CreateUserRequest request = new CreateUserRequest();
         request.setUsername("new-student");
         request.setPassword("TemporaryPass123");
@@ -93,11 +93,10 @@ class AdminStudentProvisioningTest {
         when(passwordEncoder.encode(request.getPassword())).thenReturn("encoded-password");
         when(users.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        service.createUser(request);
-
-        org.mockito.ArgumentCaptor<User> savedUser = org.mockito.ArgumentCaptor.forClass(User.class);
-        org.mockito.Mockito.verify(users).save(savedUser.capture());
-        assertThat(savedUser.getValue().isPasswordChangeRequired()).isTrue();
+        assertThatThrownBy(() -> service.createUser(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("managed workflows");
+        org.mockito.Mockito.verify(users, org.mockito.Mockito.never()).save(org.mockito.ArgumentMatchers.any(User.class));
     }
 
     @Test

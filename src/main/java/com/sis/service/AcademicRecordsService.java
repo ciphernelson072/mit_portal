@@ -75,7 +75,8 @@ public class AcademicRecordsService {
             if (!Boolean.TRUE.equals(item.getRequired())) continue;
             requiredCount++;
             boolean completed = approved.stream().anyMatch(grade -> grade.getCourse().getId().equals(item.getCourse().getId())
-                    && grade.getGpaScore() != null && grade.getGpaScore().compareTo(BigDecimal.ONE) >= 0);
+                    && grade.getGpaScore() != null
+                    && grade.getGpaScore().compareTo(UgandanTertiaryGradingPolicy.PASS_GRADE_POINT) >= 0);
             if (completed) completedCount++;
             else missing.add(map("courseId", item.getCourse().getId(), "courseCode", item.getCourse().getCourseCode(),
                     "courseName", item.getCourse().getName(), "semesterNumber", item.getSemesterNumber()));

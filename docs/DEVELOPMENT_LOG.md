@@ -1,5 +1,67 @@
 # SIS Refactor — Changelog
 
+## Current source status — 27 October 2026
+
+- Added migration V45 for persistent administrator assessment-review
+  acknowledgments. Each acknowledgment stores the reviewer, time, and
+  SHA-256 fingerprint of the exact result state; approval revalidates the
+  fingerprint, so changed marks or result details require a new review.
+- V43 provides administrator-authorized correction records with immutable
+  prior grade and assessment-mark snapshots. V41 and V42 provide result
+  snapshots, assessments, and linked retake attempts.
+- Added weighted assessment calculation with strict 100% component weights,
+  mark-range validation, and explicit missing-mark handling. Approved
+  Ugandan tertiary five-point boundaries now drive final letter grades and
+  grade points; weighted assessments are converted by the central policy
+  service.
+- Academic report snapshots require administrator approval and separate
+  publication; the current results version gates student report and official
+  download access.
+- Legacy edits remain blocked unless an administrator authorizes a correction;
+  the first teacher change locks student access, then requires normal grade
+  approval and report reapproval/publication. The active TiDB pilot still needs
+  V43-V45 after a fresh verified backup.
+- Flutterwave hosted-checkout and server-side transaction verification code is
+  present, but live provider acceptance and database migration validation
+  remain pending.
+- V1-V43 migration and Hibernate validation passed on a disposable MySQL 8.0
+  database. The Testcontainers profile is blocked by the local Docker API
+  mismatch; the TiDB V43 rollout remains outstanding.
+- Latest Maven verification after V45: 328 tests with no failures, errors, or
+  skips (MySQL/Testcontainers suite excluded). The isolated Playwright suite
+  passed all 87 tests; all 10 frontend unit tests and JavaScript syntax checks
+  passed. These checks do not certify live V44/V45 migrations or deployment
+  readiness.
+- V1-V43 migration and Hibernate validation passed on a disposable MySQL 8.0
+  database. V44/V45 still need target-engine validation; TiDB rollout remains
+  pending.
+- Club directory member counts and joined-state lookups now use bounded batch
+  queries instead of per-club database queries.
+- Teacher assignment feeds now follow the teacher's currently assigned courses,
+  including assignments created by administrators, and assignment creation
+  consistently records the course's assigned teacher.
+- Teacher attendance approval now uses the combined legacy/section-registration
+  course roster and loads existing attendance rows in one batch rather than one
+  query per student.
+- Course-material upload now honors the administrator access already granted
+  by its endpoint policy while keeping teacher uploads restricted to their
+  assigned courses.
+- Teachers can now review submissions for their assigned course assignments;
+  submission lookup is course-owner checked and returns student display names
+  without exposing other courses' work. The submission API also rejects blank
+  responses, matching the student form's validation. Student resubmissions now
+  retain their existing policy but return HTTP 200 instead of 201, and the
+  student submission view displays the saved response text.
+- Service-request creation now selects only active administrator accounts for
+  notification rather than loading every user account and filtering in memory.
+- Requesters' service-request lists now use one owner-scoped, database-ordered
+  query instead of two queries plus in-memory merge, de-duplication, and sort.
+- Email-verification resend now relies on the normalized, case-insensitive
+  email lookup directly; unknown addresses no longer trigger a full user-table
+  scan while preserving the same non-disclosing response.
+- Public and authenticated announcement feeds are consistently newest-first
+  and safely label legacy announcements without an author as "System".
+
 Senior-architect review and hardening pass. Grouped by severity, not by file, since that's
 the order a reviewer would actually care about.
 

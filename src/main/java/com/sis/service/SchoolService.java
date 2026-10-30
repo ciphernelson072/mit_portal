@@ -226,27 +226,35 @@ public class SchoolService {
 
     public List<AdminCourseDto> listCourseDtos() {
         return courseRepository.findAllWithTeacher().stream()
-                .map(course -> new AdminCourseDto(
+                .map(course -> {
+                    AdminCourseDto dto = new AdminCourseDto(
                         course.getId(),
                         course.getName(),
                     course.getCourseCode(),
                         course.getCategory() != null ? course.getCategory().getName() : "Other",
                     course.getTeacher().getFullName(),
                     course.getSemester(),
-                    course.getCredits()))
+                    course.getCredits());
+                    dto.setCore(course.getCore());
+                    return dto;
+                })
                 .collect(Collectors.toList());
     }
 
     public org.springframework.data.domain.Page<AdminCourseDto> listCourseDtos(org.springframework.data.domain.Pageable pageable) {
         return courseRepository.findAllWithTeacher(pageable)
-                .map(course -> new AdminCourseDto(
+                .map(course -> {
+                    AdminCourseDto dto = new AdminCourseDto(
                         course.getId(),
                         course.getName(),
                     course.getCourseCode(),
                         course.getCategory() != null ? course.getCategory().getName() : "Other",
                     course.getTeacher().getFullName(),
                     course.getSemester(),
-                    course.getCredits()));
+                    course.getCredits());
+                    dto.setCore(course.getCore());
+                    return dto;
+                });
     }
 
     public Optional<Course> getCourseById(Long courseId) {
@@ -263,8 +271,8 @@ public class SchoolService {
 
     public List<CourseDto> getCoursesForStudent(Long studentId) {
         if (studentId == null) return Collections.emptyList();
-        return studentRepository.findByIdWithCoursesAndTeachers(studentId)
-                .map(student -> student.getCourses().stream().map(course -> {
+        return courseRepository.findByStudentIdWithTeacherAndCategoryIncludingRegistrations(studentId).stream()
+                .map(course -> {
                     CourseDto dto = new CourseDto();
                     dto.setId(course.getId());
                     dto.setName(course.getName());
@@ -274,8 +282,21 @@ public class SchoolService {
                     dto.setSemester(course.getSemester());
                     dto.setCredits(course.getCredits());
                     return dto;
-                }).collect(Collectors.toList()))
-                .orElse(Collections.emptyList());
+                }).collect(Collectors.toList());
+    }
+
+    public List<String> getMissingResultCourseNames(Long studentId) {
+        java.util.Set<Long> courseIdsWithGrades = gradeRepository.findByStudentId(studentId).stream()
+                .map(Grade::getCourse)
+                .filter(Objects::nonNull)
+                .map(Course::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        return getCoursesForStudent(studentId).stream()
+                .filter(course -> !courseIdsWithGrades.contains(course.getId()))
+                .map(course -> (course.getCourseCode() == null ? "" : course.getCourseCode() + " · ")
+                        + course.getName())
+                .collect(Collectors.toList());
     }
 
     public List<CourseDto> getCoursesForTeacher(Long teacherId) {
@@ -357,11 +378,7 @@ public class SchoolService {
         if (courseId == null) {
             return new ArrayList<>();
         }
-        Optional<Course> courseOpt = courseRepository.findById(courseId);
-        if (courseOpt.isPresent()) {
-            return new ArrayList<>(courseOpt.get().getStudents());
-        }
-        return new ArrayList<>();
+        return studentRepository.findByCourseIdIncludingRegistrations(courseId);
     }
 
     public List<Assignment> getCourseAssignments(Long courseId) {
@@ -400,6 +417,7 @@ public class SchoolService {
             .orElseThrow(() -> new ResourceNotFoundException("Active course category not found: " + request.getCategoryId())));
         course.setSemester(request.getSemester());
         if (request.getCredits() != null && request.getCredits() > 0) course.setCredits(request.getCredits());
+        course.setCore(Boolean.TRUE.equals(request.getCore()));
         if (request.getStudentIds() != null) {
             for (Long studentId : request.getStudentIds()) {
                 if (studentId != null) {
@@ -412,7 +430,9 @@ public class SchoolService {
 
     public AdminCourseDto createCourseDto(CreateCourseRequest request) {
         Course saved = createCourse(request);
-        return new AdminCourseDto(saved.getId(), saved.getName(), saved.getCourseCode(), saved.getCategory().getName(), saved.getTeacher().getFullName(), saved.getSemester(), saved.getCredits());
+        AdminCourseDto dto = new AdminCourseDto(saved.getId(), saved.getName(), saved.getCourseCode(), saved.getCategory().getName(), saved.getTeacher().getFullName(), saved.getSemester(), saved.getCredits());
+        dto.setCore(saved.getCore());
+        return dto;
     }
 
     public AdminCourseDto updateCourseDto(Long courseId, UpdateCourseRequest request) {
@@ -428,8 +448,11 @@ public class SchoolService {
         course.setTeacher(teacher);
         course.setSemester(request.getSemester());
         if (request.getCredits() != null && request.getCredits() > 0) course.setCredits(request.getCredits());
+        if (request.getCore() != null) course.setCore(request.getCore());
         Course saved = courseRepository.save(course);
-        return new AdminCourseDto(saved.getId(), saved.getName(), saved.getCourseCode(), saved.getCategory().getName(), saved.getTeacher().getFullName(), saved.getSemester(), saved.getCredits());
+        AdminCourseDto dto = new AdminCourseDto(saved.getId(), saved.getName(), saved.getCourseCode(), saved.getCategory().getName(), saved.getTeacher().getFullName(), saved.getSemester(), saved.getCredits());
+        dto.setCore(saved.getCore());
+        return dto;
     }
 
     public List<CourseCategoryDto> listCourseCategories() {
@@ -507,6 +530,10 @@ public class SchoolService {
         return academicRecordService.updateGrade(grade, gradeValue, remarks, gpaScore);
     }
 
+    public Grade updateGrade(Grade grade, String gradeValue, String remarks, BigDecimal gpaScore, String actor) {
+        return academicRecordService.updateGrade(grade, gradeValue, remarks, gpaScore, actor);
+    }
+
     public Optional<Grade> getGradeById(Long id) {
         return id == null ? Optional.empty() : gradeRepository.findById(id);
     }
@@ -547,7 +574,10 @@ public class SchoolService {
                         grade.getSubmittedBy(),
                         grade.getApprovedBy(),
                         grade.getRejectedBy(),
-                        grade.getRejectionReason()))
+                        grade.getRejectionReason(),
+                        grade.getTotalMark(),
+                        grade.getRetakeRequired(),
+                        grade.getGradingPolicyVersion()))
                 .collect(Collectors.toList());
     }
 

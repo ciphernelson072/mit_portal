@@ -23,6 +23,10 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
     @Query("SELECT s FROM Student s WHERE s.user.username = :username")
     Optional<Student> findByUserUsernameForUpdate(@Param("username") String username);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT s FROM Student s WHERE s.id = :studentId")
+    Optional<Student> findByIdForUpdate(@Param("studentId") Long studentId);
+
     @EntityGraph(attributePaths = "user")
     @Query("SELECT s FROM Student s WHERE s.id = :id")
     Optional<Student> findByIdWithUser(Long id);
@@ -34,6 +38,15 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
 
     @Query("SELECT s.user.id FROM Student s JOIN s.courses c WHERE c.id = :courseId")
     List<Long> findUserIdsByCourseId(@Param("courseId") Long courseId);
+
+    @Query("select distinct student from Student student join fetch student.user "
+            + "where exists (select course.id from Course course join course.students enrolled "
+            + "where course.id = :courseId and enrolled.id = student.id) "
+            + "or exists (select registration.id from CourseRegistration registration "
+            + "where registration.student.id = student.id and registration.section.course.id = :courseId "
+            + "and registration.status = com.sis.entity.RegistrationStatus.REGISTERED) "
+            + "order by student.fullName")
+    List<Student> findByCourseIdIncludingRegistrations(@Param("courseId") Long courseId);
 
     @Query("SELECT s.user.id FROM Student s WHERE s.id = :studentId")
     Optional<Long> findUserIdByStudentId(@Param("studentId") Long studentId);

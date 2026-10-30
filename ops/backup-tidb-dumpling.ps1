@@ -41,8 +41,21 @@ if (-not $dockerCommand) {
     throw 'Docker Desktop is required to run the official Linux Dumpling package.'
 }
 $dockerPath = $dockerCommand.Source
-$dockerVersion = & $dockerPath version --format '{{.Server.Version}}' 2>$null
-if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace(($dockerVersion -join ''))) {
+
+function Get-DockerServerVersion {
+    try {
+        $versionOutput = @(& $dockerPath version --format '{{.Server.Version}}' 2>$null)
+        if ($LASTEXITCODE -eq 0) {
+            return ($versionOutput -join '').Trim()
+        }
+    } catch {
+        return $null
+    }
+    return $null
+}
+
+$dockerVersion = Get-DockerServerVersion
+if ([string]::IsNullOrWhiteSpace($dockerVersion)) {
     $desktopPath = Join-Path $env:ProgramFiles 'Docker\Docker\Docker Desktop.exe'
     if (-not (Test-Path -LiteralPath $desktopPath -PathType Leaf)) {
         throw 'Docker Desktop Linux engine is unavailable and Docker Desktop could not be started.'
@@ -53,10 +66,10 @@ if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace(($dockerVersion -join '
     $deadline = [DateTime]::UtcNow.AddSeconds($DockerStartupTimeoutSeconds)
     do {
         Start-Sleep -Seconds 5
-        $dockerVersion = & $dockerPath version --format '{{.Server.Version}}' 2>$null
-    } while (($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace(($dockerVersion -join ''))) -and
+        $dockerVersion = Get-DockerServerVersion
+    } while ([string]::IsNullOrWhiteSpace($dockerVersion) -and
         [DateTime]::UtcNow -lt $deadline)
-    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace(($dockerVersion -join ''))) {
+    if ([string]::IsNullOrWhiteSpace($dockerVersion)) {
         throw "Docker Desktop Linux engine did not become ready within $DockerStartupTimeoutSeconds seconds."
     }
 }
@@ -175,6 +188,7 @@ exec /tmp/dumpling-bin/dumpling \
         -not ($dumpFiles | Where-Object { $_.Extension -eq '.sql' } | Select-Object -First 1)) {
         throw 'TiDB Dumpling returned success but produced no SQL dump files.'
     }
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
     [IO.Compression.ZipFile]::CreateFromDirectory(
         $exportDirectory,
         $temporaryArchive,

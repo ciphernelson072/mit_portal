@@ -34,6 +34,21 @@ class PermissionSecurityTest {
     }
 
     @Test
+    void institutionStructureManagementRequiresAdministrativeAuthorityOrExplicitPermission() {
+        SecurityContextHolder.getContext().setAuthentication(authentication("TEACHER"));
+        assertFalse(permissionSecurity.canManageInstitutionStructure());
+
+        SecurityContextHolder.getContext().setAuthentication(authentication("PERM_ACADEMIC_OPS_MANAGE"));
+        assertTrue(permissionSecurity.canManageInstitutionStructure());
+
+        SecurityContextHolder.getContext().setAuthentication(authentication("PERM_REGISTRATION_MANAGE"));
+        assertTrue(permissionSecurity.canManageInstitutionStructure());
+
+        SecurityContextHolder.getContext().setAuthentication(authentication("ADMIN"));
+        assertTrue(permissionSecurity.canManageInstitutionStructure());
+    }
+
+    @Test
     void studentFeeManagementDoesNotGrantPaymentConfirmation() {
         SecurityContextHolder.getContext().setAuthentication(authentication("PERM_FINANCE_FEE_MANAGE"));
         assertTrue(permissionSecurity.canManageStudentFees());
@@ -43,11 +58,29 @@ class PermissionSecurityTest {
     @Test
     void gradeApprovalPermissionIsSeparateFromResultPublication() {
         SecurityContextHolder.getContext().setAuthentication(authentication("PERM_GRADE_APPROVAL_MANAGE"));
-        assertTrue(permissionSecurity.canReviewGradeApprovals());
+        assertFalse(permissionSecurity.canReviewGradeApprovals());
         assertFalse(permissionSecurity.canPublishExamResults());
 
         SecurityContextHolder.getContext().setAuthentication(authentication("TEACHER"));
         assertFalse(permissionSecurity.canReviewGradeApprovals());
+
+        SecurityContextHolder.getContext().setAuthentication(authentication("ADMIN"));
+        assertTrue(permissionSecurity.canReviewGradeApprovals());
+    }
+
+    @Test
+    void onlyAdminCanApproveAndPublishFinalAcademicReports() {
+        for (String authority : List.of(
+                "PERM_HR_MANAGE", "PERM_REPORTS_APPROVE", "PERM_GRADE_APPROVAL_MANAGE",
+                "PERM_EXAM_RESULT_PUBLISH", "TEACHER")) {
+            SecurityContextHolder.getContext().setAuthentication(authentication(authority));
+            assertFalse(permissionSecurity.canApproveStudentReports(), authority);
+            assertFalse(permissionSecurity.canPublishExamResults(), authority);
+        }
+
+        SecurityContextHolder.getContext().setAuthentication(authentication("ADMIN"));
+        assertTrue(permissionSecurity.canApproveStudentReports());
+        assertTrue(permissionSecurity.canPublishExamResults());
     }
 
     @Test

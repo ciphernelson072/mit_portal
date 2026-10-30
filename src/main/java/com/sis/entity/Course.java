@@ -33,6 +33,9 @@ public class Course {
     @Column(nullable = false, columnDefinition = "INT DEFAULT 3")
     private Integer credits = 3;
 
+    @Column(name = "is_core", nullable = false)
+    private Boolean core = false;
+
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "teacher_id")
     private Teacher teacher;
@@ -130,5 +133,13 @@ public class Course {
      */
     public void setCredits(Integer credits) {
         this.credits = credits;
+    }
+
+    public Boolean getCore() {
+        return core;
+    }
+
+    public void setCore(Boolean core) {
+        this.core = core;
     }
 }

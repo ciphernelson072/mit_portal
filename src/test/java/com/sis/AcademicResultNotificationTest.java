@@ -43,7 +43,8 @@ class AcademicResultNotificationTest {
                 mock(ExamRepository.class),
                 mock(PdfDocumentService.class),
                 mock(ExamPermitService.class),
-                notifications);
+                notifications,
+                mock(com.sis.service.AcademicReportService.class));
 
         ResponseEntity<ExamResult> first = controller.publishExamResult(8L);
         ResponseEntity<ExamResult> repeated = controller.publishExamResult(8L);

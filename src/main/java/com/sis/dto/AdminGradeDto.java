@@ -17,12 +17,26 @@ public class AdminGradeDto {
     private String approvedBy;
     private String rejectedBy;
     private String rejectionReason;
+    private BigDecimal totalMark;
+    private Boolean retakeRequired;
+    private String gradingPolicyVersion;
 
     public AdminGradeDto(Long id, Long studentId, String studentName, String studentUsername,
                          Long courseId, String courseName, String gradeValue,
                          BigDecimal gpaScore, String remarks, String status,
                          String submittedBy, String approvedBy, String rejectedBy,
                          String rejectionReason) {
+        this(id, studentId, studentName, studentUsername, courseId, courseName, gradeValue,
+                gpaScore, remarks, status, submittedBy, approvedBy, rejectedBy, rejectionReason,
+                null, null, null);
+    }
+
+    public AdminGradeDto(Long id, Long studentId, String studentName, String studentUsername,
+                         Long courseId, String courseName, String gradeValue,
+                         BigDecimal gpaScore, String remarks, String status,
+                         String submittedBy, String approvedBy, String rejectedBy,
+                         String rejectionReason, BigDecimal totalMark, Boolean retakeRequired,
+                         String gradingPolicyVersion) {
         this.id = id;
         this.studentId = studentId;
         this.studentName = studentName;
@@ -37,6 +51,9 @@ public class AdminGradeDto {
         this.approvedBy = approvedBy;
         this.rejectedBy = rejectedBy;
         this.rejectionReason = rejectionReason;
+        this.totalMark = totalMark;
+        this.retakeRequired = retakeRequired;
+        this.gradingPolicyVersion = gradingPolicyVersion;
     }
 
     public Long getId() { return id; }
@@ -53,4 +70,7 @@ public class AdminGradeDto {
     public String getApprovedBy() { return approvedBy; }
     public String getRejectedBy() { return rejectedBy; }
     public String getRejectionReason() { return rejectionReason; }
+    public BigDecimal getTotalMark() { return totalMark; }
+    public Boolean getRetakeRequired() { return retakeRequired; }
+    public String getGradingPolicyVersion() { return gradingPolicyVersion; }
 }

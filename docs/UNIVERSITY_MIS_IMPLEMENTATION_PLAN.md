@@ -1,5 +1,16 @@
 # University MIS Implementation Plan
 
+> **Status note (26 October 2026):** This document preserves the incremental
+> implementation history and original roadmap; it is not a current acceptance
+> checklist. The source now includes result snapshot approval/publication and
+> course-specific assessment/retake data (migrations V41-V42), plus the
+> administrator-authorized correction workflow (V43). V1-V43 and Hibernate
+> validation pass on disposable MySQL 8.0; the TiDB pilot is pending V43
+> rollout after a fresh backup. Institutional grading/retake policies and
+> target-environment acceptance remain open.
+> See [Academic Results Workflow](./ACADEMIC_RESULTS_WORKFLOW.md) and the
+> [Release Checklist](./RELEASE_CHECKLIST.md) for current status.
+
 This repository is being upgraded incrementally from a Student Information Portal
 to a University Management Information System. Existing role-specific pages and
 API routes remain supported while new bounded modules are introduced.
@@ -100,7 +111,7 @@ API routes remain supported while new bounded modules are introduced.
 - Added administrator curriculum and prerequisite management endpoints.
 - Added student curriculum and prerequisite lookup endpoints.
 - Registration now rejects courses whose prerequisites lack an approved passing
-  grade (`gpaScore >= 1.00`). Courses without configured prerequisites remain
+  grade (`gpaScore >= 2.00`). Courses without configured prerequisites remain
   compatible with existing registration behavior.
 - Added `V5__curriculum_and_prerequisites.sql` and updated `schema.sql`.
 
@@ -177,6 +188,8 @@ API routes remain supported while new bounded modules are introduced.
 - Added staff self-service leave requests.
 - Added administrator pending-leave review and finalization.
 - Added date validation and overlapping pending-leave protection.
+- Added admin HR onboarding and leave-review screens, plus staff leave request/history screens.
+- HR profiles must be explicitly provisioned with the verified employee number, title, and hire date; creation is limited to active administrator or teacher accounts and rejects duplicate account/employee numbers.
 - Added `V12__hr_staff_and_leave.sql` and updated `schema.sql`.
 
 ## Completed Library Slice
@@ -185,17 +198,30 @@ API routes remain supported while new bounded modules are introduced.
 - Added administrator issue and return circulation actions.
 - Added student loan history.
 - Added automatic overdue marking when loan history is read.
-- Added copy-count integrity on issue and return.
+- Added pessimistic stock/loan locking so concurrent issues cannot borrow beyond available copies and concurrent returns restore a copy only once.
 - Added `V13__library_catalog_and_loans.sql` and updated `schema.sql`.
 
 ## Completed Accommodation and Transport Slice
 
 - Added hostel rooms with capacity and available-bed tracking.
+- Added an authorized pending-application queue so accommodation staff can identify application IDs before allocating rooms.
 - Added administrator allocation of open hostel applications.
-- Added student hostel-allocation lookup.
-- Hostel applications transition to `ALLOCATED` after successful assignment.
-- Transport renewal now rejects duplicate active passes.
+- Added student hostel-allocation lookup with building and room details in the accommodation dashboard.
+- Prevented multiple active room assignments for the same student, including simultaneous allocations from separate applications, by locking the student record.
+- Hostel applications transition to `ALLOCATED` after successful assignment; other open applications for the same student are closed and removed from the pending queue.
+- Transport renewal now rejects duplicate currently valid passes, marks expired passes as `EXPIRED`, and serializes concurrent renewals by locking the student's record.
 - Added `V14__accommodation_and_transport_controls.sql` and updated `schema.sql`.
+
+## Completed Scholarship Lifecycle Slice
+
+- Added administrator scholarship creation, opening/closing, application listing, and final review endpoints.
+- Scholarship applications are rejected while the opportunity is closed, with concurrent submissions serialized on the scholarship record.
+- Repeated submissions return the existing application instead of creating duplicates, including after an opportunity has closed.
+
+## Completed Campus Event Registration Slice
+
+- Students may register only before the event starts; retries of an existing registration remain idempotent, including after the event starts.
+- Students can cancel and re-register before the event starts; event-row locking serializes concurrent registration/cancellation updates.
 
 ## Completed Procurement and Asset Slice
 

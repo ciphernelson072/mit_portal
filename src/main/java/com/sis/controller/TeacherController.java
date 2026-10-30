@@ -70,7 +70,13 @@ public class TeacherController {
                         grade.getRemarks(),
                         grade.getStatus() == null ? "PENDING" : grade.getStatus().name(),
                         grade.getRejectionReason(),
-                        grade.getSubmittedAt()))
+                        grade.getSubmittedAt(),
+                        grade.getAttemptNumber(),
+                        grade.getOriginalAttempt() == null ? null : grade.getOriginalAttempt().getId(),
+                        grade.getOriginalAttempt() == null ? "ORIGINAL_ATTEMPT" : "RETAKE_SUBMITTED",
+                        grade.getTotalMark(),
+                        grade.getGpaScore(),
+                        grade.getRetakeRequired()))
                 .collect(Collectors.toList());
         return ResponseEntity.ok(grades);
     }
@@ -97,7 +103,7 @@ public class TeacherController {
         if (grade == null || !schoolService.teacherOwnsCourse(username, grade.getCourse()) || !grade.getStudent().getId().equals(request.getStudentId()) || !grade.getCourse().getId().equals(request.getCourseId())) {
             return ResponseEntity.notFound().build();
         }
-        Grade saved = schoolService.updateGrade(grade, request.getGradeValue(), request.getRemarks(), null);
+        Grade saved = schoolService.updateGrade(grade, request.getGradeValue(), request.getRemarks(), null, username);
         return ResponseEntity.ok(schoolService.toGradeDto(saved));
     }
 
@@ -115,10 +121,17 @@ public class TeacherController {
     @GetMapping("/students/{studentId}/profile")
     public ResponseEntity<StudentProfileDto> getStudentProfile(@PathVariable Long studentId) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        return schoolService.getStudentWithCoursesAndTeachersById(studentId)
-            .filter(student -> student.getCourses().stream().anyMatch(course -> schoolService.teacherOwnsCourse(username, course)))
-            .map(student -> ResponseEntity.ok(schoolService.getStudentProfile(studentId)))
-            .orElse(ResponseEntity.notFound().build());
+        Student student = schoolService.getStudentById(studentId).orElse(null);
+        if (student == null) {
+            return ResponseEntity.notFound().build();
+        }
+        boolean assignedCourseEnrollment = schoolService.getTeacherByUsername(username)
+                .map(teacher -> schoolService.getCoursesForTeacher(teacher.getId()).stream()
+                        .anyMatch(course -> schoolService.studentEnrolledInCourse(student.getId(), course.getId())))
+                .orElse(false);
+        return assignedCourseEnrollment
+                ? ResponseEntity.ok(schoolService.getStudentProfile(studentId))
+                : ResponseEntity.notFound().build();
     }
 
     @GetMapping("/courses/{courseId}/students")

@@ -51,6 +51,17 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
             + "AND registration.status = com.sis.entity.RegistrationStatus.REGISTERED))")
     boolean existsEnrolledStudent(@Param("courseId") Long courseId, @Param("studentId") Long studentId);
 
+    @Query("select distinct course from Course course "
+            + "join fetch course.teacher join fetch course.category "
+            + "where exists (select student.id from Student student join student.courses enrolled "
+            + "where enrolled.id = course.id and student.id = :studentId) "
+            + "or exists (select registration.id from CourseRegistration registration "
+            + "where registration.student.id = :studentId and registration.section.course.id = course.id "
+            + "and registration.status = com.sis.entity.RegistrationStatus.REGISTERED) "
+            + "order by course.name")
+    List<Course> findByStudentIdWithTeacherAndCategoryIncludingRegistrations(
+            @Param("studentId") Long studentId);
+
     @Query("SELECT COUNT(DISTINCT student.id) FROM Course c JOIN c.students student WHERE c.id IN :courseIds")
     long countDistinctStudentsByCourseIds(@Param("courseIds") List<Long> courseIds);
 

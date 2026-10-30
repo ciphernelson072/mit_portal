@@ -7,7 +7,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -121,7 +120,8 @@ public class RegistrationService {
         ensureNoTimetableConflict(student.getId(), term.getId(), section.getCourse().getId());
         prerequisites.findByCourseId(section.getCourse().getId()).forEach(item -> {
             if (!grades.existsByStudentIdAndCourseIdAndStatusAndGpaScoreGreaterThanEqual(
-                    student.getId(), item.getPrerequisiteCourse().getId(), GradeStatus.APPROVED, BigDecimal.ONE)) {
+                    student.getId(), item.getPrerequisiteCourse().getId(), GradeStatus.APPROVED,
+                    UgandanTertiaryGradingPolicy.PASS_GRADE_POINT)) {
                 throw new IllegalStateException("Prerequisite not completed: " + item.getPrerequisiteCourse().getCourseCode());
             }
         });

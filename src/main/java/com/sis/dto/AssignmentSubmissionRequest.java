@@ -1,8 +1,10 @@
 package com.sis.dto;
 
+import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.Size;
 
 public class AssignmentSubmissionRequest {
+    @NotBlank
     @Size(max = 2000)
     private String content = "";
 

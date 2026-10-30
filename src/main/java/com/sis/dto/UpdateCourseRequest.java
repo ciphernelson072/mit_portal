@@ -18,6 +18,8 @@ public class UpdateCourseRequest {
 
     private Integer credits;
 
+    private Boolean core;
+
     @NotNull(message = "Course category is required")
     private Long categoryId;
 
@@ -55,6 +57,9 @@ public class UpdateCourseRequest {
     public void setCredits(Integer credits) {
         this.credits = credits;
     }
+
+    public Boolean getCore() { return core; }
+    public void setCore(Boolean core) { this.core = core; }
 
     public Long getCategoryId() { return categoryId; }
     public void setCategoryId(Long categoryId) { this.categoryId = categoryId; }

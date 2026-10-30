@@ -36,18 +36,16 @@ public class ServiceRequestService {
     public ServiceRequestDto create(Student student, User requester, String type, String subject, String details) {
         ServiceRequest request = new ServiceRequest(student, requester, type, subject, details);
         ServiceRequestDto created = toDto(repository.save(request));
-        users.findAll().stream()
-                .filter(user -> user.getRole() == Role.ADMIN && Boolean.TRUE.equals(user.getIsActive()))
-            .forEach(user -> notifications.create(user.getId(), "New service request",
-                "Request #" + created.getId() + " from " + student.getFullName() + ": " + subject));
+        users.findByRoleAndIsActiveTrue(Role.ADMIN)
+                .forEach(user -> notifications.create(user.getId(), "New service request",
+                        "Request #" + created.getId() + " from " + student.getFullName() + ": " + subject));
         return created;
     }
 
     public ServiceRequestDto create(User requester, String type, String subject, String details) {
         ServiceRequest request = new ServiceRequest(null, requester, type, subject, details);
         ServiceRequestDto created = toDto(repository.save(request));
-        users.findAll().stream()
-                .filter(user -> user.getRole() == Role.ADMIN && Boolean.TRUE.equals(user.getIsActive()))
+        users.findByRoleAndIsActiveTrue(Role.ADMIN)
                 .forEach(user -> notifications.create(user.getId(), "New service request",
                     "Request #" + created.getId() + " from " + requester.getUsername() + ": " + subject));
         return created;
@@ -62,11 +60,7 @@ public class ServiceRequestService {
 
     @Transactional(readOnly = true)
     public List<ServiceRequestDto> listForUser(Long userId) {
-        return java.util.stream.Stream.concat(
-                repository.findByRequesterIdOrderByCreatedAtDesc(userId).stream(),
-                repository.findByStudentUserIdOrderByCreatedAtDesc(userId).stream())
-            .distinct()
-            .sorted(java.util.Comparator.comparing(ServiceRequest::getCreatedAt).reversed())
+        return repository.findVisibleToUserOrderByCreatedAtDesc(userId).stream()
                 .map(this::toDto)
                 .collect(Collectors.toList());
     }

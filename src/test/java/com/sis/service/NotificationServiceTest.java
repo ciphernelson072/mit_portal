@@ -12,6 +12,8 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class NotificationServiceTest {
@@ -42,5 +44,6 @@ class NotificationServiceTest {
 
         assertEquals(2, visible.size());
         assertEquals(List.of(NotificationCategory.ASSIGNMENT, NotificationCategory.SYSTEM), categories);
+        verify(preferences, times(1)).findByUserId(7L);
     }
 }

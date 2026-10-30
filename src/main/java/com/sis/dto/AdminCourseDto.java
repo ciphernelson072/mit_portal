@@ -8,6 +8,7 @@ public class AdminCourseDto {
     private String teacherFullName;
     private String semester;
     private Integer credits;
+    private Boolean core;
 
     public AdminCourseDto() {
     }
@@ -73,4 +74,7 @@ public class AdminCourseDto {
     public void setCredits(Integer credits) {
         this.credits = credits;
     }
+
+    public Boolean getCore() { return core; }
+    public void setCore(Boolean core) { this.core = core; }
 }

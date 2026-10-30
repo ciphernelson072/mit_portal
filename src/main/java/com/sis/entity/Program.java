@@ -18,6 +18,10 @@ public class Program {
     @Column(name = "award_title", nullable = false, length = 150)
     private String awardTitle;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "award_type", length = 20)
+    private ProgramAwardType awardType;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "department_id", nullable = false)
     private Department department;
@@ -36,6 +40,8 @@ public class Program {
     public void setName(String name) { this.name = name; }
     public String getAwardTitle() { return awardTitle; }
     public void setAwardTitle(String awardTitle) { this.awardTitle = awardTitle; }
+    public ProgramAwardType getAwardType() { return awardType; }
+    public void setAwardType(ProgramAwardType awardType) { this.awardType = awardType; }
     public Department getDepartment() { return department; }
     public void setDepartment(Department department) { this.department = department; }
     public Integer getDurationYears() { return durationYears; }

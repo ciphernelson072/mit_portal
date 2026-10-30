@@ -331,7 +331,9 @@ async function composeMessage() {
 
 function renderStatCards(profile, status, courses) {
   const stats = document.querySelectorAll('.stat-value');
-  if (stats[0]) stats[0].textContent = profile?.cgpa != null ? Number(profile.cgpa).toFixed(2) : '—';
+  if (stats[0]) stats[0].textContent = profile?.cgpa != null
+    ? Number(profile.cgpa).toFixed(2)
+    : status?.resultPublicationStatus === 'PUBLISHED' ? '—' : 'NOT FINALIZED';
   const total = Number.isSafeInteger(status?.attendanceCount) ? status.attendanceCount : null;
   const presentCount = Number.isSafeInteger(status?.presentAttendanceCount) ? status.presentAttendanceCount : null;
   const validAttendance = total != null && presentCount != null
@@ -344,12 +346,10 @@ function renderStatCards(profile, status, courses) {
     return;
   }
 
-  const credits = courses.map(course => course.credits);
-  const hasAllCredits = credits.every(value => value != null && Number.isFinite(Number(value)));
   if (stats[2]) {
-    stats[2].textContent = hasAllCredits
-      ? String(credits.reduce((sum, value) => sum + Number(value), 0))
-      : '—';
+    stats[2].textContent = status?.resultPublicationStatus === 'PUBLISHED'
+      ? status.creditsEarned != null ? String(status.creditsEarned) : '—'
+      : 'NOT FINALIZED';
   }
   const semesters = [...new Set(courses.map(course => course.semester).filter(Boolean))];
   if (stats[3]) stats[3].textContent = semesters.length === 1 ? semesters[0] : semesters.length > 1 ? 'Multiple' : '—';

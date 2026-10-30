@@ -110,8 +110,12 @@ async function loadCampusData() {
     renderChatHistory(chatHistory);
     const eventsContainer = document.querySelector('.events-container');
     if (eventsContainer) eventsContainer.innerHTML = events.length ? events.map(event => {
-      const registered = registrations.some(item => item.eventId === event.id);
-      return `<article class="event-card" data-event-id="${event.id}"><div class="event-header"><h3>${escapeHtml(event.title)}</h3></div><div class="event-body"><p class="event-description">${escapeHtml(event.description || '')}</p><p>${escapeHtml(event.startsAt)} · ${escapeHtml(event.venue)}</p></div><div class="event-actions"><button class="btn-primary" ${registered ? 'disabled' : ''} onclick="registerEvent(this)">${registered ? 'Registered' : 'Register'}</button><button class="btn-secondary" onclick="viewEventDetails(this)">Details</button></div></article>`;
+      const registration = registrations.find(item => item.eventId === event.id && item.status === 'REGISTERED');
+      const startsAt = Date.parse(event.startsAt);
+      const eventStarted = !Number.isFinite(startsAt) || startsAt <= Date.now();
+      const actionLabel = registration ? 'Cancel registration' : eventStarted ? 'Registration closed' : 'Register';
+      const disabled = !registration && eventStarted ? 'disabled' : '';
+      return `<article class="event-card" data-event-id="${event.id}"><div class="event-header"><h3>${escapeHtml(event.title)}</h3></div><div class="event-body"><p class="event-description">${escapeHtml(event.description || '')}</p><p>${escapeHtml(event.startsAt)} · ${escapeHtml(event.venue)}</p></div><div class="event-actions"><button class="${registration ? 'btn-secondary' : 'btn-primary'}" ${disabled} onclick="${registration ? 'cancelEventRegistration' : 'registerEvent'}(this)">${actionLabel}</button><button class="btn-secondary" onclick="viewEventDetails(this)">Details</button></div></article>`;
     }).join('') : '<p>No campus events are currently published.</p>';
     const routesGrid = document.querySelector('.routes-grid');
     if (routesGrid) routesGrid.innerHTML = routes.length ? routes.map(route => `<article class="route-card" data-route-id="${route.id}"><div class="route-number">${route.id}</div><h4>${escapeHtml(route.name)}</h4><p>${escapeHtml(route.stops)}</p><button class="btn-secondary" onclick="viewRoute(${route.id})">View Route</button></article>`).join('') : '<p>No transport routes are currently published.</p>';
@@ -146,16 +150,18 @@ function renderChatHistory(messages) {
 
 async function loadAcademicsData() {
   try {
-    const [courses, grades, profile, assignments, exams] = await Promise.all([
+    const [courses, grades, profile, assignments, exams, studentStatus] = await Promise.all([
       apiGet('/student/courses'),
       apiGet('/student/grades'),
       apiGet('/student/profile'),
       apiGet('/portal/student/assignments'),
       apiGet('/portal/student/exams'),
+      apiGet('/student/my-status'),
     ]);
     const timetable = await apiGet('/academic/student/timetable');
     const examResults = await apiGet('/academic/student/exam-results');
     const permits = await apiGet('/student/exam-permits');
+    const resultStatus = await apiGet(`/reports/academic/${profile.id}/status`);
     loadAcademicRecords(profile.id);
     loadCourseRegistrationPanel();
     const semesters = [...new Set(courses.map(course => course.semester).filter(Boolean))];
@@ -164,14 +170,14 @@ async function loadAcademicsData() {
       ? `Current Courses (${semesters.join(', ')})`
       : 'Current Courses';
     renderCourseCards(courses, grades);
-    renderGradesTable(grades, profile);
+    renderGradesTable(grades, profile, resultStatus, studentStatus);
     window._assignments = assignments;
     window._exams = exams;
     renderAssignments(assignments);
     renderExams(exams, permits);
     renderTimetable(timetable, courses);
     renderExamResults(examResults, exams);
-    renderAnalytics(grades, await apiGet('/student/attendance'));
+    renderAnalytics(grades, await apiGet('/student/attendance'), profile);
   } catch (err) {
     console.error('Failed to load academics data', err);
   }
@@ -285,9 +291,42 @@ async function loadAcademicRecords(studentId) {
   const officialStatus = document.getElementById('officialTranscriptStatus');
   if (!transcriptSummary || !degreeAuditSummary) return;
 
+  let status;
+  try {
+    status = await apiGet(`/reports/academic/${studentId}/status`);
+    if (officialStatus) {
+      officialStatus.style.display = 'inline-block';
+      officialStatus.className = status?.published ? 'status-badge success'
+        : status?.approved ? 'status-badge warning' : 'status-badge muted';
+      officialStatus.textContent = status?.published
+        ? `Official results published by ${status.publishedBy || 'Admin'} on ${status.publishedAt || 'recently'}`
+        : status?.approved
+          ? 'Results approved; awaiting administrator publication'
+          : status?.publicationStatus === 'CHANGES_REQUIRED'
+            ? 'Results changed after approval and require review'
+            : 'Results pending administrator approval';
+    }
+    if (!status?.published) {
+      transcriptSummary.textContent = 'Final grades, GPA, credits earned, and the official transcript are locked until results are published.';
+      document.querySelector('#transcriptTable tbody').innerHTML =
+        '<tr><td colspan="5">Results are not yet finalized.</td></tr>';
+      document.getElementById('downloadTranscript').disabled = true;
+      degreeAuditSummary.textContent = 'Academic standing and completion are not finalized until results are published.';
+      document.querySelector('#missingCoursesTable tbody').innerHTML =
+        '<tr><td colspan="3">Course completion details are pending publication.</td></tr>';
+      return;
+    }
+  } catch (error) {
+    transcriptSummary.textContent = error.message || 'Unable to load result publication status.';
+    document.querySelector('#transcriptTable tbody').replaceChildren();
+    degreeAuditSummary.textContent = 'Academic result status is unavailable.';
+    document.querySelector('#missingCoursesTable tbody').replaceChildren();
+    return;
+  }
+
   try {
     const transcript = await apiGet(`/academic-records/${studentId}/transcript`);
-    transcriptSummary.textContent = `${transcript.studentName} · CGPA ${transcript.cgpa ?? '—'} · ${transcript.courseCount} approved courses`;
+    transcriptSummary.textContent = `${transcript.studentName} · CGPA ${transcript.cgpa ?? '—'}${status.awardClassification ? ` · ${status.awardClassification}` : ''} · ${transcript.courseCount} approved courses`;
     document.querySelector('#transcriptTable tbody').innerHTML = transcript.grades.length
       ? transcript.grades.map(grade => `<tr><td>${escapeHtml(grade.courseCode)} · ${escapeHtml(grade.courseName)}</td><td>${escapeHtml(grade.credits ?? '—')}</td><td>${escapeHtml(grade.grade)}</td><td>${escapeHtml(grade.gpaScore ?? '—')}</td><td>${escapeHtml(grade.approvedAt || '—')}</td></tr>`).join('')
       : '<tr><td colspan="5">No approved grades are available yet.</td></tr>';
@@ -301,26 +340,6 @@ async function loadAcademicRecords(studentId) {
   } catch (error) {
     transcriptSummary.textContent = error.message || 'Unable to load transcript.';
     document.querySelector('#transcriptTable tbody').replaceChildren();
-  }
-
-  try {
-    const status = await apiGet(`/reports/academic/${studentId}/status`);
-    if (officialStatus) {
-      officialStatus.style.display = 'inline-block';
-      if (status && status.approved) {
-        officialStatus.className = 'status-badge success';
-        officialStatus.textContent = `Official transcript approved by ${status.approvedBy || 'Admin'} on ${status.approvedAt || 'recently'}`;
-      } else {
-        officialStatus.className = 'status-badge muted';
-        officialStatus.textContent = 'Official transcript pending approval';
-      }
-    }
-  } catch (error) {
-    if (officialStatus) {
-      officialStatus.style.display = 'inline-block';
-      officialStatus.className = 'status-badge muted';
-      officialStatus.textContent = 'Official transcript status unavailable';
-    }
   }
 
   try {
@@ -433,51 +452,87 @@ function renderCourseCards(courses, grades) {
   // here rather than faked - neither is tracked anywhere in the backend.
 }
 
-function renderGradesTable(grades, profile) {
+function renderGradesTable(grades, profile, resultStatus = null, studentStatus = null) {
   const gpaCards = document.querySelectorAll('.gpa-card .gpa-value');
-  if (gpaCards[0]) gpaCards[0].textContent = profile.cgpa != null ? Number(profile.cgpa).toFixed(2) : '—';
-  const approvedGrades = grades.filter(grade => grade.status === 'APPROVED');
-  const semesters = approvedGrades.map(grade => grade.semester).filter(Boolean).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-  const latestSemester = semesters[semesters.length - 1];
-  const semesterGrades = latestSemester ? approvedGrades.filter(grade => grade.semester === latestSemester) : [];
-  const semesterCredits = semesterGrades.reduce((sum, grade) => sum + (Number(grade.credits) || 0), 0);
-  const semesterGpaCredits = semesterGrades.filter(grade => grade.gpaScore != null && Number(grade.credits) > 0);
-  const semesterGpaWeight = semesterGpaCredits.reduce((sum, grade) => sum + Number(grade.gpaScore) * Number(grade.credits), 0);
-  const semesterGpaCreditsTotal = semesterGpaCredits.reduce((sum, grade) => sum + Number(grade.credits), 0);
-  if (gpaCards[1]) gpaCards[1].textContent = semesterGpaCreditsTotal
-    ? (semesterGpaWeight / semesterGpaCreditsTotal).toFixed(2)
-    : '—';
-  if (gpaCards[2]) gpaCards[2].textContent = String(approvedGrades.reduce((sum, grade) => sum + (Number(grade.credits) || 0), 0));
+  const finalized = resultStatus?.published === true;
+  const publicationStatus = document.getElementById('gradePublicationStatus');
+  if (publicationStatus) {
+    publicationStatus.className = finalized ? 'status-badge success'
+      : resultStatus?.approved ? 'status-badge warning' : 'status-badge muted';
+    publicationStatus.textContent = finalized
+      ? `PUBLISHED · ${resultStatus.publishedAt || 'Official results'}`
+      : resultStatus?.approved
+        ? 'AWAITING ADMIN PUBLICATION'
+        : resultStatus?.publicationStatus === 'CHANGES_REQUIRED'
+          ? 'CHANGES REQUIRE REAPPROVAL'
+          : 'PENDING ADMIN APPROVAL';
+  }
+  const noticeTitle = document.getElementById('gradeCgpaNoticeTitle');
+  const noticeText = document.getElementById('gradeCgpaNoticeText');
+  if (noticeTitle) noticeTitle.textContent = finalized ? 'OFFICIAL RESULTS PUBLISHED' : 'CGPA NOT YET AVAILABLE';
+  if (noticeText) noticeText.textContent = finalized
+    ? `Official results were published by ${resultStatus.publishedBy || 'the Academic Office'} on ${resultStatus.publishedAt || 'the date shown on your report'}. Academic standing: ${resultStatus.academicStandingStatus || 'NOT FINALIZED'}${resultStatus.awardClassification ? `. Award classification: ${resultStatus.awardClassification}` : ''}.`
+    : 'Final grades, GPA, credits earned, and academic standing will be shown after results are approved and published by the Academic Office.';
+  const missingCourses = document.getElementById('missingResultCourses');
+  if (missingCourses) {
+    const pending = Array.isArray(studentStatus?.missingResultCourses) ? studentStatus.missingResultCourses : [];
+    missingCourses.hidden = finalized || pending.length === 0;
+    missingCourses.textContent = pending.length
+      ? `No result submission is recorded for: ${pending.map(escapeHtml).join(', ')}.`
+      : '';
+  }
+  if (gpaCards[0]) gpaCards[0].textContent = profile.cgpa != null
+    ? Number(profile.cgpa).toFixed(2) : finalized ? '—' : 'NOT FINALIZED';
+  if (gpaCards[1]) gpaCards[1].textContent = !finalized ? 'NOT FINALIZED'
+    : resultStatus?.semesterGpa == null ? '—' : Number(resultStatus.semesterGpa).toFixed(2);
+  const semesterLabel = document.querySelectorAll('.gpa-card .gpa-range')[0];
+  if (semesterLabel) semesterLabel.textContent = resultStatus?.latestSemester
+    ? `Latest approved semester: ${resultStatus.latestSemester}` : 'Latest semester with approved grades';
+  if (gpaCards[2]) gpaCards[2].textContent = finalized
+    ? resultStatus?.creditsEarned == null ? '—' : String(resultStatus.creditsEarned)
+    : 'NOT FINALIZED';
 
   const tbody = document.querySelector('.grades-table tbody');
   if (!tbody) return;
 
   if (!grades.length) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-secondary,#666);">No grades posted yet.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--text-secondary,#666);">${finalized ? 'No published grades are available.' : 'Results are pending administrative approval and publication.'}</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = grades.map(g => `
-    <tr>
-      <td>${escapeHtml(g.courseCode || '—')}</td>
-      <td>${escapeHtml(g.courseName)}</td>
-      <td>${g.credits != null ? escapeHtml(g.credits) : '—'}</td>
-      <td><span class="grade-badge">${escapeHtml(g.gradeValue)}</span></td>
-      <td>${g.gpaScore != null ? Number(g.gpaScore).toFixed(2) : '—'}</td>
-      <td>${escapeHtml(g.semester || '—')}</td>
-    </tr>`).join('');
+  tbody.innerHTML = grades.map(g => {
+    const components = Array.isArray(g.assessmentComponents) ? g.assessmentComponents : [];
+    const display = (type) => {
+      const matching = components.filter(component => component.componentType === type);
+      return matching.length
+        ? matching.map(component => `${escapeHtml(component.displayName)}: ${component.score == null ? 'MISSING' : `${escapeHtml(component.score)}/${escapeHtml(component.maxScore)}`}`).join('<br>')
+        : '—';
+    };
+    return `
+      <tr>
+        <td>${escapeHtml(g.courseCode || '—')}</td>
+        <td>${escapeHtml(g.courseName)}</td>
+        <td>${display('COURSEWORK')}</td>
+        <td>${display('FINAL_PAPER')}</td>
+        <td>${display('OTHER')}</td>
+        <td>${g.totalMark == null ? '—' : Number(g.totalMark).toFixed(2)}</td>
+        <td><span class="grade-badge">${escapeHtml(g.grade ?? g.gradeValue ?? '—')}</span></td>
+        <td>${g.gpaScore != null ? Number(g.gpaScore).toFixed(2) : '—'}</td>
+        <td>${g.retakeRequired ? 'RETAKE REQUIRED · ' : ''}${escapeHtml(g.attemptType === 'RETAKE_SUBMITTED' ? `RETAKE SUBMITTED · attempt ${g.attemptNumber}` : g.status || 'PENDING')}</td>
+      </tr>`;
+  }).join('');
 }
 
-function renderAnalytics(grades, attendance) {
+function renderAnalytics(grades, attendance, profile = null) {
   const grid = document.querySelector('.analytics-grid');
   if (!grid) return;
   const present = attendance.filter(record => record.present || record.late).length;
   const attendancePercent = attendance.length ? Math.round((present / attendance.length) * 100) : null;
   const graded = grades.filter(grade => grade.gpaScore != null);
-  const averageGpa = graded.length ? graded.reduce((sum, grade) => sum + Number(grade.gpaScore), 0) / graded.length : null;
-  const maxGpa = 4;
+  const averageGpa = profile?.cgpa == null ? null : Number(profile.cgpa);
+  const maxGpa = 5;
   grid.innerHTML = `
-    <div class="analytics-card"><h3>Current Performance</h3><div class="attendance-stats"><div class="stat-circle"><p>${averageGpa == null ? '—' : averageGpa.toFixed(2)}</p><span>Average GPA</span></div><div class="stat-circle"><p>${attendancePercent == null ? '—' : `${attendancePercent}%`}</p><span>Attendance</span></div></div></div>
+    <div class="analytics-card"><h3>Current Performance</h3><div class="attendance-stats"><div class="stat-circle"><p>${averageGpa == null ? '—' : averageGpa.toFixed(2)}</p><span>Official CGPA</span></div><div class="stat-circle"><p>${attendancePercent == null ? '—' : `${attendancePercent}%`}</p><span>Attendance</span></div></div></div>
     <div class="analytics-card"><h3>GPA By Course</h3><div class="performance-bars">${graded.length ? graded.map(grade => {
       const score = Number(grade.gpaScore);
       const percentage = Math.max(0, Math.min(100, Math.round((score / maxGpa) * 100)));
@@ -1020,7 +1075,15 @@ document.getElementById('assignmentSubmissionForm')?.addEventListener('submit', 
 async function viewSubmission() {
   try {
     const submissions = await apiGet('/portal/student/submissions');
-    alert(submissions.length ? submissions.map(item => `Assignment #${item.assignmentId}: submitted ${item.submittedAt}`).join('\n') : 'No submissions found.');
+    if (!Array.isArray(submissions)) {
+      throw new Error('The submissions response has an invalid format.');
+    }
+    const assignmentsById = Object.fromEntries((window._assignments || []).map(item => [item.id, item]));
+    alert(submissions.length ? submissions.map(item => {
+      const assignment = assignmentsById[item.assignmentId];
+      const title = assignment?.title || `Assignment #${item.assignmentId}`;
+      return `${title}\nSubmitted ${item.submittedAt}\n\n${item.content || '(No response text)'}`;
+    }).join('\n\n---\n\n') : 'No submissions found.');
   } catch (err) { alert(err.message || 'Unable to load submissions.'); }
 }
 
@@ -1531,6 +1594,14 @@ function registerEvent(button) {
   apiFetch(`/portal/student/events/${eventId}/register`, { method: 'POST' })
     .then(() => loadCampusData())
     .catch(err => alert(err.message || 'Event registration failed.'));
+}
+
+function cancelEventRegistration(button) {
+  const eventId = button?.closest('.event-card')?.dataset.eventId;
+  if (!eventId) return;
+  apiFetch(`/portal/student/events/${eventId}/registration`, { method: 'DELETE' })
+    .then(() => loadCampusData())
+    .catch(err => alert(err.message || 'Event registration could not be cancelled.'));
 }
 
 function viewEventDetails(button) {

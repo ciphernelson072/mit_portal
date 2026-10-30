@@ -11,6 +11,7 @@ import com.sis.repository.AttendanceRepository;
 import com.sis.repository.CourseRepository;
 import com.sis.repository.TeacherRepository;
 import com.sis.repository.UserRepository;
+import com.sis.repository.StudentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,6 +45,9 @@ public class AttendanceService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private StudentRepository studentRepository;
+
     /**
      * Get all attendance records for student.
      */
@@ -66,7 +70,7 @@ public class AttendanceService {
         return attendanceRepository.findAllWithStudentAndCourse();
     }
 
-        public List<Attendance> approveTeacherRosterAttendance(String teacherUsername, AttendanceApprovalRequest request) {
+    public List<Attendance> approveTeacherRosterAttendance(String teacherUsername, AttendanceApprovalRequest request) {
         String normalizedUsername = teacherUsername == null ? null : teacherUsername.trim();
         User user = userRepository.findByUsernameIgnoreCase(normalizedUsername)
             .orElseThrow(() -> new ResourceNotFoundException("Teacher account not found: " + teacherUsername));
@@ -76,9 +80,10 @@ public class AttendanceService {
             .orElseThrow(() -> new ResourceNotFoundException("Course not found with ID: " + request.getCourseId()));
         if (course.getTeacher() == null || !course.getTeacher().getId().equals(teacher.getId())) {
             throw new ResourceNotFoundException("Teacher is not assigned to this course.");
-        }
+    }
 
-        Set<Long> enrolledIds = course.getStudents().stream().map(Student::getId).collect(Collectors.toSet());
+        List<Student> enrolledStudents = studentRepository.findByCourseIdIncludingRegistrations(course.getId());
+        Set<Long> enrolledIds = enrolledStudents.stream().map(Student::getId).collect(Collectors.toSet());
         Map<Long, AttendanceApprovalRequest.StudentAttendanceMark> submitted = request.getRecords().stream()
             .collect(Collectors.toMap(AttendanceApprovalRequest.StudentAttendanceMark::getStudentId, mark -> mark,
                 (first, ignored) -> first));
@@ -92,13 +97,16 @@ public class AttendanceService {
             throw new IllegalArgumentException("A student marked late must also be marked present.");
         }
 
-        course.getStudents().forEach(student -> {
+        Map<Long, Attendance> existingAttendance = attendanceRepository
+                .findByCourseIdAndDateWithStudentAndCourse(course.getId(), request.getDate()).stream()
+                .collect(Collectors.toMap(record -> record.getStudent().getId(), record -> record));
+        enrolledStudents.forEach(student -> {
             AttendanceApprovalRequest.StudentAttendanceMark mark = submitted.get(student.getId());
-            List<Attendance> existing = attendanceRepository.findByStudentIdAndCourseIdAndDate(
-                student.getId(), course.getId(), request.getDate());
-            Attendance attendance = existing.isEmpty()
-                ? new Attendance(student, course, request.getDate(), Boolean.TRUE.equals(mark.getPresent()))
-                : existing.get(0);
+            Attendance attendance = existingAttendance.get(student.getId());
+            if (attendance == null) {
+                attendance = new Attendance(student, course, request.getDate(),
+                        Boolean.TRUE.equals(mark.getPresent()));
+            }
             attendance.setPresent(Boolean.TRUE.equals(mark.getPresent()));
             attendance.setRemarks(mark.getRemarks());
             attendance.setLate(mark.isLate());

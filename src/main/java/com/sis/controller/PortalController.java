@@ -5,6 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
@@ -30,6 +31,7 @@ import com.sis.entity.AssignmentSubmission;
 import com.sis.entity.NotificationCategory;
 import com.sis.entity.AuditLog;
 import com.sis.entity.CampusEvent;
+import com.sis.entity.Club;
 import com.sis.entity.ClubMembership;
 import com.sis.entity.Course;
 import com.sis.entity.EventRegistration;
@@ -58,6 +60,8 @@ import com.sis.repository.TransportRouteRepository;
 import com.sis.repository.UserPreferenceRepository;
 import com.sis.service.SchoolService;
 import com.sis.service.NotificationService;
+import com.sis.service.ScholarshipService;
+import com.sis.service.EventRegistrationService;
 import com.sis.util.UserPreferenceNormalizer;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -70,6 +74,7 @@ public class PortalController {
     private final ExamRepository exams;
     private final ScholarshipRepository scholarships;
     private final ScholarshipApplicationRepository applications;
+    private final ScholarshipService scholarshipService;
     private final UserPreferenceRepository preferences;
     private final SystemSettingRepository settings;
     private final AuditLogRepository auditLogs;
@@ -80,22 +85,25 @@ public class PortalController {
     private final ClubRepository clubs;
     private final ClubMembershipRepository clubMemberships;
     private final NotificationService notifications;
+    private final EventRegistrationService eventRegistrationService;
 
     public PortalController(SchoolService schoolService, AssignmentRepository assignments,
                             AssignmentSubmissionRepository submissions, ExamRepository exams,
                             ScholarshipRepository scholarships, ScholarshipApplicationRepository applications,
+                            ScholarshipService scholarshipService,
                             UserPreferenceRepository preferences,
                             SystemSettingRepository settings, AuditLogRepository auditLogs,
                             PaymentTransactionRepository transactions, CampusEventRepository events,
                             TransportRouteRepository routes, EventRegistrationRepository eventRegistrations,
                             ClubRepository clubs, ClubMembershipRepository clubMemberships,
-                            NotificationService notifications) {
+                            NotificationService notifications, EventRegistrationService eventRegistrationService) {
         this.schoolService = schoolService;
         this.assignments = assignments;
         this.submissions = submissions;
         this.exams = exams;
         this.scholarships = scholarships;
         this.applications = applications;
+        this.scholarshipService = scholarshipService;
         this.preferences = preferences;
         this.settings = settings;
         this.auditLogs = auditLogs;
@@ -106,15 +114,17 @@ public class PortalController {
         this.clubs = clubs;
         this.clubMemberships = clubMemberships;
         this.notifications = notifications;
+        this.eventRegistrationService = eventRegistrationService;
     }
 
     @GetMapping("/student/assignments")
     @PreAuthorize("hasAuthority('STUDENT')")
     public ResponseEntity<List<Assignment>> studentAssignments() {
-        Student student = currentStudentWithCourses();
+        Student student = currentStudent();
         if (student == null) return ResponseEntity.notFound().build();
-        List<Long> courseIds = student.getCourses().stream().map(Course::getId).collect(Collectors.toList());
-        return ResponseEntity.ok(assignments.findByCourseIdIn(courseIds));
+        List<Long> courseIds = schoolService.getCoursesForStudent(student.getId()).stream()
+                .map(com.sis.dto.CourseDto::getId).collect(Collectors.toList());
+        return ResponseEntity.ok(courseIds.isEmpty() ? List.of() : assignments.findByCourseIdIn(courseIds));
     }
 
     @GetMapping("/teacher/assignments")
@@ -123,7 +133,14 @@ public class PortalController {
         return currentUser()
                 .filter(user -> "TEACHER".equals(user.getRole().name()))
                 .flatMap(user -> schoolService.getTeacherByUsername(user.getUsername()))
-                .map(teacher -> ResponseEntity.ok(assignments.findByTeacherIdOrderByDueAtAsc(teacher.getId())))
+                .map(teacher -> {
+                    List<Long> courseIds = schoolService.getCoursesForTeacher(teacher.getId()).stream()
+                            .map(com.sis.dto.CourseDto::getId)
+                            .collect(Collectors.toList());
+                    return ResponseEntity.ok(courseIds.isEmpty()
+                            ? List.<Assignment>of()
+                            : assignments.findByCourseIdInOrderByDueAtAsc(courseIds));
+                })
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
@@ -131,18 +148,21 @@ public class PortalController {
     @PreAuthorize("hasAuthority('STUDENT')")
     public ResponseEntity<AssignmentSubmission> submit(@PathVariable Long assignmentId,
                                                         @Valid @RequestBody AssignmentSubmissionRequest body) {
-        Student student = currentStudentWithCourses();
+        Student student = currentStudent();
         Assignment assignment = assignments.findById(assignmentId).orElse(null);
         if (student == null || assignment == null) return ResponseEntity.notFound().build();
-        if (student.getCourses().stream().noneMatch(course -> course.getId().equals(assignment.getCourseId()))) {
+        if (!schoolService.studentEnrolledInCourse(student.getId(), assignment.getCourseId())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
-        AssignmentSubmission submission = submissions.findByAssignmentIdAndStudentId(assignmentId, student.getId()).orElseGet(AssignmentSubmission::new);
+        Optional<AssignmentSubmission> existingSubmission =
+                submissions.findByAssignmentIdAndStudentId(assignmentId, student.getId());
+        AssignmentSubmission submission = existingSubmission.orElseGet(AssignmentSubmission::new);
         submission.setAssignmentId(assignmentId);
         submission.setStudentId(student.getId());
         submission.setContent(body.getContent());
         submission.setSubmittedAt(LocalDateTime.now());
-        return ResponseEntity.status(HttpStatus.CREATED).body(submissions.save(submission));
+        HttpStatus status = existingSubmission.isPresent() ? HttpStatus.OK : HttpStatus.CREATED;
+        return ResponseEntity.status(status).body(submissions.save(submission));
     }
 
     @GetMapping("/student/submissions")
@@ -155,9 +175,11 @@ public class PortalController {
     @GetMapping("/student/exams")
     @PreAuthorize("hasAuthority('STUDENT')")
     public ResponseEntity<List<Exam>> studentExams() {
-        Student student = currentStudentWithCourses();
+        Student student = currentStudent();
         if (student == null) return ResponseEntity.notFound().build();
-        return ResponseEntity.ok(exams.findByCourseIdIn(student.getCourses().stream().map(Course::getId).collect(Collectors.toList())));
+        List<Long> courseIds = schoolService.getCoursesForStudent(student.getId()).stream()
+                .map(com.sis.dto.CourseDto::getId).collect(Collectors.toList());
+        return ResponseEntity.ok(courseIds.isEmpty() ? List.of() : exams.findByCourseIdIn(courseIds));
     }
 
     @GetMapping("/student/payments")
@@ -175,11 +197,19 @@ public class PortalController {
     @PreAuthorize("hasAuthority('STUDENT')")
     public ResponseEntity<EventRegistration> registerForEvent(@PathVariable Long eventId) {
         Student student = currentStudent();
-        if (student == null || !events.existsById(eventId)) return ResponseEntity.notFound().build();
-        return eventRegistrations.findByEventIdAndStudentId(eventId, student.getId())
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.CREATED)
-                        .body(eventRegistrations.save(new EventRegistration(eventId, student.getId()))));
+        if (student == null) return ResponseEntity.notFound().build();
+        EventRegistrationService.RegistrationOutcome outcome =
+                eventRegistrationService.register(eventId, student.getId());
+        return ResponseEntity.status(outcome.created() ? HttpStatus.CREATED : HttpStatus.OK)
+                .body(outcome.registration());
+    }
+
+    @DeleteMapping("/student/events/{eventId}/registration")
+    @PreAuthorize("hasAuthority('STUDENT')")
+    public ResponseEntity<EventRegistration> cancelEventRegistration(@PathVariable Long eventId) {
+        Student student = currentStudent();
+        if (student == null) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(eventRegistrationService.cancel(eventId, student.getId()));
     }
 
     @GetMapping("/student/event-registrations")
@@ -199,16 +229,29 @@ public class PortalController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<Map<String, Object>>> clubs() {
         Student student = currentStudent();
-        List<Map<String, Object>> result = clubs.findAll().stream().map(club -> {
+        List<Club> allClubs = clubs.findAll();
+        if (allClubs.isEmpty()) return ResponseEntity.ok(List.of());
+
+        List<Long> clubIds = allClubs.stream().map(Club::getId).collect(Collectors.toList());
+        Map<Long, Long> memberCounts = new LinkedHashMap<>();
+        clubMemberships.countActiveByClubIds(clubIds).forEach(row ->
+                memberCounts.put(((Number) row[0]).longValue(), ((Number) row[1]).longValue()));
+        Set<Long> joinedClubIds = student == null
+                ? Set.of()
+                : clubMemberships.findByClubIdInAndStudentId(clubIds, student.getId()).stream()
+                        .filter(membership -> "ACTIVE".equals(membership.getStatus()))
+                        .map(ClubMembership::getClubId)
+                        .collect(Collectors.toSet());
+
+        List<Map<String, Object>> result = allClubs.stream().map(club -> {
             Map<String, Object> value = new LinkedHashMap<>();
             value.put("id", club.getId());
             value.put("slug", club.getSlug());
             value.put("name", club.getName());
             value.put("description", club.getDescription());
             value.put("meetingInfo", club.getMeetingInfo());
-            value.put("memberCount", clubMemberships.countByClubIdAndStatus(club.getId(), "ACTIVE"));
-            value.put("joined", student != null && clubMemberships.findByClubIdAndStudentId(club.getId(), student.getId())
-                    .map(membership -> "ACTIVE".equals(membership.getStatus())).orElse(false));
+            value.put("memberCount", memberCounts.getOrDefault(club.getId(), 0L));
+            value.put("joined", joinedClubIds.contains(club.getId()));
             return value;
         }).collect(Collectors.toList());
         return ResponseEntity.ok(result);
@@ -246,12 +289,10 @@ public class PortalController {
     @PreAuthorize("hasAuthority('STUDENT')")
     public ResponseEntity<ScholarshipApplication> applyScholarship(@PathVariable Long id) {
         Student student = currentStudent();
-        if (student == null || !scholarships.existsById(id)) return ResponseEntity.notFound().build();
-        Optional<ScholarshipApplication> existing = applications.findByStudentId(student.getId()).stream()
-                .filter(application -> id.equals(application.getScholarshipId()))
-                .findFirst();
+        if (student == null) return ResponseEntity.notFound().build();
+        Optional<ScholarshipApplication> existing = applications.findByStudentIdAndScholarshipId(student.getId(), id);
         if (existing.isPresent()) return ResponseEntity.ok(existing.get());
-        return ResponseEntity.status(HttpStatus.CREATED).body(applications.save(new ScholarshipApplication(id, student.getId())));
+        return ResponseEntity.status(HttpStatus.CREATED).body(scholarshipService.apply(id, student.getId()));
     }
 
     @GetMapping("/student/scholarship-applications")
@@ -363,8 +404,11 @@ public class PortalController {
         assignment.setDueAt(request.getDueAt());
         if ("TEACHER".equals(currentUser().map(user -> user.getRole().name()).orElse(null))) {
             if (!schoolService.teacherOwnsCourse(username, course)) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-            assignment.setTeacherId(course.getTeacher().getId());
         }
+        if (course.getTeacher() == null || course.getTeacher().getId() == null) {
+            throw new IllegalStateException("Course does not have an assigned teacher.");
+        }
+        assignment.setTeacherId(course.getTeacher().getId());
         Assignment saved = assignments.save(assignment);
         schoolService.getUserIdsForStudentsInCourse(course.getId()).forEach(userId ->
             notifications.create(userId, "New assignment",
@@ -410,10 +454,6 @@ public class PortalController {
 
     private Student currentStudent() {
         return currentUser().flatMap(user -> schoolService.getStudentByUsername(user.getUsername())).orElse(null);
-    }
-
-    private Student currentStudentWithCourses() {
-        return currentUser().flatMap(user -> schoolService.getStudentWithCoursesByUsername(user.getUsername())).orElse(null);
     }
 
     private Optional<User> currentUser() {

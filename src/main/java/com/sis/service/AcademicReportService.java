@@ -8,8 +8,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Comparator;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.util.logging.Logger;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,14 +24,21 @@ import org.springframework.transaction.annotation.Transactional;
 import com.sis.dto.AcademicReportDto;
 import com.sis.dto.CourseGradeDto;
 import com.sis.entity.AcademicReportApproval;
+import com.sis.entity.AcademicResultSnapshot;
 import com.sis.entity.Grade;
 import com.sis.entity.GradeStatus;
 import com.sis.entity.Student;
+import com.sis.entity.StudentProgram;
 import com.sis.exception.ResourceNotFoundException;
+import com.sis.repository.AcademicResultSnapshotRepository;
 import com.sis.repository.AcademicReportApprovalRepository;
+import com.sis.repository.AuditLogRepository;
 import com.sis.repository.GradeRepository;
 import com.sis.repository.StudentRepository;
+import com.sis.repository.StudentProgramRepository;
 import com.sis.repository.TeacherRepository;
+import com.sis.repository.UserRepository;
+import com.sis.entity.AuditLog;
 
 /**
  * Academic Report Service - Generates comprehensive academic reports for students
@@ -35,6 +49,7 @@ import com.sis.repository.TeacherRepository;
 public class AcademicReportService {
 
     private static final Logger logger = Logger.getLogger(AcademicReportService.class.getName());
+    private static final ObjectMapper SNAPSHOT_MAPPER = new ObjectMapper();
 
     @Autowired
     private StudentService studentService;
@@ -46,10 +61,25 @@ public class AcademicReportService {
     private AcademicReportApprovalRepository approvalRepository;
 
     @Autowired
+    private AcademicResultSnapshotRepository snapshots;
+
+    @Autowired
     private StudentRepository studentRepository;
 
     @Autowired
+    private NotificationService notifications;
+
+    @Autowired
+    private AuditLogRepository auditLogs;
+
+    @Autowired
+    private UserRepository users;
+
+    @Autowired
     private TeacherRepository teacherRepository;
+
+    @Autowired
+    private StudentProgramRepository studentPrograms;
 
     /**
      * Generate comprehensive academic report for student
@@ -65,7 +95,28 @@ public class AcademicReportService {
         report.setStudentName(student.getFullName());
         report.setClassName(student.getClassName());
         List<Grade> grades = gradeRepository.findByStudentIdAndStatus(studentId, GradeStatus.APPROVED);
-        report.setCgpa(grades.isEmpty() ? null : GradeCalculationService.calculateApprovedCgpa(grades));
+        boolean hasRetakes = grades.stream().anyMatch(grade -> grade.getOriginalAttempt() != null
+                || (grade.getAttemptNumber() != null && grade.getAttemptNumber() > 1));
+        report.setCgpa(grades.isEmpty() || hasRetakes
+                ? null : GradeCalculationService.calculateApprovedCgpa(grades));
+        report.setCreditsEarned(grades.isEmpty() || hasRetakes
+                ? null : GradeCalculationService.calculateCreditsEarned(grades));
+        report.setLatestSemester(hasRetakes ? null : GradeCalculationService.latestApprovedSemester(grades));
+        report.setSemesterGpa(grades.isEmpty() || hasRetakes
+                ? null : GradeCalculationService.calculateLatestSemesterGpa(grades));
+        report.setAcademicStandingStatus(report.getCgpa() == null
+                ? "NOT_FINALIZED"
+                : GradeCalculationService.academicStanding(
+                        report.getCgpa(), grades, gradeRepository.findCoreCourseIdsByStudentId(studentId)));
+        if (report.getCgpa() != null && studentPrograms != null) {
+            studentPrograms.findByStudentIdOrderByStartDateDesc(studentId).stream()
+                    .map(StudentProgram::getProgram)
+                    .filter(java.util.Objects::nonNull)
+                    .findFirst()
+                    .ifPresent(program -> report.setAwardClassification(
+                            UgandanTertiaryGradingPolicy.awardClassification(
+                                    report.getCgpa(), program.getAwardType())));
+        }
         report.setTotalCourses(grades.size());
 
         // Build course grades list
@@ -73,9 +124,32 @@ public class AcademicReportService {
         for (Grade grade : grades) {
             CourseGradeDto courseGrade = new CourseGradeDto();
             courseGrade.setCourseId(grade.getCourse().getId());
+            courseGrade.setCourseCode(grade.getCourse().getCourseCode());
             courseGrade.setCourseName(grade.getCourse().getName());
+            courseGrade.setTotalMark(grade.getTotalMark());
+            courseGrade.setRetakeRequired(grade.getRetakeRequired());
+            courseGrade.setCoreCourse(grade.getCourse().getCore());
+            courseGrade.setGradingPolicyVersion(grade.getGradingPolicyVersion());
             courseGrade.setGrade(grade.getGradeValue());
             courseGrade.setGpaScore(grade.getGpaScore());
+            courseGrade.setStatus(grade.getStatus() == null ? "PENDING" : grade.getStatus().name());
+            courseGrade.setAttemptNumber(grade.getAttemptNumber());
+            courseGrade.setOriginalAttemptId(grade.getOriginalAttempt() == null
+                    ? null : grade.getOriginalAttempt().getId());
+            courseGrade.setAttemptType(grade.getOriginalAttempt() == null
+                    ? "ORIGINAL_ATTEMPT" : "RETAKE_SUBMITTED");
+            courseGrade.setAssessmentComponents(grade.getAssessmentMarks().stream()
+                    .sorted(Comparator.comparing(mark -> mark.getComponent().getId()))
+                    .map(mark -> {
+                        com.sis.dto.AssessmentMarkDto component = new com.sis.dto.AssessmentMarkDto();
+                        component.setComponentCode(mark.getComponent().getComponentCode());
+                        component.setDisplayName(mark.getComponent().getDisplayName());
+                        component.setComponentType(mark.getComponent().getComponentType());
+                        component.setScore(mark.getScore());
+                        component.setMaxScore(mark.getComponent().getMaxScore());
+                        component.setWeightPercentage(mark.getComponent().getWeightPercentage());
+                        return component;
+                    }).toList());
             courseGrade.setSemester(grade.getCourse().getSemester());
             courseGrade.setCredits(grade.getCourse().getCredits());
             courseGrade.setTeacherName(grade.getCourse().getTeacher() != null ? 
@@ -93,7 +167,9 @@ public class AcademicReportService {
         report.setCourseGrades(courseGrades);
 
         // Calculate average grade
-        if (!grades.isEmpty()) {
+        if (hasRetakes) {
+            report.setAverageGrade("NOT FINALIZED");
+        } else if (!grades.isEmpty()) {
             String avgGrade = calculateAverageGrade(grades);
             report.setAverageGrade(avgGrade);
         } else {
@@ -103,16 +179,20 @@ public class AcademicReportService {
         // Set generation date
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
         report.setGeneratedDate(LocalDateTime.now().format(formatter));
-        Optional<AcademicReportApproval> approval = approvalRepository.findByStudentId(studentId);
-        if (approval.isPresent()) {
-            report.setApproved(Boolean.TRUE);
-            report.setApprovedBy(approval.get().getApprovedBy());
-            report.setApprovedAt(formatApprovalTimestamp(approval.get().getApprovedAt()));
-        } else {
-            report.setApproved(Boolean.FALSE);
-            report.setApprovedBy(null);
-            report.setApprovedAt(null);
-        }
+        String currentVersion = resultsVersion(gradeRepository.findByStudentIdWithCourse(studentId), studentId);
+        report.setResultsVersion(currentVersion);
+        Optional<AcademicResultSnapshot> latestSnapshot =
+                snapshots.findFirstByStudentIdOrderByApprovedAtDescIdDesc(studentId);
+        AcademicResultSnapshot snapshot = latestSnapshot.orElse(null);
+        boolean currentApproval = snapshot != null && snapshot.getResultsVersion().equals(currentVersion);
+        report.setApproved(currentApproval);
+        report.setApprovedBy(currentApproval ? snapshot.getApprovedBy() : null);
+        report.setApprovedAt(currentApproval ? formatApprovalTimestamp(snapshot.getApprovedAt()) : null);
+        report.setPublished(currentApproval && snapshot.getPublishedAt() != null);
+        report.setPublishedBy(currentApproval ? snapshot.getPublishedBy() : null);
+        report.setPublishedAt(currentApproval && snapshot.getPublishedAt() != null
+                ? formatApprovalTimestamp(snapshot.getPublishedAt()) : null);
+        report.setPublicationStatus(publicationStatus(snapshot, currentVersion));
 
         // Generate performance summary
         String summary = generatePerformanceSummary(student, report);
@@ -123,22 +203,262 @@ public class AcademicReportService {
     }
 
     public AcademicReportDto approveAcademicReport(Long studentId, String approverUsername) {
+        List<Grade> submittedGrades = gradeRepository.findByStudentIdWithCourse(studentId);
+        if (submittedGrades.isEmpty()) {
+            throw new IllegalStateException("Results cannot be approved before any course grades are submitted.");
+        }
+        if (submittedGrades.stream().anyMatch(grade -> grade.getOriginalAttempt() != null
+                || (grade.getAttemptNumber() != null && grade.getAttemptNumber() > 1))) {
+            throw new IllegalStateException(
+                    "Results containing retake attempts cannot be finalized until the institution-approved retake policy is configured.");
+        }
+        boolean incompleteReview = submittedGrades.stream()
+                .anyMatch(grade -> grade.getStatus() != GradeStatus.APPROVED);
+        if (incompleteReview) {
+            throw new IllegalStateException("Every submitted grade must be approved before the academic report can be approved.");
+        }
+        String version = resultsVersion(submittedGrades, studentId);
+        Optional<AcademicResultSnapshot> existing =
+                snapshots.findByStudentIdAndResultsVersion(studentId, version);
+        if (existing.isPresent()) {
+            return reportFromSnapshot(existing.get());
+        }
+
         AcademicReportDto report = generateAcademicReport(studentId);
+        if (!version.equals(report.getResultsVersion())) {
+            throw new IllegalStateException("Results changed while the report was being prepared. Review the latest version and try again.");
+        }
         LocalDateTime approvedAt = LocalDateTime.now();
-        approvalRepository.save(new AcademicReportApproval(studentId, approverUsername, approvedAt));
         report.setApproved(Boolean.TRUE);
         report.setApprovedBy(approverUsername);
         report.setApprovedAt(formatApprovalTimestamp(approvedAt));
-        logger.info("Academic report approved for student " + studentId + " by " + approverUsername);
+        report.setPublished(Boolean.FALSE);
+        report.setPublishedBy(null);
+        report.setPublishedAt(null);
+        report.setPublicationStatus("AWAITING_PUBLICATION");
+        report.setResultsVersion(version);
+        String payload = serializeSnapshot(report);
+        snapshots.saveAndFlush(new AcademicResultSnapshot(
+                studentId, version, payload, approverUsername, approvedAt));
+        approvalRepository.save(new AcademicReportApproval(studentId, approverUsername, approvedAt));
+        audit(approverUsername, "ACADEMIC_RESULTS_APPROVED",
+                "Student " + studentId + " result version " + version + " approved.");
+        logger.info("Academic result version " + version + " approved for student " + studentId
+                + " by " + approverUsername);
         return report;
     }
 
+    public AcademicReportDto publishAcademicReport(Long studentId, String resultsVersion, String publisherUsername) {
+        AcademicResultSnapshot candidate = snapshots.findByStudentIdAndResultsVersion(studentId, resultsVersion)
+                .orElseThrow(() -> new IllegalArgumentException("The approved result version was not found."));
+        AcademicResultSnapshot snapshot = snapshots.findByIdForUpdate(candidate.getId())
+                .orElseThrow(() -> new IllegalStateException("The approved result version could not be locked."));
+        if (snapshot.getApprovedAt() == null) {
+            throw new IllegalStateException("Only an approved result version can be published.");
+        }
+        if (!snapshot.getResultsVersion().equals(resultsVersion(studentId))) {
+            throw new IllegalStateException("Results changed after approval. Review and approve the new version before publication.");
+        }
+        AcademicResultSnapshot latest = snapshots.findFirstByStudentIdOrderByApprovedAtDescIdDesc(studentId)
+                .orElseThrow(() -> new IllegalStateException("No approved academic result version exists."));
+        if (!latest.getId().equals(snapshot.getId())) {
+            throw new IllegalStateException("Only the latest approved result version can be published.");
+        }
+        boolean newlyPublished = snapshot.getPublishedAt() == null;
+        snapshot.publish(publisherUsername, LocalDateTime.now());
+        AcademicResultSnapshot published = snapshots.save(snapshot);
+        if (newlyPublished) {
+            Student student = studentService.getStudentById(studentId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Student not found with ID: " + studentId));
+            audit(publisherUsername, "ACADEMIC_RESULTS_PUBLISHED",
+                    "Student " + studentId + " result version " + resultsVersion + " published.");
+            if (student.getUser() == null || student.getUser().getId() == null) {
+                throw new IllegalStateException("Student account is unavailable for result publication notification.");
+            }
+            notifications.create(student.getUser().getId(), "Academic results published",
+                    "Your approved academic results are now available in the student portal.",
+                    com.sis.entity.NotificationCategory.GRADE);
+        }
+        logger.info("Academic result version " + resultsVersion + " published for student " + studentId
+                + " by " + publisherUsername);
+        return reportFromSnapshot(published);
+    }
+
     public boolean isOfficiallyApproved(Long studentId) {
-        return approvalRepository.existsByStudentId(studentId);
+        return currentApprovedSnapshot(studentId).isPresent();
+    }
+
+    public boolean isOfficiallyPublished(Long studentId) {
+        return currentApprovedSnapshot(studentId)
+                .map(snapshot -> snapshot.getPublishedAt() != null)
+                .orElse(false);
+    }
+
+    public AcademicReportDto getPublishedAcademicReport(Long studentId) {
+        AcademicResultSnapshot snapshot = currentApprovedSnapshot(studentId)
+                .filter(item -> item.getPublishedAt() != null)
+                .orElseThrow(() -> new IllegalStateException("Final academic results have not been published."));
+        return reportFromSnapshot(snapshot);
+    }
+
+    public AcademicReportDto getStudentVisibleReport(Long studentId) {
+        if (isOfficiallyPublished(studentId)) {
+            return getPublishedAcademicReport(studentId);
+        }
+        AcademicReportDto report = generateAcademicReport(studentId);
+        report.setCgpa(null);
+        report.setAwardClassification(null);
+        report.setCreditsEarned(null);
+        report.setLatestSemester(null);
+        report.setSemesterGpa(null);
+        report.setAcademicStandingStatus("NOT_FINALIZED");
+        report.setAverageGrade(null);
+        report.setCourseGrades(List.of());
+        report.setTotalCourses(null);
+        report.setPerformanceSummary("Final results are not yet available. They will be shown after administrative approval and publication.");
+        report.setPublished(Boolean.FALSE);
+        report.setPublishedBy(null);
+        report.setPublishedAt(null);
+        report.setPublicationStatus(Boolean.TRUE.equals(report.getApproved())
+                ? "AWAITING_PUBLICATION" : report.getPublicationStatus());
+        return report;
     }
 
     public AcademicReportDto getApprovalStatus(Long studentId) {
         return generateAcademicReport(studentId);
+    }
+
+    private Optional<AcademicResultSnapshot> currentApprovedSnapshot(Long studentId) {
+        Optional<AcademicResultSnapshot> snapshot =
+                snapshots.findFirstByStudentIdOrderByApprovedAtDescIdDesc(studentId);
+        if (snapshot.isEmpty()) return Optional.empty();
+        return snapshot.filter(item -> item.getResultsVersion().equals(resultsVersion(studentId)));
+    }
+
+    private String publicationStatus(AcademicResultSnapshot snapshot, String currentVersion) {
+        if (snapshot == null) return "PENDING";
+        if (!snapshot.getResultsVersion().equals(currentVersion)) return "CHANGES_REQUIRED";
+        return snapshot.getPublishedAt() == null ? "AWAITING_PUBLICATION" : "PUBLISHED";
+    }
+
+    private String resultsVersion(Long studentId) {
+        return resultsVersion(gradeRepository.findByStudentIdWithCourse(studentId), studentId);
+    }
+
+    private String resultsVersion(List<Grade> grades, Long studentId) {
+        StringBuilder canonical = new StringBuilder();
+        canonical.append("grading-policy=").append(UgandanTertiaryGradingPolicy.VERSION).append('|')
+                .append("award-type=").append(currentAwardType(studentId)).append('\n');
+        grades.stream()
+                .filter(java.util.Objects::nonNull)
+                .sorted(Comparator.comparing(Grade::getId, Comparator.nullsFirst(Long::compareTo)))
+                .forEach(grade -> canonical.append(grade.getId()).append('|')
+                        .append(grade.getStudent() == null ? null : grade.getStudent().getId()).append('|')
+                        .append(grade.getCourse() == null ? null : grade.getCourse().getId()).append('|')
+                        .append(grade.getCourse() == null ? null : grade.getCourse().getCourseCode()).append('|')
+                        .append(grade.getCourse() == null ? null : grade.getCourse().getSemester()).append('|')
+                        .append(grade.getCourse() == null ? null : grade.getCourse().getCredits()).append('|')
+                        .append(grade.getGradeValue()).append('|')
+                        .append(grade.getGpaScore()).append('|')
+                        .append(grade.getGradingPolicyVersion()).append('|')
+                        .append(grade.getRetakeRequired()).append('|')
+                        .append(grade.getCourse() == null ? null : grade.getCourse().getCore()).append('|')
+                        .append(grade.getTotalMark()).append('|')
+                        .append(grade.getStatus()).append('|')
+                        .append(grade.getRemarks()).append('|')
+                        .append(grade.getSubmittedAt()).append('|')
+                        .append(grade.getApprovedBy()).append('|')
+                        .append(grade.getApprovedAt()).append('|')
+                        .append(assessmentMarksVersion(grade)).append('\n'));
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(canonical.toString().getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(digest);
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("SHA-256 is unavailable for academic result versioning.", ex);
+        }
+    }
+
+    private String currentAwardType(Long studentId) {
+        if (studentPrograms == null) return "UNCONFIGURED";
+        return studentPrograms.findByStudentIdOrderByStartDateDesc(studentId).stream()
+                .map(StudentProgram::getProgram)
+                .filter(java.util.Objects::nonNull)
+                .map(program -> program.getAwardType() == null ? "UNCONFIGURED" : program.getAwardType().name())
+                .findFirst()
+                .orElse("UNCONFIGURED");
+    }
+
+    private String assessmentMarksVersion(Grade grade) {
+        if (grade.getAssessmentMarks() == null || grade.getAssessmentMarks().isEmpty()) return "";
+        StringBuilder canonical = new StringBuilder();
+        grade.getAssessmentMarks().stream()
+                .sorted(Comparator.comparing(mark -> mark.getComponent().getId()))
+                .forEach(mark -> canonical.append(mark.getComponent().getId()).append(':')
+                        .append(mark.getComponent().getWeightPercentage()).append(':')
+                        .append(mark.getComponent().getMaxScore()).append(':')
+                        .append(mark.getScore()).append('|'));
+        return canonical.toString();
+    }
+
+    private String serializeSnapshot(AcademicReportDto report) {
+        try {
+            return SNAPSHOT_MAPPER.writeValueAsString(report);
+        } catch (JsonProcessingException ex) {
+            throw new IllegalStateException("Unable to preserve the approved academic result snapshot.", ex);
+        }
+    }
+
+    private AcademicReportDto reportFromSnapshot(AcademicResultSnapshot snapshot) {
+        try {
+            AcademicReportDto report = SNAPSHOT_MAPPER.readValue(snapshot.getSnapshotPayload(), AcademicReportDto.class);
+            report.setApproved(Boolean.TRUE);
+            report.setApprovedBy(snapshot.getApprovedBy());
+            report.setApprovedAt(formatApprovalTimestamp(snapshot.getApprovedAt()));
+            report.setPublished(snapshot.getPublishedAt() != null);
+            report.setPublishedBy(snapshot.getPublishedBy());
+            report.setPublishedAt(snapshot.getPublishedAt() == null
+                    ? null : formatApprovalTimestamp(snapshot.getPublishedAt()));
+            report.setPublicationStatus(snapshot.getPublishedAt() == null
+                    ? "AWAITING_PUBLICATION" : "PUBLISHED");
+            report.setResultsVersion(snapshot.getResultsVersion());
+            if (report.getCreditsEarned() == null || report.getSemesterGpa() == null
+                    || report.getLatestSemester() == null || report.getAcademicStandingStatus() == null) {
+                List<Grade> approvedGrades = gradeRepository.findByStudentIdAndStatus(
+                        snapshot.getStudentId(), GradeStatus.APPROVED);
+                boolean hasRetakes = approvedGrades.stream().anyMatch(grade -> grade.getOriginalAttempt() != null
+                        || (grade.getAttemptNumber() != null && grade.getAttemptNumber() > 1));
+                if (!hasRetakes) {
+                    if (report.getCreditsEarned() == null && !approvedGrades.isEmpty()) {
+                        report.setCreditsEarned(GradeCalculationService.calculateCreditsEarned(approvedGrades));
+                    }
+                    if (report.getLatestSemester() == null) {
+                        report.setLatestSemester(GradeCalculationService.latestApprovedSemester(approvedGrades));
+                    }
+                    if (report.getSemesterGpa() == null && !approvedGrades.isEmpty()) {
+                        report.setSemesterGpa(GradeCalculationService.calculateLatestSemesterGpa(approvedGrades));
+                    }
+                    if (report.getAcademicStandingStatus() == null) {
+                        report.setAcademicStandingStatus(report.getCgpa() == null
+                                ? "NOT_FINALIZED"
+                                : GradeCalculationService.academicStanding(report.getCgpa(), approvedGrades,
+                                        gradeRepository.findCoreCourseIdsByStudentId(snapshot.getStudentId())));
+                    }
+                } else if (report.getAcademicStandingStatus() == null) {
+                    report.setAcademicStandingStatus("NOT_FINALIZED");
+                }
+            }
+            return report;
+        } catch (JsonProcessingException ex) {
+            throw new IllegalStateException("The preserved academic result snapshot could not be read.", ex);
+        }
+    }
+
+    private void audit(String username, String action, String details) {
+        Long userId = users.findByUsernameNormalized(username)
+                .orElseThrow(() -> new IllegalStateException("Authenticated user not found: " + username))
+                .getId();
+        auditLogs.save(new AuditLog(userId, action, details));
     }
 
     private String formatApprovalTimestamp(LocalDateTime timestamp) {
@@ -165,15 +485,13 @@ public class AcademicReportService {
         BigDecimal avgGpa = totalGpa.divide(new BigDecimal(grades.size()), 2, RoundingMode.HALF_UP);
 
         // Convert GPA back to letter
-        if (avgGpa.compareTo(new BigDecimal("3.7")) >= 0) return "A";
-        if (avgGpa.compareTo(new BigDecimal("3.3")) >= 0) return "A-";
-        if (avgGpa.compareTo(new BigDecimal("3.0")) >= 0) return "B+";
-        if (avgGpa.compareTo(new BigDecimal("2.7")) >= 0) return "B";
-        if (avgGpa.compareTo(new BigDecimal("2.3")) >= 0) return "B-";
-        if (avgGpa.compareTo(new BigDecimal("2.0")) >= 0) return "C+";
-        if (avgGpa.compareTo(new BigDecimal("1.7")) >= 0) return "C";
-        if (avgGpa.compareTo(new BigDecimal("1.3")) >= 0) return "C-";
-        if (avgGpa.compareTo(new BigDecimal("1.0")) >= 0) return "D";
+        if (avgGpa.compareTo(new BigDecimal("5.0")) >= 0) return "A";
+        if (avgGpa.compareTo(new BigDecimal("4.5")) >= 0) return "B+";
+        if (avgGpa.compareTo(new BigDecimal("4.0")) >= 0) return "B";
+        if (avgGpa.compareTo(new BigDecimal("3.5")) >= 0) return "C+";
+        if (avgGpa.compareTo(new BigDecimal("3.0")) >= 0) return "C";
+        if (avgGpa.compareTo(new BigDecimal("2.5")) >= 0) return "D+";
+        if (avgGpa.compareTo(new BigDecimal("2.0")) >= 0) return "D";
         return "F";
     }
 
@@ -199,14 +517,16 @@ public class AcademicReportService {
         summary.append("Performance Level: ").append(getPerformanceLevel(cgpa)).append("\n");
         summary.append("Current CGPA: ").append(cgpa).append("\n");
 
-        if (cgpa.compareTo(new BigDecimal("3.5")) >= 0) {
-            summary.append("Status: Excellent performance. Continue with the current approach.\n");
-        } else if (cgpa.compareTo(new BigDecimal("3.0")) >= 0) {
-            summary.append("Status: Very Good performance. Maintain consistency.\n");
-        } else if (cgpa.compareTo(new BigDecimal("2.0")) >= 0) {
-            summary.append("Status: Good performance. Focus on challenging areas.\n");
+        if (cgpa.compareTo(new BigDecimal("4.40")) >= 0) {
+            summary.append("Status: First Class / Distinction CGPA range.\n");
+        } else if (cgpa.compareTo(new BigDecimal("3.60")) >= 0) {
+            summary.append("Status: Upper Division / Class II Upper CGPA range.\n");
+        } else if (cgpa.compareTo(new BigDecimal("2.80")) >= 0) {
+            summary.append("Status: Lower Division / Class II Lower CGPA range.\n");
+        } else if (cgpa.compareTo(new BigDecimal("2.00")) >= 0) {
+            summary.append("Status: Pass CGPA range.\n");
         } else {
-            summary.append("Status: Needs Improvement. Seek academic support.\n");
+            summary.append("Status: Below the minimum award CGPA.\n");
         }
 
         return summary.toString();
@@ -218,11 +538,11 @@ public class AcademicReportService {
      * @return performance level
      */
     private String getPerformanceLevel(BigDecimal cgpa) {
-        if (cgpa.compareTo(new BigDecimal("3.7")) >= 0) return "Excellent";
-        if (cgpa.compareTo(new BigDecimal("3.0")) >= 0) return "Very Good";
-        if (cgpa.compareTo(new BigDecimal("2.0")) >= 0) return "Good";
-        if (cgpa.compareTo(new BigDecimal("1.0")) >= 0) return "Fair";
-        return "Poor";
+        if (cgpa.compareTo(new BigDecimal("4.40")) >= 0) return "First Class / Distinction range";
+        if (cgpa.compareTo(new BigDecimal("3.60")) >= 0) return "Upper Division range";
+        if (cgpa.compareTo(new BigDecimal("2.80")) >= 0) return "Lower Division range";
+        if (cgpa.compareTo(new BigDecimal("2.00")) >= 0) return "Pass range";
+        return "Below minimum award threshold";
     }
 
     /**
