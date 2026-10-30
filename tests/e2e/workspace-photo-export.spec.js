@@ -95,7 +95,7 @@ test('teacher can view their own and assigned student photos, export scoped CSVs
   expect((await gradesDownload).suggestedFilename()).toBe('teacher-grades-CSC201.csv');
 });
 
-test('admin can prepare dataset-separated CSV exports', async ({ page }) => {
+test('admin can download JSON and dataset-separated CSV exports', async ({ page }) => {
   await setRoleHint(page, 'synthetic-admin', 'ADMIN');
   await serveProtectedWorkspace(page, 'admin-dashboard.html');
   await page.route('**/api/**', async route => {
@@ -119,9 +119,9 @@ test('admin can prepare dataset-separated CSV exports', async ({ page }) => {
   }
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.locator('.nav-item').filter({ hasText: 'Settings' }).click();
-  const summaryDownload = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Prepare Admin Data CSV Export' }).click();
-  expect((await summaryDownload).suggestedFilename()).toBe('portal-admin-export-summary.csv');
+  const jsonDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download Admin Data Export' }).click();
+  expect((await jsonDownload).suggestedFilename()).toBe('portal-admin-data-export.json');
   await expect(page.locator('#adminCsvExports')).toBeVisible();
   const csvDownload = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Students CSV' }).click();

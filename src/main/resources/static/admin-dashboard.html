@@ -287,7 +287,7 @@
       </select>
     </div>
 
-    <table id="studentsTable" class="table admin-table">
+    <table class="table admin-table">
       <thead>
         <tr>
           <th>Registration No.</th>
@@ -304,9 +304,6 @@
       </tbody>
     </table>
 
-  </section>
-
-  <section id="hrModule" class="module">
     <div class="module-header">
       <h2>HR Staff Records</h2>
       <button class="btn-secondary" type="button" onclick="loadHrManagement()">↻ Refresh HR</button>
@@ -825,7 +822,7 @@
       <div class="settings-card">
         <h3>Backup & Data Export</h3>
         <p>Automated database and upload backup health is shown in System Status. Downloading an export here is not a substitute for a verified backup.</p>
-        <button class="btn-secondary" onclick="exportAdminData()">Prepare Admin Data CSV Export</button>
+        <button class="btn-secondary" onclick="exportAdminData()">Download Admin Data Export</button>
         <div id="adminCsvExports" class="admin-csv-exports" hidden>
           <p>CSV exports are separated by dataset to keep each file's columns consistent.</p>
           <button class="btn-secondary" type="button" data-admin-csv="statistics">Statistics CSV</button>

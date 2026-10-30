@@ -137,9 +137,7 @@ class GradeImportServiceTest {
     @Test
     void rejectsCsvWithHeaderButNoDataRows() {
         MockMultipartFile file = new MockMultipartFile(
-                "file",
-                "grades.csv",
-                "text/csv",
+                "file", "grades.csv", "text/csv",
                 "student_id,course_id,grade_value,remarks\n".getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
         assertThrows(IllegalArgumentException.class, () -> service.importGrades(file, "admin-user"));
@@ -156,10 +154,8 @@ class GradeImportServiceTest {
         when(schoolService.getCourseById(2L)).thenReturn(Optional.of(course));
         when(schoolService.studentEnrolledInCourse(1L, 2L)).thenReturn(false);
         MockMultipartFile file = new MockMultipartFile(
-                "file",
-                "grades.csv",
-                "text/csv",
-                ("student_id,course_id,grade_value,remarks\n1,2,A,Reviewed\n")
+                "file", "grades.csv", "text/csv",
+                "student_id,course_id,grade_value,remarks\n1,2,A,Reviewed\n"
                         .getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
         assertThrows(IllegalArgumentException.class, () -> service.importGrades(file, "admin-user"));

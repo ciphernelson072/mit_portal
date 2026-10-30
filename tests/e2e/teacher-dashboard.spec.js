@@ -2,14 +2,10 @@ const { test, expect } = require('@playwright/test');
 
 let authTestClient = 100;
 
-function nextForwardedIp() {
-  return `198.51.100.${((authTestClient++ - 100) % 154) + 100}`;
-}
-
 async function loginTeacher(page) {
   return page.request.post('/api/auth/login', {
     data: { username: 'teacher1', password: 'teacher123' },
-    headers: { 'x-forwarded-for': nextForwardedIp() },
+    headers: { 'x-forwarded-for': `198.51.100.${authTestClient++}` },
   });
 }
 

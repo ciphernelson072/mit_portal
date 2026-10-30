@@ -683,8 +683,7 @@ function openUserForm(user = null) {
   const roleOptions = user
     ? ['STUDENT', 'TEACHER', 'ADMIN'].map(role =>
         `<option value="${role}" ${user.role === role ? 'selected' : ''}>${role}</option>`).join('')
-    : ['STUDENT', 'TEACHER', 'ADMIN'].map(role =>
-        `<option value="${role}">${role}</option>`).join('');
+    : '<option value="ADMIN">ADMIN</option>';
   openModal(`<span class="modal-close" onclick="closeModal()">&times;</span><h2>${user ? 'Edit' : 'Add Administrator'}</h2><form id="userForm"><div class="modal-field"><label>Username</label><input name="username" value="${escapeHtml(user?.username || '')}" required ${user ? 'readonly' : ''}></div><div class="modal-field"><label>Password</label><input name="password" type="password" ${user ? '' : 'required'}></div><div class="modal-field"><label>Role</label><select name="role">${roleOptions}</select></div><div class="modal-field"><label>Email</label><input name="email" type="email" value="${escapeHtml(user?.email || '')}"></div><div class="modal-field"><label>Phone</label><input name="phone" value="${escapeHtml(user?.phone || '')}"></div><div class="modal-actions"><button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button><button class="btn-primary">Save</button></div></form>`);
   document.getElementById('userForm').addEventListener('submit', async event => {
     event.preventDefault();
@@ -2702,7 +2701,7 @@ async function generateFinanceReport() {
 
 function downloadReportData(filename, report) {
   if (typeof report === 'string') {
-    downloadCsv(`${filename}.csv`, [{ report }]);
+    triggerBlobDownload(new Blob([report], { type: 'text/plain;charset=utf-8' }), `${filename}.txt`);
     return;
   }
   if (Array.isArray(report)) {
@@ -2733,6 +2732,11 @@ async function fetchAllAdminPages(path, pageSize = 250) {
   return content;
 }
 
+function downloadJson(name, value) {
+  const response = new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' });
+  triggerBlobDownload(response, name.replace(/\.json$/i, '.json'));
+}
+
 function downloadAdminCsv(dataset) {
   const data = window._adminExportData?.[dataset];
   if (dataset === 'statistics' && data && typeof data === 'object' && !Array.isArray(data)) {
@@ -2760,17 +2764,7 @@ async function exportAdminData() {
       apiGet('/admin/grades'), apiGet('/admin/fees'), apiGet('/portal/admin/audit'),
     ]);
     window._adminExportData = { statistics, users, students, teachers, courses, grades, fees, audit };
-    downloadCsv('portal-admin-export-summary.csv', [{
-      exportedAt: new Date().toISOString(),
-      statistics: Object.keys(window._adminExportData.statistics || {}).length,
-      users: window._adminExportData.users.length,
-      students: window._adminExportData.students.length,
-      teachers: window._adminExportData.teachers.length,
-      courses: window._adminExportData.courses.length,
-      grades: window._adminExportData.grades.length,
-      fees: window._adminExportData.fees.length,
-      audit: window._adminExportData.audit.length,
-    }]);
+    downloadJson('portal-admin-data-export.json', { exportedAt: new Date().toISOString(), ...window._adminExportData });
     document.getElementById('adminCsvExports').hidden = false;
   }
   catch (err) { alert(err.message || 'Admin data export failed.'); }
