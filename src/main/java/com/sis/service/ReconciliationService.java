@@ -35,14 +35,15 @@ public class ReconciliationService {
     }
 
     public BankReconciliationEntry importEntry(CreateReconciliationEntryRequest request, String reconciledBy) {
-        if (entries.findByProviderReference(request.getProviderReference()).isPresent()) {
+        String providerReference = request.getProviderReference().trim();
+        if (entries.findByProviderReference(providerReference).isPresent()) {
             throw new IllegalStateException("Bank statement reference already imported");
         }
         BankReconciliationEntry entry = new BankReconciliationEntry();
-        entry.setProviderReference(request.getProviderReference());
+        entry.setProviderReference(providerReference);
         entry.setStatementAmount(request.getStatementAmount());
         entry.setStatementDate(request.getStatementDate());
-        attempts.findByProviderReference(request.getProviderReference()).ifPresent(attempt -> {
+        attempts.findByProviderReference(providerReference).ifPresent(attempt -> {
             entry.setMatchedPaymentAttemptId(attempt.getId());
             if (attempt.getPaymentChannel() == PaymentChannel.BANK_TRANSFER
                     && attempt.getAmount().compareTo(request.getStatementAmount()) == 0

@@ -3,11 +3,12 @@ package com.sis.dto;
 import javax.validation.constraints.DecimalMin;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
 public class CreateReconciliationEntryRequest {
-    @NotBlank private String providerReference;
+    @NotBlank @Size(max = 120) private String providerReference;
     @NotNull @DecimalMin("0.01") private BigDecimal statementAmount;
     @NotNull private LocalDate statementDate;
 
