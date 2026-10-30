@@ -16,6 +16,7 @@ import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.Optional;
+import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -42,6 +43,7 @@ class PortalAssignmentSubmissionTest {
         User user = new User("student", "n/a", Role.STUDENT);
         Assignment assignment = new Assignment();
         assignment.setCourseId(23L);
+        assignment.setDueAt(LocalDateTime.now().plusDays(1));
         AssignmentSubmission existing = new AssignmentSubmission();
         authenticate();
         when(schoolService.getUserByUsername("student")).thenReturn(Optional.of(user));
@@ -65,6 +67,30 @@ class PortalAssignmentSubmissionTest {
     }
 
     @Test
+    void expiredAssignmentCannotBeSubmitted() {
+        SchoolService schoolService = mock(SchoolService.class);
+        AssignmentRepository assignments = mock(AssignmentRepository.class);
+        AssignmentSubmissionRepository submissions = mock(AssignmentSubmissionRepository.class);
+        PortalController controller = controller(schoolService, assignments, submissions);
+        Student student = new Student();
+        student.setId(17L);
+        User user = new User("student", "n/a", Role.STUDENT);
+        Assignment assignment = new Assignment();
+        assignment.setCourseId(23L);
+        assignment.setDueAt(LocalDateTime.now().minusMinutes(1));
+        authenticate();
+        when(schoolService.getUserByUsername("student")).thenReturn(Optional.of(user));
+        when(schoolService.getStudentByUsername("student")).thenReturn(Optional.of(student));
+        when(schoolService.studentEnrolledInCourse(17L, 23L)).thenReturn(true);
+        when(assignments.findById(5L)).thenReturn(Optional.of(assignment));
+
+        var response = controller.submit(5L, new AssignmentSubmissionRequest());
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        verify(submissions, never()).save(any(AssignmentSubmission.class));
+    }
+
+    @Test
     void studentCannotSubmitForCourseTheyAreNotEnrolledIn() {
         SchoolService schoolService = mock(SchoolService.class);
         AssignmentRepository assignments = mock(AssignmentRepository.class);
@@ -75,6 +101,7 @@ class PortalAssignmentSubmissionTest {
         User user = new User("student", "n/a", Role.STUDENT);
         Assignment assignment = new Assignment();
         assignment.setCourseId(23L);
+        assignment.setDueAt(LocalDateTime.now().plusDays(1));
         authenticate();
         when(schoolService.getUserByUsername("student")).thenReturn(Optional.of(user));
         when(schoolService.getStudentByUsername("student")).thenReturn(Optional.of(student));

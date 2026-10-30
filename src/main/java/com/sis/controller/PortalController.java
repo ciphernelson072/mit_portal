@@ -154,6 +154,9 @@ public class PortalController {
         if (!schoolService.studentEnrolledInCourse(student.getId(), assignment.getCourseId())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
+        if (assignment.getDueAt() != null && !assignment.getDueAt().isAfter(LocalDateTime.now())) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        }
         Optional<AssignmentSubmission> existingSubmission =
                 submissions.findByAssignmentIdAndStudentId(assignmentId, student.getId());
         AssignmentSubmission submission = existingSubmission.orElseGet(AssignmentSubmission::new);
