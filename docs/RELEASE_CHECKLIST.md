@@ -201,9 +201,10 @@ See the full UI/backend/provider inventory in [INTEGRATION_GAPS.md](./INTEGRATIO
 - [x] Flyway migrations are the schema strategy; existing production databases still require a reviewed baseline/adoption plan before deployment.
 - [x] Flyway V31 persists official academic-report approvals; review the migration and deployment backup/adoption plan before applying it to an existing production database.
 - [x] Flyway V32 adds a transactional, one-time initial-admin bootstrap claim; enable it only for a new empty database and disable/remove bootstrap credentials immediately afterward.
-- [ ] Apply and validate V44 and V45 against a fresh disposable MySQL 8.0
-  database and validate Hibernate mappings. TiDB V44/V45 application and review of a copy
-  of any existing production schema remain pending.
+- [x] Applied and validated V44 and V45 against a fresh disposable MySQL 8.0
+  database with Hibernate mapping validation. Applied and verified V43-V45 on
+  the TiDB pilot after a fresh backup. Live academic workflow acceptance and
+  institutional policy sign-off remain separate gates.
 - [x] Implement the supplied five-point mark bands, 50% pass threshold, retake
   flag, NP/PP rules, and degree/diploma classification in policy version
   `UG_5_POINT_V1`.
