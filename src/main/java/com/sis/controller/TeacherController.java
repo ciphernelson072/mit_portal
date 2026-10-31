@@ -11,7 +11,6 @@ import com.sis.dto.TeacherDashboardOverviewDto;
 import com.sis.dto.TeacherProfileDto;
 import com.sis.dto.TeacherGradeDto;
 import com.sis.entity.Course;
-import com.sis.entity.CourseUnit;
 import com.sis.entity.Student;
 import com.sis.entity.Grade;
 import com.sis.exception.ResourceNotFoundException;

@@ -2,8 +2,6 @@ package com.sis.service;
 
 import com.sis.entity.Course;
 import com.sis.entity.Teacher;
-import com.sis.entity.User;
-import com.sis.repository.CourseRepository;
 import com.sis.repository.TeacherRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -22,9 +20,6 @@ public class TeacherService {
 
     @Autowired
     private TeacherRepository teacherRepository;
-
-    @Autowired
-    private CourseRepository courseRepository;
 
     /**
      * Get all active teachers
