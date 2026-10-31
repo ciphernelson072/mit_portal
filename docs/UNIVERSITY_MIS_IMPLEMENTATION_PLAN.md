@@ -1,12 +1,12 @@
 # University MIS Implementation Plan
 
-> **Status note (26 October 2026):** This document preserves the incremental
+> **Status note (31 October 2026):** This document preserves the incremental
 > implementation history and original roadmap; it is not a current acceptance
 > checklist. The source now includes result snapshot approval/publication and
 > course-specific assessment/retake data (migrations V41-V42), plus the
-> administrator-authorized correction workflow (V43). V1-V43 and Hibernate
-> validation pass on disposable MySQL 8.0; the TiDB pilot is pending V43
-> rollout after a fresh backup. Institutional grading/retake policies and
+> administrator-authorized correction workflow (V43). V1-V45 and Hibernate
+> validation pass on disposable MySQL 8.0; V43-V45 were applied to the TiDB
+> pilot after a fresh backup. Institutional grading/retake policies and
 > target-environment acceptance remain open.
 > See [Academic Results Workflow](./ACADEMIC_RESULTS_WORKFLOW.md) and the
 > [Release Checklist](./RELEASE_CHECKLIST.md) for current status.

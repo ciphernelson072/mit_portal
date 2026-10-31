@@ -1,14 +1,14 @@
 # Academic Results, Approval, and Publication
 
-Last reviewed: 27 October 2026
+Last reviewed: 31 October 2026
 
 This guide describes the result workflow implemented in the source tree. It
 does not certify a live deployment. Migration V44 adds the five-point policy
 version, course core-module flag, retake-required state, and programme award
 type. Migration V45 persists administrator review acknowledgments against a
-fingerprint of the exact assessment/result state. The active TiDB pilot must
-remain on its current migration until a fresh verified backup and controlled
-V45 rollout are completed.
+fingerprint of the exact assessment/result state. V43-V45 were applied and
+verified on the TiDB pilot after a fresh backup. Live assigned-teacher
+correction-to-republication acceptance remains separate from source and migration validation.
 
 ## Roles and lifecycle
 

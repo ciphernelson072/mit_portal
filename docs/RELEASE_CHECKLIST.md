@@ -11,7 +11,8 @@ actual target environment.
 
 - [x] Final `mvn test` passed; 384 tests with 0 failures, 0 errors, and
   0 skipped (31 Oct 2026). MySQL/Testcontainers integration tests are excluded;
-  this does not validate V44/V45 against a live or disposable MySQL/TiDB database.
+  while V44/V45 migration compatibility is covered separately by disposable
+  MySQL and TiDB target-engine validation.
 - [x] `.\mvnw -q -DskipTests compile` completed successfully.
 - [x] Focused permission, assessment-calculation, grade-approval, academic
   report persistence, security integration, and version-bound administrator
