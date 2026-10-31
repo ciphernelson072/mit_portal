@@ -72,6 +72,22 @@ class GradeCalculationServiceTest {
 
         assertThrows(IllegalStateException.class,
                 () -> GradeCalculationService.calculateApprovedCgpa(List.of(original, retake)));
+        assertThrows(IllegalStateException.class,
+                () -> GradeCalculationService.calculateCreditsEarned(List.of(original, retake)));
+    }
+
+    @Test
+    void cgpaUsesTwoDecimalHalfUpUntilInstitutionApprovesDifferentRounding() {
+        Course courseA = new Course();
+        courseA.setCredits(1);
+        Course courseB = new Course();
+        courseB.setCredits(1);
+
+        Grade gradeA = grade(courseA, "A", "5.0", GradeStatus.APPROVED);
+        Grade gradeB = grade(courseB, "D", "2.0", GradeStatus.APPROVED);
+
+        assertEquals(new BigDecimal("3.50"),
+                GradeCalculationService.calculateApprovedCgpa(List.of(gradeA, gradeB)));
     }
 
     private Grade grade(Course course, String gradeValue, String gpa, GradeStatus status) {

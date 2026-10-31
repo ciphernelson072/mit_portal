@@ -180,7 +180,9 @@ See the full UI/backend/provider inventory in [INTEGRATION_GAPS.md](./INTEGRATIO
   `UG_5_POINT_V1`.
 - [ ] Confirm policy publication/sign-off with the institute and define CGPA
   rounding, retake replacement, retake credit treatment, and attempt limits
-  before treating CGPA involving retakes as final.
+  before treating CGPA involving retakes as final. Focused calculation tests
+  now verify fail-closed retake handling and document the current provisional
+  two-decimal HALF_UP calculation; these tests do not constitute policy approval.
 - [ ] Existing databases have run `ops/migrate-course-catalog.sql` before enabling course categories/codes.
 
 ## Browser acceptance

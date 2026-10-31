@@ -2,6 +2,10 @@
 
 ## Current source status — 31 October 2026
 
+- Added focused regression coverage proving retake attempts cannot silently
+  contribute to CGPA or earned credits without an approved institutional
+  retake policy, while ordinary approved results continue to calculate with
+  two-decimal `HALF_UP` rounding.
 - Rolled out and verified Flyway V43-V45 on the TiDB Cloud pilot after a fresh
   checksummed backup. Flyway reported migrations 43, 44, and 45 successful,
   the production-profile application started and passed `/actuator/health`,
