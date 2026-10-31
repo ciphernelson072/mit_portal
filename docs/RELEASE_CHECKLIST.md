@@ -19,6 +19,8 @@ actual target environment.
 - [x] Current isolated Playwright run passed all 87 tests against a disposable
   H2 database and loopback-only server. This exercises UI behavior but does not
   establish MySQL/TiDB migration compatibility or live provider acceptance.
+- [x] `.\ops\run-e2e.ps1 -Port 18089` passed all 87 isolated Playwright tests on
+  31 October 2026 against the repository's disposable H2/sample-data server.
 - [x] `npm run test:unit` passed all 10 frontend unit tests; static JavaScript
   files and updated browser specs passed `node --check`.
 - [x] Flyway V1-V43 applied to a disposable MySQL 8.0 database; production
