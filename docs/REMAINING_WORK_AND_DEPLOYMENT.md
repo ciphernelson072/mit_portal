@@ -118,11 +118,12 @@ configured for HTTPS-aware redirects behind the tunnel.
 The source includes V43 for administrator-authorized correction records and
 prior-result snapshots, V44 for the five-point policy, and V45 for assessment
 review acknowledgment. V1-V43 were applied successfully to a
-disposable MySQL 8.0 database, followed by Hibernate schema validation. The
-Testcontainers variant could not start because the configured Docker client
-uses API 1.32 while the Docker daemon requires at least 1.40. The application code and V43-V45 migrations are not yet running on the public
-pilot; the TiDB schema remains at V42 pending a current verified database/upload
-backup and controlled V43-V45 rollout and acceptance checks.
+disposable MySQL 8.0 database, followed by Hibernate schema validation. On 31
+October 2026 the complete V1-V45 sequence was also applied successfully to a
+fresh disposable MySQL 8.0 container, with all migration records successful and
+Hibernate schema validation passing. V44/V45 are still not running on the
+public pilot; the TiDB schema rollout remains pending a current verified
+database/upload backup and controlled acceptance checks.
 
 This is still a **temporary test pilot, not a production service**. The Quick
 Tunnel has no uptime guarantee or stable institution-controlled hostname.

@@ -25,6 +25,11 @@ actual target environment.
   application startup completed Hibernate schema validation. This was a
   manual loopback-only validation; the Testcontainers profile remains blocked
   by a Docker client/daemon API-version mismatch.
+- [x] Flyway V1-V45 applied successfully to a fresh disposable MySQL 8.0
+  container on 31 October 2026: all 45 migration records succeeded, the
+  application reached its started state with Hibernate validation enabled,
+  and the V44/V45 columns were present. This loopback-only evidence does not
+  replace TiDB or production acceptance.
 - [x] Administrator-authorized result-correction API and admin dashboard
   action implemented; backend tests and focused grade-review/correction
   Playwright tests passed. Target TiDB rollout and authenticated teacher
@@ -35,7 +40,8 @@ actual target environment.
 - [ ] The latest source-level test run is not a substitute for current browser,
   provider-sandbox, production-database, backup/restore, or live operational
   acceptance.
-- [ ] Validate V44 and V45 on disposable MySQL 8.0 and on the TiDB pilot after
+- [x] Validate V44 and V45 on disposable MySQL 8.0.
+- [ ] Validate V44 and V45 on the TiDB pilot after
   a fresh verified backup, then test the complete correction-to-reapproval,
   assessment-review, and publication path there; see
   [academic results workflow](./ACADEMIC_RESULTS_WORKFLOW.md).

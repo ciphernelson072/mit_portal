@@ -2,6 +2,12 @@
 
 ## Current source status — 31 October 2026
 
+- Validated the complete Flyway V1-V45 migration sequence in a disposable
+  loopback-only MySQL 8.0 container. Flyway reported 45 successful migrations,
+  the application started successfully and passed Hibernate validation, and
+  the V44/V45 columns were present. This validates MySQL compatibility only;
+  TiDB V44/V45 rollout and the live correction-to-republication acceptance
+  workflow remain pending.
 - Added migration V45 for persistent administrator assessment-review
   acknowledgments. Each acknowledgment stores the reviewer, time, and
   SHA-256 fingerprint of the exact result state; approval revalidates the
