@@ -132,6 +132,9 @@ class AdminStudentProvisioningTest {
 
         var result = service.hireTeacher(request);
 
+        org.mockito.ArgumentCaptor<User> savedUser = org.mockito.ArgumentCaptor.forClass(User.class);
+        verify(users).save(savedUser.capture());
+        assertThat(savedUser.getValue().isPasswordChangeRequired()).isTrue();
         org.mockito.ArgumentCaptor<Teacher> savedTeacher = org.mockito.ArgumentCaptor.forClass(Teacher.class);
         verify(teachers).save(savedTeacher.capture());
         assertThat(savedTeacher.getValue().getHomeDepartment()).isSameAs(department);

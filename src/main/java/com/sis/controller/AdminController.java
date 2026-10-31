@@ -19,6 +19,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.logging.Logger;
 
 /**
  * Admin Controller - Handles all administrative operations.
@@ -34,6 +35,8 @@ import java.util.Objects;
 @RequestMapping("/api/admin")
 @PreAuthorize("hasAuthority('ADMIN')")
 public class AdminController {
+
+    private static final Logger logger = Logger.getLogger(AdminController.class.getName());
 
     @Autowired
     private AdminService adminService;
@@ -250,6 +253,15 @@ public class AdminController {
     @PostMapping("/teachers/hire")
     public ResponseEntity<AdminTeacherDto> hireTeacher(@Valid @RequestBody CreateTeacherRequest request) {
         AdminTeacherDto hired = adminService.hireTeacher(request);
+        if (request.getEmail() != null && !request.getEmail().isBlank()
+                && emailService.isDeliveryConfigured()) {
+            try {
+                emailService.sendHiringNotification(request.getEmail(), request.getFullName(),
+                        request.getUsername(), request.getPassword());
+            } catch (IllegalStateException exception) {
+                logger.warning("Hiring sign-in email could not be delivered for " + request.getUsername());
+            }
+        }
         return ResponseEntity.status(HttpStatus.CREATED).body(hired);
     }
 

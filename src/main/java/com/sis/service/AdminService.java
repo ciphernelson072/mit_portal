@@ -629,6 +629,7 @@ public class AdminService {
 
         User user = new User(normalizedUsername, passwordEncoder.encode(request.getPassword()), com.sis.entity.Role.TEACHER);
         user.setEmail(normalizedEmail);
+        user.setPasswordChangeRequired(true);
         user = userRepository.save(user);
 
         Teacher teacher = new Teacher(user, request.getFullName());

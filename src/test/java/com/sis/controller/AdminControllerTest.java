@@ -5,6 +5,8 @@ import com.sis.dto.AdminFeeDto;
 import com.sis.dto.AdminStatisticsDto;
 import com.sis.dto.ChangeStudentStatusRequest;
 import com.sis.dto.CreateUserRequest;
+import com.sis.dto.CreateTeacherRequest;
+import com.sis.dto.AdminTeacherDto;
 import com.sis.dto.StudentStatusHistoryDto;
 import com.sis.dto.UserDto;
 import com.sis.entity.AuditLog;
@@ -12,6 +14,7 @@ import com.sis.entity.User;
 import com.sis.repository.AuditLogRepository;
 import com.sis.entity.StudentLifecycleStatus;
 import com.sis.service.AdminService;
+import com.sis.service.EmailService;
 import com.sis.service.SchoolService;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
@@ -35,6 +38,28 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AdminControllerTest {
+
+    @Test
+    void hiringEmailsTemporaryCredentialsWhenDeliveryIsConfigured() {
+        AdminController controller = new AdminController();
+        AdminService adminService = mock(AdminService.class);
+        EmailService emailService = mock(EmailService.class);
+        ReflectionTestUtils.setField(controller, "adminService", adminService);
+        ReflectionTestUtils.setField(controller, "emailService", emailService);
+        CreateTeacherRequest request = new CreateTeacherRequest();
+        request.setEmail("teacher@example.edu");
+        request.setFullName("Teacher Example");
+        request.setUsername("teacher.user");
+        request.setPassword("temporary-secret");
+        when(emailService.isDeliveryConfigured()).thenReturn(true);
+        when(adminService.hireTeacher(request)).thenReturn(new AdminTeacherDto());
+
+        var response = controller.hireTeacher(request);
+
+        verify(emailService).sendHiringNotification("teacher@example.edu", "Teacher Example",
+                "teacher.user", "temporary-secret");
+        assertEquals(201, response.getStatusCodeValue());
+    }
 
     @Test
     void accountCreationIsAuditedWithoutRecordingCredentials() {

@@ -142,7 +142,7 @@ actual target environment.
 
 See the full UI/backend/provider inventory in [INTEGRATION_GAPS.md](./INTEGRATION_GAPS.md).
 
-- [ ] Verify approved production email delivery and account lifecycle: application receipts contain no credentials, admission credentials are sent only after acceptance/enrollment, and student accounts require a password change before portal access. Never email permanent passwords.
+- [ ] Verify approved production email delivery and account lifecycle: application receipts contain no credentials, admission credentials are sent only after acceptance/enrollment, and provisioned student and teacher accounts require a password change before portal access. Teacher hiring now sends temporary sign-in details when mail delivery is configured and never returns credentials through the API response.
 - [ ] Flutterwave provider code is present, but keep live payments disabled until
   sandbox checkout, webhook/retry, settlement reconciliation, and target
   environment acceptance are complete. Keep other online channels disabled
