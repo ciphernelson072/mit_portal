@@ -2,6 +2,7 @@ package com.sis.service;
 
 import com.sis.entity.Grade;
 import com.sis.entity.GradeStatus;
+import com.sis.entity.NotificationCategory;
 import com.sis.repository.GradeRepository;
 import com.sis.repository.AuditLogRepository;
 import com.sis.entity.AuditLog;
@@ -17,11 +18,13 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.HexFormat;
+import java.util.logging.Logger;
 
 @Service
 @Transactional
 public class GradeApprovalService {
 
+    private static final Logger LOGGER = Logger.getLogger(GradeApprovalService.class.getName());
     private final GradeRepository gradeRepository;
     private final StudentRepository studentRepository;
     private final StudentService studentService;
@@ -31,6 +34,8 @@ public class GradeApprovalService {
     private final com.sis.repository.CourseAssessmentComponentRepository assessmentComponents;
     private final com.sis.repository.GradeAssessmentMarkRepository assessmentMarks;
     private final AssessmentCalculationService assessmentCalculations;
+    private final NotificationService notifications;
+    private final EmailService emailService;
 
     public GradeApprovalService(GradeRepository gradeRepository,
                                  StudentRepository studentRepository,
@@ -51,7 +56,8 @@ public class GradeApprovalService {
                                  AcademicResultCorrectionService resultCorrections,
                                  com.sis.repository.CourseAssessmentComponentRepository assessmentComponents,
                                  com.sis.repository.GradeAssessmentMarkRepository assessmentMarks,
-                                 AssessmentCalculationService assessmentCalculations) {
+                                 AssessmentCalculationService assessmentCalculations,
+                                 EmailService emailService) {
         this.gradeRepository = gradeRepository;
         this.studentRepository = studentRepository;
         this.studentService = studentService;
@@ -61,6 +67,8 @@ public class GradeApprovalService {
         this.assessmentComponents = assessmentComponents;
         this.assessmentMarks = assessmentMarks;
         this.assessmentCalculations = assessmentCalculations;
+        this.notifications = notifications;
+        this.emailService = emailService;
     }
 
     public GradeApprovalService(GradeRepository gradeRepository,
@@ -71,7 +79,21 @@ public class GradeApprovalService {
                                 NotificationService notifications,
                                 AcademicResultCorrectionService resultCorrections) {
         this(gradeRepository, studentRepository, studentService, auditLogs, users, notifications,
-                resultCorrections, null, null, null);
+                resultCorrections, null, null, null, null);
+    }
+
+    public GradeApprovalService(GradeRepository gradeRepository,
+                                StudentRepository studentRepository,
+                                StudentService studentService,
+                                AuditLogRepository auditLogs,
+                                UserRepository users,
+                                NotificationService notifications,
+                                AcademicResultCorrectionService resultCorrections,
+                                com.sis.repository.CourseAssessmentComponentRepository assessmentComponents,
+                                com.sis.repository.GradeAssessmentMarkRepository assessmentMarks,
+                                AssessmentCalculationService assessmentCalculations) {
+        this(gradeRepository, studentRepository, studentService, auditLogs, users, notifications,
+                resultCorrections, assessmentComponents, assessmentMarks, assessmentCalculations, null);
     }
 
     public Grade submitForApproval(Grade grade, String submittedBy) {
@@ -142,6 +164,7 @@ public class GradeApprovalService {
         if (resultCorrections != null) resultCorrections.markApproved(saved.getId(), approvedBy);
         studentService.calculateCGPA(saved.getStudent().getId());
         audit(approvedBy, "GRADE_APPROVED", "Grade #" + saved.getId() + " approved");
+        notifyStudent(saved, true, null);
         return reloadGradeForResponse(saved);
     }
 
@@ -279,7 +302,43 @@ public class GradeApprovalService {
         if (resultCorrections != null) resultCorrections.markRejected(saved.getId(), rejectedBy);
         studentService.calculateCGPA(saved.getStudent().getId());
         audit(rejectedBy, "GRADE_REJECTED", "Grade #" + saved.getId() + " rejected");
+        notifyStudent(saved, false, reason);
         return reloadGradeForResponse(saved);
+    }
+
+    private void notifyStudent(Grade grade, boolean approved, String reason) {
+        if (grade.getStudent() == null || grade.getStudent().getUser() == null
+                || grade.getCourse() == null) {
+            return;
+        }
+        Long userId = grade.getStudent().getUser().getId();
+        if (userId != null && notifications != null) {
+            String title = approved ? "Grade approved" : "Grade needs revision";
+            String message = approved
+                    ? "Your grade for " + grade.getCourse().getName() + " has been approved."
+                    : "Your grade submission for " + grade.getCourse().getName() + " was rejected: " + reason;
+            notifications.create(userId, title, message, NotificationCategory.GRADE);
+        }
+        if (emailService == null || grade.getStudent().getEmail() == null) {
+            return;
+        }
+        try {
+            if (approved) {
+                emailService.sendGradeNotification(
+                        grade.getStudent().getEmail(),
+                        grade.getStudent().getFullName(),
+                        grade.getCourse().getName(),
+                        grade.getGradeValue());
+                if (grade.getStudent().getCgpa() != null) {
+                    emailService.sendCGPAUpdateNotification(
+                            grade.getStudent().getEmail(),
+                            grade.getStudent().getFullName(),
+                            grade.getStudent().getCgpa().toPlainString());
+                }
+            }
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            LOGGER.warning("Academic notification email was not delivered: " + ex.getMessage());
+        }
     }
 
     private Grade reloadGradeForResponse(Grade grade) {
