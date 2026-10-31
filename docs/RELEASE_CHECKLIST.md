@@ -83,6 +83,11 @@ actual target environment.
 - [ ] Campus readiness is not established: no institution-controlled
   hostname, campus-network acceptance, restore rehearsal, or semester
   operations sign-off has been verified.
+- [ ] Complete campus UAT, supported-browser/accessibility acceptance, and named
+  support ownership. Chromium/Brave viewport evidence does not establish
+  Firefox/Safari, assistive-technology, keyboard-only, managed-network, or
+  low-bandwidth acceptance. See
+  [Campus and support acceptance](./CAMPUS_AND_SUPPORT_ACCEPTANCE.md).
 
 ## Automated verification
 
@@ -174,7 +179,7 @@ See the full UI/backend/provider inventory in [INTEGRATION_GAPS.md](./INTEGRATIO
   checksum and restore paths, but production scheduling, off-host copies,
   missed-backup alerting, and an actual restore rehearsal remain required.
 - [ ] Add full-stack MySQL-backed tests for critical UI-to-controller/service/database flows; mocked Playwright API fixtures alone do not provide this evidence.
-- [ ] Decide whether SSO, SMS, CAPTCHA/bot management, generative AI, LMS/HR/finance/SIS synchronization, and automated deployment are in launch scope; document approved exclusions or implementation evidence.
+- [ ] Decide whether SSO, SMS, CAPTCHA/bot management, generative AI, LMS/HR/finance/SIS synchronization, and automated deployment are in launch scope; document approved exclusions or implementation evidence. Deployment automation also requires protected branches, migration/rollback gates, backup-before-migration, post-deploy smoke tests, and named rollback owners.
 
 ## Operational verification
 
