@@ -147,7 +147,10 @@ See the full UI/backend/provider inventory in [INTEGRATION_GAPS.md](./INTEGRATIO
   sandbox checkout, webhook/retry, settlement reconciliation, and target
   environment acceptance are complete. Keep other online channels disabled
   until their provider-specific flows are implemented and tested. Confirm the
-  bank-transfer reconciliation operating procedure.
+  bank-transfer reconciliation operating procedure. Focused Flutterwave
+  service/controller tests pass, including duplicate completed webhook
+  handling, but live sandbox acceptance remains blocked until matching test
+  credentials and HTTPS webhook configuration are supplied.
 - [ ] Do not use legacy teacher grade update/delete endpoints to correct
   approved results until the controlled correction workflow is implemented and
   tested.

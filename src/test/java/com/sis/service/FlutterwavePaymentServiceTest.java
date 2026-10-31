@@ -1,5 +1,6 @@
 package com.sis.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sis.dto.FlutterwaveCheckoutDetails;
 import com.sis.entity.PaymentAttempt;
 import com.sis.entity.PaymentAttemptStatus;
@@ -17,6 +18,7 @@ import java.time.LocalDateTime;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
@@ -26,6 +28,26 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 class FlutterwavePaymentServiceTest {
+
+    @Test
+    void duplicateCompletedWebhookIsIgnoredWithoutAnotherProviderConfirmation() throws Exception {
+        PaymentAttemptService attempts = mock(PaymentAttemptService.class);
+        RestTemplate restTemplate = new RestTemplate();
+        MockRestServiceServer.bindTo(restTemplate).build();
+        FlutterwavePaymentService service = configuredService(attempts, restTemplate);
+        PaymentAttempt completed = pendingAttempt();
+        completed.setStatus(PaymentAttemptStatus.COMPLETED);
+        completed.setProviderTransactionId("123456");
+        when(attempts.findFlutterwaveAttemptIfPresent("MIT-FLW-test-reference"))
+                .thenReturn(java.util.Optional.of(completed));
+
+        service.handleWebhook(new ObjectMapper().readTree("""
+                {"event":"charge.completed","data":{"id":123456,"tx_ref":"MIT-FLW-test-reference"}}
+                """));
+
+        verify(attempts, never()).confirmFlutterwave(org.mockito.ArgumentMatchers.anyLong(),
+                org.mockito.ArgumentMatchers.anyString());
+    }
 
     @Test
     void createsHostedCheckoutUsingServerAmountAndExpectedUgandaMethods() {
