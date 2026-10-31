@@ -30,6 +30,11 @@ actual target environment.
   application reached its started state with Hibernate validation enabled,
   and the V44/V45 columns were present. This loopback-only evidence does not
   replace TiDB or production acceptance.
+- [x] TiDB Cloud pilot applied and verified Flyway V43-V45 on 31 October 2026
+  after a fresh `database-20261031-091347.zip` backup. The production-profile
+  application started, `/actuator/health` returned HTTP 200, and the V44/V45
+  database columns were present. Live correction-to-republication acceptance
+  and institutional policy sign-off remain separate gates.
 - [x] Administrator-authorized result-correction API and admin dashboard
   action implemented; backend tests and focused grade-review/correction
   Playwright tests passed. Target TiDB rollout and authenticated teacher
@@ -41,7 +46,7 @@ actual target environment.
   provider-sandbox, production-database, backup/restore, or live operational
   acceptance.
 - [x] Validate V44 and V45 on disposable MySQL 8.0.
-- [ ] Validate V44 and V45 on the TiDB pilot after
+- [x] Validate V44 and V45 on the TiDB pilot after
   a fresh verified backup, then test the complete correction-to-reapproval,
   assessment-review, and publication path there; see
   [academic results workflow](./ACADEMIC_RESULTS_WORKFLOW.md).

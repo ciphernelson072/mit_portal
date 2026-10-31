@@ -170,6 +170,8 @@ exec /tmp/dumpling-bin/dumpling \
     $scriptMount = $containerScriptPath.Replace('\', '/')
     $dockerArguments = @(
         'run', '--rm', '--network', 'bridge',
+        '--dns', '1.1.1.1',
+        '--dns', '8.8.8.8',
         '--env-file', $credentialPath,
         '--mount', "type=bind,source=$packageMount,target=/tmp/dumpling.tar.gz,readonly",
         '--mount', "type=bind,source=$certificateMount,target=/run/secrets/tidb-ca.pem,readonly",
@@ -214,7 +216,7 @@ exec /tmp/dumpling-bin/dumpling \
         sha256 = $checksum
     } | ConvertTo-Json -Compress
     [IO.File]::WriteAllText($statusTemporary, $status, (New-Object Text.UTF8Encoding($false)))
-    Move-Item -LiteralPath $statusTemporary -Destination $StatusFile
+    Move-Item -LiteralPath $statusTemporary -Destination $StatusFile -Force
 }
 catch {
     Remove-Item -Force -ErrorAction SilentlyContinue -LiteralPath $temporaryArchive

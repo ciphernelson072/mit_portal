@@ -121,9 +121,10 @@ review acknowledgment. V1-V43 were applied successfully to a
 disposable MySQL 8.0 database, followed by Hibernate schema validation. On 31
 October 2026 the complete V1-V45 sequence was also applied successfully to a
 fresh disposable MySQL 8.0 container, with all migration records successful and
-Hibernate schema validation passing. V44/V45 are still not running on the
-public pilot; the TiDB schema rollout remains pending a current verified
-database/upload backup and controlled acceptance checks.
+Hibernate schema validation passing. On 31 October 2026, a fresh verified
+TiDB backup was completed and migrations V43-V45 were applied and verified
+on the pilot. Live correction-to-republication acceptance and institutional
+policy sign-off remain separate gates.
 
 This is still a **temporary test pilot, not a production service**. The Quick
 Tunnel has no uptime guarantee or stable institution-controlled hostname.

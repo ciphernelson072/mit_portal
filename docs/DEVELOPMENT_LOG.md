@@ -2,6 +2,12 @@
 
 ## Current source status — 31 October 2026
 
+- Rolled out and verified Flyway V43-V45 on the TiDB Cloud pilot after a fresh
+  checksummed backup. Flyway reported migrations 43, 44, and 45 successful,
+  the production-profile application started and passed `/actuator/health`,
+  and the V44/V45 columns were present. TiDB backup container DNS now uses
+  explicit public resolvers, and database status marker replacement is handled
+  safely so subsequent successful backups update their marker.
 - Validated the complete Flyway V1-V45 migration sequence in a disposable
   loopback-only MySQL 8.0 container. Flyway reported 45 successful migrations,
   the application started successfully and passed Hibernate validation, and
