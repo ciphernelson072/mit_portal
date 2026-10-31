@@ -27,6 +27,9 @@
 - Reconciliation statement references are trimmed before duplicate checks,
   payment-attempt matching, persistence, and audit; the reconciliation DTO
   enforces the database reference length.
+- Restored role selection for new managed administrator accounts and separated
+  the HR module from the student module in the dashboard markup. The isolated
+  Playwright suite now passes all 87 current browser tests.
 - V1-V43 migration and Hibernate validation passed on a disposable MySQL 8.0
   database. The Testcontainers profile is blocked by the local Docker API
   mismatch; the TiDB V43 rollout remains outstanding.
