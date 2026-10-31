@@ -148,6 +148,11 @@ actual target environment.
 See the full UI/backend/provider inventory in [INTEGRATION_GAPS.md](./INTEGRATION_GAPS.md).
 
 - [ ] Verify approved production email delivery and account lifecycle: application receipts contain no credentials, admission credentials are sent only after acceptance/enrollment, and provisioned student and teacher accounts require a password change before portal access. Teacher hiring now sends temporary sign-in details when mail delivery is configured and never returns credentials through the API response.
+- [ ] Obtain approved privacy/retention policy sign-off and publish the privacy
+  officer/contact, purpose, legal basis, retention schedule, legal holds,
+  data-subject rights, deletion boundaries, and third-party inventory. The
+  privacy page currently identifies this as an unapproved launch gap. See
+  [Privacy, retention, hosting, and recovery gates](./PRIVACY_RETENTION_AND_RECOVERY.md).
 - [ ] Flutterwave provider code is present, but keep live payments disabled until
   sandbox checkout, webhook/retry, settlement reconciliation, and target
   environment acceptance are complete. Keep other online channels disabled
@@ -182,7 +187,10 @@ See the full UI/backend/provider inventory in [INTEGRATION_GAPS.md](./INTEGRATIO
 - [x] Exercise `ops/reset-wifi-test-data.ps1` end-to-end against a newly created disposable local `_test` database: all 30 Flyway migrations succeeded, exactly one active ADMIN remained, student and teacher tables were empty, and the bootstrap JVM exited; the verification-only schema and DB account were then removed. The isolated uploads path was absent before and after the test.
 - [ ] Logs and alerts are connected.
 - [ ] Metrics/Prometheus access is restricted to the monitoring network and alerts are exercised.
-- [ ] Rollback procedure has been tested.
+- [ ] Rollback procedure has been tested in the target production-like
+  environment, including schema-compatible application rollback and a
+  coordinated database/upload restore, measured recovery targets, health checks,
+  and the approved data-loss window.
 - [x] Flyway migrations are the schema strategy; existing production databases still require a reviewed baseline/adoption plan before deployment.
 - [x] Flyway V31 persists official academic-report approvals; review the migration and deployment backup/adoption plan before applying it to an existing production database.
 - [x] Flyway V32 adds a transactional, one-time initial-admin bootstrap claim; enable it only for a new empty database and disable/remove bootstrap credentials immediately afterward.
