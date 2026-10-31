@@ -160,8 +160,14 @@ See the full UI/backend/provider inventory in [INTEGRATION_GAPS.md](./INTEGRATIO
   approved results until the controlled correction workflow is implemented and
   tested.
 - [x] Added the Spring-managed Prometheus registry and exposed `/actuator/prometheus`; isolated browser acceptance verified anonymous access is rejected and an authenticated administrator can scrape metrics (14 Oct 2026).
-- [ ] Configure monitoring-network scraping, central logs, error reporting, and tested alerts for the selected deployment.
-- [ ] Decide persistent/shared file storage and off-host scheduled backup integrations for the actual topology.
+- [ ] Configure monitoring-network scraping, central logs, error reporting, and
+  tested alerts for the selected deployment. [Operations monitoring and recovery runbook](./OPERATIONS_MONITORING_RUNBOOK.md)
+  defines the required target, alert, redaction, backup, and restore rehearsal
+  evidence.
+- [ ] Decide persistent/shared file storage and off-host scheduled backup
+  integrations for the actual topology. Local database/upload scripts pass
+  checksum and restore paths, but production scheduling, off-host copies,
+  missed-backup alerting, and an actual restore rehearsal remain required.
 - [ ] Add full-stack MySQL-backed tests for critical UI-to-controller/service/database flows; mocked Playwright API fixtures alone do not provide this evidence.
 - [ ] Decide whether SSO, SMS, CAPTCHA/bot management, generative AI, LMS/HR/finance/SIS synchronization, and automated deployment are in launch scope; document approved exclusions or implementation evidence.
 
