@@ -9,7 +9,7 @@ actual target environment.
 
 ### Current source verification (31 October 2026)
 
-- [x] `mvn test` passed after reconciliation hardening; 381 tests with 0 failures, 0 errors, and
+- [x] Final `mvn test` passed; 384 tests with 0 failures, 0 errors, and
   0 skipped (31 Oct 2026). MySQL/Testcontainers integration tests are excluded;
   this does not validate V44/V45 against a live or disposable MySQL/TiDB database.
 - [x] `.\mvnw -q -DskipTests compile` completed successfully.
