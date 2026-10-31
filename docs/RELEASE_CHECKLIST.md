@@ -105,6 +105,11 @@ actual target environment.
 - [x] Admission submission and enrollment service tests passed (13 tests).
 - [x] `mvn -DskipTests package` - deployable JAR built successfully.
 - [x] Confirm the profile does not advertise MFA when MFA is disabled (browser regression verified).
+- [ ] MFA enablement remains gated by policy and secret/key readiness. The
+  deployment needs `MFA_ENCRYPTION_KEY`, encrypted key backup/recovery controls,
+  and a tested loss-of-authenticator support procedure. Current support code has
+  no recovery-code implementation; recovery codes are not enabled. See
+  [MFA_RECOVERY.md](./MFA_RECOVERY.md).
 
 ## Production configuration
 
