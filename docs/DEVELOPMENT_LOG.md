@@ -49,14 +49,14 @@
 - V1-V43 migration and Hibernate validation passed on a disposable MySQL 8.0
   database. The Testcontainers profile is blocked by the local Docker API
   mismatch; the TiDB V43 rollout remains outstanding.
-- Latest Maven verification after reconciliation hardening: 381 tests with no failures, errors, or
+- Latest Maven verification after reconciliation hardening: 384 tests with no failures, errors, or
   skips (MySQL/Testcontainers suite excluded). The isolated Playwright suite
   passed all 87 tests; all 10 frontend unit tests and JavaScript syntax checks
   passed. These checks do not certify live V44/V45 migrations or deployment
   readiness.
-- V1-V43 migration and Hibernate validation passed on a disposable MySQL 8.0
-  database. V44/V45 still need target-engine validation; TiDB rollout remains
-  pending.
+- V1-V45 migration and Hibernate validation passed on disposable MySQL 8.0.
+  V43-V45 were subsequently applied and verified on the TiDB pilot after a
+  fresh backup; live institutional workflow acceptance remains separate.
 - Club directory member counts and joined-state lookups now use bounded batch
   queries instead of per-club database queries.
 - Teacher assignment feeds now follow the teacher's currently assigned courses,

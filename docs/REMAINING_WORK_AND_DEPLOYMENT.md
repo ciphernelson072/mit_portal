@@ -14,13 +14,12 @@ the [Render deployment details](./RENDER_DEPLOYMENT.md), the
 This source tree contains Flyway migrations V1-V45. The corrected V37-V42
 sequence has now been applied successfully to the TiDB pilot after a verified
 database backup. A separate disposable MySQL 8.0 database applied V1-V43, and
-the application passed Hibernate schema validation. The full Maven test suite
-passed after V44 on 26 October: 327 tests, zero failures, zero errors, and zero skipped
-(`.\mvnw.cmd test`, 26 October 2026). This source-level run does not verify V44 or V45 against MySQL or TiDB, replace
-provider sandbox testing, or establish production-environment acceptance.
+the application passed Hibernate schema validation. The 31 October full Maven suite passed 384 tests with zero failures, errors,
+or skips (`.\mvnw.cmd test`). This source-level run does not replace provider
+sandbox testing or establish production-environment acceptance.
 Migration V45 persists administrator review acknowledgment against the exact
 assessment/result fingerprint and requires the same fingerprint at approval.
-The 31 October full backend suite passed 381 tests after reconciliation
+The 31 October full backend suite passed 384 tests after reconciliation
 reference hardening; all 87 isolated Playwright tests and all 10 frontend unit
 tests passed in the latest recorded browser run.
 
@@ -30,8 +29,8 @@ administrator-only result snapshot approval/publication, linked retake
 attempts, administrator-authorized approved-grade corrections, and persisted
 administrator review acknowledgment. V44 adds
 the supplied five-point grade bands, pass/retake validation, core-course
-standing, and degree/diploma award classification. V44 and V45 have not yet
-been validated on MySQL or rolled out to the live TiDB pilot. Retake replacement,
+standing, and degree/diploma award classification. V44 and V45 were validated
+on disposable MySQL 8.0 and applied to the TiDB pilot. Retake replacement,
 retake credit treatment, and CGPA rounding remain unspecified and are not
 guessed. See the [academic results workflow](./ACADEMIC_RESULTS_WORKFLOW.md).
 
