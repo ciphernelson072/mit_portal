@@ -15,8 +15,10 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 import java.util.List;
+import com.sis.entity.AnnouncementAudience;
+import com.sis.entity.Role;
 
 @RestController
 @RequestMapping("/api/announcements")
@@ -36,7 +38,13 @@ public class AnnouncementController {
 
     @GetMapping
     public List<AnnouncementDto> listAnnouncements() {
-        return schoolService.listAnnouncements();
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        Role currentRole = schoolService.getUserByUsername(username)
+                .map(User::getRole)
+                .orElse(null);
+        return schoolService.listAnnouncements().stream()
+                .filter(announcement -> isVisibleTo(announcement.getAudience(), currentRole))
+                .toList();
     }
 
     @PostMapping
@@ -45,11 +53,22 @@ public class AnnouncementController {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         User author = schoolService.getUserByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + username));
-        AnnouncementDto ann = schoolService.createAnnouncement(request.getTitle(), request.getContent(), author);
-        users.findActiveUserIdsExcluding(author.getId())
-                .forEach(userId -> notifications.create(userId, "New announcement", ann.getTitle()));
-        users.findActiveUserIdsExcluding(author.getId()).forEach(userId ->
-                users.findById(userId).ifPresent(user -> {
+        AnnouncementDto ann = schoolService.createAnnouncement(
+                request.getTitle(), request.getContent(), author, request.getAudience());
+        users.findActiveUserIdsExcluding(author.getId()).stream()
+                .map(users::findById)
+                .flatMap(java.util.Optional::stream)
+                .filter(user -> user.getRole() != null && isVisibleToAudience(
+                        request.getAudience(), user.getRole()))
+                .forEach(user -> notifications.create(
+                        user.getId(), "New announcement", ann.getTitle()));
+        users.findActiveUserIdsExcluding(author.getId()).stream()
+                .map(users::findById)
+                .flatMap(java.util.Optional::stream)
+                .filter(user -> user.getRole() != null && isVisibleToAudience(
+                        request.getAudience(), user.getRole()))
+                .forEach(user -> {
+                    Long userId = user.getId();
                     if (user.getEmail() == null || emailService == null) {
                         return;
                     }
@@ -61,7 +80,23 @@ public class AnnouncementController {
                                 .warn("Announcement email was not delivered for user {}: {}",
                                         userId, ex.getMessage());
                     }
-                }));
+                });
         return ResponseEntity.status(HttpStatus.CREATED).body(ann);
+    }
+
+    private boolean isVisibleTo(String audience, Role role) {
+        if (audience == null) return true;
+        try {
+            return isVisibleToAudience(AnnouncementAudience.valueOf(audience), role);
+        } catch (IllegalArgumentException exception) {
+            return false;
+        }
+    }
+
+    private boolean isVisibleToAudience(AnnouncementAudience audience, Role role) {
+        return role != null && (audience == AnnouncementAudience.ALL
+                || ("ADMIN".equals(audience.name()) && role == Role.ADMIN)
+                || ("TEACHER".equals(audience.name()) && role == Role.TEACHER)
+                || ("STUDENT".equals(audience.name()) && role == Role.STUDENT));
     }
 }

@@ -7,9 +7,7 @@ this in order the first time you open the project.
 
 ## 1. Prerequisites
 
-- **JDK 17 or newer** (the project targets Java 17 bytecode and is verified with Java 21 -
-  `<java.version>17</java.version>` in `pom.xml`). Any 17+ distribution works (Temurin, Corretto, the JetBrains Runtime's
-  bundled JDK, etc.).
+- **JDK 21** (`java.version` is 21 in `pom.xml`). Temurin 21 is the deployment baseline.
 - **A MySQL (or MariaDB) server** running locally, if you want to run the *application*.
   You do **not** need this to run the test suite - see step 5.
 - IntelliJ IDEA Community or Ultimate, either works.
@@ -42,9 +40,9 @@ enabled, and vice versa.
 
 ## 4. Verify the Project SDK
 
-`File → Project Structure → Project` → **SDK** should be a JDK 17+ install. If
+`File → Project Structure → Project` → **SDK** should be a JDK 21 install. If
 IntelliJ picked something else (or nothing), set it here and also check
-`Project Structure → Modules → Language level` is at least 17.
+`Project Structure → Modules → Language level` is 21.
 
 ## 5. Run the test suite first - it doesn't need MySQL
 

@@ -9,7 +9,7 @@ import java.util.List;
 import java.math.BigDecimal;
 import com.sis.entity.GradeStatus;
 import org.springframework.data.jpa.repository.Lock;
-import javax.persistence.LockModeType;
+import jakarta.persistence.LockModeType;
 
 public interface GradeRepository extends JpaRepository<Grade, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)

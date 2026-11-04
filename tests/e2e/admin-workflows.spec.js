@@ -78,6 +78,37 @@ test('admin can create a user account from user management', async ({ page }) =>
   });
 });
 
+test('cancelling announcement audience prompt does not publish to everyone', async ({ page }) => {
+  await loginAdmin(page);
+  await page.route('**/api/**', route => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: '[]',
+  }));
+  await page.evaluate(() => {
+    let promptCount = 0;
+    window.prompt = () => {
+      promptCount += 1;
+      return promptCount === 1 ? 'Restricted update' : promptCount === 2 ? 'Staff notice' : null;
+    };
+    window.getAnnouncementPromptCount = () => promptCount;
+  });
+  let announcementSubmitted = false;
+  await page.route('**/api/announcements', async route => {
+    if (route.request().method() === 'POST') {
+      announcementSubmitted = true;
+      await route.fulfill({ status: 201, contentType: 'application/json', body: '{}' });
+      return;
+    }
+    await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+  });
+
+  await page.getByRole('button', { name: 'Publish Announcement' }).click();
+
+  expect(await page.evaluate(() => window.getAnnouncementPromptCount())).toBe(3);
+  expect(announcementSubmitted).toBe(false);
+});
+
 test('admin can admit a student and refresh the student roster', async ({ page }) => {
   await loginAdmin(page);
   const students = [];

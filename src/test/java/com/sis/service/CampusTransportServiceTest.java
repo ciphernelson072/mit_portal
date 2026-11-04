@@ -49,7 +49,7 @@ class CampusTransportServiceTest {
 
         assertThatThrownBy(() -> transport.renew("transport-active"))
                 .isInstanceOf(ResponseStatusException.class)
-                .extracting(error -> ((ResponseStatusException) error).getStatus())
+                .extracting(error -> ((ResponseStatusException) error).getStatusCode())
                 .isEqualTo(HttpStatus.CONFLICT);
     }
 

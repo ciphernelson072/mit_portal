@@ -2,6 +2,8 @@ package com.sis.controller;
 
 import com.sis.dto.AttendanceApprovalRequest;
 import com.sis.dto.AttendanceDto;
+import com.sis.dto.AttendanceDisputeDto;
+import com.sis.dto.ReviewAttendanceDisputeRequest;
 import com.sis.dto.CourseDto;
 import com.sis.dto.CourseUnitDto;
 import com.sis.dto.GradeDto;
@@ -23,7 +25,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -50,6 +52,20 @@ public class TeacherController {
         return ResponseEntity.ok(attendanceService.approveTeacherRosterAttendance(username, request).stream()
                 .map(schoolService::toAttendanceDto)
                 .collect(Collectors.toList()));
+    }
+
+    @GetMapping("/courses/{courseId}/attendance/disputes")
+    public ResponseEntity<List<AttendanceDisputeDto>> courseAttendanceDisputes(
+            @PathVariable Long courseId) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(attendanceService.listCourseDisputes(username, courseId));
+    }
+
+    @PatchMapping("/attendance/disputes/{disputeId}/review")
+    public ResponseEntity<AttendanceDisputeDto> reviewAttendanceDispute(
+            @PathVariable Long disputeId, @Valid @RequestBody ReviewAttendanceDisputeRequest request) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(attendanceService.reviewDispute(disputeId, request, username));
     }
 
     @GetMapping("/courses/{courseId}/grades")

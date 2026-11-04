@@ -29,7 +29,7 @@ import com.sis.entity.TimetableEntry;
 import com.sis.dto.CreateExamResultRequest;
 import com.sis.dto.CreateTimetableRequest;
 import java.time.LocalDateTime;
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 import com.sis.repository.ExamRepository;
 import com.sis.repository.ExamResultRepository;
 import com.sis.repository.AcademicTermRepository;

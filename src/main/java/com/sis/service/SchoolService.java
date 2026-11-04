@@ -607,6 +607,11 @@ public class SchoolService {
         return messagingService.createAnnouncement(title, content, author);
     }
 
+    public AnnouncementDto createAnnouncement(String title, String content, User author,
+                                              com.sis.entity.AnnouncementAudience audience) {
+        return messagingService.createAnnouncement(title, content, author, audience);
+    }
+
     public List<Map<String, Object>> getPublicAnnouncements() {
         return messagingService.getPublicAnnouncements();
     }

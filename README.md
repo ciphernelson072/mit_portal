@@ -1,4 +1,4 @@
-# Makerere Institute of Technology — Student Information Portal
+# Makerere Institute of Technology Ã¢â‚¬â€ Student Information Portal
 
 **Opening this in IntelliJ IDEA?** See [`docs/IDE_SETUP.md`](docs/IDE_SETUP.md) first - it covers
 the Lombok plugin/annotation-processing setup, which is the most common reason this
@@ -32,7 +32,7 @@ acceptance testing. Store dated release captures under `docs/screenshots/`.
 
 ### Local Java run (no Docker required for the app)
 
-Install JDK 17 or newer and a supported local MySQL 8.0 server, then follow
+Install JDK 25 and a supported local MySQL 8.0 server, then follow
 [`docs/LOCAL_JAVA_AND_PWA_HOSTING.md`](docs/LOCAL_JAVA_AND_PWA_HOSTING.md) to
 create the database, set private environment variables, and run Spring Boot
 directly on Windows. The Maven wrapper is included; a separate Maven install is
@@ -58,7 +58,7 @@ This creates `.env` from `.env.example` when missing, runs a local Docker
 preflight check, uses Docker Compose with MySQL 8.0 for a Flyway-compatible
 schema, and waits for the portal health endpoint before reporting the ready URLs.
 If Docker is not running, the script stops with a clear message explaining that the
-bundled Laragon MySQL 8.4.x is not compatible with this project’s Flyway/Spring
+bundled Laragon MySQL 8.4.x is not compatible with this projectÃ¢â‚¬â„¢s Flyway/Spring
 Boot stack. Stop the stack with:
 
 ```powershell
@@ -107,7 +107,7 @@ local demo deployment.
 
 To enable outbound email, set `MAIL_ENABLED=true` and provide a valid SMTP account
 in `.env` before starting the app. For Gmail, create an app password in Google
-Account → Security → App passwords, then set:
+Account Ã¢â€ â€™ Security Ã¢â€ â€™ App passwords, then set:
 
 ```env
 MAIL_ENABLED=true
@@ -128,7 +128,8 @@ For Render Free, use the Resend HTTPS API instead of SMTP because Render Free
 blocks outbound SMTP ports 25, 465, and 587. Set `MAIL_PROVIDER=resend`,
 `MAIL_API_KEY` to a Resend API key, and `MAIL_FROM_EMAIL` to a verified Resend
 sender. The API sends over HTTPS and does not require SMTP host, port, or
-username settings. Never commit API keys.
+username settings. Local Docker Compose forwards these Resend variables to the
+app; `.env.example` lists the optional settings. Never commit API keys.
 
 The canonical
 frontend is the split static frontend under `src/main/resources/static/`: use
@@ -169,14 +170,14 @@ context; keep deployment secrets in the deployment environment, not in the image
 
 ### First-run admissions setup
 
-An administrator can configure the institution directory from **Admin Dashboard →
+An administrator can configure the institution directory from **Admin Dashboard Ã¢â€ â€™
 Academic Operations**. Add the institution's actual campus, faculty, department,
 and programme records; programmes created there become available to public
 admissions. Do not use invented or sample institutional names in a live system.
 Create the applicable academic year and choose whether it should be active.
 Activating a year deactivates the previously active year, so only one is current
 for admissions. Duplicate directory/year codes are rejected.
-Application decisions are available under **Admin Dashboard → Admissions**.
+Application decisions are available under **Admin Dashboard Ã¢â€ â€™ Admissions**.
 The dashboard's Pending Actions card links to this queue and to pending grade
 approvals; both counts are loaded from their respective review queues. An
 accepted applicant can be enrolled into an active student account with a
@@ -305,7 +306,7 @@ warning and the dashboard correctly remains unhealthy; never create or copy a
 success marker without a matching dump and checksum. For other Compose startup
 methods, run a compatible backup job that writes to the same host backup mount.
 
-Administrators can send individual email campaigns from **Messages → Email all
+Administrators can send individual email campaigns from **Messages Ã¢â€ â€™ Email all
 users**. The recipient picker includes active accounts with a valid account
 email, falling back to a valid student or teacher profile email when needed. It
 supports search and role filtering, and sends a separate message to each
@@ -344,7 +345,7 @@ MFA is disabled by default. To enable it, set `MFA_ENABLED=true` and provide
 `MFA_ENCRYPTION_KEY` as a Base64-encoded 32-byte AES key (for example, generate one
 with `openssl rand -base64 32`). Keep this key private and persistent across
 restarts and backups; losing or changing it makes enrolled authenticator secrets
-undecryptable. Users enroll from Profile → Security. Enabling or disabling MFA
+undecryptable. Users enroll from Profile Ã¢â€ â€™ Security. Enabling or disabling MFA
 invalidates active sessions. Students, teachers, and administrators can opt in
 from the Account Security page linked in their dashboard menus; enrollment is not
 required. After enrollment, sign-ins require the six-digit code from the user's
@@ -368,14 +369,14 @@ This Makerere Institute of Technology Student Information Portal is a Spring Boo
 institutional portal for the Makerere Institute of Technology community, with
 advanced academic, administrative, finance, attendance, and PWA-facing workflows.
 
-- ✅ **Full CRUD Operations** with soft delete for data preservation
-- ✅ **CGPA System** with weighted calculations based on course credits
-- ✅ **Role-specific static frontend** covering administrator, teacher, and student
+- Ã¢Å“â€¦ **Full CRUD Operations** with soft delete for data preservation
+- Ã¢Å“â€¦ **CGPA System** with weighted calculations based on course credits
+- Ã¢Å“â€¦ **Role-specific static frontend** covering administrator, teacher, and student
    workflows with shared authentication and Fetch-API modules
-- ✅ **Role-Based Access Control** with BCrypt security
-- ✅ **DTO-based API** - entities never cross the controller boundary
-- ✅ **Comprehensive Error Handling** with centralized exception management
-- ✅ **Test suite that runs without a real database** - `@SpringBootTest` uses an
+- Ã¢Å“â€¦ **Role-Based Access Control** with BCrypt security
+- Ã¢Å“â€¦ **DTO-based API** - entities never cross the controller boundary
+- Ã¢Å“â€¦ **Comprehensive Error Handling** with centralized exception management
+- Ã¢Å“â€¦ **Test suite that runs without a real database** - `@SpringBootTest` uses an
   in-memory H2 instance, not the production MySQL datasource
 
 ---
@@ -383,8 +384,8 @@ advanced academic, administrative, finance, attendance, and PWA-facing workflows
 ## Architecture Overview
 
 ### Technology Stack
-- **Framework**: Spring Boot 2.7.14
-- **Java Version**: 17 or newer (verified with Java 21)
+- **Framework**: Spring Boot 3.5.16
+- **Java Version**: Java 25
 - **Database**: Laragon MySQL 8.x or compatible MySQL/MariaDB with enhanced schema
 - **Security**: Spring Security + BCrypt + JWT
 - **Frontend**: HTML5, CSS3, Vanilla JavaScript (Fetch API) - split static role pages, no Bootstrap, no frontend build step
@@ -395,33 +396,33 @@ advanced academic, administrative, finance, attendance, and PWA-facing workflows
 #### Entities (with New Fields)
 ```
 User (users table)
-├── id, username, password, role
-├── email, phone, is_active ← NEW
-└── created_at, updated_at
+Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ id, username, password, role
+Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ email, phone, is_active Ã¢â€ Â NEW
+Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬ created_at, updated_at
 
 Student (students table)
-├── id, user_id, full_name, class_name
-├── cgpa, profile_image_path ← NEW
-├── email, phone, enrollment_date, address ← NEW
-└── created_at, updated_at
+Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ id, user_id, full_name, class_name
+Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ cgpa, profile_image_path Ã¢â€ Â NEW
+Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ email, phone, enrollment_date, address Ã¢â€ Â NEW
+Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬ created_at, updated_at
 
 Teacher (teachers table)
-├── id, user_id, full_name
-├── profile_image_path ← NEW
-├── email, phone, qualification ← NEW
-├── years_of_experience, department ← NEW
-└── created_at, updated_at
+Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ id, user_id, full_name
+Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ profile_image_path Ã¢â€ Â NEW
+Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ email, phone, qualification Ã¢â€ Â NEW
+Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ years_of_experience, department Ã¢â€ Â NEW
+Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬ created_at, updated_at
 
 Grade (grades table)
-├── id, student_id, course_id, grade_value
-├── gpa_score ← NEW (BigDecimal for precise calculations)
-├── remarks
-└── created_at, updated_at
+Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ id, student_id, course_id, grade_value
+Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ gpa_score Ã¢â€ Â NEW (BigDecimal for precise calculations)
+Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ remarks
+Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬ created_at, updated_at
 
 Course (courses table)
-├── id, name, course_code, category_id, teacher_id
-├── semester, credits ← NEW
-└── created_at, updated_at
+Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ id, name, course_code, category_id, teacher_id
+Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ semester, credits Ã¢â€ Â NEW
+Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬ created_at, updated_at
 ```
 
 #### Services
@@ -766,7 +767,7 @@ The dashboard tracks:
 - File access (`FileUploadService`) resolves every path against the upload root and
   rejects anything that would escape it (path traversal protection)
 - CORS is centralized in `config/WebConfig.java` with an explicit allowed-origins list
-  (`application.properties` → `cors.allowed-origins`), not a per-controller wildcard
+  (`application.properties` Ã¢â€ â€™ `cors.allowed-origins`), not a per-controller wildcard
 
 ---
 
@@ -1095,10 +1096,10 @@ For frontend documentation:
 
 ## Version Information
 
-- **Spring Boot**: 2.7.14
-- **Java**: 17
-- **MySQL**: 5.7+ / MariaDB 10.3+
-- **Last Updated**: June 2026
+- **Spring Boot**: 3.5.16
+- **Java**: 25
+- **MySQL**: 8.0+
+- **Last Updated**: November 2026
 
 ---
 

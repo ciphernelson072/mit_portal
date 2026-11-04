@@ -14,6 +14,10 @@ Push-Location $projectRoot
 try {
     $runtimeVariables = @(
         'MAIL_ENABLED',
+        'MAIL_PROVIDER',
+        'MAIL_API_KEY',
+        'MAIL_FROM_EMAIL',
+        'MAIL_FROM_NAME',
         'MAIL_HOST',
         'MAIL_PORT',
         'MAIL_USERNAME',
@@ -113,13 +117,20 @@ try {
 
     if ($ValidateMailConfiguration) {
         $mailEnabled = $env:MAIL_ENABLED -eq 'true'
-        $missing = @('MAIL_HOST', 'MAIL_USERNAME', 'MAIL_PASSWORD') |
+        $mailProvider = if ([string]::IsNullOrWhiteSpace($env:MAIL_PROVIDER)) { 'smtp' } else { $env:MAIL_PROVIDER.Trim().ToLowerInvariant() }
+        $requiredMailSettings = switch ($mailProvider) {
+            'smtp' { @('MAIL_HOST', 'MAIL_USERNAME', 'MAIL_PASSWORD'); break }
+            'resend' { @('MAIL_API_KEY', 'MAIL_FROM_EMAIL'); break }
+            default { throw 'MAIL_PROVIDER must be either smtp or resend.' }
+        }
+        $missing = $requiredMailSettings |
             Where-Object { [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($_, 'Process')) }
 
         Write-Output ('MAIL_ENABLED=' + $mailEnabled)
-        Write-Output ('SMTP credentials complete=' + ($missing.Count -eq 0))
+        Write-Output ('MAIL_PROVIDER=' + $mailProvider)
+        Write-Output ('Mail credentials complete=' + ($missing.Count -eq 0))
         if ($mailEnabled -and $missing.Count -gt 0) {
-            throw ('Mail is enabled but required SMTP settings are missing: ' + ($missing -join ', '))
+            throw ('Mail is enabled but required ' + $mailProvider + ' settings are missing: ' + ($missing -join ', '))
         }
         return
     }

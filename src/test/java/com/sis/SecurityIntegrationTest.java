@@ -88,6 +88,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.web.FilterChainProxy;
@@ -976,21 +977,21 @@ class SecurityIntegrationTest {
         CountDownLatch start = new CountDownLatch(1);
         ExecutorService executor = Executors.newFixedThreadPool(2);
         try {
-            Future<HttpStatus> first = executor.submit(() -> refreshAfterStart(refreshCookie, ready, start));
-            Future<HttpStatus> second = executor.submit(() -> refreshAfterStart(refreshCookie, ready, start));
+            Future<HttpStatusCode> first = executor.submit(() -> refreshAfterStart(refreshCookie, ready, start));
+            Future<HttpStatusCode> second = executor.submit(() -> refreshAfterStart(refreshCookie, ready, start));
             assertTrue(ready.await(5, TimeUnit.SECONDS), "Both refresh requests should be ready");
             start.countDown();
 
-            List<HttpStatus> statuses = List.of(first.get(10, TimeUnit.SECONDS), second.get(10, TimeUnit.SECONDS));
-            assertEquals(1, statuses.stream().filter(HttpStatus.OK::equals).count());
-            assertEquals(1, statuses.stream().filter(HttpStatus.UNAUTHORIZED::equals).count());
+            List<HttpStatusCode> statuses = List.of(first.get(10, TimeUnit.SECONDS), second.get(10, TimeUnit.SECONDS));
+            assertEquals(1, statuses.stream().filter(status -> status.value() == HttpStatus.OK.value()).count());
+            assertEquals(1, statuses.stream().filter(status -> status.value() == HttpStatus.UNAUTHORIZED.value()).count());
         } finally {
             start.countDown();
             executor.shutdownNow();
         }
     }
 
-    private HttpStatus refreshAfterStart(String refreshCookie, CountDownLatch ready, CountDownLatch start)
+    private HttpStatusCode refreshAfterStart(String refreshCookie, CountDownLatch ready, CountDownLatch start)
             throws InterruptedException {
         ready.countDown();
         if (!start.await(5, TimeUnit.SECONDS)) {

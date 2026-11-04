@@ -1,7 +1,7 @@
 package com.sis.dto;
 
 import com.sis.entity.Role;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 
 public class AssignPermissionRequest {
     @NotNull private Role role;

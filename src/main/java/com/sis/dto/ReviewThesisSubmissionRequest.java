@@ -1,7 +1,7 @@
 package com.sis.dto;
 
 import com.sis.entity.ThesisSubmissionStatus;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 
 public class ReviewThesisSubmissionRequest {
     @NotNull private ThesisSubmissionStatus status;

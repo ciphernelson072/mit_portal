@@ -1,9 +1,47 @@
 # Render deployment for testing
 
-The repository includes a root-level `render.yaml` Blueprint for a single
-Docker web service. In Render, create a Blueprint from this repository and
-provide the prompted `sync: false` environment variables. Do not deploy the
-production profile until the database and public URLs are configured.
+The root `render.yaml` Blueprint is for a paid Starter service with a persistent
+uploads disk. For public student testing on Render Free, select
+[`render.free.yaml`](../render.free.yaml) as the Blueprint file instead. This
+free service has no persistent disk, may sleep when idle, and must use a
+separate, empty MySQL-compatible test database/schema with its own least-privilege
+account. Never point it at the shared/live TiDB database or load real student
+records. The free Blueprint keeps sample accounts and first-admin bootstrap
+disabled; create only the test accounts you need after deployment.
+Because the database starts empty, provision one named test administrator for
+the initial deployment by temporarily setting `INITIAL_ADMIN_BOOTSTRAP_ENABLED`
+to `true` and providing unique `INITIAL_ADMIN_USERNAME`,
+`INITIAL_ADMIN_EMAIL`, and `INITIAL_ADMIN_PASSWORD` values in Render's private
+environment settings. The password must be at least 12 characters. After the
+first healthy startup, set the bootstrap flag to `false` and remove the three
+bootstrap values. Use that administrator account to create the student test
+accounts yourself; do not turn on `SAMPLE_DATA_ENABLED`.
+
+The free Blueprint turns on Resend using private, prompted environment values.
+Enter the Resend API key and verified sender in Render's secret environment
+fields; never commit them. Configure the exact service HTTPS origin in both
+`FRONTEND_URL` and `CORS_ALLOWED_ORIGINS`. The Blueprint requests automatic
+deployment after connected GitHub checks pass. Connect the intended branch to
+GitHub Actions CI before enabling student access.
+
+The CI workflow runs backend, MySQL migration, frontend, and browser tests and
+builds the same Docker image used by Render. For local release verification,
+run `.\scripts\render-release.ps1` from PowerShell with Node.js and Docker
+Desktop available. The Docker build supplies Java 25 and runs Maven verification,
+so a local Java installation is not needed. To trigger a deployment after pushing a clean,
+verified commit, set `RENDER_DEPLOY_HOOK_URL` and `RENDER_SERVICE_URL` in the
+PowerShell environment and add `-Deploy`; the script waits for the service
+health endpoint. The script does not create external databases or generate
+Render/Resend credentials.
+The CI workflow runs backend, MySQL migration, frontend, and browser tests and
+builds the same Docker image used by Render. For local release verification,
+run `.\scripts\render-release.ps1` from PowerShell with Node.js and Docker
+Desktop available. The Docker build supplies Java 25 and runs Maven verification,
+so a local Java installation is not needed. To trigger a deployment after pushing a clean,
+verified commit, set `RENDER_DEPLOY_HOOK_URL` and `RENDER_SERVICE_URL` in the
+PowerShell environment and add `-Deploy`; the script waits for the service
+health endpoint. The script does not create external databases or generate
+Render/Resend credentials.
 The local Git repository is configured with `origin` pointing to
 `ciphernelson072/mit_portal`, but the prepared branch has not been pushed because
 GitHub authentication is required. That existing repository is public. Publish
@@ -18,10 +56,10 @@ and generated secrets in Render's secret environment fields. The example uses
 the Blueprint's persistent upload disk at `/var/data/uploads`. Do not change
 this to an ephemeral path if uploaded files must survive restarts or deploys.
 
-Email stays disabled until an approved provider is configured. For Render Free,
-the application supports Resend over HTTPS: configure `MAIL_PROVIDER=resend`,
-`MAIL_API_KEY`, and `MAIL_FROM_EMAIL` as Render environment values, and verify
-the sender domain first. The application uses Resend for verification, password
+The Blueprint uses Resend over HTTPS for email. Set the prompted `MAIL_API_KEY`
+and `MAIL_FROM_EMAIL` values to a Resend API key and verified sender address
+before deployment; do not put the API key in the repository. The application
+uses Resend for verification, password
 reset, notification, and admin test emails when configured; it sends plain-text
 message bodies. The SMTP-specific Actuator mail health check is disabled for
 this API mode, while the admin system status reports provider configuration and
@@ -108,8 +146,10 @@ addresses. Other local bind addresses keep forwarded headers untrusted unless
 
 ## Email and backup status
 
-Email is disabled in the Blueprint until a provider is configured. For SMTP,
-set `MAIL_PROVIDER=smtp`, `MAIL_ENABLED=true`, `MAIL_HOST`, `MAIL_USERNAME`, and
+The Blueprint enables email through Resend. Set `MAIL_API_KEY` and
+`MAIL_FROM_EMAIL` to valid Resend values and verify the sender domain before
+expecting email delivery. For SMTP instead, set `MAIL_PROVIDER=smtp`,
+`MAIL_ENABLED=true`, `MAIL_HOST`, `MAIL_USERNAME`, and
 `MAIL_PASSWORD`; keep STARTTLS enabled and use a port allowed by your Render
 plan. Render Free blocks outbound SMTP ports 25, 465, and 587. For Render Free,
 the application also supports Resend over HTTPS: set `MAIL_PROVIDER=resend`,
@@ -134,7 +174,8 @@ Before using the deployment with real data:
 3. Confirm the system-status API reports database connectivity and perform an
    administrator login, student login, role-boundary checks, and one upload and
    download using test accounts/data.
-4. Configure SMTP and test a real message if outbound email is in scope.
+4. Configure the Resend API key and verified sender, then send an administrator
+   test email if email delivery is in scope.
 5. Establish database and upload backup/restore procedures before importing
    real student, finance, or identity data.
 

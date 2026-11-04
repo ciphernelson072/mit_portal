@@ -1,6 +1,6 @@
 package com.sis.dto;
 
-import javax.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotBlank;
 
 public class CreateSupplierRequest {
     @NotBlank private String supplierCode;

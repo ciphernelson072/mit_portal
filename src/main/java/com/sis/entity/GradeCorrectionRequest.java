@@ -1,6 +1,6 @@
 package com.sis.entity;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
@@ -24,7 +24,7 @@ public class GradeCorrectionRequest {
     private String reason;
 
     @Lob
-    @Column(name = "previous_snapshot", nullable = false)
+    @Column(name = "previous_snapshot", nullable = false, columnDefinition = "LONGTEXT")
     private String previousSnapshot;
 
     @Enumerated(EnumType.STRING)

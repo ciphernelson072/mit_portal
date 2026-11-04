@@ -7,8 +7,9 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import javax.persistence.LockModeType;
+import jakarta.persistence.LockModeType;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 public interface GradeCorrectionRequestRepository extends JpaRepository<GradeCorrectionRequest, Long> {
@@ -18,6 +19,12 @@ public interface GradeCorrectionRequestRepository extends JpaRepository<GradeCor
 
     Optional<GradeCorrectionRequest> findTopByGradeIdAndStatusInOrderByIdDesc(
             Long gradeId, Collection<GradeCorrectionStatus> statuses);
+
+    List<GradeCorrectionRequest> findByGradeCourseIdInAndStatusIn(
+            Collection<Long> courseIds, Collection<GradeCorrectionStatus> statuses);
+
+    List<GradeCorrectionRequest> findByGradeStudentUserUsernameAndStatusIn(
+            String username, Collection<GradeCorrectionStatus> statuses);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT request FROM GradeCorrectionRequest request WHERE request.id = :id")

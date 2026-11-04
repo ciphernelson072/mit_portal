@@ -3,6 +3,7 @@ package com.sis.service;
 import com.sis.dto.AnnouncementDto;
 import com.sis.dto.MessageDto;
 import com.sis.entity.Announcement;
+import com.sis.entity.AnnouncementAudience;
 import com.sis.entity.Message;
 import com.sis.entity.User;
 import com.sis.repository.AnnouncementRepository;
@@ -38,17 +39,30 @@ public class MessagingService {
                         ann.getTitle(),
                         ann.getContent(),
                         ann.getCreatedAt(),
-                        authorUsername(ann)))
+                        authorUsername(ann), ann.getAudience() == null
+                                ? AnnouncementAudience.ALL.name()
+                                : ann.getAudience().name()))
                 .collect(Collectors.toList());
     }
 
     public AnnouncementDto createAnnouncement(String title, String content, User author) {
         Announcement saved = announcementRepository.save(new Announcement(title, content, author));
-        return new AnnouncementDto(saved.getId(), saved.getTitle(), saved.getContent(), saved.getCreatedAt(), saved.getAuthor().getUsername());
+        return new AnnouncementDto(saved.getId(), saved.getTitle(), saved.getContent(),
+                saved.getCreatedAt(), saved.getAuthor().getUsername(), saved.getAudience().name());
+    }
+
+    public AnnouncementDto createAnnouncement(String title, String content, User author,
+                                              AnnouncementAudience audience) {
+        Announcement announcement = new Announcement(title, content, author);
+        announcement.setAudience(audience);
+        Announcement saved = announcementRepository.save(announcement);
+        return new AnnouncementDto(saved.getId(), saved.getTitle(), saved.getContent(), saved.getCreatedAt(),
+                saved.getAuthor().getUsername(), saved.getAudience().name());
     }
 
     public List<Map<String, Object>> getPublicAnnouncements() {
         return announcementRepository.findAllByOrderByCreatedAtDesc().stream()
+                .filter(ann -> ann.getAudience() == null || ann.getAudience() == AnnouncementAudience.ALL)
                 .map(ann -> {
                     Map<String, Object> map = new HashMap<>();
                     map.put("title", ann.getTitle());

@@ -1,6 +1,6 @@
 package com.sis.entity;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 
 @Entity
 @Table(name = "suppliers", uniqueConstraints = @UniqueConstraint(name = "uk_supplier_code", columnNames = "supplier_code"))

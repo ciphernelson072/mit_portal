@@ -9,8 +9,9 @@ frontend.
 
 - Windows 10/11 host with a reliable internet connection and power for any
   period students need to access the site.
-- JDK 17 or newer. The project targets Java 17 and can run on a newer supported
-  JDK.
+- JDK 25. The Maven compiler targets Java 25; older JDKs cannot compile or run
+  the current application and tests. The Docker image builds with JDK 25, so a
+  host JDK is not needed when running the containerized app.
 - MySQL 8.0, running locally. The project and Docker stack are configured for
   MySQL 8.0. The bundled Laragon MySQL 8.4.x may not work with the current
   Flyway/Spring Boot combination; use a compatible MySQL 8.0 instance rather

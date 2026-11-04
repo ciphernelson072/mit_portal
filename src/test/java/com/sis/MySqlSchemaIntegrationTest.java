@@ -11,6 +11,9 @@ import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import java.util.Arrays;
+import java.util.Comparator;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -51,6 +54,11 @@ class MySqlSchemaIntegrationTest {
     void flywayMigrationsBuildSchemaAcceptedByHibernate() {
         assumeTrue(MYSQL.isRunning(), "Docker/Testcontainers MySQL is unavailable in this environment");
         assertTrue(MYSQL.isRunning());
-        assertEquals("44", flyway.info().current().getVersion().getVersion());
+        var latestMigrationVersion = Arrays.stream(flyway.info().all())
+                .map(migration -> migration.getVersion())
+                .filter(version -> version != null)
+                .max(Comparator.naturalOrder())
+                .orElseThrow(() -> new AssertionError("No versioned Flyway migrations were discovered"));
+        assertEquals(latestMigrationVersion, flyway.info().current().getVersion());
     }
 }

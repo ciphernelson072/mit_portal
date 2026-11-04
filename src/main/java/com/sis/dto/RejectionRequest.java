@@ -1,6 +1,6 @@
 package com.sis.dto;
 
-import javax.validation.constraints.Size;
+import jakarta.validation.constraints.Size;
 
 public class RejectionRequest {
     @Size(max = 1000)

@@ -14,7 +14,11 @@ if (-not $javaCommand) {
 }
 
 if (-not $javaCommand) {
-    throw 'Java 17 or newer is required to run the isolated browser tests.'
+    throw 'JDK 25 is required to build and run the isolated browser tests.'
+}
+$javaVersionOutput = & $javaCommand.Source -version 2>&1 | Out-String
+if ($LASTEXITCODE -ne 0 -or $javaVersionOutput -notmatch 'version "25(?:\.|")') {
+    throw "JDK 25 is required to build and run the isolated browser tests. Detected: $($javaVersionOutput.Trim())"
 }
 
 $existingListener = Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction SilentlyContinue

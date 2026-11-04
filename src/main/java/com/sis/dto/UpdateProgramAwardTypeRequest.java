@@ -2,7 +2,7 @@ package com.sis.dto;
 
 import com.sis.entity.ProgramAwardType;
 
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 
 public class UpdateProgramAwardTypeRequest {
     @NotNull

@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.util.Optional;
-import javax.persistence.LockModeType;
+import jakarta.persistence.LockModeType;
 
 public interface HostelRoomRepository extends JpaRepository<HostelRoom, Long> {
     List<HostelRoom> findByActiveTrueOrderByBuildingAscRoomCodeAsc();

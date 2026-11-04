@@ -178,7 +178,7 @@ async function loadPublicPrograms() {
     status.textContent = '';
   } catch (error) {
     status.classList.add('notice-error');
-    status.textContent = `${error.message} Try again later or call admissions support.`;
+    status.textContent = `${error instanceof TypeError ? 'Programme information is temporarily unavailable.' : error.message} Try again later or call admissions support.`;
   }
 }
 
@@ -195,7 +195,7 @@ async function loadAcademicYear() {
       ? `The current application year is ${year.name}.`
       : 'The institute has not published an active application year. Contact admissions for current information.';
   } catch (error) {
-    target.textContent = `${error.message} Please contact admissions support for current information.`;
+    target.textContent = `${error instanceof TypeError ? 'Current admissions information is temporarily unavailable.' : error.message} Please contact admissions support for current information.`;
   }
 }
 

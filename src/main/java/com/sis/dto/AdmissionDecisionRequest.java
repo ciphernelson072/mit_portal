@@ -1,7 +1,7 @@
 package com.sis.dto;
 
 import com.sis.entity.AdmissionApplicationStatus;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 
 public class AdmissionDecisionRequest {
     @NotNull private AdmissionApplicationStatus status;

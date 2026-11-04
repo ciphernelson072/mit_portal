@@ -150,13 +150,14 @@ function renderChatHistory(messages) {
 
 async function loadAcademicsData() {
   try {
-    const [courses, grades, profile, assignments, exams, studentStatus] = await Promise.all([
+    const [courses, grades, profile, assignments, exams, studentStatus, corrections] = await Promise.all([
       apiGet('/student/courses'),
       apiGet('/student/grades'),
       apiGet('/student/profile'),
       apiGet('/portal/student/assignments'),
       apiGet('/portal/student/exams'),
       apiGet('/student/my-status'),
+      apiGet('/student/corrections'),
     ]);
     const timetable = await apiGet('/academic/student/timetable');
     const examResults = await apiGet('/academic/student/exam-results');
@@ -171,6 +172,7 @@ async function loadAcademicsData() {
       : 'Current Courses';
     renderCourseCards(courses, grades);
     renderGradesTable(grades, profile, resultStatus, studentStatus);
+    renderStudentCorrections(corrections);
     window._assignments = assignments;
     window._exams = exams;
     renderAssignments(assignments);
@@ -180,6 +182,19 @@ async function loadAcademicsData() {
     renderAnalytics(grades, await apiGet('/student/attendance'), profile);
   } catch (err) {
     console.error('Failed to load academics data', err);
+  }
+
+  function renderStudentCorrections(corrections) {
+    const container = document.getElementById('studentCorrectionList');
+    if (!container) return;
+    if (!Array.isArray(corrections) || !corrections.length) {
+      container.innerHTML = '<p>No grade corrections are currently recorded.</p>';
+      return;
+    }
+    container.innerHTML = `
+      <table class="table"><thead><tr><th>Grade</th><th>Status</th><th>Reason</th><th>Authorized</th></tr></thead>
+        <tbody>${corrections.map(item => `<tr><td>#${escapeHtml(item.gradeId)}</td><td>${escapeHtml(item.status)}</td><td>${escapeHtml(item.reason)}</td><td>${escapeHtml(item.authorizedAt || '—')}</td></tr>`).join('')}</tbody>
+      </table>`;
   }
 }
 
@@ -555,6 +570,7 @@ async function loadAttendanceData() {
     renderAttendanceOverview(records);
     renderAttendanceRecords(records);
     renderAttendanceTrend(records);
+    await loadStudentAttendanceDisputes();
     if (status) status.textContent = records.length
       ? 'Attendance records loaded.'
       : 'No attendance records are available yet.';
@@ -676,9 +692,41 @@ function renderAttendanceRecords(records) {
       <td>${escapeHtml(r.courseName)}</td>
       <td>${escapeHtml(time)}</td>
       <td><span class="status-badge ${r.present || r.late ? 'present-status' : 'absent-status'}">${status}</span></td>
-      <td>${escapeHtml(r.remarks || '—')}</td>
+      <td>${escapeHtml(r.remarks || '—')}<br><button class="btn-secondary" type="button" onclick="submitAttendanceDispute(${Number(r.id)})">Dispute</button></td>
     </tr>`;
   }).join('');
+}
+
+async function submitAttendanceDispute(attendanceId) {
+  const reason = prompt('Explain why this attendance record is incorrect:');
+  if (!reason) return;
+  const requestedPresent = confirm('Request that the record be changed to PRESENT? Choose Cancel for ABSENT/LATE correction.');
+  try {
+    await apiFetch('/attendance/disputes', {
+      method: 'POST',
+      body: JSON.stringify({ attendanceId, reason, requestedPresent }),
+    });
+    alert('Attendance dispute submitted.');
+    await loadStudentAttendanceDisputes();
+  } catch (err) {
+    alert(err.message || 'Attendance dispute could not be submitted.');
+  }
+}
+
+async function loadStudentAttendanceDisputes() {
+    const container = document.getElementById('attendanceDisputeStatus');
+    if (!container) return;
+    try {
+      const disputes = await apiGet('/attendance/disputes');
+      container.innerHTML = disputes.length ? disputes.map(dispute => `
+        <article>
+          <strong>${escapeHtml(dispute.courseName)} - ${escapeHtml(dispute.attendanceDate)}</strong>
+          <span>Status: ${escapeHtml(dispute.status)}</span>
+          ${dispute.resolution ? `<p>${escapeHtml(dispute.resolution)}</p>` : ''}
+        </article>`).join('') : '<p>No attendance disputes submitted.</p>';
+    } catch (err) {
+      container.textContent = 'Attendance disputes could not be loaded.';
+  }
 }
 
 async function loadFinanceData() {

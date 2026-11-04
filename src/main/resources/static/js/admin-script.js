@@ -123,6 +123,38 @@ async function loadAdminAttendance() {
   } catch (err) {
     tbody.innerHTML = `<tr><td colspan="6">${escapeHtml(err.message || 'Unable to load attendance records.')}</td></tr>`;
   }
+  await loadAdminAttendanceDisputes();
+}
+
+async function loadAdminAttendanceDisputes() {
+  const container = document.getElementById('adminAttendanceDisputeList');
+  if (!container) return;
+  container.textContent = 'Loading attendance disputes…';
+  try {
+    const disputes = await apiGet('/attendance/disputes/admin');
+    container.innerHTML = disputes.length ? disputes.map(dispute => `
+      <article>
+        <strong>${escapeHtml(dispute.studentName)} - ${escapeHtml(dispute.courseName)}</strong>
+        <p>${escapeHtml(dispute.attendanceDate)}: ${dispute.requestedPresent ? 'Request present' : 'Request absent'} - ${escapeHtml(dispute.status)}</p>
+        <p>${escapeHtml(dispute.reason)}</p>
+        ${['OPEN', 'ESCALATED'].includes(dispute.status) ? `
+          <button class="btn-secondary" type="button" onclick="reviewAdminAttendanceDispute(${Number(dispute.id)}, 'APPROVED')">Approve</button>
+          <button class="btn-secondary" type="button" onclick="reviewAdminAttendanceDispute(${Number(dispute.id)}, 'REJECTED')">Reject</button>
+        ` : ''}
+      </article>`).join('') : '<p>No attendance disputes found.</p>';
+  } catch (err) {
+    container.textContent = err.message || 'Attendance disputes could not be loaded.';
+  }
+}
+
+async function reviewAdminAttendanceDispute(disputeId, status) {
+  const resolution = prompt('Resolution note:');
+  if (!resolution) return;
+  await apiFetch(`/attendance/disputes/${disputeId}/review`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status, resolution }),
+  });
+  await loadAdminAttendanceDisputes();
 }
 
 function setupAdminFilters() {
@@ -700,8 +732,18 @@ async function publishAnnouncement() {
   if (!title) return;
   const content = prompt('Announcement content:');
   if (!content) return;
+  const audience = prompt('Audience (ALL, ADMIN, TEACHER, or STUDENT):', 'ALL');
+  if (audience === null) return;
+  const normalizedAudience = audience.trim().toUpperCase();
+  if (!['ALL', 'ADMIN', 'TEACHER', 'STUDENT'].includes(normalizedAudience)) {
+    alert('Audience must be ALL, ADMIN, TEACHER, or STUDENT.');
+    return;
+  }
   try {
-    await apiFetch('/announcements', { method: 'POST', body: JSON.stringify({ title, content }) });
+    await apiFetch('/announcements', {
+      method: 'POST',
+      body: JSON.stringify({ title, content, audience: normalizedAudience }),
+    });
     alert('Announcement published.');
   } catch (err) { alert(err.message || 'Announcement could not be published.'); }
 }

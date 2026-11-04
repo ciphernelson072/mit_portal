@@ -7,6 +7,7 @@ import com.sis.entity.*;
 import com.sis.repository.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -26,6 +27,8 @@ public class AcademicResultCorrectionService {
     private final UserRepository users;
     private final AuditLogRepository auditLogs;
     private final ObjectMapper objectMapper;
+    @Autowired(required = false)
+    private NotificationService notifications;
 
     public AcademicResultCorrectionService(GradeRepository grades,
                                            GradeCorrectionRequestRepository corrections,
@@ -60,7 +63,39 @@ public class AcademicResultCorrectionService {
         GradeCorrectionRequest saved = corrections.save(correction);
         audit(authorizedBy, "GRADE_CORRECTION_AUTHORIZED",
                 "Correction #" + saved.getId() + " authorized for grade #" + gradeId);
+        notifySubmittingTeacher(saved);
         return toDto(saved);
+    }
+
+    public List<GradeCorrectionDto> listForCourses(List<Long> courseIds, Collection<GradeCorrectionStatus> statuses) {
+        if (courseIds == null || courseIds.isEmpty()) {
+            return List.of();
+        }
+        return corrections.findByGradeCourseIdInAndStatusIn(courseIds, statuses).stream()
+                .sorted(Comparator.comparing(GradeCorrectionRequest::getId).reversed())
+                .map(this::toDto)
+                .toList();
+    }
+
+    public List<GradeCorrectionDto> listForStudent(String username, Collection<GradeCorrectionStatus> statuses) {
+        return corrections.findByGradeStudentUserUsernameAndStatusIn(username, statuses).stream()
+                .sorted(Comparator.comparing(GradeCorrectionRequest::getId).reversed())
+                .map(this::toDto)
+                .toList();
+    }
+
+    private void notifySubmittingTeacher(GradeCorrectionRequest correction) {
+        if (notifications == null || correction.getGrade().getSubmittedBy() == null) {
+            return;
+        }
+        users.findByUsernameNormalized(correction.getGrade().getSubmittedBy()).ifPresent(user -> {
+            if (user.getId() != null) {
+                notifications.create(user.getId(), "Grade correction authorized",
+                        "A correction has been authorized for grade #" + correction.getGrade().getId()
+                                + ". Reason: " + correction.getReason(),
+                        NotificationCategory.GRADE);
+            }
+        });
     }
 
     public Grade beginAuthorizedCorrection(Long gradeId, String actor) {

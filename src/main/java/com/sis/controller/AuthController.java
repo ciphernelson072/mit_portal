@@ -35,12 +35,12 @@ import org.springframework.web.bind.annotation.*;
 import com.sis.dto.SessionDto;
 import com.sis.entity.RefreshToken;
 import com.sis.repository.RefreshTokenRepository;
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 
 import java.util.List;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;

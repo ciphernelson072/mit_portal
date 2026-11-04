@@ -1,6 +1,6 @@
 # Remaining Work and Render Deployment Runbook
 
-Last reviewed: 27 October 2026
+Last reviewed: 1 November 2026
 
 This document consolidates the remaining release work and the steps for a
 controlled Render test deployment. It is not evidence that Render, an external
@@ -8,10 +8,44 @@ database, email, or production operations have been provisioned. Use it with
 the [Render deployment details](./RENDER_DEPLOYMENT.md), the
 [release checklist](./RELEASE_CHECKLIST.md), and the
 [integration inventory](./INTEGRATION_GAPS.md).
+The role-by-role cross-workflow findings are recorded in
+[ROLE_WORKFLOW_GAPS.md](./ROLE_WORKFLOW_GAPS.md).
+
+## Current status update (3 November 2026)
+
+The Maven compiler, Docker build/runtime images, and GitHub Actions target Java
+25. The current local environment has Java 21 only, so the Maven test run fails
+when Java 21 tries to load Java 25 test classes; it must be rerun with JDK 25.
+Standard npm automation exposes `npm run build` and `npm test`. On 3 November
+2026, syntax validation passed for 30 static JavaScript files and all 10
+frontend unit tests passed.
+
+The npm and Docker tool checks also exposed environment restrictions in this
+workspace: PowerShell script execution initially blocked npm until commands
+were run through `cmd.exe`, and Docker reported that its daemon/configuration
+was inaccessible. These checks require a restored Maven cache/network and an
+accessible Docker daemon before deployment evidence can be completed.
+
+The last recorded commit is
+`9889867` (`Harden admission email response assertions`) from 31 October 2026.
+The current worktree contains numerous modified files and untracked source,
+tests, and migrations. It is not a clean release snapshot; review and include
+the intended changes before publishing or deploying, and do not assume
+untracked files are present in a built artifact.
+
+The previously recorded 384-test Maven result remains valid only for the
+verified 31 October source state. On 3 November, `mvnw.cmd -q test` ran but
+failed because the available Java 21 runtime cannot load Java 25 test classes.
+The current source therefore still needs a complete Maven test run under JDK
+25. The browser review was also blocked: the browser runner has no installed
+Chromium executable, and the integrated browser policy blocks localhost access.
+No new Render deployment, external database provisioning, provider sandbox,
+email delivery, payment, backup, restore, or campus-user acceptance evidence
+was established on 3 November 2026.
 
 ## Source and documentation update (31 October 2026)
 
-This source tree contains Flyway migrations V1-V45. The corrected V37-V42
+This source tree contains Flyway migrations V1-V49. The corrected V37-V42
 sequence has now been applied successfully to the TiDB pilot after a verified
 database backup. A separate disposable MySQL 8.0 database applied V1-V43, and
 the application passed Hibernate schema validation. The 31 October full Maven suite passed 384 tests with zero failures, errors,
@@ -118,9 +152,11 @@ The source includes V43 for administrator-authorized correction records and
 prior-result snapshots, V44 for the five-point policy, and V45 for assessment
 review acknowledgment. V1-V43 were applied successfully to a
 disposable MySQL 8.0 database, followed by Hibernate schema validation. On 31
-October 2026 the complete V1-V45 sequence was also applied successfully to a
+October 2026 the complete V1-V45 sequence was applied successfully to a
 fresh disposable MySQL 8.0 container, with all migration records successful and
-Hibernate schema validation passing. On 31 October 2026, a fresh verified
+Hibernate schema validation passing. Migrations V46-V49 were added after that
+validation and still require fresh-database execution verification. On 31
+October 2026, a fresh verified
 TiDB backup was completed and migrations V43-V45 were applied and verified
 on the pilot. Live correction-to-republication acceptance and institutional
 policy sign-off remain separate gates.
@@ -329,7 +365,7 @@ demo is **not** an acceptable substitute for a campus-user pilot over HTTPS.
    securely and rotate it according to institutional policy.
 
 The initial deployment applies all bundled Flyway migrations (currently
-V1-V45) to an empty database. Validate the complete migration set against the
+V1-V49) to an empty database. Validate the complete migration set against the
 selected database engine before deployment. Do not enable bootstrap against a
 populated database or treat it as an account recovery mechanism.
 

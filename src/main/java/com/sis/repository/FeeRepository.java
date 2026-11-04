@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.util.Optional;
-import javax.persistence.LockModeType;
+import jakarta.persistence.LockModeType;
 
 public interface FeeRepository extends JpaRepository<Fee, Long> {
     @EntityGraph(attributePaths = {"student", "student.user"})

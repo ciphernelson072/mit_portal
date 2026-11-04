@@ -7,7 +7,7 @@ import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.time.LocalDate;
@@ -81,7 +81,18 @@ public class JwtService {
     }
 
     public Integer getCredentialVersion(String token) {
-        return parseClaims(token).get("credentialVersion", Integer.class);
+        Object value = parseClaims(token).get("credentialVersion");
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        if (value instanceof String text) {
+            try {
+                return Integer.parseInt(text);
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
     }
 
     private Claims parseClaims(String token) {

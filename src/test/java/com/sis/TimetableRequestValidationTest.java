@@ -3,8 +3,8 @@ package com.sis;
 import com.sis.dto.CreateTimetableRequest;
 import org.junit.jupiter.api.Test;
 
-import javax.validation.Validation;
-import javax.validation.ValidatorFactory;
+import jakarta.validation.Validation;
+import jakarta.validation.ValidatorFactory;
 import java.time.LocalTime;
 
 import static org.assertj.core.api.Assertions.assertThat;

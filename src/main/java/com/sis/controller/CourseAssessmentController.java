@@ -14,9 +14,10 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
+import java.util.Arrays;
 
 @RestController
 @RequestMapping("/api")
@@ -40,6 +41,37 @@ public class CourseAssessmentController {
         String admin = SecurityContextHolder.getContext().getAuthentication().getName();
         return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED)
                 .body(corrections.authorize(gradeId, request.getReason(), admin));
+    }
+
+    @GetMapping("/teacher/corrections")
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
+    public ResponseEntity<List<GradeCorrectionDto>> teacherCorrections() {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        boolean administrator = SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
+                .anyMatch(authority -> "ADMIN".equals(authority.getAuthority()));
+        if (administrator) {
+            List<Long> courseIds = school.listCourses().stream()
+                    .map(Course::getId)
+                    .filter(java.util.Objects::nonNull)
+                    .toList();
+            return ResponseEntity.ok(corrections.listForCourses(courseIds,
+                    Arrays.asList(com.sis.entity.GradeCorrectionStatus.values())));
+        }
+        var teacher = school.getTeacherByUsername(username)
+                .orElseThrow(() -> new org.springframework.security.access.AccessDeniedException("Teacher profile not found."));
+        List<Long> courseIds = school.getCoursesForTeacher(teacher.getId()).stream()
+                .map(com.sis.dto.CourseDto::getId)
+                .toList();
+        return ResponseEntity.ok(corrections.listForCourses(courseIds,
+                Arrays.asList(com.sis.entity.GradeCorrectionStatus.values())));
+    }
+
+    @GetMapping("/student/corrections")
+    @PreAuthorize("hasAuthority('STUDENT')")
+    public ResponseEntity<List<GradeCorrectionDto>> studentCorrections() {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(corrections.listForStudent(username,
+                Arrays.asList(com.sis.entity.GradeCorrectionStatus.values())));
     }
 
     @PostMapping("/admin/grades/{gradeId}/retakes")

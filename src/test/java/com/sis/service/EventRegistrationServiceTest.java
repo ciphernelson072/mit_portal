@@ -50,7 +50,7 @@ class EventRegistrationServiceTest {
 
         ResponseStatusException error = assertThrows(ResponseStatusException.class, () -> service.register(4L, 9L));
 
-        assertEquals(HttpStatus.CONFLICT, error.getStatus());
+        assertEquals(HttpStatus.CONFLICT, HttpStatus.valueOf(error.getStatusCode().value()));
         verify(registrations, never()).save(any(EventRegistration.class));
     }
 

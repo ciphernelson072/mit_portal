@@ -89,7 +89,7 @@ public class InitialAdminBootstrap implements ApplicationRunner {
         int passwordLength = password == null ? 0 : password.getBytes(StandardCharsets.UTF_8).length;
         if (passwordLength < 12 || passwordLength > 72) {
             throw new IllegalStateException(
-                    "INITIAL_ADMIN_PASSWORD must contain between 12 and 72 UTF-8 bytes.");
+                    "Initial administrator password must contain between 12 and 72 UTF-8 bytes.");
         }
         if (normalizedUsername.equalsIgnoreCase(password)) {
             throw new IllegalStateException("The initial administrator username and password must differ.");

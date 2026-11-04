@@ -15,7 +15,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '25'
           cache: maven
 
       - name: Run backend tests
@@ -39,7 +39,7 @@ jobs:
       - name: Parse frontend JavaScript
         shell: bash
         run: |
-          find src/main/resources/static/js -name '*.js' -print0 | xargs -0 -n1 node --check
+          npm run build
 
       - name: Build isolated E2E server
         run: ./mvnw -q -DskipTests package
@@ -90,3 +90,6 @@ jobs:
           fi
 
           npm run test:e2e -- --workers=1
+
+      - name: Build Render deployment image
+        run: docker build --tag mit-student-portal:${{ github.sha }} .

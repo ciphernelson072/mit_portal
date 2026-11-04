@@ -25,7 +25,30 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadTeacherNotifications();
   await loadTeacherRequests();
   await loadTeacherLeaveRequests();
+  await loadTeacherCorrections();
 });
+
+async function loadTeacherCorrections() {
+  const list = document.getElementById('teacherCorrectionList');
+  if (!list) return;
+  try {
+    const corrections = await apiGet('/teacher/corrections');
+    list.innerHTML = corrections.length ? `
+      <table class="roster-table">
+        <thead><tr><th>Correction</th><th>Grade</th><th>Status</th><th>Reason</th><th>Authorized</th></tr></thead>
+        <tbody>${corrections.map(item => `
+          <tr>
+            <td>#${Number(item.id)}</td>
+            <td>#${Number(item.gradeId)}</td>
+            <td>${escapeHtml(item.status)}</td>
+            <td>${escapeHtml(item.reason)}</td>
+            <td>${escapeHtml(item.authorizedAt || '—')}</td>
+          </tr>`).join('')}</tbody>
+      </table>` : '<p>No authorized grade corrections are pending.</p>';
+  } catch (err) {
+    list.innerHTML = `<p role="alert">${escapeHtml(err.message || 'Unable to load corrections.')}</p>`;
+  }
+}
 
 async function loadTeacherDashboard() {
   const fields = [
@@ -520,6 +543,7 @@ async function loadAttendanceRoster() {
   }
   setStatus('attendanceStatus', 'Loading attendance roster...', 'info');
   try {
+    await loadAttendanceDisputes(courseId);
     const [students, records] = await Promise.all([
       apiGet(`/teacher/courses/${courseId}/students`),
       apiGet(`/teacher/courses/${courseId}/attendance?date=${encodeURIComponent(date)}`),
@@ -533,6 +557,44 @@ async function loadAttendanceRoster() {
     table.hidden = !students.length;
     setStatus('attendanceStatus', `${students.length} enrolled student${students.length === 1 ? '' : 's'} ready for approval.`, 'success');
   } catch (err) { setStatus('attendanceStatus', err.message, 'error'); }
+}
+
+async function loadAttendanceDisputes(courseId) {
+  const list = document.getElementById('attendanceDisputeList');
+  if (!courseId || !list) return;
+  list.innerHTML = '<p>Loading disputes…</p>';
+  try {
+    const disputes = await apiGet(`/teacher/courses/${courseId}/attendance/disputes`);
+    list.innerHTML = disputes.length ? disputes.map(dispute => `
+      <article class="teacher-card compact">
+        <strong>${escapeHtml(dispute.studentName)}</strong>
+        <span>${escapeHtml(dispute.attendanceDate)} - ${dispute.requestedPresent ? 'Request present' : 'Request absent'}</span>
+        <p>${escapeHtml(dispute.reason)}</p>
+        <small>Status: ${escapeHtml(dispute.status)}</small>
+        ${['OPEN', 'ESCALATED'].includes(dispute.status) ? `
+          <button class="btn-secondary" type="button" onclick="reviewAttendanceDispute(${Number(dispute.id)}, 'APPROVED', ${Number(courseId)})">Approve</button>
+          <button class="btn-secondary" type="button" onclick="reviewAttendanceDispute(${Number(dispute.id)}, 'REJECTED', ${Number(courseId)})">Reject</button>
+        ` : ''}
+      </article>`).join('') : '<p>No attendance disputes for this course.</p>';
+  } catch (err) {
+    list.innerHTML = `<p>Unable to load attendance disputes: ${escapeHtml(err.message)}</p>`;
+  }
+}
+
+async function reviewAttendanceDispute(disputeId, status, courseId) {
+  const resolution = prompt('Resolution note:', status === 'APPROVED'
+    ? 'Attendance correction approved.'
+    : 'Attendance dispute rejected.');
+  if (!resolution) return;
+  try {
+    await apiFetch(`/teacher/attendance/disputes/${disputeId}/review`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status, resolution }),
+    });
+    await loadAttendanceDisputes(courseId);
+  } catch (err) {
+    alert(err.message || 'Attendance dispute could not be reviewed.');
+  }
 }
 
 async function approveClassAttendance() {
