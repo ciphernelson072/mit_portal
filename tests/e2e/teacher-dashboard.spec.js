@@ -175,6 +175,7 @@ test('teacher can select a course grade and submit it for approval', async ({ pa
   await expect(page.locator('#gradeRecordId')).toHaveValue('61');
   await expect(page.locator('#gradeStudent')).toHaveValue('7');
   await expect(page.locator('#gradeRemarks')).toHaveValue('Good work');
+  await expect(page.locator('#gradeStatus')).toContainText('Editing assessment marks for');
   await page.locator('[data-component-score="12"]').fill('80');
   await page.getByRole('button', { name: 'Save assessment marks' }).click();
   await expect(page.locator('#gradeStatus')).toContainText('Calculated total: 80.00%');

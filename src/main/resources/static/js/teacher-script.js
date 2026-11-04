@@ -433,8 +433,17 @@ function editTeacherGrade(gradeId, studentId) {
   document.getElementById('gradeRecordId').value = grade.id;
   document.getElementById('gradeStudent').value = studentId;
   document.getElementById('gradeRemarks').value = grade.remarks || '';
+  const fields = document.getElementById('assessmentMarksFields');
+  const submitButton = document.querySelector('#gradeForm [type="submit"]');
+  fields.querySelectorAll('[data-component-score]').forEach(input => { input.disabled = true; });
+  submitButton.disabled = true;
+  setStatus('gradeStatus', 'Loading saved assessment marks…', 'info');
   loadAssessmentMarks(grade.id)
-    .then(() => setStatus('gradeStatus', `Editing assessment marks for ${grade.studentName}. The final grade is calculated automatically.`, 'info'))
+    .then(() => {
+      fields.querySelectorAll('[data-component-score]').forEach(input => { input.disabled = false; });
+      submitButton.disabled = false;
+      setStatus('gradeStatus', `Editing assessment marks for ${grade.studentName}. The final grade is calculated automatically.`, 'info');
+    })
     .catch(err => setStatus('gradeStatus', err.message || 'Unable to load assessment marks.', 'error'));
 }
 
