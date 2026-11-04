@@ -42,12 +42,10 @@ verified commit, set `RENDER_DEPLOY_HOOK_URL` and `RENDER_SERVICE_URL` in the
 PowerShell environment and add `-Deploy`; the script waits for the service
 health endpoint. The script does not create external databases or generate
 Render/Resend credentials.
-The local Git repository is configured with `origin` pointing to
-`ciphernelson072/mit_portal`, but the prepared branch has not been pushed because
-GitHub authentication is required. That existing repository is public. Publish
-the `ready-project-2026-10-21` branch and review it through a pull request;
-the existing remote `main` has unrelated history, so do not force-push. Connect
-the reviewed repository to Render before creating the Blueprint.
+The GitHub repository is `ciphernelson072/mit_portal`. The deployable changes
+are published on the `ready-project-2026-10-21` branch; open a pull request to
+review and merge them without force-pushing `main`. Connect the reviewed branch
+to Render before creating the Blueprint.
 For a copyable environment-variable starting point, use the root
 `.env.render.example` with Render's **Add from .env** control. Replace every
 `REPLACE_WITH_...` value with deployment-specific values before applying it;
