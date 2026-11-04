@@ -1280,7 +1280,6 @@ test('profile preferences load, save independently, and preserve other settings'
     }),
   };
 
-  await page.on('dialog', dialog => dialog.accept());
   await page.route('**/api/**', async route => {
     const request = route.request();
     const url = new URL(request.url());
@@ -1314,7 +1313,9 @@ test('profile preferences load, save independently, and preserve other settings'
 
   await page.getByRole('button', { name: /Security/ }).click();
   await privacy.nth(0).check();
+  const privacySaveDialog = page.waitForEvent('dialog');
   await page.getByRole('button', { name: /Save Settings/ }).click();
+  await (await privacySaveDialog).accept();
   await expect.poll(() => JSON.parse(storedPreferences.settingsJson).privacy[0]).toBe(true);
   expect(JSON.parse(storedPreferences.settingsJson).notifications).toEqual([false, true, true, false]);
   expect(JSON.parse(storedPreferences.settingsJson).quickLinks).toEqual([false, true, false, true]);
@@ -1322,7 +1323,9 @@ test('profile preferences load, save independently, and preserve other settings'
   await page.getByRole('button', { name: /Preferences/ }).click();
   await notifications.nth(0).check();
   await page.locator('#preferencesTab input[name="theme"][value="system"]').check();
+  const preferencesSaveDialog = page.waitForEvent('dialog');
   await page.getByRole('button', { name: /Save Preferences/ }).click();
+  await (await preferencesSaveDialog).accept();
   await expect.poll(() => JSON.parse(storedPreferences.settingsJson).notifications[0]).toBe(true);
   expect(JSON.parse(storedPreferences.settingsJson).privacy[0]).toBe(true);
   expect(storedPreferences.theme).toBe('system');
