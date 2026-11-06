@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mit-portal-cache-v21';
+const CACHE_NAME = 'mit-portal-cache-v22';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -13,6 +13,7 @@ const CORE_ASSETS = [
   './unauthorized.html',
   './verify-email.html',
   './css/style.css',
+  './css/auth.css',
   './css/dashboard-style.css',
   './css/modules-style.css',
   './css/admin-style.css',
@@ -20,6 +21,7 @@ const CORE_ASSETS = [
   './css/course-catalog.css',
   './css/operations-style.css',
   './icons/background.webp',
+  './icons/campus-login.png',
   './icons/logo.jpg',
   './icons/pwa-180.png',
   './icons/pwa-192.png',
