@@ -183,6 +183,7 @@ class GradeApprovalWorkflowTest {
         studentUser.setId(42L);
         student.setId(14L);
         student.setUser(studentUser);
+        student.setEmail("student@example.com");
         Course course = new Course();
         course.setId(7L);
         course.setName("Database Systems");
@@ -243,10 +244,11 @@ class GradeApprovalWorkflowTest {
                 return java.util.Optional.empty();
             });
 
+        com.sis.service.EmailService emailService = Mockito.mock(com.sis.service.EmailService.class);
         GradeApprovalService service = new GradeApprovalService(gradeRepository, studentRepository,
             studentService, auditLogs, users, notifications,
             Mockito.mock(com.sis.service.AcademicResultCorrectionService.class),
-            components, assessmentMarks, calculations);
+            components, assessmentMarks, calculations, emailService);
         service.submitForApproval(submitted, "teacher1");
         service.acknowledgeAssessmentReview(52L, "admin");
         service.approve(52L, "admin");
@@ -266,6 +268,9 @@ class GradeApprovalWorkflowTest {
         Mockito.verify(notifications, Mockito.times(1)).create(
                 Mockito.anyLong(), Mockito.anyString(), Mockito.anyString(),
                 Mockito.eq(com.sis.entity.NotificationCategory.GRADE));
+        Mockito.verify(notifications).emailNotificationsEnabled(42L);
+        Mockito.verify(emailService, Mockito.never()).sendGradeNotification(
+                Mockito.anyString(), Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
 
         Grade changedAfterReview = new Grade();
         changedAfterReview.setId(54L);

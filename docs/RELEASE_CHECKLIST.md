@@ -7,6 +7,50 @@ actual target environment.
 
 ## Verification records
 
+### Login redirect regression fix (8 November 2026)
+
+- [x] Removed unauthenticated login-page redirects based only on stale
+  localStorage role hints; server authentication and protected-route role checks
+  remain enforced.
+- [x] Bumped the service-worker cache from v22 to v23 to invalidate previously
+  cached static assets when the updated worker installs.
+- [x] Added browser regressions for stale ADMIN and STUDENT role hints.
+- [x] Current local validation: 395 Java tests, 12 frontend unit tests,
+  30-file JavaScript syntax validation, both targeted stale-role browser tests,
+  and the complete 90-test isolated Playwright suite passed. The generated JAR
+  was inspected to confirm the login changes and v23 service worker are inside.
+- [x] All relative Markdown file links in the repository resolve.
+- [x] Added a GitHub Actions publish step for verified pushes to `main` and
+  `fix/admin-login-offline-styles`; it publishes `latest` and a commit-specific
+  Docker Hub tag after all preceding CI gates pass.
+- [ ] Confirm GitHub Actions secrets `DOCKERHUB_USERNAME` and
+  `DOCKERHUB_TOKEN` exist and the image publish job succeeds.
+- [ ] Update the existing Render image source from its pinned digest to
+  `docker.io/ciphernelson/mit-portal:latest` so future published images can
+  auto-deploy. Verify the deployed digest and health before marking the login
+  fix live.
+- [ ] Run current CI, including backend, MySQL migrations, frontend, browser,
+  and Docker image gates, on the release commit. Docker and GitHub CI were
+  unavailable from this local environment during this pass.
+- [ ] After deployment, verify `/actuator/health`, `/admin-login.html`, and
+  `/index.html` on the Render origin; with stale browser role hints present,
+  each login form must remain visible. Confirm the deployed commit in Render.
+- [ ] Do not claim the fix is live until the remote deployment and browser
+  acceptance checks above pass.
+
+### Current source verification (7 November 2026)
+
+- [x] `.\mvnw.cmd -q test`: 394 tests passed; 0 failures, errors, or skips.
+- [x] Fresh disposable MySQL 8.0 and local TiDB v8.5.0 each applied Flyway
+  V1-V49 and passed Hibernate schema validation.
+- [x] `npm run test:unit`: 12 frontend tests passed; `npm run build` validated
+  30 JavaScript files.
+- [x] Isolated H2/sample-data browser run: all 88 Playwright tests passed.
+- [x] Current-source application packaging succeeded.
+- [x] Full commands, versions, first-run browser test correction, and TiDB
+  topology limits are recorded in the
+  [validation results](./VALIDATION_RESULTS_2026-11-07.md).
+
 ### Current source verification (31 October 2026)
 
 - [x] Final `mvn test` passed; 384 tests with 0 failures, 0 errors, and

@@ -42,4 +42,34 @@ class PreferencePolicyServiceTest {
         assertTrue(service.isNotificationCategoryVisible(11L, NotificationCategory.SYSTEM));
         assertFalse(service.isNotificationCategoryVisible(11L, NotificationCategory.PAYMENT));
     }
+
+    @Test
+    void optionalEmailNotificationsRequireExplicitPrivacyOptIn() {
+        UserPreferenceRepository preferences = mock(UserPreferenceRepository.class);
+        PreferencePolicyService service = new PreferencePolicyService(preferences);
+
+        when(preferences.findByUserId(9L)).thenReturn(Optional.empty());
+        assertFalse(service.emailNotificationsEnabled(9L));
+
+        UserPreference preference = new UserPreference();
+        preference.setUserId(9L);
+        preference.setSettingsJson("{\"privacy\":[true,true,false,true]}");
+        when(preferences.findByUserId(9L)).thenReturn(Optional.of(preference));
+        assertFalse(service.emailNotificationsEnabled(9L));
+
+        preference.setSettingsJson("{\"privacy\":[true,true,true,true]}");
+        assertTrue(service.emailNotificationsEnabled(9L));
+    }
+
+    @Test
+    void malformedEmailPreferenceFailsClosed() {
+        UserPreferenceRepository preferences = mock(UserPreferenceRepository.class);
+        PreferencePolicyService service = new PreferencePolicyService(preferences);
+        UserPreference preference = new UserPreference();
+        preference.setUserId(12L);
+        preference.setSettingsJson("{invalid");
+        when(preferences.findByUserId(12L)).thenReturn(Optional.of(preference));
+
+        assertFalse(service.emailNotificationsEnabled(12L));
+    }
 }

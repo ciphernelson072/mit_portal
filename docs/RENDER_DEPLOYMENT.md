@@ -24,28 +24,43 @@ fields; never commit them. Configure the exact service HTTPS origin in both
 deployment after connected GitHub checks pass. Connect the intended branch to
 GitHub Actions CI before enabling student access.
 
+## Existing image-based Render service
+
+The existing Render service was inspected on 8 November 2026. Its dashboard
+shows a prebuilt Docker image from `ciphernelson/mit-portal`, rather than a
+Git-connected service. Pushing a Git branch alone therefore does not publish
+new application code to this service. The GitHub Actions workflow publishes
+`ciphernelson/mit-portal:latest` and a commit-specific tag only on pushes to
+`main` and `fix/admin-login-offline-styles`, after the existing CI gates pass.
+The commit-specific image is retained for audit/rollback; Render must use the
+mutable `latest` tag for subsequent image updates to trigger automatic deploys.
+
+The GitHub Actions repository secrets `DOCKERHUB_USERNAME` and
+`DOCKERHUB_TOKEN` must be configured; never put registry tokens in workflow
+files or chat. Confirm in Render that the image source is set to
+`docker.io/ciphernelson/mit-portal:latest` and image updates are set to deploy
+automatically. Verify the deployed image digest and application health after
+the first release. Until the workflow passes and Render is pointed at the
+mutable tag, do not claim that a Git push will deploy this service.
+
 The CI workflow runs backend, MySQL migration, frontend, and browser tests and
 builds the same Docker image used by Render. For local release verification,
 run `.\scripts\render-release.ps1` from PowerShell with Node.js and Docker
 Desktop available. The Docker build supplies Java 25 and runs Maven verification,
-so a local Java installation is not needed. To trigger a deployment after pushing a clean,
-verified commit, set `RENDER_DEPLOY_HOOK_URL` and `RENDER_SERVICE_URL` in the
-PowerShell environment and add `-Deploy`; the script waits for the service
-health endpoint. The script does not create external databases or generate
-Render/Resend credentials.
-The CI workflow runs backend, MySQL migration, frontend, and browser tests and
-builds the same Docker image used by Render. For local release verification,
-run `.\scripts\render-release.ps1` from PowerShell with Node.js and Docker
-Desktop available. The Docker build supplies Java 25 and runs Maven verification,
-so a local Java installation is not needed. To trigger a deployment after pushing a clean,
-verified commit, set `RENDER_DEPLOY_HOOK_URL` and `RENDER_SERVICE_URL` in the
-PowerShell environment and add `-Deploy`; the script waits for the service
-health endpoint. The script does not create external databases or generate
-Render/Resend credentials.
-The GitHub repository is `ciphernelson072/mit_portal`. The deployable changes
-are published on the `ready-project-2026-10-21` branch; open a pull request to
-review and merge them without force-pushing `main`. Connect the reviewed branch
-to Render before creating the Blueprint.
+so a local Java installation is not needed. To trigger a deployment after
+pushing a clean, verified commit, set `RENDER_DEPLOY_HOOK_URL` and
+`RENDER_SERVICE_URL` in the PowerShell environment and add `-Deploy`; the script
+waits for the service health endpoint. The script does not create external
+databases or generate Render/Resend credentials.
+
+Render builds the commit on the branch configured for the service, not
+uncommitted local files. Confirm the reviewed commit is pushed to that connected
+branch and its GitHub Actions checks pass before deployment. Do not assume the
+branch name in an older deployment record is still configured for Render;
+verify the current setting in the Render service.
+After a frontend authentication or service-worker change, verify the deployed
+release commit and public login flows. The service worker uses a versioned cache;
+increment `CACHE_NAME` when a release must invalidate previously cached assets.
 For a copyable environment-variable starting point, use the root
 `.env.render.example` with Render's **Add from .env** control. Replace every
 `REPLACE_WITH_...` value with deployment-specific values before applying it;

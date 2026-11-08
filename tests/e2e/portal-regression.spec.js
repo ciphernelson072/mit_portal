@@ -76,6 +76,32 @@ test('admin login routes first-time password changes before opening the dashboar
   });
 });
 
+test('stale staff role hint does not redirect away from the admin login form', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('mitRole', 'ADMIN');
+    localStorage.setItem('mitUsername', 'old-admin-session');
+  });
+
+  await page.goto('/admin-login.html');
+
+  await expect(page).toHaveURL(/admin-login\.html/);
+  await expect(page.locator('#username')).toBeVisible();
+  await expect(page.locator('#password')).toBeVisible();
+});
+
+test('stale student role hint does not redirect away from the student login form', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('mitRole', 'STUDENT');
+    localStorage.setItem('mitUsername', 'old-student-session');
+  });
+
+  await page.goto('/index.html');
+
+  await expect(page).toHaveURL(/index\.html/);
+  await expect(page.locator('#studentLoginForm')).toBeVisible();
+  await expect(page.locator('#username')).toBeVisible();
+});
+
 test('admin password change returns to the staff login form', async ({ page }) => {
   await page.route('**/api/auth/change-password', route => route.fulfill({ status: 200 }));
   await page.route('**/api/auth/logout', route => route.fulfill({ status: 200 }));
@@ -1314,8 +1340,9 @@ test('profile preferences load, save independently, and preserve other settings'
   await page.getByRole('button', { name: /Security/ }).click();
   await privacy.nth(0).check();
   const privacySaveDialog = page.waitForEvent('dialog');
-  await page.getByRole('button', { name: /Save Settings/ }).click();
+  const privacySaveClick = page.getByRole('button', { name: /Save Settings/ }).click();
   await (await privacySaveDialog).accept();
+  await privacySaveClick;
   await expect.poll(() => JSON.parse(storedPreferences.settingsJson).privacy[0]).toBe(true);
   expect(JSON.parse(storedPreferences.settingsJson).notifications).toEqual([false, true, true, false]);
   expect(JSON.parse(storedPreferences.settingsJson).quickLinks).toEqual([false, true, false, true]);
@@ -1324,8 +1351,9 @@ test('profile preferences load, save independently, and preserve other settings'
   await notifications.nth(0).check();
   await page.locator('#preferencesTab input[name="theme"][value="system"]').check();
   const preferencesSaveDialog = page.waitForEvent('dialog');
-  await page.getByRole('button', { name: /Save Preferences/ }).click();
+  const preferencesSaveClick = page.getByRole('button', { name: /Save Preferences/ }).click();
   await (await preferencesSaveDialog).accept();
+  await preferencesSaveClick;
   await expect.poll(() => JSON.parse(storedPreferences.settingsJson).notifications[0]).toBe(true);
   expect(JSON.parse(storedPreferences.settingsJson).privacy[0]).toBe(true);
   expect(storedPreferences.theme).toBe('system');

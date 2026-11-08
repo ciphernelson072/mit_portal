@@ -16,7 +16,13 @@ if (-not $javaCommand) {
 if (-not $javaCommand) {
     throw 'JDK 25 is required to build and run the isolated browser tests.'
 }
-$javaVersionOutput = & $javaCommand.Source -version 2>&1 | Out-String
+$previousErrorActionPreference = $ErrorActionPreference
+try {
+    $ErrorActionPreference = 'Continue'
+    $javaVersionOutput = & $javaCommand.Source -version 2>&1 | Out-String
+} finally {
+    $ErrorActionPreference = $previousErrorActionPreference
+}
 if ($LASTEXITCODE -ne 0 -or $javaVersionOutput -notmatch 'version "25(?:\.|")') {
     throw "JDK 25 is required to build and run the isolated browser tests. Detected: $($javaVersionOutput.Trim())"
 }

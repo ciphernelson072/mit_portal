@@ -146,12 +146,5 @@ async function requestPasswordReset(event) {
 
 // ===== INITIALIZATION =====
 document.addEventListener('DOMContentLoaded', function () {
-  // Already signed in? Skip straight to the dashboard. This is a UX shortcut
-  // only (see auth.js) - if the underlying cookie is actually gone or expired,
-  // the dashboard's own apiFetch calls will redirect back here regardless.
-  if (getRole() === 'STUDENT') {
-    window.location.href = 'dashboard.html';
-    return;
-  }
   document.getElementById('username').focus();
 });

@@ -1,6 +1,6 @@
 # Admin, Teacher, and Student Workflow Gap Audit
 
-Last reviewed: 3 November 2026
+Last reviewed: 7 November 2026
 
 This audit compares implemented source paths for the Admin, Teacher, and Student roles. It does not treat a UI control or recorded browser test as proof of production readiness.
 
@@ -55,7 +55,7 @@ This audit compares implemented source paths for the Admin, Teacher, and Student
 - **Affected roles:** Teacher, Student, Admin.
 - **Impact:** Students may not receive a proactive notification when marked absent or late, and the institution has not defined whether normal attendance submissions need a second review.
 - **Recommendation:** Decide whether to notify students on absent/late marks and whether to require a separate administrator review of attendance submissions.
-- **Implementation status:** Implemented in source with attendance-linked student disputes, requested corrected presence, teacher course queues, administrator escalation/review, notifications, audit logs, and migration V47. Fresh compilation and migration execution remain required.
+- **Implementation status:** Implemented in source with attendance-linked student disputes, requested corrected presence, teacher course queues, administrator escalation/review, notifications, audit logs, and migration V47. Fresh Java validation and MySQL/TiDB V1-V49 migration plus Hibernate schema checks passed on 7 November 2026; see [current validation results](./VALIDATION_RESULTS_2026-11-07.md).
 - **Access-control note:** The shared dispute-list endpoint now scopes teacher results to assigned courses; administrator and attendance-manager results remain institution-wide.
 
 ### 6. Students receive no provisional or rejected-grade details

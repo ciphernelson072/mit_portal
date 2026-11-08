@@ -1,6 +1,6 @@
 # Remaining Work and Render Deployment Runbook
 
-Last reviewed: 1 November 2026
+Last reviewed: 8 November 2026
 
 This document consolidates the remaining release work and the steps for a
 controlled Render test deployment. It is not evidence that Render, an external
@@ -10,6 +10,24 @@ the [Render deployment details](./RENDER_DEPLOYMENT.md), the
 [integration inventory](./INTEGRATION_GAPS.md).
 The role-by-role cross-workflow findings are recorded in
 [ROLE_WORKFLOW_GAPS.md](./ROLE_WORKFLOW_GAPS.md).
+
+## Current release status (8 November 2026)
+
+The login redirect fix is present in the local source: stale browser role hints
+no longer redirect the admin or student login pages, and the service-worker
+cache version is v23. Browser regression tests cover both roles. These local
+changes are not proof of a Render release. The current branch is
+`fix/admin-login-offline-styles`; its working tree contains uncommitted changes.
+The existing Render service was observed to run a prebuilt Docker Hub image,
+not directly build a Git branch. CI now publishes a tested image to the
+`latest` and commit-specific tags on `main` and the current fix branch, assuming
+the documented Docker Hub secrets exist. The current Render image source is
+pinned to a digest, so it must be changed to the mutable `latest` tag after the
+publish workflow passes. GitHub CI for this exact source state and public login
+acceptance are still pending. Do not assume a Git push will update the live
+service until the image setting is updated. Complete the image-release setup in
+[RENDER_DEPLOYMENT.md](./RENDER_DEPLOYMENT.md), then verify the deployed image
+digest and login flows using the [release checklist](./RELEASE_CHECKLIST.md).
 
 ## Current status update (3 November 2026)
 
@@ -160,6 +178,14 @@ October 2026, a fresh verified
 TiDB backup was completed and migrations V43-V45 were applied and verified
 on the pilot. Live correction-to-republication acceptance and institutional
 policy sign-off remain separate gates.
+
+**Validation refresh (7 November 2026):** The current source passed all 394
+Java tests, 12 frontend unit tests, JavaScript syntax validation for 30 files,
+and 88 isolated Playwright tests. Fresh disposable MySQL 8.0 and local TiDB
+v8.5.0 schemas each applied Flyway V1-V49 and passed Hibernate schema
+validation. See the [validation results](./VALIDATION_RESULTS_2026-11-07.md).
+The TiDB check used single-node in-memory UniStore; it does not replace
+distributed-cluster or production-topology acceptance.
 
 This is still a **temporary test pilot, not a production service**. The Quick
 Tunnel has no uptime guarantee or stable institution-controlled hostname.

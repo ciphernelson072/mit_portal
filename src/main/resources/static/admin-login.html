@@ -179,14 +179,10 @@
     }
   }
 
-  // Already signed in as staff? Skip straight to the dashboard. UX shortcut only
-  // (see auth.js) - the real check happens server-side on every API call.
+  // Do not redirect based only on the localStorage role hint. It can outlive
+  // the authentication cookies and otherwise send users away from this form.
   window.addEventListener('load', function() {
-    if (getRole() === 'ADMIN') {
-      window.location.href = 'admin-dashboard.html';
-    } else if (getRole() === 'TEACHER') {
-      window.location.href = 'teacher-dashboard.html';
-    }
+    document.getElementById('username').focus();
   });
 </script>
 <script src="/js/theme.js"></script>

@@ -42,6 +42,10 @@ public class NotificationService {
                 .toList();
     }
 
+    public boolean emailNotificationsEnabled(Long userId) {
+        return preferencePolicyService.emailNotificationsEnabled(userId);
+    }
+
     public Notification create(Long userId, String title, String message) {
         return create(userId, title, message, NotificationCategory.SYSTEM);
     }

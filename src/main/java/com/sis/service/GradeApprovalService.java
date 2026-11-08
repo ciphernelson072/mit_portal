@@ -334,7 +334,8 @@ public class GradeApprovalService {
                     : "Your grade submission for " + grade.getCourse().getName() + " was rejected: " + reason;
             notifications.create(userId, title, message, NotificationCategory.GRADE);
         }
-        if (emailService == null || grade.getStudent().getEmail() == null) {
+        if (emailService == null || notifications == null || userId == null
+                || !notifications.emailNotificationsEnabled(userId) || grade.getStudent().getEmail() == null) {
             return;
         }
         try {

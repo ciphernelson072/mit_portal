@@ -69,7 +69,8 @@ public class AnnouncementController {
                         request.getAudience(), user.getRole()))
                 .forEach(user -> {
                     Long userId = user.getId();
-                    if (user.getEmail() == null || emailService == null) {
+                    if (userId == null || user.getEmail() == null || emailService == null
+                            || !notifications.emailNotificationsEnabled(userId)) {
                         return;
                     }
                     try {
