@@ -21,6 +21,7 @@ const API_PATH_PREFIX = `${API_URL.pathname.replace(/\/$/, '')}/`;
 const ROLE_KEY = 'mitRole';
 const USERNAME_KEY = 'mitUsername';
 const PASSWORD_CHANGE_KEY = 'mitPasswordChangeRequired';
+const MFA_ENROLLMENT_KEY = 'mitMfaEnrollmentRequired';
 
 function installRequestFeedback() {
   if (window.__mitRequestFeedbackInstalled) return;
@@ -165,6 +166,9 @@ function getUsername() { return localStorage.getItem(USERNAME_KEY); }
 function getPasswordChangeRequired() {
   return localStorage.getItem(PASSWORD_CHANGE_KEY) === 'true';
 }
+function isMfaEnrollmentRequired() {
+  return localStorage.getItem(MFA_ENROLLMENT_KEY) === 'true';
+}
 
 async function getResponseErrorMessage(response, fallback) {
   const contentType = response.headers?.get('content-type') || '';
@@ -203,12 +207,22 @@ function setSession(role, username, passwordChangeRequired = false) {
   localStorage.setItem(ROLE_KEY, role);
   localStorage.setItem(USERNAME_KEY, username);
   localStorage.setItem(PASSWORD_CHANGE_KEY, String(Boolean(passwordChangeRequired)));
+  localStorage.removeItem(MFA_ENROLLMENT_KEY);
+}
+
+function setMfaEnrollmentRequired(required) {
+  if (required) {
+    localStorage.setItem(MFA_ENROLLMENT_KEY, 'true');
+  } else {
+    localStorage.removeItem(MFA_ENROLLMENT_KEY);
+  }
 }
 
 function clearSession() {
   localStorage.removeItem(ROLE_KEY);
   localStorage.removeItem(USERNAME_KEY);
   localStorage.removeItem(PASSWORD_CHANGE_KEY);
+  localStorage.removeItem(MFA_ENROLLMENT_KEY);
 }
 
 let refreshInFlight = null;

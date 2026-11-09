@@ -98,7 +98,7 @@ class AcademicControllerFetchTest {
 
         var response = controller.hallTicket();
 
-        assertEquals(200, response.getStatusCodeValue());
+        assertEquals(200, response.getStatusCode().value());
         org.junit.jupiter.api.Assertions.assertArrayEquals(new byte[]{1, 2, 3}, response.getBody());
         verify(exams).findForStudentByEnrolledCourses(7L, RegistrationStatus.REGISTERED);
         verify(examPermits).hasApprovedPermit(7L, 19L);

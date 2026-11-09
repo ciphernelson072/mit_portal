@@ -29,6 +29,7 @@ try {
         'BACKUP_STATUS_FILE',
         'UPLOAD_BACKUP_STATUS_FILE',
         'MFA_ENABLED',
+        'MFA_REQUIRED_FOR_PRIVILEGED',
         'MFA_ENCRYPTION_KEY'
     )
     $envFile = Join-Path $projectRoot '.env'

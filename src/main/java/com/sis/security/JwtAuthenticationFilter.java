@@ -2,6 +2,7 @@ package com.sis.security;
 
 import com.sis.service.JwtService;
 import com.sis.service.CustomUserDetailsService;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
@@ -21,6 +22,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Authenticates requests from either of two sources:
@@ -43,6 +46,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final CustomUserDetailsService userDetailsService;
+
+    @Value("${app.security.mfa.required-for-privileged:false}")
+    private boolean mfaRequiredForPrivileged;
 
     @Value("${app.security.cookie-secure:false}")
     private boolean cookieSecure;
@@ -76,7 +82,31 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         && userDetailsService.getCredentialVersion(username)
                                 .map(tokenCredentialVersion::equals)
                                 .orElse(false);
-                if (userDetails.isEnabled() && credentialsAreCurrent) {
+                if (userDetails.isEnabled() && credentialsAreCurrent
+                        && jwtService.isMfaEnrollmentToken(token)) {
+                    if (!mfaRequiredForPrivileged || !jwtService.isMfaRequired(token)
+                            || !isAllowedDuringMfaEnrollment(request, userDetails)) {
+                        expireAuthCookies(response);
+                        response.sendError(HttpServletResponse.SC_FORBIDDEN,
+                                "MFA enrollment access is restricted");
+                        return;
+                    }
+                    List<GrantedAuthority> enrollmentAuthorities = new ArrayList<>();
+                    enrollmentAuthorities.add(new SimpleGrantedAuthority("MFA_ENROLLMENT"));
+                    userDetails.getAuthorities().stream()
+                            .filter(authority -> "PASSWORD_CHANGE_REQUIRED".equals(authority.getAuthority()))
+                            .forEach(enrollmentAuthorities::add);
+                    UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
+                            userDetails, null, enrollmentAuthorities);
+                    authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+                } else if (userDetails.isEnabled() && credentialsAreCurrent
+                        && mfaRequiredForPrivileged
+                        && (jwtService.isMfaRequired(token)
+                                || MfaPolicy.hasPrivilegedAuthority(userDetails.getAuthorities()))
+                        && !jwtService.isMfaVerified(token)) {
+                    expireAuthCookies(response);
+                } else if (userDetails.isEnabled() && credentialsAreCurrent) {
                     UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
                             userDetails, null, userDetails.getAuthorities());
                     authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
@@ -134,6 +164,31 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 || "/api/auth/validate-email-token".equals(path)
                 || "/api/auth/resend-password-reset".equals(path)
                 || "/api/auth/resend-email-verification".equals(path);
+    }
+
+    private boolean isAllowedDuringMfaEnrollment(HttpServletRequest request, UserDetails userDetails) {
+        String path = request.getRequestURI();
+        if ("GET".equalsIgnoreCase(request.getMethod())) {
+            return "/api/auth/mfa/status".equals(path)
+                    || "/account-security.html".equals(path)
+                    || ("/force-password-change.html".equals(path)
+                            && userDetails.getAuthorities().stream()
+                                    .anyMatch(authority -> "PASSWORD_CHANGE_REQUIRED"
+                                            .equals(authority.getAuthority())))
+                    || path.startsWith("/css/")
+                    || path.startsWith("/js/")
+                    || path.startsWith("/icons/")
+                    || "/manifest.json".equals(path)
+                    || "/service-worker.js".equals(path)
+                    || "/favicon.ico".equals(path);
+        }
+        if (!"POST".equalsIgnoreCase(request.getMethod())) {
+            return false;
+        }
+        return "/api/auth/mfa/setup".equals(path)
+                || "/api/auth/mfa/verify".equals(path)
+                || "/api/auth/change-password".equals(path)
+                || "/api/auth/logout".equals(path);
     }
 
     private String extractCookieToken(HttpServletRequest request) {

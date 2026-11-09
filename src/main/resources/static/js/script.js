@@ -55,6 +55,21 @@ async function handleLogin(event) {
 
     if (!res.ok) {
       const errorBody = await res.clone().json().catch(() => ({}));
+      if (errorBody.mfaEnrollmentRequired) {
+        if (errorBody.role !== 'STUDENT') {
+          await logout('index.html');
+          showAlert('This is the student portal. Staff should sign in at the admin portal.', 'Wrong Portal');
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = 'SIGN IN <span class="arrow">›</span>';
+          return;
+        }
+        setSession(errorBody.role, errorBody.username, errorBody.passwordChangeRequired);
+        setMfaEnrollmentRequired(true);
+        window.location.href = errorBody.passwordChangeRequired
+          ? 'force-password-change.html'
+          : 'account-security.html';
+        return;
+      }
       if (errorBody.mfaRequired) {
         const otpGroup = document.getElementById('otpGroup');
         otpGroup.hidden = false;

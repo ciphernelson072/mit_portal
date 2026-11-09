@@ -99,7 +99,7 @@ class TeacherControllerFetchTest {
         TeacherController controller = new TeacherController(
                 schoolService, mock(AttendanceService.class), mock(GradeRepository.class));
 
-        assertEquals(201, controller.postGrade(request).getStatusCodeValue());
+        assertEquals(201, controller.postGrade(request).getStatusCode().value());
         verify(schoolService).studentEnrolledInCourse(17L, 9L);
     }
 

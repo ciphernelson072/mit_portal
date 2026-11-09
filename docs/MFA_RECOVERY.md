@@ -3,20 +3,39 @@
 MFA uses an encrypted TOTP seed and is disabled by default. Enabling it requires
 an approved institution policy and a persistent Base64-encoded 32-byte
 `MFA_ENCRYPTION_KEY`; the application must reject startup when MFA is enabled
-without a valid key.
+without a valid key. `MFA_REQUIRED_FOR_PRIVILEGED` is a separate, default-off
+switch for enforcing enrollment on administrator accounts and accounts with
+active finance permissions. It cannot be enabled unless `MFA_ENABLED=true`.
 
-## Before enabling MFA
+## Staged rollout
 
-1. Approve MFA scope by user role and document any mandatory exclusions.
+1. Approve the privileged-account scope and the support/recovery process.
 2. Store the encryption key in the deployment secret manager. Never place it in
    source control, logs, browser output, or a database backup alone.
 3. Back up the key through the institution's normal encrypted secret-rotation
-   process and verify that current and replacement environments have the same key.
-4. Publish a controlled support process for lost authenticators. Self-service
+   process and verify that a replacement environment can decrypt a test seed
+   with the backed-up key.
+4. Deploy with `MFA_ENABLED=true` and `MFA_REQUIRED_FOR_PRIVILEGED=false`.
+   Privileged users can then enroll at Account Security without changing their
+   existing sign-in policy.
+5. Confirm that every administrator and finance-privileged account is enrolled,
+   verify that sign-in and refresh require a completed MFA challenge, and
+   rehearse the approved recovery process. Only then set
+   `MFA_REQUIRED_FOR_PRIVILEGED=true`.
+6. Users who are not enrolled when enforcement is activated receive a
+   short-lived, enrollment-only session. It can reach only MFA status/setup/
+   verification, logout, and (when required) password change; it cannot reach
+   portal data or obtain a refresh token.
+7. Publish a controlled support process for lost authenticators. Self-service
    password recovery must not bypass MFA or permit account takeover.
-5. Treat current TOTP seeds and any recovery codes as high-sensitivity
+8. Treat current TOTP seeds and any recovery codes as high-sensitivity
    credentials. Recovery codes require separate persistent storage, hashing,
    one-time consumption, and replay/audit controls before being enabled.
+
+The application does not currently issue recovery codes or provide an
+administrator self-service reset. Do not promise recovery-code support until
+that workflow has been implemented and tested. A required privileged account
+cannot disable MFA through its own account-security page.
 
 ## Locked-account recovery
 

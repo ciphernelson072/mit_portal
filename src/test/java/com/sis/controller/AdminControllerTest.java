@@ -58,7 +58,7 @@ class AdminControllerTest {
 
         verify(emailService).sendHiringNotification("teacher@example.edu", "Teacher Example",
                 "teacher.user", "temporary-secret");
-        assertEquals(201, response.getStatusCodeValue());
+        assertEquals(201, response.getStatusCode().value());
     }
 
     @Test
@@ -166,7 +166,7 @@ class AdminControllerTest {
 
         ResponseEntity<AdminDashboardOverviewDto> response = controller.getDashboardOverview();
 
-        assertEquals(200, response.getStatusCodeValue());
+        assertEquals(200, response.getStatusCode().value());
         AdminDashboardOverviewDto body = response.getBody();
         assertEquals(25L, body.getTotalStudents());
         assertEquals(9L, body.getTotalTeachers());
@@ -195,7 +195,7 @@ class AdminControllerTest {
         try {
             ResponseEntity<String> response = controller.changeStudentStatus(42L, request);
 
-            assertEquals(200, response.getStatusCodeValue());
+            assertEquals(200, response.getStatusCode().value());
             verify(adminService).changeStudentLifecycleStatus(42L, 7L, 2026L,
                     StudentLifecycleStatus.SUSPENDED, "Pending review", "admin-user");
         } finally {
@@ -215,7 +215,7 @@ class AdminControllerTest {
 
         ResponseEntity<List<StudentStatusHistoryDto>> response = controller.getStudentStatusHistory(42L);
 
-        assertEquals(200, response.getStatusCodeValue());
+        assertEquals(200, response.getStatusCode().value());
         assertEquals(history, response.getBody());
     }
 }

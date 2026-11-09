@@ -50,6 +50,7 @@ $allowedVariables = @(
     'MAIL_FROM_EMAIL',
     'MAIL_FROM_NAME',
     'MFA_ENABLED',
+    'MFA_REQUIRED_FOR_PRIVILEGED',
     'MFA_ENCRYPTION_KEY',
     'INITIAL_ADMIN_BOOTSTRAP_ENABLED',
     'INITIAL_ADMIN_USERNAME',
@@ -129,6 +130,9 @@ if ($values.MFA_ENABLED -eq 'true') {
     if ($mfaKeyBytes.Length -ne 32) {
         throw 'MFA_ENCRYPTION_KEY must decode to exactly 32 bytes when MFA_ENABLED=true.'
     }
+}
+if ($values.MFA_REQUIRED_FOR_PRIVILEGED -eq 'true' -and $values.MFA_ENABLED -ne 'true') {
+    throw 'MFA_REQUIRED_FOR_PRIVILEGED=true requires MFA_ENABLED=true.'
 }
 
 if ($values.DB_URL -notmatch '^jdbc:mysql://(?<host>[^/:?]+):4000/(?<database>[A-Za-z0-9_]+)\?(?<query>[^#]+)$') {

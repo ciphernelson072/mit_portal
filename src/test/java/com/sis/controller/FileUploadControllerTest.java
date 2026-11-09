@@ -89,7 +89,7 @@ class FileUploadControllerTest {
         ReflectionTestUtils.setField(controller, "studentService", students);
         ReflectionTestUtils.setField(controller, "teacherService", mock(TeacherService.class));
 
-        assertEquals(400, controller.uploadStudentProfileImage(17L, file).getStatusCodeValue());
+        assertEquals(400, controller.uploadStudentProfileImage(17L, file).getStatusCode().value());
         assertEquals("students/17/old.png", student.getProfileImagePath());
         verify(files, never()).deleteProfileImage("students/17/old.png");
         verify(students, never()).updateStudent(eq(17L), any(Student.class));

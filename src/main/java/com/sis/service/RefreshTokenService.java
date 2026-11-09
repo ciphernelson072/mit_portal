@@ -39,9 +39,14 @@ public class RefreshTokenService {
 
     /** Issues a new refresh token for the user, storing only its hash. */
     public String issue(User user) {
+        return issue(user, false);
+    }
+
+    /** Issues a refresh token that retains whether MFA was completed at login. */
+    public String issue(User user, boolean mfaVerified) {
         String rawToken = generateRawToken();
         RefreshToken entity = new RefreshToken(
-                hash(rawToken), user, LocalDateTime.now().plusNanos(refreshExpirationMs * 1_000_000L));
+                hash(rawToken), user, LocalDateTime.now().plusNanos(refreshExpirationMs * 1_000_000L), mfaVerified);
         refreshTokenRepository.save(entity);
         return rawToken;
     }
@@ -73,8 +78,8 @@ public class RefreshTokenService {
         User user = current.getUser();
         if (!Boolean.TRUE.equals(user.getIsActive())) return Optional.empty();
 
-        String replacement = issue(user);
-        return Optional.of(new Rotation(user, replacement));
+        String replacement = issue(user, current.isMfaVerified());
+        return Optional.of(new Rotation(user, replacement, current.isMfaVerified()));
     }
 
     /** Revokes a single refresh token (used on logout, so this exact session's token can't be reused). */
@@ -108,10 +113,12 @@ public class RefreshTokenService {
     public static final class Rotation {
         private final User user;
         private final String refreshToken;
+        private final boolean mfaVerified;
 
-        private Rotation(User user, String refreshToken) {
+        private Rotation(User user, String refreshToken, boolean mfaVerified) {
             this.user = user;
             this.refreshToken = refreshToken;
+            this.mfaVerified = mfaVerified;
         }
 
         public User getUser() {
@@ -120,6 +127,10 @@ public class RefreshTokenService {
 
         public String getRefreshToken() {
             return refreshToken;
+        }
+
+        public boolean isMfaVerified() {
+            return mfaVerified;
         }
     }
 }

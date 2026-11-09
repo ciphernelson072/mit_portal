@@ -339,18 +339,23 @@ that port with `-DatabasePort` to `ops/backup-mysql.ps1` and
 `ops/restore-mysql.ps1`. Treat `ops/start-local-dev.ps1 -Reset` as destructive:
 it removes the Compose-managed database volume and now prompts for confirmation.
 
-### Optional multi-factor authentication
+### Multi-factor authentication
 
-MFA is disabled by default. To enable it, set `MFA_ENABLED=true` and provide
-`MFA_ENCRYPTION_KEY` as a Base64-encoded 32-byte AES key (for example, generate one
-with `openssl rand -base64 32`). Keep this key private and persistent across
-restarts and backups; losing or changing it makes enrolled authenticator secrets
-undecryptable. Users enroll from Profile Ã¢â€ â€™ Security. Enabling or disabling MFA
-invalidates active sessions. Students, teachers, and administrators can opt in
-from the Account Security page linked in their dashboard menus; enrollment is not
-required. After enrollment, sign-ins require the six-digit code from the user's
-authenticator app. Configure the key in the environment file used by the active
-launcher, and do not commit that file or reuse a key across separate environments.
+MFA is disabled by default. To offer enrollment, set `MFA_ENABLED=true` and
+provide `MFA_ENCRYPTION_KEY` as a Base64-encoded 32-byte AES key (for example,
+generate one with `openssl rand -base64 32`). Keep this key private and persistent
+across restarts and backups; losing or changing it makes enrolled authenticator
+secrets undecryptable. Users enroll from the Account Security page. Enabling or
+disabling MFA invalidates active sessions; enrolled users must complete MFA at
+sign-in and refresh.
+
+The separate `MFA_REQUIRED_FOR_PRIVILEGED` setting defaults to `false`. For a
+staged rollout, first enable enrollment, verify recovery/key custody, and enroll
+all administrators and accounts with active finance permissions. Only then set
+`MFA_REQUIRED_FOR_PRIVILEGED=true`. An unenrolled privileged account receives a
+short-lived enrollment-only session rather than portal access or a refresh token.
+Configure both settings in the active launcher/deployment environment; do not
+commit that file or reuse an encryption key across separate environments.
 
 ## Local Demo Credentials
 

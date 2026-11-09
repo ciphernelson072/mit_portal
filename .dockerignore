@@ -1,5 +1,7 @@
 .env
 .env.*
+.cve/
+.m2-local/
 .gitattributes
 .gitkeep
 .htaccess

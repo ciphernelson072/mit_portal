@@ -107,7 +107,7 @@ class GradeApprovalWorkflowTest {
 
         ResponseEntity<List<AdminGradeDto>> response = controller.pendingGrades();
 
-        assertEquals(200, response.getStatusCodeValue());
+        assertEquals(200, response.getStatusCode().value());
     }
 
     @Test

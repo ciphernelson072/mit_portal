@@ -6,6 +6,7 @@
   if (!status) return;
 
   const mfaSection = document.getElementById('mfaSecuritySection');
+  const sessionsSection = document.getElementById('activeSessionsSection');
   const passwordGroup = document.getElementById('mfaPasswordGroup');
   const password = document.getElementById('mfaCurrentPassword');
   const otp = document.getElementById('mfaOtp');
@@ -19,7 +20,10 @@
   const disableButton = document.getElementById('mfaDisableButton');
   const sessionsTableBody = document.getElementById('sessionsTableBody');
   const revokeAllSessionsButton = document.getElementById('revokeAllSessionsButton');
+  const enrollmentOnly = isMfaEnrollmentRequired();
   let enabled = false;
+
+  if (enrollmentOnly && sessionsSection) sessionsSection.hidden = true;
 
   function showMessage(text, error = false) {
     message.textContent = text;
@@ -32,7 +36,9 @@
       enabled = await response.json();
       status.textContent = enabled
         ? 'Two-factor authentication is enabled.'
-        : 'Two-factor authentication is not enabled.';
+        : (enrollmentOnly
+          ? 'MFA enrollment is required before you can access the portal.'
+          : 'Two-factor authentication is not enabled.');
       setupButton.hidden = enabled;
       disableButton.hidden = !enabled;
     } catch (error) {
@@ -183,5 +189,5 @@
   });
 
   loadMfaStatus();
-  loadSessions();
+  if (!enrollmentOnly) loadSessions();
 })();

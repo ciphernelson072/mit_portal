@@ -109,6 +109,19 @@
 
       if (!res.ok) {
         const errorBody = await res.clone().json().catch(() => ({}));
+        if (errorBody.mfaEnrollmentRequired) {
+          if (errorBody.role !== 'ADMIN' && errorBody.role !== 'TEACHER') {
+            await logout('admin-login.html');
+            showAlert('This is the staff portal. Students should sign in at the student portal.');
+            return;
+          }
+          setSession(errorBody.role, errorBody.username, errorBody.passwordChangeRequired);
+          setMfaEnrollmentRequired(true);
+          window.location.href = errorBody.passwordChangeRequired
+            ? 'force-password-change.html'
+            : 'account-security.html';
+          return;
+        }
         if (errorBody.mfaRequired) {
           document.getElementById('otpGroup').hidden = false;
           document.getElementById('otp').focus();

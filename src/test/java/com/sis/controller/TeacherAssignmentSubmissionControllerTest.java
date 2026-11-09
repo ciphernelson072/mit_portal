@@ -60,7 +60,7 @@ class TeacherAssignmentSubmissionControllerTest {
 
         var response = controller.listSubmissions(5L);
 
-        assertThat(response.getStatusCodeValue()).isEqualTo(200);
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
         assertThat(response.getBody()).hasSize(1);
         assertThat(response.getBody().get(0).getStudentName()).isEqualTo("Student Name");
         assertThat(response.getBody().get(0).getContent()).isEqualTo("My response");
@@ -77,7 +77,7 @@ class TeacherAssignmentSubmissionControllerTest {
 
         var response = controller.listSubmissions(5L);
 
-        assertThat(response.getStatusCodeValue()).isEqualTo(403);
+        assertThat(response.getStatusCode().value()).isEqualTo(403);
         verify(submissions, never()).findByAssignmentIdOrderBySubmittedAtAsc(5L);
     }
 

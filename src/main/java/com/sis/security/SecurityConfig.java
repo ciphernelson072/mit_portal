@@ -58,12 +58,10 @@ public class SecurityConfig {
 
     @Bean
     public RoleHierarchy roleHierarchy() {
-        RoleHierarchyImpl hierarchy = new RoleHierarchyImpl();
-        hierarchy.setHierarchy(
+        return RoleHierarchyImpl.fromHierarchy(
                 "ADMIN > TEACHER\n" +
                 "ADMIN > STUDENT"
         );
-        return hierarchy;
     }
 
         @Bean
@@ -157,7 +155,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/files/admin/list", "/api/files/delete")
                         .hasAnyAuthority("ADMIN", "PERM_PORTAL_SETTINGS_MANAGE")
                         .requestMatchers("/api/files/**").hasAnyAuthority("ADMIN", "STUDENT", "TEACHER", "PERM_PORTAL_SETTINGS_MANAGE")
-                        .requestMatchers("/account-security.html").hasAnyAuthority("ADMIN", "TEACHER", "STUDENT")
+                        .requestMatchers("/account-security.html").hasAnyAuthority(
+                                "ADMIN", "TEACHER", "STUDENT", "MFA_ENROLLMENT", "PASSWORD_CHANGE_REQUIRED")
                         .requestMatchers("/dashboard.html").access(hasExactAuthority("STUDENT"))
                         .requestMatchers("/academics.html", "/attendance.html", "/finance.html", "/campus-support.html", "/profile.html")
                         .access(hasExactAuthority("STUDENT"))
@@ -202,10 +201,10 @@ public class SecurityConfig {
 
     @Bean
     public AuthenticationManager authenticationManager(HttpSecurity http) throws Exception {
-        return http.getSharedObject(AuthenticationManagerBuilder.class)
-                .userDetailsService(userDetailsService)
-                .passwordEncoder(passwordEncoder())
-                .and()
-                .build();
+        AuthenticationManagerBuilder authenticationManagerBuilder =
+                http.getSharedObject(AuthenticationManagerBuilder.class);
+        authenticationManagerBuilder.userDetailsService(userDetailsService)
+                .passwordEncoder(passwordEncoder());
+        return authenticationManagerBuilder.build();
     }
 }

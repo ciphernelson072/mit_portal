@@ -2,6 +2,10 @@
 param(
     [switch]$Uninstall,
     [switch]$UploadOnly,
+    [switch]$Weekly,
+    [ValidateSet('Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday')]
+    [string]$DayOfWeek = 'Sunday',
+    [string]$BackupDirectory = (Join-Path $env:LOCALAPPDATA 'MITPortal\backups'),
     [ValidateRange(0, 23)]
     [int]$Hour = 2,
     [ValidateRange(0, 59)]
@@ -9,8 +13,11 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$customBackupDirectory = $BackupDirectory -ne (Join-Path $env:LOCALAPPDATA 'MITPortal\backups')
 $taskName = if ($UploadOnly) {
     'MIT Student Portal Upload Backups'
+} elseif ($customBackupDirectory) {
+    'MIT Student Portal Local Folder Backups'
 } else {
     'MIT Student Portal TiDB and Upload Backups'
 }
@@ -36,6 +43,15 @@ $scriptPath = Join-Path $PSScriptRoot 'run-tidb-backups.ps1'
 $powershellPath = Join-Path $PSHOME 'powershell.exe'
 $quotedScriptPath = '"' + $scriptPath + '"'
 $runnerArguments = "-NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File $quotedScriptPath"
+if ($BackupDirectory.Contains('"') -or $BackupDirectory.Contains("`r") -or $BackupDirectory.Contains("`n")) {
+    throw 'BackupDirectory must not contain quotes or line breaks.'
+}
+if ($customBackupDirectory) {
+    $runnerArguments += ' -BackupDirectory "' + $BackupDirectory + '"'
+}
+if ($Weekly) {
+    $runnerArguments += ' -RetentionDays 30'
+}
 if ($UploadOnly) {
     $runnerArguments += ' -UploadOnly'
 }
@@ -43,7 +59,12 @@ $action = New-ScheduledTaskAction `
     -Execute $powershellPath `
     -Argument $runnerArguments `
     -WorkingDirectory $projectRoot
-$trigger = New-ScheduledTaskTrigger -Daily -At ([DateTime]::Today.AddHours($Hour).AddMinutes($Minute))
+$runAt = [DateTime]::Today.AddHours($Hour).AddMinutes($Minute)
+$trigger = if ($Weekly) {
+    New-ScheduledTaskTrigger -Weekly -DaysOfWeek $DayOfWeek -At $runAt
+} else {
+    New-ScheduledTaskTrigger -Daily -At $runAt
+}
 $currentUser = [Security.Principal.WindowsIdentity]::GetCurrent().Name
 $principal = New-ScheduledTaskPrincipal -UserId $currentUser -LogonType Interactive -RunLevel Limited
 $settings = New-ScheduledTaskSettingsSet `
@@ -62,6 +83,8 @@ Register-ScheduledTask -TaskName $taskName `
     -Settings $settings `
     -Description $(if ($UploadOnly) {
         'Creates checksum-verified local portal upload backups without connecting to TiDB.'
+    } elseif ($customBackupDirectory -and $Weekly) {
+        'Creates weekly checksum-verified TiDB and portal upload backups in an access-restricted local folder with 30-day retention.'
     } else {
         'Creates checksum-verified local TiDB and portal upload backups; uses the private pilot environment and never logs database credentials.'
     }) `
@@ -73,5 +96,11 @@ if ($UploadOnly) {
     Write-Output 'Remove it with: .\ops\install-tidb-backup-task.ps1 -UploadOnly -Uninstall'
 } else {
     Write-Output 'The task runs as the signed-in user, uses TLS identity verification for TiDB, and retries failed runs.'
-    Write-Output 'Remove it with: .\ops\install-tidb-backup-task.ps1 -Uninstall'
+    if ($customBackupDirectory -and $Weekly) {
+        Write-Output "Backups are stored in: $BackupDirectory"
+        Write-Output "The weekly trigger runs every $DayOfWeek at $('{0:D2}:{1:D2}' -f $Hour, $Minute); retention is 30 days."
+        Write-Output 'Remove it with: .\ops\install-tidb-backup-task.ps1 -BackupDirectory "<same folder>" -Weekly -Uninstall'
+    } else {
+        Write-Output 'Remove it with: .\ops\install-tidb-backup-task.ps1 -Uninstall'
+    }
 }

@@ -371,8 +371,10 @@ demo is **not** an acceptable substitute for a campus-user pilot over HTTPS.
    invalidate active sessions or disrupt signed payment callbacks.
 5. Keep the production safety settings enabled:
    `COOKIE_SECURE=true`, `SAMPLE_DATA_ENABLED=false`,
-   `FLYWAY_BASELINE_ON_MIGRATE=false`, and `MFA_ENABLED=false` unless MFA has
-   a separately approved, tested rollout and recovery plan. Preserve the
+   `FLYWAY_BASELINE_ON_MIGRATE=false`, and leave MFA disabled until its key
+   custody and recovery process are verified. During staged enrollment keep
+   `MFA_REQUIRED_FOR_PRIVILEGED=false`; enable it only after the documented
+   enrollment and recovery gates pass. Preserve the
    Blueprint's proxy setting only behind Render's trusted ingress; do not
    copy forwarded-header trust to a directly reachable server.
 6. For a new empty database only, perform the one-time administrator setup:
@@ -507,7 +509,7 @@ The following items are not made operational merely by deploying the app:
 | Online payments | Generic payment records/callback path exist; provider-specific checkout and signature integration are not established. | Provider sandbox, documented signature validation, amount/currency/reference binding, replay/idempotency controls, refunds and reconciliation tests. Keep unavailable until then. |
 | Bank transfers | Manual reference/reconciliation path exists. | Document an authorized reconciliation operating procedure or integrate a bank statement source with audit and discrepancy handling. |
 | Prometheus | Spring-managed registry and authenticated `/actuator/prometheus` endpoint are implemented and browser-verified; external monitoring is not configured. | Configure approved-network scraping, dashboards, access controls, and exercised alert delivery. |
-| MFA | Application TOTP flow exists; disabled by default. | Policy decision, secure 32-byte Base64 encryption key, recovery/support process, and full enrollment/login/revocation tests. |
+| MFA | TOTP enrollment and privileged enrollment-only enforcement are implemented; enforcement remains off by default. | Configure and back up the production encryption key, enroll privileged accounts, verify recovery, then explicitly enable `MFA_REQUIRED_FOR_PRIVILEGED`. |
 | Logs/errors | No central export or error-tracking integration is verified. | Select a provider, redact secrets/PII, apply access/retention controls, and test alerting. |
 | Backups | Local backup scripts exist; Render/external production schedule and restore are not set up. | Encrypted off-host database and upload backups, monitoring, retention, and restore rehearsal. |
 | File storage | Configured filesystem storage; no object/shared-storage adapter found. | Persistent disk for one instance or implement/test shared object storage before scaling. |

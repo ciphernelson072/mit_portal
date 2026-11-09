@@ -1,5 +1,12 @@
 (() => {
-  if (!requireRole(['ADMIN', 'TEACHER', 'STUDENT'], 'index.html')) return;
+  const enrollmentRequired = isMfaEnrollmentRequired();
+  if (!enrollmentRequired && !requireRole(['ADMIN', 'TEACHER', 'STUDENT'], 'index.html')) return;
   const dashboardLink = document.getElementById('dashboardLink');
-  if (dashboardLink) dashboardLink.href = getPortalPageForRole(getRole());
+  if (dashboardLink) {
+    if (enrollmentRequired) {
+      dashboardLink.hidden = true;
+    } else {
+      dashboardLink.href = getPortalPageForRole(getRole());
+    }
+  }
 })();

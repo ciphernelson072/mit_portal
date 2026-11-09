@@ -248,9 +248,9 @@ public class EmailService {
             logger.severe("Error sending email: " + e.getMessage());
             throw new IllegalStateException("Failed to send email", e);
         } catch (RestClientResponseException e) {
-            logger.warning("Email API request failed with HTTP status " + e.getRawStatusCode());
+            logger.warning("Email API request failed with HTTP status " + e.getStatusCode().value());
             throw new IllegalStateException(
-                    "Email provider rejected the request (HTTP " + e.getRawStatusCode() + ").");
+                    "Email provider rejected the request (HTTP " + e.getStatusCode().value() + ").");
         } catch (Exception e) {
             logger.severe("Error sending email: " + e.getMessage());
             throw new IllegalStateException("Failed to send email", e);

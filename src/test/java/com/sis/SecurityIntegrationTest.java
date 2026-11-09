@@ -72,13 +72,16 @@ import com.sis.service.AuthenticationService;
 import com.sis.service.CustomUserDetailsService;
 import com.sis.service.EmailService;
 import com.sis.service.MfaSecretCipher;
+import com.sis.service.RefreshTokenService;
 import com.sis.security.OriginValidationFilter;
+import com.sis.security.JwtAuthenticationFilter;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.boot.test.mock.mockito.SpyBean;
+import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate;
+import org.springframework.boot.resttestclient.TestRestTemplate;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -123,13 +126,20 @@ import static org.mockito.Mockito.verify;
  * accounts SampleDataLoader seeds - see README.md's Demo Credentials section.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@AutoConfigureTestRestTemplate
 class SecurityIntegrationTest {
 
     @Autowired
     private AuthController authController;
 
     @Autowired
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @Autowired
     private MfaSecretCipher mfaSecretCipher;
+
+    @Autowired
+    private RefreshTokenService refreshTokenService;
 
     @Autowired
     private TestRestTemplate restTemplate;
@@ -224,7 +234,7 @@ class SecurityIntegrationTest {
     @Autowired
     private EmailVerificationTokenRepository emailVerificationTokenRepository;
 
-    @SpyBean
+    @MockitoSpyBean
     private EmailService emailService;
 
     @Autowired
@@ -251,6 +261,154 @@ class SecurityIntegrationTest {
         ResponseEntity<String> adminCourses = restTemplate.getForEntity("/api/admin/courses", String.class);
         assertTrue(adminCourses.getStatusCode() == HttpStatus.UNAUTHORIZED
                 || adminCourses.getStatusCode() == HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    void privilegedLoginIsRestrictedToMfaEnrollmentUntilVerification() {
+        User user = userRepository.findByUsername("admin").orElseThrow();
+        boolean originalMfaEnabled = Boolean.TRUE.equals(user.getMfaEnabled());
+        String originalMfaSecret = user.getMfaSecret();
+        int originalCredentialVersion = user.getCredentialVersion();
+        boolean originalPasswordChangeRequired = user.isPasswordChangeRequired();
+        boolean originalControllerMfaEnabled = (boolean) ReflectionTestUtils.getField(authController, "mfaEnabled");
+        boolean originalControllerMfaRequired =
+                (boolean) ReflectionTestUtils.getField(authController, "mfaRequiredForPrivileged");
+        boolean originalFilterMfaRequired =
+                (boolean) ReflectionTestUtils.getField(jwtAuthenticationFilter, "mfaRequiredForPrivileged");
+        String originalEncryptionKey = (String) ReflectionTestUtils.getField(mfaSecretCipher, "encodedKey");
+
+        ReflectionTestUtils.setField(authController, "mfaEnabled", true);
+        ReflectionTestUtils.setField(authController, "mfaRequiredForPrivileged", true);
+        ReflectionTestUtils.setField(jwtAuthenticationFilter, "mfaRequiredForPrivileged", true);
+        ReflectionTestUtils.setField(mfaSecretCipher, "encodedKey",
+                java.util.Base64.getEncoder().encodeToString(new byte[32]));
+        user.setMfaEnabled(false);
+        user.setMfaSecret(null);
+        user.setPasswordChangeRequired(false);
+        userRepository.saveAndFlush(user);
+
+        try {
+            HttpHeaders loginHeaders = new HttpHeaders();
+            loginHeaders.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<Map<String, String>> loginRequest =
+                    new HttpEntity<>(Map.of("username", "admin", "password", "admin123"), loginHeaders);
+            ResponseEntity<Map> pendingLogin =
+                    restTemplate.postForEntity("/api/auth/login", loginRequest, Map.class);
+
+            assertEquals(HttpStatus.FORBIDDEN, pendingLogin.getStatusCode());
+            assertTrue(Boolean.TRUE.equals(pendingLogin.getBody().get("mfaEnrollmentRequired")));
+            assertTrue(pendingLogin.getHeaders().getOrEmpty(HttpHeaders.SET_COOKIE).stream()
+                    .anyMatch(cookie -> cookie.startsWith("refresh_token=") && cookie.contains("Max-Age=0")));
+            String pendingAccessToken = accessTokenCookie(pendingLogin);
+            HttpHeaders pendingHeaders = new HttpHeaders();
+            pendingHeaders.set(HttpHeaders.COOKIE, "access_token=" + pendingAccessToken);
+
+            ResponseEntity<Boolean> mfaStatus = restTemplate.exchange(
+                    "/api/auth/mfa/status", HttpMethod.GET, new HttpEntity<>(pendingHeaders), Boolean.class);
+            assertEquals(HttpStatus.OK, mfaStatus.getStatusCode());
+            assertFalse(Boolean.TRUE.equals(mfaStatus.getBody()));
+
+            ResponseEntity<String> deniedPortalApi = restTemplate.exchange(
+                    "/api/auth/authorities", HttpMethod.GET, new HttpEntity<>(pendingHeaders), String.class);
+            assertEquals(HttpStatus.FORBIDDEN, deniedPortalApi.getStatusCode());
+
+            ResponseEntity<String> securityPage = restTemplate.exchange(
+                    "/account-security.html", HttpMethod.GET, new HttpEntity<>(pendingHeaders), String.class);
+            assertEquals(HttpStatus.OK, securityPage.getStatusCode());
+            assertTrue(securityPage.getBody().contains("Authenticator two-factor authentication"));
+
+            MfaSetupRequest setupRequest = new MfaSetupRequest();
+            setupRequest.setCurrentPassword("admin123");
+            ResponseEntity<MfaSetupResponse> setupResponse = restTemplate.exchange(
+                    "/api/auth/mfa/setup", HttpMethod.POST,
+                    new HttpEntity<>(setupRequest, pendingHeaders), MfaSetupResponse.class);
+            assertEquals(HttpStatus.OK, setupResponse.getStatusCode());
+            String secret = setupResponse.getBody().getSecret();
+
+            String otp = ReflectionTestUtils.invokeMethod(authController, "generateTotp",
+                    secret, java.time.Instant.now().getEpochSecond() / 30L);
+            MfaVerifyRequest verifyRequest = new MfaVerifyRequest();
+            verifyRequest.setCurrentPassword("admin123");
+            verifyRequest.setOtp(otp);
+            ResponseEntity<Void> verifyResponse = restTemplate.exchange(
+                    "/api/auth/mfa/verify", HttpMethod.POST,
+                    new HttpEntity<>(verifyRequest, pendingHeaders), Void.class);
+            assertEquals(HttpStatus.OK, verifyResponse.getStatusCode());
+
+            ResponseEntity<String> staleEnrollmentApi = restTemplate.exchange(
+                    "/api/auth/authorities", HttpMethod.GET, new HttpEntity<>(pendingHeaders), String.class);
+            assertEquals(HttpStatus.FORBIDDEN, staleEnrollmentApi.getStatusCode());
+
+            otp = ReflectionTestUtils.invokeMethod(authController, "generateTotp",
+                    secret, java.time.Instant.now().getEpochSecond() / 30L);
+            HttpEntity<Map<String, String>> verifiedLoginRequest = new HttpEntity<>(
+                    Map.of("username", "admin", "password", "admin123", "otp", otp), loginHeaders);
+            ResponseEntity<Map> verifiedLogin =
+                    restTemplate.postForEntity("/api/auth/login", verifiedLoginRequest, Map.class);
+            assertEquals(HttpStatus.OK, verifiedLogin.getStatusCode());
+            HttpHeaders verifiedHeaders = new HttpHeaders();
+            verifiedHeaders.set(HttpHeaders.COOKIE, "access_token=" + accessTokenCookie(verifiedLogin));
+
+            ResponseEntity<String> privilegedApi = restTemplate.exchange(
+                    "/api/auth/authorities", HttpMethod.GET, new HttpEntity<>(verifiedHeaders), String.class);
+            assertEquals(HttpStatus.OK, privilegedApi.getStatusCode());
+            assertTrue(privilegedApi.getBody().contains("ADMIN"));
+
+            HttpHeaders refreshHeaders = new HttpHeaders();
+            refreshHeaders.set(HttpHeaders.COOKIE,
+                    "refresh_token=" + cookieValue(verifiedLogin, "refresh_token"));
+            ResponseEntity<Map> refreshed = restTemplate.exchange(
+                    "/api/auth/refresh", HttpMethod.POST, new HttpEntity<>(refreshHeaders), Map.class);
+            assertEquals(HttpStatus.OK, refreshed.getStatusCode());
+            HttpHeaders refreshedAccessHeaders = new HttpHeaders();
+            refreshedAccessHeaders.set(HttpHeaders.COOKIE,
+                    "access_token=" + accessTokenCookie(refreshed));
+            ResponseEntity<String> refreshedPrivilegedApi = restTemplate.exchange(
+                    "/api/auth/authorities", HttpMethod.GET,
+                    new HttpEntity<>(refreshedAccessHeaders), String.class);
+            assertEquals(HttpStatus.OK, refreshedPrivilegedApi.getStatusCode());
+
+            String unverifiedRefreshToken = refreshTokenService.issue(user, false);
+            HttpHeaders unverifiedRefreshHeaders = new HttpHeaders();
+            unverifiedRefreshHeaders.set(HttpHeaders.COOKIE,
+                    "refresh_token=" + unverifiedRefreshToken);
+            ResponseEntity<String> unverifiedRefresh = restTemplate.exchange(
+                    "/api/auth/refresh", HttpMethod.POST,
+                    new HttpEntity<>(unverifiedRefreshHeaders), String.class);
+            assertEquals(HttpStatus.UNAUTHORIZED, unverifiedRefresh.getStatusCode());
+
+            MfaDisableRequest disableRequest = new MfaDisableRequest();
+            disableRequest.setCurrentPassword("admin123");
+            disableRequest.setOtp(otp);
+            ResponseEntity<Void> disableResponse = restTemplate.exchange(
+                    "/api/auth/mfa/disable", HttpMethod.POST,
+                    new HttpEntity<>(disableRequest, refreshedAccessHeaders), Void.class);
+            assertEquals(HttpStatus.FORBIDDEN, disableResponse.getStatusCode());
+        } finally {
+            refreshTokenService.revokeAllForUser(user.getId());
+            user.setMfaEnabled(originalMfaEnabled);
+            user.setMfaSecret(originalMfaSecret);
+            user.setCredentialVersion(originalCredentialVersion);
+            user.setPasswordChangeRequired(originalPasswordChangeRequired);
+            userRepository.saveAndFlush(user);
+            ReflectionTestUtils.setField(authController, "mfaEnabled", originalControllerMfaEnabled);
+            ReflectionTestUtils.setField(authController, "mfaRequiredForPrivileged", originalControllerMfaRequired);
+            ReflectionTestUtils.setField(jwtAuthenticationFilter, "mfaRequiredForPrivileged",
+                    originalFilterMfaRequired);
+            ReflectionTestUtils.setField(mfaSecretCipher, "encodedKey", originalEncryptionKey);
+        }
+    }
+
+    private String accessTokenCookie(ResponseEntity<?> response) {
+        return cookieValue(response, "access_token");
+    }
+
+    private String cookieValue(ResponseEntity<?> response, String name) {
+        return response.getHeaders().getOrEmpty(HttpHeaders.SET_COOKIE).stream()
+                .filter(cookie -> cookie.startsWith(name + "="))
+                .map(cookie -> cookie.substring(name.length() + 1, cookie.indexOf(';')))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Response did not set a " + name + " cookie"));
     }
 
     @Test
