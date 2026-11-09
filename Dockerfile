@@ -9,7 +9,9 @@ RUN apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=build /build/target/sis-0.0.1-SNAPSHOT.jar app.jar
-RUN groupadd --system spring && useradd --system --gid spring --home-dir /app --shell /usr/sbin/nologin spring
+RUN groupadd --system spring \
+    && useradd --system --gid spring --home-dir /app --shell /usr/sbin/nologin spring \
+    && install -d -o spring -g spring /app/uploads
 USER spring:spring
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]
