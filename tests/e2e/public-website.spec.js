@@ -13,30 +13,32 @@ async function serveWorkspaceStaticFile(page, urlPattern, filePath, contentType)
 }
 
 const publicPages = [
-  ['/public/index.html', 'Practical learning for a changing world.'],
-  ['/public/about.html', 'Technology-focused higher education.'],
-  ['/public/programmes.html', 'Explore available programmes.'],
-  ['/public/admissions.html', 'Start your application.'],
-  ['/public/contact.html', 'Get in touch.'],
+  ['/public/index.html', 'Practical learning for a changing world.', '/public/images/campus-community.jpg', 'A group of people, some wearing graduation gowns, outside a glass-fronted building.'],
+  ['/public/about.html', 'Technology-focused higher education.', '/public/images/academic-community.jpg', 'A line of people wearing colorful academic gowns and caps indoors.'],
+  ['/public/programmes.html', 'Explore available programmes.', '/public/images/campus-gathering.jpg', 'A group gathered indoors beside national and institutional flags.'],
+  ['/public/admissions.html', 'Start your application.', '/public/images/campus-activity.jpg', 'A group of people gathered in a hall while one person speaks at the front.'],
+  ['/public/contact.html', 'Get in touch.', '/public/images/campus-community.jpg', 'A group of people, some wearing graduation gowns, outside a glass-fronted building.'],
 ];
 
 test('public website pages render with their shared navigation and public-only footer', async ({ page }) => {
-  for (const [path, heading] of publicPages) {
+  for (const [path, heading, photoSrc, photoAlt] of publicPages) {
     await page.goto(path);
     await expect(page.getByRole('heading', { name: heading })).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeVisible();
     const campusLogo = page.locator('.site-header .brand-logo');
     await expect(campusLogo).toHaveAttribute('src', '/icons/logo.jpg');
     await expect.poll(() => campusLogo.evaluate(image => image.naturalWidth)).toBeGreaterThan(0);
-    const campusPhoto = page.locator('.hero-art img');
-    await expect(campusPhoto).toHaveAttribute('src', '/public/images/campus-community.jpg');
-    await expect(campusPhoto).toHaveAttribute('alt', 'A group of people, some wearing graduation gowns, outside a glass-fronted building.');
+    const campusPhoto = page.locator('.hero-art img').first();
+    await expect(campusPhoto).toHaveAttribute('src', photoSrc);
+    await expect(campusPhoto).toHaveAttribute('alt', photoAlt);
     await expect.poll(() => campusPhoto.evaluate(image => image.naturalWidth)).toBeGreaterThan(0);
     await expect(page.locator('meta[property="og:title"]')).toHaveAttribute('content', /Makerere Institute of Technology/);
     const footer = page.locator('footer');
     await expect(footer.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
     await expect(footer.getByRole('link', { name: 'Contact' })).toHaveAttribute('href', '/public/contact.html');
-    await expect(footer.getByRole('link', { name: /portal|staff|admin/i })).toHaveCount(0);
+    await expect(page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Portal sign in' }))
+      .toHaveAttribute('href', '/portal-login.html');
+    await expect(footer.getByRole('link', { name: 'Portal sign in' })).toHaveAttribute('href', '/portal-login.html');
     await expect(footer.getByRole('heading', { name: 'Follow MIT' })).toBeVisible();
     await expect(footer.locator('.social-list li')).toHaveCount(7);
     await expect(footer.locator('.social-list a')).toHaveCount(7);
@@ -50,6 +52,38 @@ test('public website pages render with their shared navigation and public-only f
     await expect(footer.locator('.social-note')).toContainText('ciphernelson072@gmail.com');
     await expect(footer.locator('.social-note')).toContainText('+256 769 234 213');
   }
+});
+
+test('homepage photo carousel has pause controls and supports manual navigation', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/public/index.html');
+  const carousel = page.getByRole('region', { name: 'Scenes from the institute' });
+  const activePhoto = carousel.locator('.hero-carousel-image.is-active');
+  const rotationButton = carousel.getByRole('button', { name: 'Pause photo rotation' });
+
+  await expect(activePhoto).toHaveAttribute('src', '/public/images/campus-community.jpg');
+  await expect(rotationButton).toBeVisible();
+  await rotationButton.click();
+  await expect(carousel.getByRole('button', { name: 'Start photo rotation' })).toBeVisible();
+  await carousel.getByRole('button', { name: 'Show next photo' }).click();
+  await expect(activePhoto).toHaveAttribute('src', '/public/images/campus-gathering.jpg');
+  await expect(carousel.locator('[data-carousel-status]')).toHaveText('Photo 2 of 4: A gathering at the institute');
+  await carousel.getByRole('button', { name: 'Show previous photo' }).click();
+  await expect(activePhoto).toHaveAttribute('src', '/public/images/campus-community.jpg');
+});
+
+test('photo carousel does not auto-rotate on mobile or for reduced-motion users', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/public/index.html');
+  const carousel = page.getByRole('region', { name: 'Scenes from the institute' });
+  await expect(carousel.getByRole('button', { name: /photo rotation/ })).toBeHidden();
+  await carousel.getByRole('button', { name: 'Show next photo' }).click();
+  await expect(carousel.locator('.hero-carousel-image.is-active')).toHaveAttribute('src', '/public/images/campus-gathering.jpg');
+
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/public/index.html');
+  await expect(page.getByRole('region', { name: 'Scenes from the institute' }).getByRole('button', { name: /photo rotation/ }))
+    .toBeHidden();
 });
 
 test('public homepage exposes PWA install help and registers the installable app', async ({ page }) => {
@@ -73,6 +107,153 @@ test('student portal login remains available at its explicit path', async ({ pag
   await page.goto('/index.html');
   await expect(page.getByText('Student Portal', { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Welcome Back' })).toBeVisible();
+});
+
+test('unified portal sign-in routes according to the server-returned role', async ({ page }) => {
+  const roles = [
+    { role: 'STUDENT', username: 'student1', destination: '/dashboard.html' },
+    { role: 'TEACHER', username: 'teacher1', destination: '/teacher-dashboard.html' },
+    { role: 'ADMIN', username: 'admin1', destination: '/admin-dashboard.html' },
+  ];
+
+  for (const account of roles) {
+    let loginPayload;
+    await page.route('**/api/auth/login', route => {
+      loginPayload = route.request().postDataJSON();
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ role: account.role, username: account.username }),
+      });
+    });
+    await page.route(`**${account.destination}`, route => route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: '<!doctype html><title>Portal</title><p>Portal destination</p>',
+    }));
+    await page.goto('/portal-login.html');
+    await expect(page.getByRole('heading', { name: 'Sign in to your portal' })).toBeVisible();
+    await expect(page.locator('#role')).toHaveCount(0);
+    await page.getByLabel('Username or email').fill(account.username);
+    await page.locator('#password').fill('test-password');
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await expect(page).toHaveURL(new RegExp(`${account.destination.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`));
+    expect(loginPayload).toEqual({ username: account.username, password: 'test-password' });
+  }
+});
+
+test('unified portal sign-in preserves MFA challenge and routes after verification', async ({ page }) => {
+  let loginAttempts = 0;
+  await page.route('**/api/auth/login', route => {
+    loginAttempts += 1;
+    const request = route.request().postDataJSON();
+    if (!request.otp) {
+      return route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        body: JSON.stringify({ message: 'MFA verification required', mfaRequired: true }),
+      });
+    }
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ role: 'ADMIN', username: 'admin1' }),
+    });
+  });
+  await page.route('**/admin-dashboard.html', route => route.fulfill({
+    status: 200,
+    contentType: 'text/html',
+    body: '<!doctype html><title>Admin</title><p>Admin portal</p>',
+  }));
+  await page.goto('/portal-login.html');
+  await page.getByLabel('Username or email').fill('admin1');
+  await page.locator('#password').fill('test-password');
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page.getByLabel('Authenticator code')).toBeVisible();
+  await expect(page.getByRole('status')).toContainText('authenticator app');
+  await page.getByLabel('Authenticator code').fill('123456');
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page).toHaveURL(/\/admin-dashboard\.html$/);
+  expect(loginAttempts).toBe(2);
+});
+
+test('unified portal sign-in routes required MFA enrollment from the server role', async ({ page }) => {
+  await page.route('**/api/auth/login', route => route.fulfill({
+    status: 403,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      role: 'TEACHER',
+      username: 'teacher1',
+      passwordChangeRequired: false,
+      mfaEnrollmentRequired: true,
+    }),
+  }));
+  await page.route('**/account-security.html', route => route.fulfill({
+    status: 200,
+    contentType: 'text/html',
+    body: '<!doctype html><title>Account security</title><p>Set up MFA</p>',
+  }));
+  await page.goto('/portal-login.html');
+  await page.getByLabel('Username or email').fill('teacher1');
+  await page.locator('#password').fill('test-password');
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page).toHaveURL(/\/account-security\.html$/);
+  await expect.poll(() => page.evaluate(() => ({
+    role: localStorage.getItem('mitRole'),
+    username: localStorage.getItem('mitUsername'),
+    enrollmentRequired: localStorage.getItem('mitMfaEnrollmentRequired'),
+  }))).toEqual({ role: 'TEACHER', username: 'teacher1', enrollmentRequired: 'true' });
+});
+
+test('unified portal sign-in forces a required password change before the role dashboard', async ({ page }) => {
+  await page.route('**/api/auth/login', route => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ role: 'STUDENT', username: 'student1', passwordChangeRequired: true }),
+  }));
+  await page.route('**/force-password-change.html', route => route.fulfill({
+    status: 200,
+    contentType: 'text/html',
+    body: '<!doctype html><title>Change password</title><p>Change your password</p>',
+  }));
+  await page.goto('/portal-login.html');
+  await page.getByLabel('Username or email').fill('student1');
+  await page.locator('#password').fill('temporary-password');
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page).toHaveURL(/\/force-password-change\.html$/);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('mitPasswordChangeRequired'))).toBe('true');
+});
+
+test('unified portal password reset uses generic account-safe confirmation', async ({ page }) => {
+  let submittedEmail;
+  await page.route('**/api/auth/forgot-password', route => {
+    submittedEmail = route.request().postDataJSON().email;
+    return route.fulfill({ status: 200, contentType: 'application/json', body: '{"message":"accepted"}' });
+  });
+  await page.goto('/portal-login.html');
+  await page.getByRole('button', { name: 'Forgot your password?' }).click();
+  await page.getByLabel('Account email').fill('student@example.test');
+  await page.getByRole('button', { name: 'Request a reset link' }).click();
+  await expect(page.locator('#loginMessage')).toContainText('If an account matches that email');
+  expect(submittedEmail).toBe('student@example.test');
+});
+
+test('unified portal sign-in remains usable at narrow mobile widths', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 740 });
+  await page.goto('/portal-login.html');
+  await expect(page.getByRole('heading', { name: 'Sign in to your portal' })).toBeVisible();
+  await expect(page.locator('#username')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+});
+
+test('public site and portal sign-in fit at key responsive breakpoints', async ({ page }) => {
+  for (const width of [320, 560, 680, 681, 820, 821, 1024, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/public/index.html');
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await page.goto('/portal-login.html');
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  }
 });
 
 test('public pages use a transparent hero overlay header and switch to navy on scroll', async ({ page }) => {
