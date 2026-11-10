@@ -121,7 +121,7 @@ public class SecurityConfig {
                                 "/api/v1/health",
                                 "/api/v1/openapi",
                                 "/actuator/health", "/actuator/health/**",
-                                "/", "/index.html", "/portal-login.html", "/admissions.html",
+                                "/", "/home.html", "/index.html", "/portal-login.html", "/admissions.html",
                                 "/admin-login.html", "/course-catalog.html",
                                 "/force-password-change.html",
                                 "/terms.html", "/privacy.html", "/support.html",

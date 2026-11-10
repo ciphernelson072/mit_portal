@@ -109,6 +109,7 @@ test('service worker bypasses POST, cross-origin, API, and actuator requests', (
 test('PWA manifest declares installed app icons at their real supported sizes', () => {
   const staticRoot = path.join(__dirname, '../src/main/resources/static');
   const manifest = JSON.parse(fs.readFileSync(path.join(staticRoot, 'manifest.json'), 'utf8'));
+  assert.equal(manifest.start_url, '/', 'installed app should open the portal gateway');
 
   for (const size of [192, 512]) {
     const icon = manifest.icons.find(candidate => candidate.sizes === `${size}x${size}`);
@@ -140,8 +141,9 @@ test('service worker precaches public pages but not authenticated dashboard page
   const coreAssets = [...assetsMatch[1].matchAll(/'([^']+)'/g)].map(match => match[1]);
 
   for (const asset of [
-    './', './index.html', './admissions.html', './course-catalog.html',
+    './', './home.html', './index.html', './admissions.html', './course-catalog.html',
     './admin-login.html', './css/auth.css', './icons/campus-login.png',
+    './css/home.css',
     './css/course-catalog.css', './js/course-catalog.js', './js/theme.js',
     './portal-login.html', './js/portal-login.js', './public/css/portal-login.css',
     './public/index.html', './public/js/site.js', './public/images/campus-gathering.jpg',
@@ -152,7 +154,7 @@ test('service worker precaches public pages but not authenticated dashboard page
   for (const asset of ['./dashboard.html', './admin-dashboard.html', './teacher-dashboard.html']) {
     assert.ok(!coreAssets.includes(asset), `${asset} requires authentication and must not be precached for anonymous users`);
   }
-  assert.match(serviceWorkerSource, /const CACHE_NAME = 'mit-portal-cache-v25';/);
+  assert.match(serviceWorkerSource, /const CACHE_NAME = 'mit-portal-cache-v26';/);
 });
 
 test('admin login loads shared assets from the site root and keeps its initial alert hidden', () => {

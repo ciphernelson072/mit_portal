@@ -54,6 +54,27 @@ test('public website pages render with their shared navigation and public-only f
   }
 });
 
+test('root homepage offers the student, employee, and guest destinations responsively', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/');
+
+  await expect(page.getByRole('heading', { name: 'Choose how to continue' })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Student Sign in to student services/ })).toHaveAttribute('href', '/index.html');
+  await expect(page.getByRole('link', { name: /Employee Staff and administrator sign in/ })).toHaveAttribute('href', '/admin-login.html');
+  await expect(page.getByRole('link', { name: /Guest Programmes, admissions, and contacts/ })).toHaveAttribute('href', '/public/index.html');
+  await expect.poll(() => page.locator('.gateway-page').evaluate(element => getComputedStyle(element).backgroundImage))
+    .toContain('/icons/campus-login.png');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+  for (const width of [390, 320]) {
+    await page.setViewportSize({ width, height: 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await expect(page.getByRole('link', { name: /Student Sign in to student services/ })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Employee Staff and administrator sign in/ })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Guest Programmes, admissions, and contacts/ })).toBeVisible();
+  }
+});
+
 test('homepage photo carousel has pause controls and supports manual navigation', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/public/index.html');
@@ -86,8 +107,8 @@ test('photo carousel does not auto-rotate on mobile or for reduced-motion users'
     .toBeHidden();
 });
 
-test('public homepage exposes PWA install help and registers the installable app', async ({ page }) => {
-  await page.goto('/');
+test('public information homepage exposes PWA install help and registers the installable app', async ({ page }) => {
+  await page.goto('/public/index.html');
   await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', '/manifest.json');
   await expect(page.getByRole('button', { name: 'Install portal' })).toBeVisible();
   await page.getByRole('button', { name: 'Install portal' }).click();
