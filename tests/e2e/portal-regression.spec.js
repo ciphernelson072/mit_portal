@@ -1269,6 +1269,7 @@ test('password reset link secret is removed from history and posted in request b
 
 test('profile preferences load, save independently, and preserve other settings', async ({ page }) => {
   await login(page, 'student1', 'student123');
+  await page.addInitScript(() => { window.alert = () => {}; });
   let storedPreferences = {
     userId: 7,
     language: 'English',
@@ -1280,7 +1281,6 @@ test('profile preferences load, save independently, and preserve other settings'
     }),
   };
 
-  await page.on('dialog', dialog => dialog.accept());
   await page.route('**/api/**', async route => {
     const request = route.request();
     const url = new URL(request.url());
