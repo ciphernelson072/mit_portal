@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MIT Portal – Messages</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="css/dashboard-style.css">
+</head>
+<body>
+  <header class="header">
+    <div class="header-container">
+      <div class="header-logo">
+        <img src="icons/logo.jpg" alt="MIT Logo" class="logo-icon">
+        <div class="brand-text">
+          <h1>MIT Portal</h1>
+          <span>Messages</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="header-icons">
+          <a href="dashboard.html" class="btn-primary">Back to dashboard</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <section class="profile-summary">
+      <div class="profile-container">
+        <div class="profile-info-section">
+          <div class="profile-greeting">
+            <h2>Messages</h2>
+            <p id="messageSummary">Loading your inbox…</p>
+          </div>
+        </div>
+        <div class="program-info">
+          <button id="composeToggle" class="btn-primary" type="button">Compose</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="adminEmailCampaign" class="card email-campaign" aria-labelledby="emailCampaignTitle" hidden>
+      <div class="card-header">
+        <h3 id="emailCampaignTitle">Email all users</h3>
+      </div>
+      <div class="card-content">
+        <p class="email-campaign-note">
+          Choose active user accounts with a valid email address. Each recipient gets a separate email;
+          their addresses are not shared with other recipients. Maximum 450 recipients per send.
+        </p>
+        <div class="email-recipient-toolbar">
+          <label>
+            <span>Find recipients</span>
+            <input id="emailRecipientSearch" type="search" placeholder="Search username or email" autocomplete="off">
+          </label>
+          <label>
+            <span>Role</span>
+            <select id="emailRecipientRole">
+              <option value="">All roles</option>
+              <option value="ADMIN">Administrators</option>
+              <option value="TEACHER">Teachers</option>
+              <option value="STUDENT">Students</option>
+            </select>
+          </label>
+          <button id="selectFilteredRecipients" class="btn-primary" type="button">Select shown</button>
+          <button id="clearEmailRecipients" class="btn-secondary" type="button">Clear selection</button>
+        </div>
+        <p id="emailRecipientSummary" class="email-recipient-summary" aria-live="polite">Loading recipient list…</p>
+        <div id="emailRecipientList" class="email-recipient-list" aria-label="Email recipients"></div>
+
+        <form id="emailCampaignForm" class="email-campaign-form">
+          <label>
+            <span>Subject</span>
+            <input id="emailCampaignSubject" name="subject" type="text" maxlength="200" required>
+          </label>
+          <label>
+            <span>Message</span>
+            <textarea id="emailCampaignContent" name="content" rows="7" maxlength="10000" required></textarea>
+          </label>
+          <div class="email-campaign-actions">
+            <button id="sendEmailCampaign" class="btn-primary" type="submit">Send email</button>
+            <p id="emailCampaignStatus" role="status" aria-live="polite"></p>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="dashboard-grid">
+      <div class="card" style="grid-column: 1 / -1;" id="composeCard" hidden>
+        <div class="card-header">
+          <h3>Compose Message</h3>
+        </div>
+        <div class="card-content">
+          <form id="composeForm">
+            <div style="display:grid; gap:12px;">
+              <label>
+                <span>Recipient Username</span><br>
+                <input id="receiverUsername" name="receiverUsername" type="text" required style="width:100%; max-width:420px;" />
+              </label>
+              <label>
+                <span>Subject</span><br>
+                <input id="subject" name="subject" type="text" required style="width:100%; max-width:420px;" />
+              </label>
+              <label>
+                <span>Message</span><br>
+                <textarea id="content" name="content" rows="5" required style="width:100%; max-width:640px;"></textarea>
+              </label>
+              <button type="submit" class="btn-primary">Send message</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3>Inbox</h3>
+        </div>
+        <div class="card-content">
+          <div id="inboxList" class="message-list"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3>Sent</h3>
+        </div>
+        <div class="card-content">
+          <div id="sentList" class="message-list"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/backend-only.js"></script>
+  <script src="js/deployment-config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/theme.js"></script>
+  <script src="js/messages.js"></script>
+</body>
+</html>

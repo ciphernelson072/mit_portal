@@ -19,11 +19,28 @@ public class UserService {
     }
 
     public User save(User user) {
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        if (user == null) {
+            return null;
+        }
+
+        String password = user.getPassword();
+        if (password != null && isAlreadyHashed(password)) {
+            return userRepository.save(user);
+        }
+
+        user.setPassword(passwordEncoder.encode(password));
         return userRepository.save(user);
     }
 
+    private boolean isAlreadyHashed(String password) {
+        return password != null && (
+                password.startsWith("$2a$") ||
+                password.startsWith("$2b$") ||
+                password.startsWith("$2y$")
+        );
+    }
+
     public Optional<User> findByUsername(String username) {
-        return userRepository.findByUsername(username);
+        return username == null ? Optional.empty() : userRepository.findByUsernameIgnoreCase(username.trim());
     }
 }

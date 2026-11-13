@@ -1,0 +1,25 @@
+sequenceDiagram
+  actor Teacher
+  participant Browser
+  participant API as Spring API / access checks
+  participant DB as Academic database
+  participant Store as Private upload storage
+  Teacher->>Browser: Select assigned course
+  Browser->>API: GET /api/teacher/courses/{id}/students
+  API->>DB: Verify course ownership and load enrolled roster
+  DB-->>API: Student profile DTOs, including photo path
+  API-->>Browser: Authorized roster
+  Browser->>API: GET /api/files/download?filePath=students/{id}_...
+  API->>DB: Verify requesting teacher teaches student
+  DB-->>API: Ownership decision
+  alt Teacher assigned to student
+    API->>Store: Read requested image
+    Store-->>API: Image bytes
+    API-->>Browser: Inline image response
+    Teacher->>Browser: Click photo
+    Browser-->>Teacher: Full-screen photo viewer
+  else Not assigned
+    API-->>Browser: Deny access
+  end
+  Teacher->>Browser: Request roster/grade CSV
+  Browser-->>Teacher: Download selected-course dataset only

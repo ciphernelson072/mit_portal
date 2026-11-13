@@ -1,0 +1,23 @@
+flowchart TB
+  People[Students, Teachers, Administrators]
+  Browser[Web browser: static HTML CSS JavaScript]
+  Edge[HTTPS ingress / reverse proxy]
+  Tunnel[Cloudflare Quick Tunnel - temporary testing only]
+  App[Spring Boot monolith: REST controllers, services, validation]
+  Security[Spring Security: role and ownership checks, JWT HttpOnly cookie]
+  Flyway[Flyway schema migrations]
+  DB[(MySQL-compatible database: local MySQL or TiDB)]
+  Files[(Private filesystem upload directory)]
+  Mail[Optional SMTP or Resend integration]
+  Ops[Actuator health and Prometheus metrics]
+  Backup[Operator-managed database and upload backups]
+  People --> Browser --> Edge --> App
+  Tunnel -. optional pilot route .-> Edge
+  App --> Security
+  Security --> DB
+  App --> Flyway --> DB
+  App --> Files
+  App -. configured notifications .-> Mail
+  App --> Ops
+  DB -. scheduled operations .-> Backup
+  Files -. scheduled operations .-> Backup

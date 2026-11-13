@@ -1,14 +1,21 @@
 package com.sis.service;
 
+import com.sis.dto.AdminFileListingDto;
+import com.sis.dto.AdminStoredFileDto;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.FileVisitResult;
+import java.nio.file.SimpleFileVisitor;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.UUID;
 import java.util.logging.Logger;
 
@@ -30,84 +37,118 @@ public class FileUploadService {
     private static final String[] ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png", "gif"};
     private static final String STUDENT_DIR = "students";
     private static final String TEACHER_DIR = "teachers";
+    private static final int MAX_LISTED_FILES = 500;
 
-    /**
-     * Upload profile image for student
-     * Saves file to C:/uploads/students/ directory
-     * @param file the file to upload
-     * @param studentId student identifier
-     * @return file path relative to upload directory
-     * @throws IOException if upload fails
-     * @throws IllegalArgumentException if file is invalid
-     */
     public String uploadStudentProfileImage(MultipartFile file, Long studentId) throws IOException {
         return uploadProfileImage(file, STUDENT_DIR, studentId);
     }
 
-    /**
-     * Upload profile image for teacher
-     * Saves file to C:/uploads/teachers/ directory
-     * @param file the file to upload
-     * @param teacherId teacher identifier
-     * @return file path relative to upload directory
-     * @throws IOException if upload fails
-     * @throws IllegalArgumentException if file is invalid
-     */
     public String uploadTeacherProfileImage(MultipartFile file, Long teacherId) throws IOException {
         return uploadProfileImage(file, TEACHER_DIR, teacherId);
     }
 
-    /**
-     * Internal method to handle profile image upload
-     * @param file the file to upload
-     * @param directory subdirectory (students or teachers)
-     * @param userId user identifier
-     * @return file path relative to upload directory
-     * @throws IOException if upload fails
-     * @throws IllegalArgumentException if file is invalid
-     */
+    public String uploadStudentDocument(MultipartFile file, Long studentId) throws IOException {
+        if (file == null || file.isEmpty()) throw new IllegalArgumentException("File is empty");
+        if (file.getSize() > maxFileSize) throw new IllegalArgumentException("File size exceeds maximum limit");
+
+        String originalFilename = file.getOriginalFilename();
+        String contentType = file.getContentType();
+        String extension = originalFilename == null ? "" : getFileExtension(originalFilename).toLowerCase();
+        boolean isAllowedDocument = isAllowedDocumentType(originalFilename, contentType);
+
+        if (!isAllowedDocument) {
+            throw new IllegalArgumentException("Only PDF and image documents are allowed");
+        }
+
+        Path directory = resolveUploadRoot().resolve("documents").resolve(String.valueOf(studentId)).normalize();
+        if (!Files.exists(directory)) Files.createDirectories(directory);
+
+        String filename = UUID.randomUUID() + (extension.isEmpty() ? "" : "." + extension);
+        Path target = directory.resolve(filename);
+        file.transferTo(target.toFile());
+        return "documents/" + studentId + "/" + filename;
+    }
+
+    public String uploadThesisDocument(MultipartFile file, Long studentId) throws IOException {
+        if (file == null || file.isEmpty()) throw new IllegalArgumentException("File is empty");
+        if (file.getSize() > maxFileSize) throw new IllegalArgumentException("File size exceeds maximum limit");
+        String originalFilename = file.getOriginalFilename();
+        if (originalFilename == null || !getFileExtension(originalFilename).equalsIgnoreCase("pdf")) {
+            throw new IllegalArgumentException("Thesis submissions must be PDF files");
+        }
+        try (var input = file.getInputStream()) {
+            byte[] signature = input.readNBytes(5);
+            if (signature.length != 5 || signature[0] != '%' || signature[1] != 'P'
+                    || signature[2] != 'D' || signature[3] != 'F' || signature[4] != '-') {
+                throw new IllegalArgumentException("The uploaded file is not a valid PDF document");
+            }
+        }
+
+        Path directory = resolveUploadRoot().resolve("research").resolve(String.valueOf(studentId)).normalize();
+        if (!directory.startsWith(resolveUploadRoot())) throw new IllegalArgumentException("Invalid student identifier");
+        Files.createDirectories(directory);
+        String filename = UUID.randomUUID() + ".pdf";
+        file.transferTo(directory.resolve(filename).toFile());
+        return "research/" + studentId + "/" + filename;
+    }
+
+    public String uploadCourseMaterial(MultipartFile file, Long courseId) throws IOException {
+        if (file == null || file.isEmpty()) throw new IllegalArgumentException("File is empty");
+        if (file.getSize() > maxFileSize) throw new IllegalArgumentException("File size exceeds maximum limit");
+        String originalFilename = file.getOriginalFilename();
+        if (!isAllowedDocumentType(originalFilename, file.getContentType())) {
+            throw new IllegalArgumentException("Only PDF and image documents are allowed");
+        }
+        String extension = getFileExtension(originalFilename).toLowerCase();
+        Path directory = resolveUploadRoot().resolve("materials").resolve(String.valueOf(courseId)).normalize();
+        if (!Files.exists(directory)) Files.createDirectories(directory);
+        String filename = UUID.randomUUID() + (extension.isEmpty() ? "" : "." + extension);
+        file.transferTo(directory.resolve(filename).toFile());
+        return "materials/" + courseId + "/" + filename;
+    }
+
+    private boolean isAllowedDocumentType(String originalFilename, String contentType) {
+        if (originalFilename == null || originalFilename.isBlank()) return false;
+        String extension = getFileExtension(originalFilename).toLowerCase();
+        if (extension.equals("pdf") || extension.equals("png") || extension.equals("jpg") || extension.equals("jpeg") || extension.equals("gif")) {
+            return true;
+        }
+        if (contentType == null) return false;
+        String normalizedType = contentType.toLowerCase();
+        return normalizedType.equals("application/pdf") || normalizedType.startsWith("image/");
+    }
+
     private String uploadProfileImage(MultipartFile file, String directory, Long userId) throws IOException {
-        // Validate file
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("File is empty");
         }
-
-        // Check file size
         if (file.getSize() > maxFileSize) {
             throw new IllegalArgumentException("File size exceeds maximum limit: " + maxFileSize + " bytes");
         }
 
-        // Check file type
         String originalFilename = file.getOriginalFilename();
         if (originalFilename == null || !isAllowedFileType(originalFilename)) {
             throw new IllegalArgumentException("File type not allowed. Allowed types: jpg, jpeg, png, gif");
         }
 
-        // Create directory if not exists
-        Path targetDirectory = Paths.get(uploadDir, directory);
+        Path targetDirectory = resolveUploadRoot().resolve(directory).normalize();
         if (!Files.exists(targetDirectory)) {
             Files.createDirectories(targetDirectory);
             logger.info("Created directory: " + targetDirectory);
         }
 
-        // Generate unique filename
+        // Filename is always server-generated (never the client-supplied name), so
+        // there's nothing here for a client to inject a path-traversal sequence into.
         String fileExtension = getFileExtension(originalFilename);
-        String filename = userId + "_" + UUID.randomUUID().toString() + "." + fileExtension;
+        String filename = userId + "_" + UUID.randomUUID() + "." + fileExtension;
 
-        // Save file
         Path filepath = targetDirectory.resolve(filename);
         file.transferTo(filepath.toFile());
         logger.info("File uploaded successfully: " + filepath);
 
-        // Return relative path for database storage
         return directory + "/" + filename;
     }
 
-    /**
-     * Check if file extension is allowed
-     * @param filename the filename to check
-     * @return true if extension is allowed
-     */
     private boolean isAllowedFileType(String filename) {
         String extension = getFileExtension(filename).toLowerCase();
         for (String allowed : ALLOWED_EXTENSIONS) {
@@ -118,28 +159,83 @@ public class FileUploadService {
         return false;
     }
 
-    /**
-     * Get file extension from filename
-     * @param filename the filename
-     * @return file extension without dot
-     */
     private String getFileExtension(String filename) {
         int lastIndexOfDot = filename.lastIndexOf('.');
         return lastIndexOfDot > 0 ? filename.substring(lastIndexOfDot + 1) : "";
     }
 
     /**
-     * Delete profile image file
-     * @param relativePath relative path from upload directory
-     * @return true if deletion successful
+     * Resolves a client-supplied relative path against the upload root and verifies
+     * the result is still contained within that root.
+     * <p>
+     * Every public method here used to do {@code Paths.get(uploadDir, relativePath)}
+     * with no validation at all, so a caller could pass {@code ../../../../etc/passwd}
+     * (or a Windows equivalent) and read or delete arbitrary files on the host that the
+     * application process has permission to touch - classic path traversal (CWE-22).
+     * All access now funnels through this method so the containment check can't be
+     * bypassed by adding a new file operation later.
+     *
+     * @throws SecurityException if the resolved path escapes the upload directory
      */
+    private Path resolveSafePath(String relativePath) {
+        if (relativePath == null || relativePath.isBlank()) {
+            throw new IllegalArgumentException("Invalid file path");
+        }
+        Path root = resolveUploadRoot();
+        Path resolved = root.resolve(relativePath).normalize();
+        if (!resolved.startsWith(root)) {
+            logger.warning("Rejected path traversal attempt: " + relativePath);
+            throw new SecurityException("Invalid file path");
+        }
+        return resolved;
+    }
+
+    private Path resolveUploadRoot() {
+        return Paths.get(uploadDir).toAbsolutePath().normalize();
+    }
+
+    public String normalizeRelativePath(String relativePath) {
+        Path root = resolveUploadRoot();
+        return root.relativize(resolveSafePath(relativePath)).toString().replace('\\', '/');
+    }
+
+    public AdminFileListingDto listStoredFiles() throws IOException {
+        Path root = resolveUploadRoot();
+        if (!Files.isDirectory(root)) {
+            return new AdminFileListingDto(List.of(), false);
+        }
+
+        List<AdminStoredFileDto> collectedFiles = new ArrayList<>();
+        Files.walkFileTree(root, new SimpleFileVisitor<>() {
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attributes) {
+                if (attributes.isRegularFile() && !attributes.isSymbolicLink()) {
+                    String relativePath = root.relativize(file).toString().replace('\\', '/');
+                    collectedFiles.add(new AdminStoredFileDto(
+                            relativePath, attributes.size(), attributes.lastModifiedTime().toInstant()));
+                    if (collectedFiles.size() > MAX_LISTED_FILES) {
+                        return FileVisitResult.TERMINATE;
+                    }
+                }
+                return FileVisitResult.CONTINUE;
+            }
+        });
+
+        List<AdminStoredFileDto> files = new ArrayList<>(collectedFiles);
+        files.sort(Comparator.comparing(AdminStoredFileDto::getPath));
+        boolean truncated = files.size() > MAX_LISTED_FILES;
+        if (truncated) {
+            files = new ArrayList<>(files.subList(0, MAX_LISTED_FILES));
+        }
+        return new AdminFileListingDto(files, truncated);
+    }
+
     public boolean deleteProfileImage(String relativePath) {
         if (relativePath == null || relativePath.isEmpty()) {
             return false;
         }
-
         try {
-            Path filepath = Paths.get(uploadDir, relativePath);
+            Path filepath = resolveSafePath(relativePath);
             if (Files.exists(filepath)) {
                 Files.delete(filepath);
                 logger.info("File deleted successfully: " + filepath);
@@ -147,73 +243,52 @@ public class FileUploadService {
             }
         } catch (IOException e) {
             logger.severe("Error deleting file: " + e.getMessage());
+        } catch (SecurityException e) {
+            return false;
         }
-
         return false;
     }
 
-    /**
-     * Get absolute file path from relative path
-     * @param relativePath relative path from upload directory
-     * @return absolute file path
-     */
     public String getAbsoluteFilePath(String relativePath) {
         if (relativePath == null || relativePath.isEmpty()) {
             return null;
         }
-        return Paths.get(uploadDir, relativePath).toAbsolutePath().toString();
+        return resolveSafePath(relativePath).toString();
     }
 
-    /**
-     * Check if file exists
-     * @param relativePath relative path from upload directory
-     * @return true if file exists
-     */
     public boolean fileExists(String relativePath) {
         if (relativePath == null || relativePath.isEmpty()) {
             return false;
         }
-        return Files.exists(Paths.get(uploadDir, relativePath));
+        try {
+            return Files.exists(resolveSafePath(relativePath));
+        } catch (SecurityException e) {
+            return false;
+        }
     }
 
-    /**
-     * Get file as byte array
-     * @param relativePath relative path from upload directory
-     * @return file contents as byte array
-     * @throws IOException if file cannot be read
-     */
     public byte[] getFileAsBytes(String relativePath) throws IOException {
-        if (relativePath == null || relativePath.isEmpty()) {
-            throw new IllegalArgumentException("Invalid file path");
-        }
-
-        Path filepath = Paths.get(uploadDir, relativePath);
+        Path filepath = resolveSafePath(relativePath);
         if (!Files.exists(filepath)) {
             throw new IOException("File not found: " + filepath);
         }
-
         return Files.readAllBytes(filepath);
     }
 
-    /**
-     * Get file size in bytes
-     * @param relativePath relative path from upload directory
-     * @return file size in bytes, or 0 if not found
-     */
     public long getFileSize(String relativePath) {
         if (relativePath == null || relativePath.isEmpty()) {
             return 0;
         }
-
         try {
-            Path filepath = Paths.get(uploadDir, relativePath);
+            Path filepath = resolveSafePath(relativePath);
             if (Files.exists(filepath)) {
                 return Files.size(filepath);
             }
         } catch (IOException e) {
             logger.severe("Error getting file size: " + e.getMessage());
+        } catch (SecurityException e) {
+            return 0;
         }
-
         return 0;
     }
 }

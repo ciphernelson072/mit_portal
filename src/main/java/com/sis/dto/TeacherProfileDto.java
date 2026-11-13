@@ -6,15 +6,19 @@ public class TeacherProfileDto {
     private Long id;
     private String username;
     private String fullName;
+    private String profileImagePath;
+    private Long departmentId;
+    private String departmentName;
     private Set<String> courses;
 
     public TeacherProfileDto() {
     }
 
-    public TeacherProfileDto(Long id, String username, String fullName, Set<String> courses) {
+    public TeacherProfileDto(Long id, String username, String fullName, String profileImagePath, Set<String> courses) {
         this.id = id;
         this.username = username;
         this.fullName = fullName;
+        this.profileImagePath = profileImagePath;
         this.courses = courses;
     }
 
@@ -40,6 +44,30 @@ public class TeacherProfileDto {
 
     public void setFullName(String fullName) {
         this.fullName = fullName;
+    }
+
+    public String getProfileImagePath() {
+        return profileImagePath;
+    }
+
+    public void setProfileImagePath(String profileImagePath) {
+        this.profileImagePath = profileImagePath;
+    }
+
+    public Long getDepartmentId() {
+        return departmentId;
+    }
+
+    public void setDepartmentId(Long departmentId) {
+        this.departmentId = departmentId;
+    }
+
+    public String getDepartmentName() {
+        return departmentName;
+    }
+
+    public void setDepartmentName(String departmentName) {
+        this.departmentName = departmentName;
     }
 
     public Set<String> getCourses() {

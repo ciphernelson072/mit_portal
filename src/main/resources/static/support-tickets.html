@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MIT Portal – Support Tickets</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="css/dashboard-style.css">
+</head>
+<body>
+  <header class="header">
+    <div class="header-container">
+      <div class="header-logo">
+        <img src="icons/logo.jpg" alt="MIT Logo" class="logo-icon">
+        <div class="brand-text">
+          <h1>MIT Portal</h1>
+          <span>Support Tickets</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="header-icons">
+          <a href="dashboard.html" class="btn-primary">Back to dashboard</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <section class="profile-summary">
+      <div class="profile-container">
+        <div class="profile-info-section">
+          <div class="profile-greeting">
+            <h2>Support Tickets</h2>
+            <p id="ticketSummary">Loading your requests…</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="dashboard-grid">
+      <div class="card" style="grid-column: 1 / -1;">
+        <div class="card-header">
+          <h3>Submit a help desk request</h3>
+        </div>
+        <div class="card-content">
+          <form id="ticketForm" class="support-form">
+            <div class="form-row two-col">
+              <label>
+                Request type
+                <select name="type" required>
+                  <option value="SUPPORT_TICKET">Support</option>
+                  <option value="ACADEMIC">Academic</option>
+                  <option value="FINANCE">Finance</option>
+                  <option value="HOSTEL">Hostel</option>
+                  <option value="TRANSPORT">Transport</option>
+                  <option value="OTHER">Other</option>
+                </select>
+              </label>
+            </div>
+            <div class="form-row">
+              <label>
+                Subject
+                <input name="subject" type="text" maxlength="120" placeholder="Brief summary" required>
+              </label>
+            </div>
+            <div class="form-row">
+              <label>
+                Details
+                <textarea name="details" rows="5" placeholder="Tell us what you need help with..."></textarea>
+              </label>
+            </div>
+            <button type="submit" class="btn-primary">Submit request</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="card" style="grid-column: 1 / -1;">
+        <div class="card-header">
+          <h3>Your requests</h3>
+        </div>
+        <div class="card-content">
+          <div id="ticketsList" class="notification-list"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/backend-only.js"></script>
+  <script src="js/deployment-config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/theme.js"></script>
+  <script src="js/support-tickets.js"></script>
+</body>
+</html>

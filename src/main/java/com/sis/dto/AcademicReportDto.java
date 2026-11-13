@@ -28,6 +28,11 @@ public class AcademicReportDto {
      * Current CGPA
      */
     private BigDecimal cgpa;
+    private String awardClassification;
+    private Integer creditsEarned;
+    private String latestSemester;
+    private BigDecimal semesterGpa;
+    private String academicStandingStatus;
 
     /**
      * Total courses enrolled
@@ -58,6 +63,31 @@ public class AcademicReportDto {
      * Report generation date
      */
     private String generatedDate;
+
+    /**
+     * Whether this official academic report has been approved.
+     */
+    private Boolean approved;
+
+    /**
+     * Name of the approver who released the official report.
+     */
+    private String approvedBy;
+
+    /**
+     * Approval timestamp used in the formal report.
+     */
+    private String approvedAt;
+
+    private Boolean published;
+
+    private String publishedBy;
+
+    private String publishedAt;
+
+    private String publicationStatus;
+
+    private String resultsVersion;
 
     // Constructors
     public AcademicReportDto() {}
@@ -101,6 +131,17 @@ public class AcademicReportDto {
     public void setCgpa(BigDecimal cgpa) {
         this.cgpa = cgpa;
     }
+
+    public String getAwardClassification() { return awardClassification; }
+    public void setAwardClassification(String awardClassification) { this.awardClassification = awardClassification; }
+    public Integer getCreditsEarned() { return creditsEarned; }
+    public void setCreditsEarned(Integer creditsEarned) { this.creditsEarned = creditsEarned; }
+    public String getLatestSemester() { return latestSemester; }
+    public void setLatestSemester(String latestSemester) { this.latestSemester = latestSemester; }
+    public BigDecimal getSemesterGpa() { return semesterGpa; }
+    public void setSemesterGpa(BigDecimal semesterGpa) { this.semesterGpa = semesterGpa; }
+    public String getAcademicStandingStatus() { return academicStandingStatus; }
+    public void setAcademicStandingStatus(String academicStandingStatus) { this.academicStandingStatus = academicStandingStatus; }
 
     public Integer getTotalCourses() {
         return totalCourses;
@@ -148,6 +189,70 @@ public class AcademicReportDto {
 
     public void setGeneratedDate(String generatedDate) {
         this.generatedDate = generatedDate;
+    }
+
+    public Boolean getApproved() {
+        return approved;
+    }
+
+    public void setApproved(Boolean approved) {
+        this.approved = approved;
+    }
+
+    public String getApprovedBy() {
+        return approvedBy;
+    }
+
+    public void setApprovedBy(String approvedBy) {
+        this.approvedBy = approvedBy;
+    }
+
+    public String getApprovedAt() {
+        return approvedAt;
+    }
+
+    public void setApprovedAt(String approvedAt) {
+        this.approvedAt = approvedAt;
+    }
+
+    public Boolean getPublished() {
+        return published;
+    }
+
+    public void setPublished(Boolean published) {
+        this.published = published;
+    }
+
+    public String getPublishedBy() {
+        return publishedBy;
+    }
+
+    public void setPublishedBy(String publishedBy) {
+        this.publishedBy = publishedBy;
+    }
+
+    public String getPublishedAt() {
+        return publishedAt;
+    }
+
+    public void setPublishedAt(String publishedAt) {
+        this.publishedAt = publishedAt;
+    }
+
+    public String getPublicationStatus() {
+        return publicationStatus;
+    }
+
+    public void setPublicationStatus(String publicationStatus) {
+        this.publicationStatus = publicationStatus;
+    }
+
+    public String getResultsVersion() {
+        return resultsVersion;
+    }
+
+    public void setResultsVersion(String resultsVersion) {
+        this.resultsVersion = resultsVersion;
     }
 
     @Override

@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MIT Portal – Finance</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="css/dashboard-style.css">
+  <link rel="stylesheet" href="css/modules-style.css">
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<header class="header">
+  <div class="header-container">
+    <div class="header-logo">
+      <img src="icons/logo.jpg" alt="MIT Logo" class="logo-icon">
+      <div class="brand-text">
+        <h1>MIT Portal</h1>
+        <span>Finance & Payments</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <div class="search-bar">
+        <input type="text" placeholder="Search transactions...">
+        <button type="button" class="search-btn">🔍</button>
+      </div>
+      <div class="header-icons">
+        <button class="icon-btn" onclick="goToDashboard()" title="Back to Dashboard">⬅️</button>
+        <div class="icon-wrapper dropdown">
+          <button class="icon-btn profile-btn" id="profileBtn">
+            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%231a3a8c'/%3E%3Ccircle cx='50' cy='35' r='15' fill='%23fff'/%3E%3Cpath d='M20 80 Q20 60 50 60 Q80 60 80 80' fill='%23fff'/%3E%3C/svg%3E" alt="Profile" class="profile-avatar">
+          </button>
+          <div class="dropdown-menu" id="profileMenu">
+            <div class="dropdown-header">Account</div>
+            <a href="profile.html" class="menu-link">👤 My Profile</a>
+            <a href="profile.html#preferences" class="menu-link">⚙️ Settings</a>
+            <button class="menu-link logout-btn" onclick="handleLogoutClick()">🚪 Logout</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ===== MAIN CONTENT ===== -->
+<main class="main-content">
+
+  <!-- Navigation Tabs -->
+  <div class="module-tabs">
+    <button class="tab-btn active" onclick="switchTab('summary')">💰 Summary</button>
+    <button class="tab-btn" onclick="switchTab('pending')">⏰ Pending Payments</button>
+    <button class="tab-btn" onclick="switchTab('invoices')">📄 Invoices</button>
+    <button class="tab-btn" onclick="switchTab('receipts')">✓ Receipts</button>
+    <button class="tab-btn" onclick="switchTab('scholarships')">🎓 Scholarships</button>
+  </div>
+
+  <!-- TAB 1: SUMMARY -->
+  <section class="tab-content active" id="summaryTab">
+    <h2>Financial Summary</h2>
+    
+    <div class="finance-summary">
+      <div class="finance-card total-due">
+        <div class="card-icon">💳</div>
+        <div class="card-content">
+          <p class="card-label">Total Fees Due</p>
+          <p class="card-amount" aria-live="polite">Loading…</p>
+          <p class="card-detail">Loading fee records</p>
+        </div>
+        <button class="btn-primary small" onclick="initiatePayment()">Pay Now</button>
+      </div>
+
+      <div class="finance-card amount-paid">
+        <div class="card-icon">✓</div>
+        <div class="card-content">
+          <p class="card-label">Amount Paid</p>
+          <p class="card-amount" aria-live="polite">Loading…</p>
+          <p class="card-detail">Loading payment records</p>
+        </div>
+      </div>
+
+      <div class="finance-card balance">
+        <div class="card-icon">⚖️</div>
+        <div class="card-content">
+          <p class="card-label">Outstanding fee items</p>
+          <p class="card-amount" aria-live="polite">Loading…</p>
+          <p class="card-detail">Loading fee records</p>
+        </div>
+      </div>
+
+      <div class="finance-card transactions">
+        <div class="card-icon">📊</div>
+        <div class="card-content">
+          <p class="card-label">Fee records</p>
+          <p class="card-amount" aria-live="polite">Loading…</p>
+          <p class="card-detail">Loading fee records</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fee Structure -->
+    <h3>Fee Structure</h3>
+    <div class="fee-structure">
+      <table class="fees-table">
+        <thead>
+          <tr>
+            <th>Fee Item</th>
+            <th>Amount (UGX)</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody aria-live="polite"><tr><td colspan="3">Loading fee records…</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- TAB 2: PENDING PAYMENTS -->
+  <section class="tab-content" id="pendingTab">
+    <h2>Pending Payments</h2>
+    <section class="payment-attempts-panel" aria-labelledby="paymentAttemptsHeading">
+      <h3 id="paymentAttemptsHeading">Submitted for verification</h3>
+        <p id="flutterwaveReturnStatus" class="payment-form-status" role="status" aria-live="polite"></p>
+        <div id="paymentAttemptsList" aria-live="polite"><p>Loading payment status…</p></div>
+    </section>
+    <div class="pending-payments" aria-live="polite"><p>Loading fee records…</p></div>
+  </section>
+
+  <!-- TAB 3: INVOICES -->
+  <section class="tab-content" id="invoicesTab">
+    <h2>Invoices & Billing Documents</h2>
+    
+    <div class="invoices-list" aria-live="polite"><p>Loading fee records…</p></div>
+  </section>
+
+  <!-- TAB 4: RECEIPTS -->
+  <section class="tab-content" id="receiptsTab">
+    <h2>Payment Receipts</h2>
+    
+    <table class="receipts-table">
+      <thead>
+        <tr>
+          <th>Receipt #</th>
+          <th>Amount</th>
+          <th>Payment Date</th>
+          <th>Payment Method</th>
+          <th>Description</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody aria-live="polite"><tr><td colspan="6">Loading payment records…</td></tr></tbody>
+    </table>
+  </section>
+
+  <!-- TAB 5: SCHOLARSHIPS -->
+  <section class="tab-content" id="scholarshipsTab">
+    <h2>Scholarship & Financial Aid</h2>
+    
+    <div class="scholarships-container" aria-live="polite"><p>Loading scholarship records…</p></div>
+
+    <div class="scholarships-help">
+      <h3>More Scholarship Opportunities</h3>
+      <p>Available scholarships and applications are shown above when records are available.</p>
+    </div>
+  </section>
+
+</main>
+
+<dialog class="payment-dialog" id="paymentDialog" aria-labelledby="paymentDialogTitle">
+  <div class="payment-dialog-header">
+    <div>
+      <p class="payment-eyebrow">SECURE PAYMENT REQUEST</p>
+      <h2 id="paymentDialogTitle">Pay a fee</h2>
+    </div>
+    <button class="icon-btn" type="button" id="closePaymentDialog" aria-label="Close payment dialog">×</button>
+  </div>
+  <div class="payment-dialog-body">
+    <div class="payment-fee-summary" id="paymentFeeSummary"></div>
+    <fieldset class="payment-channel-fieldset">
+      <legend>Choose a payment channel</legend>
+      <div id="paymentChannels" class="payment-channel-list"></div>
+    </fieldset>
+    <section id="selectedPaymentInstructions" class="payment-instructions" aria-live="polite">
+      <p>Select an available channel to view its destination and instructions.</p>
+    </section>
+    <form id="paymentReferenceForm" class="payment-reference-form">
+      <div id="manualPaymentReferenceGroup">
+        <label for="providerReference">Transaction reference</label>
+        <input id="providerReference" name="providerReference" maxlength="120" autocomplete="off" required
+               placeholder="Enter the reference from your payment provider">
+      </div>
+      <p class="payment-security-note">Flutterwave opens a separate hosted checkout for card or Uganda mobile money. The server calculates the current balance and verifies the transaction before marking a fee paid. Failed or cancelled charges leave the checkout attempt available for retry. Never enter a PIN, password, card number, or one-time code in this portal.</p>
+      <p id="paymentFormStatus" class="payment-form-status" role="status"></p>
+      <div class="payment-dialog-actions">
+        <button class="btn-secondary" type="button" id="cancelPayment">Cancel</button>
+        <button class="btn-primary" type="submit" id="submitPayment" disabled>Submit for verification</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<!-- ===== FOOTER ===== -->
+<footer class="footer">
+  <div class="footer-content">
+    <p>&copy; 2026 Makerere Institute of Technology. All rights reserved.</p>
+  </div>
+</footer>
+
+<script src="js/backend-only.js"></script>
+<script src="js/deployment-config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/dashboard-script.js"></script>
+<script src="js/modules-script.js"></script>
+</body>
+</html>

@@ -1,9 +1,19 @@
 package com.sis.security;
 
+import com.sis.service.CustomUserDetailsService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
+import org.springframework.security.access.hierarchicalroles.RoleHierarchyImpl;
+import org.springframework.security.access.expression.method.DefaultMethodSecurityExpressionHandler;
+import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+
+import javax.servlet.http.HttpServletResponse;
+import java.util.Arrays;
+import java.util.Set;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -12,30 +22,160 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-import com.sis.service.CustomUserDetailsService;
-
+/**
+ * Central security configuration: authentication (JWT, stateless), password hashing
+ * (BCrypt), CORS, and the three application roles - ADMIN, TEACHER, STUDENT
+ * ({@link com.sis.entity.Role}).
+ * <p>
+ * Coarse, path-based role rules live here as defense-in-depth; the authoritative,
+ * fine-grained checks are the {@code @PreAuthorize} annotations on each controller
+ * (e.g. self-service ownership checks via {@link StudentAccessService} /
+ * {@link TeacherAccessService}). If a controller's annotations are ever accidentally
+ * loosened or removed, these path rules still stop a STUDENT token from reaching
+ * {@code /api/admin/**}.
+ */
 @Configuration
 @EnableMethodSecurity
 public class SecurityConfig {
 
     private final CustomUserDetailsService userDetailsService;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final RateLimitFilter rateLimitFilter;
+    private final OriginValidationFilter originValidationFilter;
 
-    public SecurityConfig(CustomUserDetailsService userDetailsService, JwtAuthenticationFilter jwtAuthenticationFilter) {
+    public SecurityConfig(CustomUserDetailsService userDetailsService, JwtAuthenticationFilter jwtAuthenticationFilter,
+                           RateLimitFilter rateLimitFilter,
+                           @Value("${cors.allowed-origins}") String[] allowedOrigins) {
         this.userDetailsService = userDetailsService;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.rateLimitFilter = rateLimitFilter;
+        this.originValidationFilter = new OriginValidationFilter(Set.copyOf(Arrays.asList(allowedOrigins)));
     }
+
+    @Bean
+    public RoleHierarchy roleHierarchy() {
+        RoleHierarchyImpl hierarchy = new RoleHierarchyImpl();
+        hierarchy.setHierarchy(
+                "ADMIN > TEACHER\n" +
+                "ADMIN > STUDENT"
+        );
+        return hierarchy;
+    }
+
+        @Bean
+        public static MethodSecurityExpressionHandler methodSecurityExpressionHandler(RoleHierarchy roleHierarchy) {
+                DefaultMethodSecurityExpressionHandler handler = new DefaultMethodSecurityExpressionHandler();
+                handler.setRoleHierarchy(roleHierarchy);
+                return handler;
+        }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf().disable()
-                .authorizeHttpRequests()
-                    .antMatchers("/api/auth/**", "/", "/index.html", "/manifest.json", "/service-worker.js", "/css/**", "/js/**", "/icons/**", "/favicon.ico").permitAll()
-                    .anyRequest().authenticated()
-                    .and()
-                .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                    .and()
+                // Cookies remain SameSite=Strict. Unsafe API requests that include
+                // an Origin header are checked against the configured allow-list.
+                .csrf(csrf -> csrf.disable())
+                .cors(cors -> {}) // delegates to config.WebConfig's CorsConfigurationSource
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .headers(headers -> headers
+                        // A conservative CSP: everything defaults to same-origin only. The one
+                        // external dependency the frontend actually has is Chart.js from a CDN
+                        // (see index.html) - explicitly allow-listed rather than opened broadly.
+                        // unsafe-inline is required for style-src because the pages use inline
+                        // style="" attributes throughout; tightening that is real follow-up work
+                        // (moving inline styles into the stylesheet), not something to silently
+                        // paper over by dropping the header entirely.
+                        .contentSecurityPolicy(csp -> csp.policyDirectives(
+                                "default-src 'self'; "
+                                        + "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+                                        + "style-src 'self' 'unsafe-inline'; "
+                                        + "img-src 'self' data:; "
+                                        + "font-src 'self'; "
+                                        + "connect-src 'self'; "
+                                        + "frame-ancestors 'none'; "
+                                        + "base-uri 'self'; "
+                                        + "form-action 'self'"
+                        ))
+                        .frameOptions(frame -> frame.deny())
+                )
+                .authorizeHttpRequests(auth -> auth
+                        // Public pages and APIs only. Dashboard shells are intentionally not
+                        // globally open, so the server enforces the role gate before the UI
+                        // renders. The actual role override model is established by the
+                        // role hierarchy: ADMIN can supervise TEACHER and STUDENT access.
+                        .antMatchers(
+                                "/api/auth/**",
+                                "/api/public/**",
+                                "/api/v1/health",
+                                "/api/v1/openapi",
+                                "/actuator/health", "/actuator/health/**",
+                                "/", "/index.html", "/admissions.html", "/admin-login.html", "/course-catalog.html",
+                                "/force-password-change.html",
+                                "/terms.html", "/privacy.html", "/support.html",
+                                "/reset-password.html", "/verify-email.html",
+                                "/unauthorized.html",
+                                "/robots.txt", "/sitemap.xml",
+                                "/public/**",
+                                "/manifest.json", "/service-worker.js",
+                                "/css/**", "/js/**", "/icons/**", "/favicon.ico"
+                        ).permitAll()
+                        // Coarse role gates, kept in sync with (not a replacement for) each
+                        // controller's own @PreAuthorize.
+                        .antMatchers("/api/admin/exam-permits/**")
+                        .hasAnyAuthority("ADMIN", "PERM_EXAM_PERMIT_MANAGE")
+                        .antMatchers("/api/admin/grades/**")
+                        .hasAuthority("ADMIN")
+                        .antMatchers("/api/admin/email/**")
+                        .hasAnyAuthority("ADMIN", "PERM_EMAIL_CAMPAIGN_MANAGE")
+                        .antMatchers("/api/admin/fees")
+                        .hasAnyAuthority("ADMIN", "PERM_FINANCE_FEE_MANAGE")
+                        .antMatchers("/api/admin/institution/**")
+                        .hasAnyAuthority("ADMIN", "PERM_ACADEMIC_OPS_MANAGE", "PERM_REGISTRATION_MANAGE")
+                        .antMatchers("/api/admin/system/**")
+                        .hasAnyAuthority("ADMIN", "PERM_PORTAL_SETTINGS_MANAGE")
+                        .antMatchers("/api/admin/**").hasAuthority("ADMIN")
+                        .antMatchers("/api/teacher/**")
+                        .hasAnyAuthority("ADMIN", "TEACHER", "PERM_ACADEMIC_OPS_MANAGE")
+                        .antMatchers("/api/student/requests/admin/**")
+                        .hasAnyAuthority("ADMIN", "PERM_SERVICE_REQUEST_MANAGE")
+                        .antMatchers("/api/student/requests/**").hasAnyAuthority("ADMIN", "STUDENT", "TEACHER")
+                        .antMatchers("/api/student/**").hasAnyAuthority("ADMIN", "STUDENT")
+                        .antMatchers("/api/files/admin/list", "/api/files/delete")
+                        .hasAnyAuthority("ADMIN", "PERM_PORTAL_SETTINGS_MANAGE")
+                        .antMatchers("/api/files/**").hasAnyAuthority("ADMIN", "STUDENT", "TEACHER", "PERM_PORTAL_SETTINGS_MANAGE")
+                        .antMatchers("/account-security.html").hasAnyAuthority("ADMIN", "TEACHER", "STUDENT")
+                        .antMatchers("/dashboard.html").hasAuthority("STUDENT")
+                        .antMatchers("/academics.html", "/attendance.html", "/finance.html", "/campus-support.html", "/profile.html")
+                        .hasAuthority("STUDENT")
+                        .antMatchers(
+                                "/announcements.html", "/documents.html", "/hostel.html", "/library.html",
+                                "/notifications.html", "/research.html", "/scholarships.html",
+                                "/support-tickets.html")
+                        .hasAuthority("STUDENT")
+                        .antMatchers("/admin-dashboard.html").hasAuthority("ADMIN")
+                        .antMatchers("/teacher-dashboard.html").hasAnyAuthority("ADMIN", "TEACHER")
+                        .antMatchers("/operations.html").hasAnyAuthority("ADMIN", "TEACHER", "STUDENT")
+                        .antMatchers("/file-management.html").hasAnyAuthority("ADMIN", "PERM_PORTAL_SETTINGS_MANAGE")
+                        .anyRequest().authenticated()
+                )
+                .exceptionHandling(ex -> ex
+                                                .authenticationEntryPoint((request, response, authException) -> {
+                                                        if (request.getRequestURI().endsWith(".html")) {
+                                                                response.sendRedirect("/unauthorized.html?reason=login");
+                                                        } else {
+                                                                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authentication required");
+                                                        }
+                                                })
+                                                .accessDeniedHandler((request, response, accessDeniedException) -> {
+                                                        if (request.getRequestURI().endsWith(".html")) {
+                                                                response.sendRedirect("/unauthorized.html?reason=role");
+                                                        } else {
+                                                                response.sendError(HttpServletResponse.SC_FORBIDDEN, "Access denied");
+                                                        }
+                                                })
+                )
+                .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(originValidationFilter, RateLimitFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

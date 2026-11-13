@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Account Security - MIT Portal</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="css/dashboard-style.css">
+  <link rel="stylesheet" href="css/modules-style.css">
+  <link rel="stylesheet" href="css/account-security.css">
+</head>
+<body data-account-security="true">
+  <header class="header">
+    <div class="header-container">
+      <div class="header-logo">
+        <img src="icons/logo.jpg" alt="MIT Logo" class="logo-icon">
+        <div class="brand-text">
+          <h1>MIT Portal</h1>
+          <span>Account security</span>
+        </div>
+      </div>
+      <a class="btn-secondary" id="dashboardLink" href="index.html">Back to dashboard</a>
+    </div>
+  </header>
+
+  <main class="account-security-main">
+    <section class="account-security-intro">
+      <p class="security-eyebrow">YOUR ACCOUNT</p>
+      <h2>Security &amp; sign-in</h2>
+      <p>Two-factor authentication is optional. Enable it to require a current authenticator-app code in addition to your password when signing in.</p>
+    </section>
+
+    <section class="security-section" id="mfaSecuritySection">
+      <h3>Authenticator two-factor authentication</h3>
+      <div class="security-card">
+        <p id="mfaStatus" role="status">Checking authenticator status...</p>
+        <p class="security-hint">Use an authenticator app such as Google Authenticator or Microsoft Authenticator. Setup requires your current password and a six-digit code from the app.</p>
+        <div id="mfaEnrollment" class="mfa-enrollment" hidden>
+          <p>Scan the setup URI with your authenticator app, open the authenticator app, or enter this secret manually:</p>
+          <p class="mfa-secret"><code id="mfaSecret"></code></p>
+          <a id="mfaOtpUri" class="authenticator-link" rel="noreferrer" hidden>Open in authenticator app</a>
+          <p class="security-hint">Keep this setup secret private. Do not send it to anyone.</p>
+        </div>
+        <div class="form-group" id="mfaPasswordGroup">
+          <label for="mfaCurrentPassword">Current password</label>
+          <input type="password" id="mfaCurrentPassword" autocomplete="current-password">
+        </div>
+        <div class="form-group" id="mfaOtpGroup" hidden>
+          <label for="mfaOtp">Six-digit authenticator code</label>
+          <input type="text" id="mfaOtp" inputmode="numeric" autocomplete="one-time-code"
+                 pattern="[0-9]{6}" maxlength="6">
+        </div>
+        <p id="mfaMessage" role="status" aria-live="polite"></p>
+        <div class="security-actions">
+          <button class="btn-primary" id="mfaSetupButton" type="button" hidden>Set up authenticator</button>
+          <button class="btn-primary" id="mfaVerifyButton" type="button" hidden>Verify and enable</button>
+          <button class="btn-secondary" id="mfaDisableButton" type="button" hidden>Turn off two-factor authentication</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="security-section">
+      <h3>Active sessions</h3>
+      <div class="security-card">
+        <p class="security-hint">Review your active refresh sessions. Signing out everywhere will revoke all sessions and require you to sign in again.</p>
+        <div class="sessions-table-wrap">
+          <table class="sessions-table">
+            <thead><tr><th>Session</th><th>Expires</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody id="sessionsTableBody"><tr><td colspan="4">Loading sessions...</td></tr></tbody>
+          </table>
+        </div>
+        <button class="btn-secondary" id="revokeAllSessionsButton" type="button">Sign out everywhere</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/backend-only.js"></script>
+  <script src="js/deployment-config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/theme.js"></script>
+  <script src="js/account-security.js"></script>
+  <script src="js/profile-security.js"></script>
+</body>
+</html>

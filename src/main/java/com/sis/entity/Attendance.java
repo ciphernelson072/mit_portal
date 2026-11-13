@@ -3,9 +3,13 @@ package com.sis.entity;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import javax.persistence.*;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 @Entity
-@Table(name = "attendance")
+@Table(name = "attendance",
+        uniqueConstraints = @UniqueConstraint(name = "uk_attendance_student_course_date",
+                columnNames = {"student_id", "course_id", "date"}))
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Attendance {
 
@@ -13,11 +17,11 @@ public class Attendance {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(optional = false)
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "student_id")
     private Student student;
 
-    @ManyToOne(optional = false)
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "course_id")
     private Course course;
 
@@ -26,6 +30,23 @@ public class Attendance {
 
     @Column(nullable = false)
     private boolean present;
+
+    @Column(name = "class_start_time")
+    private LocalTime classStartTime;
+
+    @Column(name = "class_end_time")
+    private LocalTime classEndTime;
+
+    @Column(nullable = false)
+    private boolean late;
+
+    // Optional notes for the record (e.g. reason for absence)
+    @Column(length = 255)
+    private String remarks;
+
+    // DB-managed audit timestamp (see schema.sql: DEFAULT CURRENT_TIMESTAMP)
+    @Column(name = "recorded_at", insertable = false, updatable = false)
+    private LocalDateTime recordedAt;
 
     public Attendance() {
     }
@@ -77,11 +98,22 @@ public class Attendance {
         this.present = present;
     }
 
-    public Object getStatus() {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    public LocalTime getClassStartTime() { return classStartTime; }
+    public void setClassStartTime(LocalTime classStartTime) { this.classStartTime = classStartTime; }
+    public LocalTime getClassEndTime() { return classEndTime; }
+    public void setClassEndTime(LocalTime classEndTime) { this.classEndTime = classEndTime; }
+    public boolean isLate() { return late; }
+    public void setLate(boolean late) { this.late = late; }
+
+    public String getRemarks() {
+        return remarks;
     }
 
     public void setRemarks(String remarks) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        this.remarks = remarks;
+    }
+
+    public LocalDateTime getRecordedAt() {
+        return recordedAt;
     }
 }

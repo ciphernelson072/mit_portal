@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MIT Portal – Research</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="css/dashboard-style.css">
+</head>
+<body>
+  <header class="header">
+    <div class="header-container">
+      <div class="header-logo">
+        <img src="icons/logo.jpg" alt="MIT Logo" class="logo-icon">
+        <div class="brand-text">
+          <h1>MIT Portal</h1>
+          <span>Research</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="header-icons">
+          <a href="dashboard.html" class="btn-primary">Back to dashboard</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <section class="profile-summary">
+      <div class="profile-container">
+        <div class="profile-info-section">
+          <div class="profile-greeting">
+            <h2>Research</h2>
+            <p id="researchSummary">Loading research records…</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="dashboard-grid">
+      <div class="card">
+        <div class="card-header">
+          <h3>New project proposal</h3>
+        </div>
+        <div class="card-content">
+          <form id="projectForm" class="support-form">
+            <div class="form-row">
+              <label>
+                Title
+                <input name="title" type="text" placeholder="Project title" required>
+              </label>
+            </div>
+            <div class="form-row">
+              <label>
+                Supervisor
+                <select id="supervisorUserSelect" name="supervisorUserId">
+                  <option value="">No supervisor selected</option>
+                </select>
+              </label>
+            </div>
+            <p id="supervisorLoadStatus" role="status"></p>
+            <div class="form-row">
+              <label>
+                Abstract
+                <textarea name="abstractText" rows="4" placeholder="Brief description of your project..."></textarea>
+              </label>
+            </div>
+            <button type="submit" class="btn-primary">Save proposal</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="card" style="grid-column: 1 / -1;">
+        <div class="card-header">
+          <h3>My research projects</h3>
+        </div>
+        <div class="card-content">
+          <div id="projectList" class="notification-list"></div>
+        </div>
+      </div>
+
+      <div class="card" style="grid-column: 1 / -1;">
+        <div class="card-header">
+          <h3>Submit thesis</h3>
+        </div>
+        <div class="card-content">
+          <form id="thesisForm" class="support-form">
+            <div class="form-row">
+              <label>
+                Research project
+                <select id="thesisProjectSelect" name="researchProjectId" required></select>
+              </label>
+            </div>
+            <div class="form-row">
+              <label>
+                Thesis PDF
+                <input name="file" type="file" accept="application/pdf,.pdf" required>
+              </label>
+            </div>
+            <p>PDF only. Maximum upload size: 10 MB.</p>
+            <div class="form-row">
+              <label>
+                Notes
+                <textarea name="notes" rows="3" placeholder="Optional notes for the reviewer..."></textarea>
+              </label>
+            </div>
+            <p id="thesisStatus" role="status" aria-live="polite"></p>
+            <button type="submit" class="btn-primary">Submit thesis</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="card" style="grid-column: 1 / -1;">
+        <div class="card-header">
+          <h3>My thesis submissions</h3>
+        </div>
+        <div class="card-content">
+          <div id="thesisList" class="notification-list"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/backend-only.js"></script>
+  <script src="js/deployment-config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/theme.js"></script>
+  <script src="js/research.js"></script>
+</body>
+</html>
