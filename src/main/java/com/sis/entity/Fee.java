@@ -1,7 +1,7 @@
 package com.sis.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
@@ -14,7 +14,7 @@ public class Fee {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(optional = false)
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "student_id")
     private Student student;
 
@@ -30,7 +30,7 @@ public class Fee {
     @Column
     private LocalDate dueDate;
 
-    @Column
+    @Column(name = "payment_date")
     private LocalDate paidDate;
 
     public Fee() {

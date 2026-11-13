@@ -1,0 +1,1 @@
+ALTER TABLE announcements ADD COLUMN audience VARCHAR(20) NOT NULL DEFAULT 'ALL';

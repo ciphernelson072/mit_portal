@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Secure sign-in for Makerere Institute of Technology students, teachers, and administrators.">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#12304a">
+  <title>Portal sign in | Makerere Institute of Technology</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icons/pwa-180.png">
+  <link rel="stylesheet" href="/public/css/site.css">
+  <link rel="stylesheet" href="/public/css/portal-login.css">
+  <script src="/js/deployment-config.js" defer></script>
+  <script src="/js/auth.js" defer></script>
+  <script src="/js/portal-login.js" defer></script>
+</head>
+<body class="portal-login-page">
+  <a class="skip-link" href="#main-content">Skip to sign in</a>
+  <header class="portal-login-header">
+    <a class="login-brand" href="/" aria-label="Makerere Institute of Technology home">
+      <img src="/icons/logo.jpg" alt="">
+      <span>MAKERERE INSTITUTE OF TECHNOLOGY</span>
+    </a>
+    <a class="return-link" href="/">Back to website</a>
+  </header>
+  <main class="login-layout" id="main-content">
+    <section class="login-story" aria-labelledby="story-heading">
+      <img src="/public/images/campus-community.jpg" alt="" class="login-story-image">
+      <div class="login-story-content">
+        <p class="eyebrow">One secure entry</p>
+        <h1 id="story-heading">Your institute, one sign-in.</h1>
+        <p>Use the account provided by the institute. Your portal opens according to your account access.</p>
+      </div>
+    </section>
+    <section class="login-panel" aria-labelledby="login-heading">
+      <p class="eyebrow">Student · Teacher · Administrator</p>
+      <h2 id="login-heading">Sign in to your portal</h2>
+      <p class="login-intro">Enter the username or email and password associated with your account.</p>
+      <p class="login-message" id="loginMessage" role="status" aria-live="polite" hidden></p>
+      <form class="signin-form" id="portalLoginForm" autocomplete="on">
+        <div class="login-field">
+          <label for="username">Username or email</label>
+          <input id="username" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+        </div>
+        <div class="login-field">
+          <label for="password">Password</label>
+          <div class="password-control">
+            <input id="password" name="password" type="password" autocomplete="current-password" required>
+            <button type="button" class="password-toggle" id="passwordToggle" aria-label="Show password" aria-pressed="false">Show</button>
+          </div>
+        </div>
+        <div class="login-field" id="otpGroup" hidden>
+          <label for="otp">Authenticator code</label>
+          <input id="otp" name="one-time-code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="6-digit code">
+          <span class="field-help">Enter the current code from your authenticator app.</span>
+        </div>
+        <button class="button-link button-primary signin-button" id="loginSubmitButton" type="submit">Sign in</button>
+      </form>
+      <button class="reset-toggle" id="resetToggle" type="button" aria-expanded="false" aria-controls="passwordResetForm">Forgot your password?</button>
+      <form class="reset-form" id="passwordResetForm" autocomplete="on" hidden>
+        <div class="login-field">
+          <label for="resetEmail">Account email</label>
+          <input id="resetEmail" name="email" type="email" autocomplete="email" required>
+        </div>
+        <button class="button-link button-dark" id="resetSubmitButton" type="submit">Request a reset link</button>
+      </form>
+      <div class="login-help">
+        <p>New applicant? <a href="/public/admissions.html">Explore admissions</a>.</p>
+        <p>Need help with your account? <a href="/public/contact.html">Contact support</a>.</p>
+      </div>
+      <p class="login-security-note">Sign-in is verified by the institute. Your portal access is based on your account, not a role you select here.</p>
+    </section>
+  </main>
+  <footer class="portal-login-footer">
+    <a href="/privacy.html">Privacy</a>
+    <a href="/terms.html">Terms</a>
+    <span>© <span data-current-year-number></span> Makerere Institute of Technology</span>
+  </footer>
+</body>
+</html>

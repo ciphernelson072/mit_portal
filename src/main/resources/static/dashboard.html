@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MIT Student Portal – Dashboard</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="css/dashboard-style.css">
+  <link rel="stylesheet" href="css/photo-viewer.css">
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<header class="header">
+  <div class="header-container">
+    
+    <!-- Logo/Brand -->
+    <div class="header-logo">
+      <img src="icons/logo.jpg" alt="MIT Logo" class="logo-icon">
+      <div class="brand-text">
+        <h1>MIT Portal</h1>
+        <span>Student Dashboard</span>
+      </div>
+      <a href="operations.html" class="dashboard-operations-link">Operations</a>
+      <a href="course-catalog.html" class="dashboard-operations-link">Course Catalogue</a>
+    </div>
+
+    <!-- Header Actions -->
+    <div class="header-actions">
+      
+      <!-- Search Bar -->
+      <div class="search-bar">
+        <input type="text" id="globalSearch" placeholder="Search dashboard, courses, and assignments..." aria-label="Search dashboard">
+        <button type="button" class="search-btn" aria-label="Search dashboard">🔍</button>
+      </div>
+
+      <!-- Icons & Menu -->
+      <div class="header-icons">
+        
+        <!-- Notifications -->
+        <div class="icon-wrapper dropdown">
+          <button class="icon-btn" id="notificationBtn" type="button" aria-label="Notifications" aria-expanded="false" aria-controls="notificationMenu">
+            🔔
+            <span class="badge" id="notificationBadge" hidden></span>
+          </button>
+          <div class="dropdown-menu" id="notificationMenu">
+            <div class="dropdown-header">Notifications</div>
+            <div class="notification-list">
+                <p class="notification-empty">Loading notifications...</p>
+            </div>
+            <a href="notifications.html" class="dropdown-footer">View All Notifications →</a>
+          </div>
+        </div>
+
+        <!-- Messages -->
+        <div class="icon-wrapper dropdown">
+          <button class="icon-btn" id="messageBtn" type="button" aria-label="Messages" aria-expanded="false" aria-controls="messageMenu">
+            💬
+            <span class="badge" id="messageBadge" hidden></span>
+          </button>
+          <div class="dropdown-menu" id="messageMenu">
+            <div class="dropdown-header">Messages</div>
+            <div class="message-list"></div>
+            <a href="messages.html" class="dropdown-footer">📨 View All Messages →</a>
+            <button type="button" class="dropdown-footer" onclick="composeMessage()">✉ Compose Message</button>
+          </div>
+        </div>
+
+        <!-- Theme Switcher -->
+        <div class="icon-wrapper dropdown">
+          <button class="icon-btn" id="themeBtn" data-theme-toggle aria-label="Theme" aria-expanded="false" aria-controls="themeMenu">🌙</button>
+          <div class="dropdown-menu" id="themeMenu">
+            <div class="dropdown-header">Theme</div>
+            <button class="theme-option" data-theme="light" data-theme-choice="light">☀️ Light</button>
+            <button class="theme-option" data-theme="dark" data-theme-choice="dark">🌙 Dark</button>
+            <button class="theme-option" data-theme="system" data-theme-choice="system">💻 System</button>
+          </div>
+        </div>
+
+        <!-- Profile Menu -->
+        <div class="icon-wrapper dropdown">
+          <button class="icon-btn profile-btn" id="profileBtn" type="button" aria-label="My account" aria-expanded="false" aria-controls="profileMenu">
+            <img data-photo-viewer tabindex="0" role="button" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%231a3a8c'/%3E%3Ccircle cx='50' cy='35' r='15' fill='%23fff'/%3E%3Cpath d='M20 80 Q20 60 50 60 Q80 60 80 80' fill='%23fff'/%3E%3C/svg%3E" alt="Profile" class="profile-avatar">
+          </button>
+          <div class="dropdown-menu" id="profileMenu">
+            <div class="dropdown-header">Account</div>
+            <div class="profile-info">
+              <p class="profile-name"></p>
+              <p class="profile-email"></p>
+            </div>
+            <a href="profile.html" class="menu-link">👤 My Profile</a>
+            <a href="profile.html#preferences" class="menu-link">⚙️ Settings</a>
+            <a href="account-security.html" class="menu-link">🔐 Account Security &amp; MFA</a>
+            <hr class="menu-divider">
+            <button class="menu-link logout-btn" onclick="handleLogoutClick()">🚪 Logout</button>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+</header>
+
+<!-- ===== MAIN CONTENT ===== -->
+<main class="main-content">
+
+  <!-- ===== PROFILE SUMMARY ===== -->
+  <section class="profile-summary">
+    <div class="profile-container">
+      <div class="profile-image-wrapper">
+        <img data-photo-viewer tabindex="0" role="button" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%231a3a8c'/%3E%3Ccircle cx='50' cy='35' r='15' fill='%23fff'/%3E%3Cpath d='M20 80 Q20 60 50 60 Q80 60 80 80' fill='%23fff'/%3E%3C/svg%3E" alt="Profile photo; activate to view full screen" class="profile-image">
+        <button class="edit-profile-btn" type="button" title="Edit profile picture" aria-label="Edit profile picture">✏️</button>
+      </div>
+
+      <div class="profile-info-section">
+        <div class="profile-greeting">
+          <h2>Welcome back, <span class="student-name">Loading…</span> 👋</h2>
+          <p class="current-date" id="currentDate">Loading your dashboard…</p>
+        </div>
+
+        <div class="quick-stats">
+          <div class="stat-item">
+            <div class="stat-label">CGPA</div>
+            <div class="stat-value">—</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">Attendance</div>
+            <div class="stat-value">—</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">Credits</div>
+            <div class="stat-value">—</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">Semester</div>
+            <div class="stat-value">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="program-info">
+        <h3>Program Information</h3>
+        <p><strong>Reg No:</strong> Loading…</p>
+        <p><strong>Program:</strong> Loading…</p>
+        <p><strong>Enrollment:</strong> Loading…</p>
+        <p><strong>Status:</strong> <span>Not available</span></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="dashboard-grid">
+    <div class="card">
+      <div class="card-header">
+        <h3>Current Courses</h3>
+        <a href="academics.html" class="card-link">View All →</a>
+      </div>
+      <div class="card-content">
+        <p class="loading-text">Loading your courses…</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3>Recent Grades</h3>
+        <a href="academics.html#grades" class="card-link">View Transcript →</a>
+      </div>
+      <div class="card-content">
+        <p class="loading-text">Loading grade history…</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3>Attendance Overview</h3>
+        <a href="attendance.html" class="card-link">Detailed View →</a>
+      </div>
+      <div class="card-content">
+        <p class="loading-text">Loading attendance…</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3>Upcoming Deadlines</h3>
+        <a href="academics.html#assignments" class="card-link">View Assignments →</a>
+      </div>
+      <div class="card-content">
+        <p class="loading-text">Loading deadlines…</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3>Pending Payments</h3>
+        <a href="finance.html" class="card-link">View All →</a>
+      </div>
+      <div class="card-content">
+        <p class="loading-text">Loading finance status…</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3>Recent Announcements</h3>
+        <a href="announcements.html" class="card-link">All News →</a>
+      </div>
+      <div class="card-content">
+        <p class="loading-text">Loading announcements…</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="modules-section">
+    <h2>Quick Access Modules</h2>
+    <div class="modules-grid">
+      <a href="academics.html" class="module-card">
+        <div class="module-icon">📚</div>
+        <h3>Academics</h3>
+        <p>Courses, assignments, grades</p>
+      </a>
+      <a href="attendance.html" class="module-card">
+        <div class="module-icon">📋</div>
+        <h3>Attendance</h3>
+        <p>View approved records</p>
+      </a>
+      <a href="finance.html" class="module-card">
+        <div class="module-icon">💳</div>
+        <h3>Finance</h3>
+        <p>Fees, payments, invoices</p>
+      </a>
+      <a href="scholarships.html" class="module-card">
+        <div class="module-icon">🎖️</div>
+        <h3>Scholarships</h3>
+        <p>Funding opportunities and applications</p>
+      </a>
+      <a href="profile.html" class="module-card">
+        <div class="module-icon">👤</div>
+        <h3>Profile</h3>
+        <p>Edit info, documents, settings</p>
+      </a>
+      <a href="hostel.html" class="module-card">
+        <div class="module-icon">🏠</div>
+        <h3>Accommodation</h3>
+        <p>Housing, transport pass, campus services</p>
+      </a>
+      <a href="library.html" class="module-card">
+        <div class="module-icon">📚</div>
+        <h3>Library</h3>
+        <p>Catalogue, loans, and borrowing status</p>
+      </a>
+      <a href="research.html" class="module-card">
+        <div class="module-icon">🔬</div>
+        <h3>Research</h3>
+        <p>Projects, proposals, and thesis submissions</p>
+      </a>
+      <a href="campus-support.html" class="module-card">
+        <div class="module-icon">🎓</div>
+        <h3>Campus Life</h3>
+        <p>Events, clubs, support</p>
+      </a>
+      <a href="documents.html" class="module-card">
+        <div class="module-icon">📁</div>
+        <h3>Documents</h3>
+        <p>Uploads, approvals, and downloads</p>
+      </a>
+      <a href="support-tickets.html" class="module-card">
+        <div class="module-icon">🆘</div>
+        <h3>Support</h3>
+        <p>Helpdesk requests and tracking</p>
+      </a>
+    </div>
+  </section>
+
+  <section class="modules-section" id="personalQuickLinksSection">
+    <h2>My Quick Links</h2>
+    <div class="modules-grid" id="personalQuickLinksList" aria-live="polite">
+      <p class="loading-text">Loading your quick links...</p>
+    </div>
+  </section>
+</main>
+
+<!-- ===== FOOTER ===== -->
+<footer class="footer">
+  <div class="footer-content">
+    <p>&copy; 2026 Makerere Institute of Technology. All rights reserved.</p>
+    <div class="footer-links">
+      <a href="privacy.html">Privacy Policy</a>
+      <span>•</span>
+      <a href="terms.html">Terms of Service</a>
+      <span>•</span>
+      <a href="support.html">Contact Support</a>
+    </div>
+  </div>
+</footer>
+
+<script src="js/backend-only.js"></script>
+<dialog id="photoViewerDialog" class="photo-viewer" aria-labelledby="photoViewerCaption">
+  <button type="button" class="photo-viewer-close" data-photo-viewer-close aria-label="Close photo">&times;</button>
+  <img id="photoViewerImage" alt="">
+  <p id="photoViewerCaption"></p>
+</dialog>
+
+<script src="js/deployment-config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/theme.js"></script>
+<script src="js/photo-viewer.js"></script>
+<script src="js/dashboard-script.js"></script>
+</body>
+</html>

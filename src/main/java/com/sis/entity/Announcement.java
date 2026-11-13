@@ -1,7 +1,7 @@
 package com.sis.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
@@ -16,15 +16,19 @@ public class Announcement {
     @Column(nullable = false)
     private String title;
 
-    @Column(length = 2000)
+    @Column(columnDefinition = "TEXT")
     private String content;
 
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "author_id")
     private User author;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private AnnouncementAudience audience = AnnouncementAudience.ALL;
 
     public Announcement() {
     }
@@ -74,5 +78,13 @@ public class Announcement {
 
     public void setAuthor(User author) {
         this.author = author;
+    }
+
+    public AnnouncementAudience getAudience() {
+        return audience;
+    }
+
+    public void setAudience(AnnouncementAudience audience) {
+        this.audience = audience == null ? AnnouncementAudience.ALL : audience;
     }
 }

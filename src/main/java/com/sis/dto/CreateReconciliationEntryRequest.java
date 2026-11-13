@@ -1,0 +1,21 @@
+package com.sis.dto;
+
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+
+public class CreateReconciliationEntryRequest {
+    @NotBlank @Size(max = 120) private String providerReference;
+    @NotNull @DecimalMin("0.01") private BigDecimal statementAmount;
+    @NotNull private LocalDate statementDate;
+
+    public String getProviderReference() { return providerReference; }
+    public void setProviderReference(String providerReference) { this.providerReference = providerReference; }
+    public BigDecimal getStatementAmount() { return statementAmount; }
+    public void setStatementAmount(BigDecimal statementAmount) { this.statementAmount = statementAmount; }
+    public LocalDate getStatementDate() { return statementDate; }
+    public void setStatementDate(LocalDate statementDate) { this.statementDate = statementDate; }
+}

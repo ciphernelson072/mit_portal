@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Access restricted - MIT Portal</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .access-page { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: #f5f7f9; color: #17202a; }
+    .access-card { width: min(520px, 100%); padding: 32px; border: 1px solid #d9e0e7; border-radius: 8px; background: #fff; box-shadow: 0 12px 28px rgba(23, 32, 42, .08); text-align: center; }
+    .access-card h1 { margin: 0 0 10px; font-size: clamp(26px, 6vw, 38px); }
+    .access-card p { margin: 0 0 22px; color: #607080; }
+    .access-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+    .access-actions a { display: inline-flex; min-height: 42px; align-items: center; justify-content: center; padding: 9px 14px; border-radius: 6px; text-decoration: none; font-weight: 700; }
+    .access-primary { color: #fff; background: #006b5f; }
+    .access-secondary { color: #17202a; border: 1px solid #d9e0e7; background: #fff; }
+  </style>
+</head>
+<body>
+  <main class="access-page">
+    <section class="access-card" aria-labelledby="accessTitle">
+      <p class="eyebrow">Makerere Institute of Technology</p>
+      <h1 id="accessTitle">Access restricted</h1>
+      <p id="accessMessage">Sign in with an account that has permission to view this page.</p>
+      <div class="access-actions">
+        <a id="loginLink" class="access-primary" href="admin-login.html">Sign in</a>
+        <a class="access-secondary" href="support.html">Get help</a>
+      </div>
+    </section>
+  </main>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const login = document.getElementById('loginLink');
+    const message = document.getElementById('accessMessage');
+    if (params.get('reason') === 'role') {
+      message.textContent = 'Your account is signed in, but its role does not allow this page.';
+      login.textContent = 'Return to portal';
+      login.href = 'admin-login.html';
+    }
+  </script>
+</body>
+</html>

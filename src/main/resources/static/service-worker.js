@@ -1,119 +1,116 @@
-const CACHE_NAME = 'school-portal-v1';
-const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/css/style.css',
-  '/js/app.js',
-  '/icons/icon.svg'
+const CACHE_NAME = 'mit-portal-cache-v29';
+const CORE_ASSETS = [
+  './',
+  './home.html',
+  './index.html',
+  './portal-login.html',
+  './admissions.html',
+  './admin-login.html',
+  './account-security.html',
+  './course-catalog.html',
+  './privacy.html',
+  './reset-password.html',
+  './support.html',
+  './terms.html',
+  './unauthorized.html',
+  './verify-email.html',
+  './css/style.css',
+  './css/auth.css',
+  './css/home.css',
+  './public/css/portal-login.css',
+  './css/dashboard-style.css',
+  './css/modules-style.css',
+  './css/admin-style.css',
+  './css/account-security.css',
+  './css/course-catalog.css',
+  './css/operations-style.css',
+  './icons/background.webp',
+  './icons/campus-login.png',
+  './icons/logo.jpg',
+  './icons/pwa-180.png',
+  './icons/pwa-192.png',
+  './icons/pwa-512.png',
+  './manifest.json',
+  './js/auth.js',
+  './js/account-security.js',
+  './js/course-catalog.js',
+  './js/admin-script.js',
+  './js/admissions.js',
+  './js/announcements.js',
+  './js/backend-only.js',
+  './js/dashboard-script.js',
+  './js/deployment-config.js',
+  './js/documents.js',
+  './js/file-management.js',
+  './js/force-password-change.js',
+  './js/hostel.js',
+  './js/library.js',
+  './js/messages.js',
+  './js/modules-script.js',
+  './js/notifications.js',
+  './js/operations.js',
+  './js/profile-security.js',
+  './js/research.js',
+  './js/reset-password.js',
+  './js/scholarships.js',
+  './js/theme.js',
+  './js/script.js',
+  './js/portal-login.js',
+  './js/support-tickets.js',
+  './js/teacher-script.js',
+  './js/verify-email.js',
+  './public/index.html',
+  './public/about.html',
+  './public/admissions.html',
+  './public/contact.html',
+  './public/programmes.html',
+  './public/css/site.css',
+  './public/images/campus-community.jpg',
+  './public/images/campus-gathering.jpg',
+  './public/images/academic-community.jpg',
+  './public/images/campus-activity.jpg',
+  './public/js/site.js'
 ];
 
-// CDN Resources to cache
-const EXTERNAL_ASSETS = [
-  'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css',
-  'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js',
-  'https://cdn.jsdelivr.net/npm/chart.js'
-];
-
-// Install event - Cache static assets
 self.addEventListener('install', event => {
-  console.log('Service Worker installing...');
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      // Cache static assets
-      return cache.addAll(STATIC_ASSETS).catch(err => {
-        console.log('Some assets failed to cache:', err);
-      });
-    })
-  );
-  self.skipWaiting();
+  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(CORE_ASSETS)).then(() => self.skipWaiting()));
 });
 
-// Activate event - Clean old caches
 self.addEventListener('activate', event => {
-  console.log('Service Worker activating...');
-  event.waitUntil(
-    caches.keys().then(keys => {
-      return Promise.all(
-        keys.map(key => {
-          if (key !== CACHE_NAME) {
-            console.log('Deleting old cache:', key);
-            return caches.delete(key);
-          }
-        })
-      );
-    })
-  );
-  self.clients.claim();
+  event.waitUntil(caches.keys().then(keys => Promise.all(
+    keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
+  )).then(() => self.clients.claim()));
 });
 
-// Fetch event - Serve from cache, fallback to network
 self.addEventListener('fetch', event => {
-  const { request } = event;
-  const url = new URL(request.url);
-
-  // Skip non-GET requests
-  if (request.method !== 'GET') {
-    return;
-  }
-
-  // API requests - Network first, then cache
-  if (url.pathname.startsWith('/api/')) {
-    event.respondWith(
-      fetch(request)
-        .then(response => {
-          // Cache successful responses
-          if (response && response.status === 200) {
-            const responseClone = response.clone();
-            caches.open(CACHE_NAME).then(cache => {
-              cache.put(request, responseClone);
-            });
-          }
-          return response;
-        })
-        .catch(() => {
-          // Return cached response if network fails
-          return caches.match(request);
-        })
-    );
-    return;
-  }
-
-  // Static assets - Cache first, then network
+  const requestUrl = new URL(event.request.url);
+  if (event.request.method !== 'GET' ||
+      requestUrl.origin !== self.location.origin ||
+      requestUrl.pathname === '/api' ||
+      requestUrl.pathname.startsWith('/api/') ||
+      requestUrl.pathname === '/actuator' ||
+      requestUrl.pathname.startsWith('/actuator/')) return;
   event.respondWith(
-    caches.match(request)
-      .then(cachedResponse => {
-        if (cachedResponse) {
-          return cachedResponse;
+    (async () => {
+      const cached = await caches.match(event.request, {
+        ignoreSearch: event.request.mode === 'navigate',
+      });
+      try {
+        const response = await fetch(event.request);
+        if (cached && response.ok) {
+          const cache = await caches.open(CACHE_NAME);
+          const cacheUrl = new URL(event.request.url);
+          if (event.request.mode === 'navigate') {
+            cacheUrl.search = '';
+            cacheUrl.hash = '';
+          }
+          await cache.put(cacheUrl.toString(), response.clone());
         }
-        
-        return fetch(request)
-          .then(response => {
-            // Don't cache non-successful responses
-            if (!response || response.status !== 200) {
-              return response;
-            }
-
-            // Clone and cache the response
-            const responseClone = response.clone();
-            caches.open(CACHE_NAME).then(cache => {
-              cache.put(request, responseClone);
-            });
-            
-            return response;
-          })
-          .catch(error => {
-            console.log('Fetch failed; returning offline page instead.', error);
-            // Return offline fallback
-            return caches.match('/index.html');
-          });
-      })
+        return response;
+      } catch (error) {
+        if (cached) return cached;
+        throw error;
+      }
+    })()
   );
-});
-
-// Handle messages from client
-self.addEventListener('message', event => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
 });

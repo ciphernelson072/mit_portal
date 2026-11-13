@@ -1,9 +1,19 @@
 package com.sis.dto;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
 public class GradeRequest {
+
+    @NotNull(message = "Student ID is required")
     private Long studentId;
+
+    @NotNull(message = "Course ID is required")
     private Long courseId;
+
+    @NotBlank(message = "Grade value is required")
     private String gradeValue;
+
     private String remarks;
 
     public GradeRequest() {

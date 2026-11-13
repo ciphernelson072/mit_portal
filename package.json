@@ -1,0 +1,13 @@
+{
+  "name": "mit-student-portal-browser-tests",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/validate-javascript.js",
+    "test": "npm run test:unit",
+    "test:e2e": "playwright test",
+    "test:unit": "node --test tests/*.test.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.45.0"
+  }
+}

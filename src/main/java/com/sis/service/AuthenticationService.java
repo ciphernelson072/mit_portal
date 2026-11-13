@@ -13,6 +13,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.logging.Logger;
@@ -40,6 +45,9 @@ public class AuthenticationService {
     private PasswordEncoder passwordEncoder;
 
     @Autowired
+    private RefreshTokenService refreshTokenService;
+
+    @Autowired
     private EmailService emailService;
 
     private static final long PASSWORD_RESET_EXPIRATION_MS = 3600000; // 1 hour
@@ -49,12 +57,14 @@ public class AuthenticationService {
      * Request password reset
      * Creates reset token and sends email to user
      * @param email user email address
-     * @throws ResourceNotFoundException if user not found
+     * Unknown addresses intentionally produce the same outcome as known addresses
+     * so this endpoint cannot be used to enumerate accounts.
      */
     public void requestPasswordReset(String email) {
-        Optional<User> userOpt = userRepository.findByEmail(email);
+        String normalizedEmail = email == null ? null : email.trim().toLowerCase(Locale.ROOT);
+        Optional<User> userOpt = normalizedEmail == null ? Optional.empty() : userRepository.findByEmailIgnoreCase(normalizedEmail);
         if (userOpt.isEmpty()) {
-            throw new ResourceNotFoundException("User with email " + email + " not found");
+            return;
         }
 
         User user = userOpt.get();
@@ -66,12 +76,12 @@ public class AuthenticationService {
         String token = UUID.randomUUID().toString();
         LocalDateTime expiryDate = LocalDateTime.now().plusSeconds(PASSWORD_RESET_EXPIRATION_MS / 1000);
 
-        PasswordResetToken resetToken = new PasswordResetToken(token, user, expiryDate);
+        PasswordResetToken resetToken = new PasswordResetToken(hashResetToken(token), user, expiryDate);
         passwordResetTokenRepository.save(resetToken);
 
         // Send email
-        emailService.sendPasswordReset(email, token, user.getUsername());
-        logger.info("Password reset token created for user: " + user.getUsername());
+        emailService.sendPasswordReset(user.getEmail(), token, user.getUsername());
+        logger.info(() -> "Password reset token created for user: " + user.getUsername());
     }
 
     /**
@@ -80,7 +90,7 @@ public class AuthenticationService {
      * @return true if token is valid
      */
     public boolean validatePasswordResetToken(String token) {
-        Optional<PasswordResetToken> tokenOpt = passwordResetTokenRepository.findByToken(token);
+        Optional<PasswordResetToken> tokenOpt = passwordResetTokenRepository.findByToken(hashResetToken(token));
         if (tokenOpt.isEmpty()) {
             return false;
         }
@@ -96,23 +106,50 @@ public class AuthenticationService {
      * @throws ResourceNotFoundException if token invalid or expired
      */
     public void resetPassword(String token, String newPassword) {
-        Optional<PasswordResetToken> tokenOpt = passwordResetTokenRepository.findByToken(token);
+        Optional<PasswordResetToken> tokenOpt = passwordResetTokenRepository.findByToken(hashResetToken(token));
         if (tokenOpt.isEmpty() || !tokenOpt.get().isValid()) {
             throw new ResourceNotFoundException("Invalid or expired password reset token");
         }
 
         PasswordResetToken resetToken = tokenOpt.get();
+        if (passwordResetTokenRepository.consumeIfValid(resetToken.getId(), LocalDateTime.now()) != 1) {
+            throw new ResourceNotFoundException("Invalid or expired password reset token");
+        }
+
         User user = resetToken.getUser();
 
         // Update password
         user.setPassword(passwordEncoder.encode(newPassword));
+        user.setPasswordChangeRequired(false);
+        user.setCredentialVersion(user.getCredentialVersion() + 1);
         userRepository.save(user);
 
         // Mark token as used
-        resetToken.setUsed(true);
-        passwordResetTokenRepository.save(resetToken);
+        // A password reset is frequently a response to a compromised account - any
+        // session established before the reset (via a refresh token minted with the
+        // old credentials) should not remain valid after it.
+        refreshTokenService.revokeAllForUser(user.getId());
 
-        logger.info("Password reset successful for user: " + user.getUsername());
+        logger.info(() -> "Password reset successful for user: " + user.getUsername());
+    }
+
+    public boolean changePassword(String username, String currentPassword, String newPassword) {
+        String normalizedUsername = username == null ? null : username.trim();
+        Optional<User> userOpt = normalizedUsername == null ? Optional.empty() : userRepository.findByUsernameIgnoreCase(normalizedUsername);
+        if (userOpt.isEmpty() || !passwordEncoder.matches(currentPassword, userOpt.get().getPassword())) {
+            return false;
+        }
+
+        User user = userOpt.get();
+        if (passwordEncoder.matches(newPassword, user.getPassword())) {
+            throw new IllegalArgumentException("New password must be different from the current password");
+        }
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setPasswordChangeRequired(false);
+        user.setCredentialVersion(user.getCredentialVersion() + 1);
+        userRepository.save(user);
+        refreshTokenService.revokeAllForUser(user.getId());
+        return true;
     }
 
     /**
@@ -122,8 +159,10 @@ public class AuthenticationService {
      * @param email email to verify
      */
     public void requestEmailVerification(User user, String email) {
-        // Delete existing tokens for this email
-        Optional<EmailVerificationToken> existingOpt = emailVerificationTokenRepository.findByEmail(email);
+        String verificationEmail = email == null ? null : email.trim();
+        Optional<EmailVerificationToken> existingOpt = verificationEmail == null
+                ? Optional.empty()
+                : emailVerificationTokenRepository.findByEmailIgnoreCase(verificationEmail);
         if (existingOpt.isPresent()) {
             emailVerificationTokenRepository.delete(existingOpt.get());
         }
@@ -132,12 +171,13 @@ public class AuthenticationService {
         String token = UUID.randomUUID().toString();
         LocalDateTime expiryDate = LocalDateTime.now().plusSeconds(EMAIL_VERIFICATION_EXPIRATION_MS / 1000);
 
-        EmailVerificationToken verificationToken = new EmailVerificationToken(token, user, email, expiryDate);
+        EmailVerificationToken verificationToken = new EmailVerificationToken(
+                hashVerificationToken(token), user, verificationEmail, expiryDate);
         emailVerificationTokenRepository.save(verificationToken);
 
         // Send email
-        emailService.sendEmailVerification(email, token, user.getUsername());
-        logger.info("Email verification token created for user: " + user.getUsername());
+        emailService.sendEmailVerification(verificationEmail, token, user.getUsername());
+        logger.info(() -> "Email verification token created for user: " + user.getUsername());
     }
 
     /**
@@ -146,7 +186,8 @@ public class AuthenticationService {
      * @return true if token is valid
      */
     public boolean validateEmailVerificationToken(String token) {
-        Optional<EmailVerificationToken> tokenOpt = emailVerificationTokenRepository.findByToken(token);
+        Optional<EmailVerificationToken> tokenOpt =
+                emailVerificationTokenRepository.findByToken(hashVerificationToken(token));
         if (tokenOpt.isEmpty()) {
             return false;
         }
@@ -161,23 +202,24 @@ public class AuthenticationService {
      * @throws ResourceNotFoundException if token invalid or expired
      */
     public void confirmEmail(String token) {
-        Optional<EmailVerificationToken> tokenOpt = emailVerificationTokenRepository.findByToken(token);
+        Optional<EmailVerificationToken> tokenOpt =
+                emailVerificationTokenRepository.findByToken(hashVerificationToken(token));
         if (tokenOpt.isEmpty() || !tokenOpt.get().isValid()) {
             throw new ResourceNotFoundException("Invalid or expired email verification token");
         }
 
         EmailVerificationToken verificationToken = tokenOpt.get();
+        if (emailVerificationTokenRepository.consumeIfValid(verificationToken.getId(), LocalDateTime.now()) != 1) {
+            throw new ResourceNotFoundException("Invalid or expired email verification token");
+        }
+
         User user = verificationToken.getUser();
 
         // Update user email
         user.setEmail(verificationToken.getEmail());
         userRepository.save(user);
 
-        // Mark token as verified
-        verificationToken.setVerified(true);
-        emailVerificationTokenRepository.save(verificationToken);
-
-        logger.info("Email verified for user: " + user.getUsername());
+        logger.info(() -> "Email verified for user: " + user.getUsername());
     }
 
     /**
@@ -187,11 +229,31 @@ public class AuthenticationService {
      * @throws ResourceNotFoundException if token invalid
      */
     public User getUserFromPasswordResetToken(String token) {
-        Optional<PasswordResetToken> tokenOpt = passwordResetTokenRepository.findByToken(token);
+        Optional<PasswordResetToken> tokenOpt = passwordResetTokenRepository.findByToken(hashResetToken(token));
         if (tokenOpt.isEmpty() || !tokenOpt.get().isValid()) {
             throw new ResourceNotFoundException("Invalid or expired password reset token");
         }
         return tokenOpt.get().getUser();
+    }
+
+    private String hashResetToken(String token) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(token.getBytes(StandardCharsets.UTF_8));
+            return Base64.getEncoder().encodeToString(digest);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 not available", e);
+        }
+    }
+
+    private String hashVerificationToken(String token) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(token.getBytes(StandardCharsets.UTF_8));
+            return Base64.getEncoder().encodeToString(digest);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 not available", e);
+        }
     }
 
     /**
@@ -201,7 +263,8 @@ public class AuthenticationService {
      * @throws ResourceNotFoundException if token invalid
      */
     public User getUserFromEmailVerificationToken(String token) {
-        Optional<EmailVerificationToken> tokenOpt = emailVerificationTokenRepository.findByToken(token);
+        Optional<EmailVerificationToken> tokenOpt =
+                emailVerificationTokenRepository.findByToken(hashVerificationToken(token));
         if (tokenOpt.isEmpty() || !tokenOpt.get().isValid()) {
             throw new ResourceNotFoundException("Invalid or expired email verification token");
         }
@@ -248,22 +311,19 @@ public class AuthenticationService {
     }
 
     /**
-     * Resend email verification
+     * Resend email verification without revealing whether an email belongs to an account.
      * @param email the email to verify
-     * @throws ResourceNotFoundException if user not found
      */
     public void resendEmailVerification(String email) {
-        Optional<User> userOpt = userRepository.findByEmail(email);
-        if (userOpt.isEmpty()) {
-            userOpt = userRepository.findAll().stream()
-                    .filter(u -> u.getEmail() != null && u.getEmail().equals(email))
-                    .findFirst();
-        }
+        String normalizedEmail = email == null ? null : email.trim();
+        Optional<User> userOpt = normalizedEmail == null || normalizedEmail.isEmpty()
+                ? Optional.empty()
+                : userRepository.findByEmailNormalized(normalizedEmail);
 
         if (userOpt.isEmpty()) {
-            throw new ResourceNotFoundException("User with email " + email + " not found");
+            return;
         }
 
-        requestEmailVerification(userOpt.get(), email);
+        requestEmailVerification(userOpt.get(), userOpt.get().getEmail());
     }
 }

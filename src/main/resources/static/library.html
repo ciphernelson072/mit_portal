@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MIT Portal – Library</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="css/dashboard-style.css">
+</head>
+<body>
+  <header class="header">
+    <div class="header-container">
+      <div class="header-logo">
+        <img src="icons/logo.jpg" alt="MIT Logo" class="logo-icon">
+        <div class="brand-text">
+          <h1>MIT Portal</h1>
+          <span>Library</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="header-icons">
+          <a href="dashboard.html" class="btn-primary">Back to dashboard</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <section class="profile-summary">
+      <div class="profile-container">
+        <div class="profile-info-section">
+          <div class="profile-greeting">
+            <h2>Library</h2>
+            <p id="librarySummary">Loading library details…</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="dashboard-grid">
+      <div class="card">
+        <div class="card-header">
+          <h3>My active loans</h3>
+        </div>
+        <div class="card-content">
+          <div id="loanList" class="notification-list"></div>
+        </div>
+      </div>
+
+      <div class="card" style="grid-column: 1 / -1;">
+        <div class="card-header">
+          <h3>Catalogue</h3>
+        </div>
+        <div class="card-content">
+          <div id="catalogList" class="notification-list"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/backend-only.js"></script>
+  <script src="js/deployment-config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/theme.js"></script>
+  <script src="js/library.js"></script>
+</body>
+</html>

@@ -1,0 +1,71 @@
+services:
+  - type: web
+    name: mit-student-portal
+    runtime: docker
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /actuator/health
+    disk:
+      name: mit-student-uploads
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: SERVER_ADDRESS
+        value: 0.0.0.0
+      - key: UPLOAD_DIR
+        value: /var/data/uploads
+      - key: DB_URL
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: PAYMENT_WEBHOOK_SECRET
+        generateValue: true
+      - key: FLUTTERWAVE_SECRET_KEY
+        sync: false
+      - key: FLUTTERWAVE_WEBHOOK_SECRET_HASH
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: MAIL_PROVIDER
+        value: resend
+      - key: MAIL_ENABLED
+        value: "true"
+      - key: MAIL_API_KEY
+        sync: false
+      - key: MAIL_FROM_EMAIL
+        sync: false
+      - key: MAIL_FROM_NAME
+        value: MIT Portal
+      - key: MAIL_HEALTH_CHECK_ENABLED
+        value: "false"
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: AUTH_TRUST_X_FORWARDED_FOR
+        value: "true"
+      - key: COOKIE_SAME_SITE
+        value: Strict
+      - key: FLYWAY_BASELINE_ON_MIGRATE
+        value: "false"
+      - key: SAMPLE_DATA_ENABLED
+        value: "false"
+      - key: MFA_ENABLED
+        value: "false"
+      - key: MFA_REQUIRED_FOR_PRIVILEGED
+        value: "false"
+      - key: MFA_ENCRYPTION_KEY
+        sync: false
+      - key: INITIAL_ADMIN_BOOTSTRAP_ENABLED
+        value: "false"
+      - key: ATTENDANCE_MARKING_ENABLED
+        value: "true"
+      - key: ATTENDANCE_THRESHOLD_PERCENTAGE
+        value: "75"

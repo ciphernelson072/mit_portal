@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MIT Portal – Attendance</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="css/dashboard-style.css">
+  <link rel="stylesheet" href="css/modules-style.css">
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<header class="header">
+  <div class="header-container">
+    <div class="header-logo">
+      <img src="icons/logo.jpg" alt="MIT Logo" class="logo-icon">
+      <div class="brand-text">
+        <h1>MIT Portal</h1>
+        <span>Attendance</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <div class="search-bar">
+        <input type="text" placeholder="Search courses...">
+        <button type="button" class="search-btn">🔍</button>
+      </div>
+      <div class="header-icons">
+        <button class="icon-btn" onclick="goToDashboard()" title="Back to Dashboard">⬅️</button>
+        <div class="icon-wrapper dropdown">
+          <button class="icon-btn profile-btn" id="profileBtn">
+            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%231a3a8c'/%3E%3Ccircle cx='50' cy='35' r='15' fill='%23fff'/%3E%3Cpath d='M20 80 Q20 60 50 60 Q80 60 80 80' fill='%23fff'/%3E%3C/svg%3E" alt="Profile" class="profile-avatar">
+          </button>
+          <div class="dropdown-menu" id="profileMenu">
+            <div class="dropdown-header">Account</div>
+            <a href="profile.html" class="menu-link">👤 My Profile</a>
+            <a href="profile.html#preferences" class="menu-link">⚙️ Settings</a>
+            <button class="menu-link logout-btn" onclick="handleLogoutClick()">🚪 Logout</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ===== MAIN CONTENT ===== -->
+<main class="main-content">
+
+  <!-- Navigation Tabs -->
+  <div class="module-tabs">
+    <button class="tab-btn active" onclick="switchTab('overview')">📊 Overview</button>
+    <button class="tab-btn" onclick="switchTab('records')">📋 Records</button>
+    <button class="tab-btn" onclick="switchTab('reports')">📈 Reports</button>
+  </div>
+
+  <!-- TAB 1: OVERVIEW -->
+  <section class="tab-content active" id="overviewTab">
+    <h2>Attendance Overview</h2>
+    <p id="attendanceLoadStatus" role="status" aria-live="polite"></p>
+    
+    <div class="overview-grid">
+      <!-- Summary Cards -->
+      <div class="summary-card">
+        <div class="summary-icon overall">📊</div>
+        <div class="summary-content">
+          <p class="summary-label">Overall Attendance</p>
+          <p class="summary-value">—</p>
+          <p class="summary-detail">No records yet</p>
+        </div>
+      </div>
+
+      <div class="summary-card">
+        <div class="summary-icon present">✓</div>
+        <div class="summary-content">
+          <p class="summary-label">Present</p>
+          <p class="summary-value">—</p>
+          <p class="summary-detail">classes attended</p>
+        </div>
+      </div>
+
+      <div class="summary-card">
+        <div class="summary-icon absent">✕</div>
+        <div class="summary-content">
+          <p class="summary-label">Absent</p>
+          <p class="summary-value">—</p>
+          <p class="summary-detail">without excuse</p>
+        </div>
+      </div>
+
+      <div class="summary-card">
+        <div class="summary-icon late">⏱️</div>
+        <div class="summary-content">
+          <p class="summary-label">Late Arrivals</p>
+          <p class="summary-value">—</p>
+          <p class="summary-detail">recorded late arrivals</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Course-wise Attendance -->
+    <h3>Attendance by Course</h3>
+    <div class="attendance-courses"><p>No attendance recorded yet.</p></div>
+
+    <!-- Alerts & Warnings -->
+    <h3>Attendance Status</h3>
+    <div class="alerts-container">
+      <p>Attendance status will appear when records are available.</p>
+    </div>
+  </section>
+
+  <!-- TAB 2: RECORDS -->
+  <section class="tab-content" id="recordsTab">
+    <h2>Detailed Attendance Records</h2>
+    
+    <div class="filter-bar">
+      <select class="filter-select" onchange="filterByCourse(this.value)">
+        <option value="">All Courses</option>
+      </select>
+    </div>
+
+    <table class="attendance-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Course</th>
+          <th>Time</th>
+          <th>Status</th>
+          <th>Remarks</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="5" style="text-align:center; color:var(--text-secondary,#666);">No attendance recorded yet.</td></tr>
+      </tbody>
+    </table>
+    <div class="student-attendance-disputes">
+      <h3>My Attendance Disputes</h3>
+      <div id="attendanceDisputeStatus" aria-live="polite">Loading disputes…</div>
+    </div>
+
+  </section>
+
+  <!-- TAB 3: REPORTS -->
+  <section class="tab-content" id="reportsTab">
+    <h2>Attendance Reports</h2>
+    
+    <div class="reports-container">
+      
+      <div class="report-card">
+        <h3>Past Month Attendance Report</h3>
+        <div class="report-options">
+          <p>Export records from the past month.</p>
+          <button class="btn-secondary" onclick="downloadReport('monthly')">📥 Download Report</button>
+        </div>
+      </div>
+
+      <div class="report-card">
+        <h3>Past Six Months Attendance Report</h3>
+        <div class="report-options">
+          <p>Export records from the past six months.</p>
+          <button class="btn-secondary" onclick="downloadReport('semester')">📥 Download Report</button>
+        </div>
+      </div>
+
+      <div class="report-card">
+        <h3>Attendance Trend</h3>
+        <div class="report-options">
+          <button class="btn-secondary" onclick="downloadReport('trend')">📥 Download Report</button>
+        </div>
+        <div class="chart-placeholder"><p>Loading live attendance trend...</p></div>
+      </div>
+
+    </div>
+  </section>
+
+</main>
+
+<!-- ===== FOOTER ===== -->
+<footer class="footer">
+  <div class="footer-content">
+    <p>&copy; 2026 Makerere Institute of Technology. All rights reserved.</p>
+  </div>
+</footer>
+
+<script src="js/backend-only.js"></script>
+<script src="js/deployment-config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/dashboard-script.js"></script>
+<script src="js/modules-script.js"></script>
+</body>
+</html>

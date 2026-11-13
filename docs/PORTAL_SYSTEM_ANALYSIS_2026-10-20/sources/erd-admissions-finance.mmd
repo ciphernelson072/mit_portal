@@ -1,0 +1,66 @@
+erDiagram
+  DEPARTMENT ||--o{ PROGRAM : owns
+  PROGRAM ||--o{ ADMISSION_APPLICATION : selected_by
+  ACADEMIC_YEAR ||--o{ ADMISSION_APPLICATION : intake
+  STUDENT ||--o{ STUDENT_PROGRAM : enrolled_in
+  PROGRAM ||--o{ STUDENT_PROGRAM : offers
+  ACADEMIC_YEAR ||--o{ STUDENT_PROGRAM : tracks
+  STUDENT ||--o{ FEE : charged
+  FEE ||--o{ PAYMENT_ATTEMPT : may_have
+  STUDENT ||--o{ PAYMENT_ATTEMPT : submits
+  PAYMENT_ATTEMPT ||--o{ BANK_RECONCILIATION_ENTRY : matched_by
+  DEPARTMENT {
+    long id PK
+    long faculty_id FK
+    string name
+  }
+  PROGRAM {
+    long id PK
+    long department_id FK
+    string code UK
+    string name
+  }
+  ACADEMIC_YEAR {
+    long id PK
+    string code UK
+  }
+  ADMISSION_APPLICATION {
+    long id PK
+    string application_number UK
+    long program_id FK
+    long academic_year_id FK
+    string status
+    string normalized_email
+  }
+  STUDENT {
+    long id PK
+    long user_id FK_UK
+    string registration_number UK
+  }
+  STUDENT_PROGRAM {
+    long id PK
+    long student_id FK
+    long program_id FK
+    long academic_year_id FK
+    string lifecycle_status
+  }
+  FEE {
+    long id PK
+    long student_id FK
+    decimal amount
+    boolean paid
+    date due_date
+  }
+  PAYMENT_ATTEMPT {
+    long id PK
+    long student_id FK
+    long fee_id FK
+    string provider_reference UK
+    string status
+  }
+  BANK_RECONCILIATION_ENTRY {
+    long id PK
+    long matched_payment_attempt_id FK
+    string provider_reference
+    decimal amount
+  }

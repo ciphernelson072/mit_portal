@@ -1,9 +1,19 @@
 package com.sis.dto;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
 public class CreateMaterialRequest {
+
+    @NotNull(message = "Course ID is required")
     private Long courseId;
+
+    @NotBlank(message = "Title is required")
     private String title;
+
     private String description;
+
+    @NotBlank(message = "File URL is required")
     private String fileUrl;
 
     public CreateMaterialRequest() {

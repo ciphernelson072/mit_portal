@@ -4,9 +4,11 @@ import com.sis.entity.*;
 import com.sis.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.math.BigDecimal;
 import java.util.logging.Logger;
@@ -17,6 +19,7 @@ import java.util.logging.Logger;
  * Enable by setting: sis.sample-data.enabled=true in properties
  */
 @Component
+@ConditionalOnProperty(name = "sis.sample-data.enabled", havingValue = "true")
 public class SampleDataLoader implements CommandLineRunner {
 
     private static final Logger logger = Logger.getLogger(SampleDataLoader.class.getName());
@@ -34,17 +37,25 @@ public class SampleDataLoader implements CommandLineRunner {
     private CourseRepository courseRepository;
 
     @Autowired
+    private CourseCategoryRepository courseCategoryRepository;
+
+    @Autowired
     private GradeRepository gradeRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Value("${sis.sample-data.users.enabled:true}")
+    private boolean sampleUsersEnabled;
+
     @Override
     @Transactional
     public void run(String... args) throws Exception {
-        // Check if sample data already exists - check for teacher1 instead of admin
-        if (userRepository.findByUsername("teacher1").isPresent()) {
-            logger.info("Sample data already exists. Skipping initialization.");
+        // Existing installations may contain only part of the demo catalog. Repair
+        // the catalog invariants before deciding that seeding is complete.
+        if (userRepository.findByUsernameIgnoreCase("teacher1").isPresent()) {
+            repairDemoCatalog();
+            logger.info("Sample users already exist. Demo catalog verified and repaired where necessary.");
             return;
         }
 
@@ -60,6 +71,11 @@ public class SampleDataLoader implements CommandLineRunner {
         admin.setIsActive(true);
         userRepository.save(admin);
         logger.info("Admin user created");
+
+        if (!sampleUsersEnabled) {
+            logger.info("Sample users disabled; only the administrator demo account was created.");
+            return;
+        }
 
         // Create Teacher Users
         User teacher1User = new User();
@@ -126,34 +142,49 @@ public class SampleDataLoader implements CommandLineRunner {
             student.setClassName("Grade 10");
             student.setEmail("student" + (i + 1) + "@school.com");
             student.setPhone("+123456789" + (i + 1));
-            student.setCgpa(new BigDecimal("3.5").subtract(new BigDecimal(i * 0.2)));
             student.setEnrollmentDate("2024-01-15");
+            student.setRegistrationNumber("P-" + java.util.UUID.randomUUID());
             student.setAddress("123 Main St, City, State");
-            students[i] = studentRepository.save(student);
+            Student savedStudent = studentRepository.save(student);
+            savedStudent.setRegistrationNumber(String.format(
+                    "MIT/%s/%05d",
+                    savedStudent.getEnrollmentDate().substring(0, 4),
+                    savedStudent.getId()
+            ));
+            students[i] = studentRepository.save(savedStudent);
         }
 
         logger.info("Students created");
 
-        // Create Courses
+        CourseCategory mathCategory = ensureCategory("MATH", "Mathematics");
+        CourseCategory englishCategory = ensureCategory("ENG", "English");
+
+        // Create Courses with all required fields to satisfy DB constraints
         Course math = new Course();
         math.setName("Mathematics");
+        math.setCourseCode("MATH101");
+        math.setCategory(mathCategory);
         math.setTeacher(teacher1);
         math.setSemester("Spring 2024");
         math.setCredits(4);
+        math.getStudents().addAll(java.util.Arrays.asList(students));
         courseRepository.save(math);
 
         Course english = new Course();
         english.setName("English Literature");
+        english.setCourseCode("ENG201");
+        english.setCategory(englishCategory);
         english.setTeacher(teacher2);
         english.setSemester("Spring 2024");
         english.setCredits(3);
+        english.getStudents().addAll(java.util.Arrays.asList(students));
         courseRepository.save(english);
 
         logger.info("Courses created");
 
         // Create Grades
-        String[] grades = {"A", "B+", "A-", "B", "C+"};
-        BigDecimal[] gpaScores = {new BigDecimal("4.0"), new BigDecimal("3.3"), new BigDecimal("3.7"), new BigDecimal("3.0"), new BigDecimal("2.3")};
+        String[] grades = {"A", "B+", "B", "C+", "C"};
+        BigDecimal[] gpaScores = {new BigDecimal("5.0"), new BigDecimal("4.5"), new BigDecimal("4.0"), new BigDecimal("3.5"), new BigDecimal("3.0")};
 
         for (int i = 0; i < 5; i++) {
             Grade grade1 = new Grade();
@@ -168,15 +199,54 @@ public class SampleDataLoader implements CommandLineRunner {
             grade2.setStudent(students[i]);
             grade2.setCourse(english);
             grade2.setGradeValue(grades[(i + 1) % 5]);
-            grade2.setGpaScore(gpaScores[(i + 2) % 5]);
+            grade2.setGpaScore(gpaScores[(i + 1) % 5]);
             grade2.setRemarks("Excellent writing skills");
             gradeRepository.save(grade2);
         }
 
         logger.info("Sample data initialization completed successfully!");
-        logger.info("Test credentials:");
-        logger.info("Admin - username: admin, password: admin123");
-        logger.info("Teacher - username: teacher1, password: teacher123");
-        logger.info("Student - username: student1, password: student123");
+        // Demo account usernames only - intentionally not logging passwords, even for
+        // seed/demo accounts. See README.md "Demo Credentials" for the actual values;
+        // application logs are not a safe place for any password, real or seeded.
+        logger.info("Demo accounts created: admin, teacher1, teacher2, student1-student5 (see README.md for credentials)");
+    }
+
+    private CourseCategory ensureCategory(String code, String name) {
+        return courseCategoryRepository.findByCodeIgnoreCase(code)
+                .orElseGet(() -> courseCategoryRepository.save(new CourseCategory(code, name)));
+    }
+
+    private void repairDemoCatalog() {
+        CourseCategory otherCategory = ensureCategory("OTHER", "Other");
+        ensureCategory("MATH", "Mathematics");
+        ensureCategory("ENG", "English");
+
+        for (Course course : courseRepository.findAll()) {
+            if (course.getCategory() == null) {
+                course.setCategory(otherCategory);
+            }
+            if (course.getCourseCode() == null || course.getCourseCode().isBlank()) {
+                course.setCourseCode("COURSE-" + course.getId());
+            }
+            if (course.getCredits() == null || course.getCredits() <= 0) {
+                course.setCredits(3);
+            }
+            if (course.getSemester() == null || course.getSemester().isBlank()) {
+                course.setSemester("Current Semester");
+            }
+        }
+        linkDemoStudentsToCourse("MATH101");
+        linkDemoStudentsToCourse("ENG201");
+        courseRepository.flush();
+    }
+
+    private void linkDemoStudentsToCourse(String courseCode) {
+        courseRepository.findByCourseCode(courseCode).ifPresent(course -> {
+            for (int i = 1; i <= 5; i++) {
+                studentRepository.findByUserUsername("student" + i)
+                        .ifPresent(course.getStudents()::add);
+            }
+            courseRepository.save(course);
+        });
     }
 }

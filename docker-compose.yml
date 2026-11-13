@@ -1,0 +1,90 @@
+services:
+  app:
+    build:
+      context: .
+    restart: unless-stopped
+    environment:
+      DB_URL: jdbc:mysql://db:3306/sis_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      DB_USER: sis_app
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD before starting Docker Compose}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET before starting Docker Compose}
+      SERVER_PORT: 8080
+      SERVER_ADDRESS: 0.0.0.0
+      DDL_AUTO: validate
+      FLYWAY_ENABLED: "true"
+      SAMPLE_DATA_ENABLED: ${SAMPLE_DATA_ENABLED:-false}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      COOKIE_SAME_SITE: ${COOKIE_SAME_SITE:-Strict}
+      SPRING_PROFILES_ACTIVE: prod
+      FRONTEND_URL: ${FRONTEND_URL:?Set FRONTEND_URL before starting Docker Compose}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?Set CORS_ALLOWED_ORIGINS before starting Docker Compose}
+      UPLOAD_DIR: /app/uploads
+      PAYMENT_WEBHOOK_SECRET: ${PAYMENT_WEBHOOK_SECRET:?Set PAYMENT_WEBHOOK_SECRET before starting Docker Compose}
+      FLUTTERWAVE_SECRET_KEY: ${FLUTTERWAVE_SECRET_KEY:-}
+      FLUTTERWAVE_WEBHOOK_SECRET_HASH: ${FLUTTERWAVE_WEBHOOK_SECRET_HASH:-}
+      BACKUP_STATUS_FILE: /app/backups/.backup-success
+      UPLOAD_BACKUP_STATUS_FILE: /app/backups/.uploads-backup-success
+      MAIL_ENABLED: ${MAIL_ENABLED:-false}
+      MAIL_PROVIDER: ${MAIL_PROVIDER:-smtp}
+      MAIL_API_KEY: ${MAIL_API_KEY:-}
+      MAIL_FROM_EMAIL: ${MAIL_FROM_EMAIL:-}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-MIT Portal}
+      MAIL_HOST: ${MAIL_HOST:-}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_STARTTLS_ENABLE: ${MAIL_STARTTLS_ENABLE:-true}
+      MAIL_STARTTLS_REQUIRED: ${MAIL_STARTTLS_REQUIRED:-true}
+      MAIL_SMTP_SSL_ENABLE: ${MAIL_SMTP_SSL_ENABLE:-false}
+      MFA_ENABLED: ${MFA_ENABLED:-false}
+      MFA_REQUIRED_FOR_PRIVILEGED: ${MFA_REQUIRED_FOR_PRIVILEGED:-false}
+      MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY:-}
+      INITIAL_ADMIN_BOOTSTRAP_ENABLED: ${INITIAL_ADMIN_BOOTSTRAP_ENABLED:-false}
+      INITIAL_ADMIN_USERNAME: ${INITIAL_ADMIN_USERNAME:-}
+      INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-}
+      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-}
+      ATTENDANCE_MARKING_ENABLED: ${ATTENDANCE_MARKING_ENABLED:-true}
+      ATTENDANCE_THRESHOLD_PERCENTAGE: ${ATTENDANCE_THRESHOLD_PERCENTAGE:-75}
+    ports:
+      - "${APP_BIND_ADDRESS:-127.0.0.1}:${APP_PORT:-8080}:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - "${UPLOADS_HOST_DIR:-./uploads}:/app/uploads"
+      - "${BACKUPS_HOST_DIR:-./backups}:/app/backups"
+
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: sis_db
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD before starting Docker Compose}
+      MYSQL_USER: sis_app
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD before starting Docker Compose}
+    ports:
+      - "127.0.0.1:${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p\"$${MYSQL_ROOT_PASSWORD}\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: mit_phpmyadmin
+    profiles: ["admin-tools"]
+    environment:
+      PMA_HOST: db
+      PMA_USER: root
+      PMA_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    ports:
+      - "127.0.0.1:${PMA_PORT:-8081}:80"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db_data:

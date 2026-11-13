@@ -2,7 +2,7 @@ package com.sis.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.util.HashSet;
 import java.util.Set;
@@ -16,7 +16,14 @@ public class Student {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne(optional = false, cascade = CascadeType.ALL)
+    // PERSIST+MERGE only, not ALL: CascadeType.ALL includes REMOVE, which would
+    // silently hard-delete the linked User row (and, via User's own relations,
+    // cascade further) if this entity were ever removed - a surprising, easy-to-
+    // miss side effect. Nothing currently hard-deletes a Student/Teacher at all
+    // (AdminService only ever soft-deletes via isActive=false); if that changes,
+    // the delete should explicitly decide what happens to the User row in the
+    // service layer, not implicitly via cascade.
+    @OneToOne(optional = false, cascade = {CascadeType.PERSIST, CascadeType.MERGE}, fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", unique = true, nullable = false)
     private User user;
 
@@ -46,9 +53,30 @@ public class Student {
     @Column
     private String enrollmentDate;
 
+    @Column(name = "registration_number", unique = true, length = 40)
+    private String registrationNumber;
+
     // Academic information - address and other details
     @Column(length = 500)
     private String address;
+
+    @Column(name = "date_of_birth")
+    private String dateOfBirth;
+
+    @Column(length = 30)
+    private String gender;
+
+    @Column(name = "alternative_phone", length = 20)
+    private String alternativePhone;
+
+    @Column(length = 100)
+    private String city;
+
+    @Column(length = 100)
+    private String country;
+
+    @Column(name = "updated_at")
+    private java.time.LocalDateTime updatedAt;
 
     @ManyToMany(mappedBy = "students")
     @JsonIgnore
@@ -184,6 +212,9 @@ public class Student {
         this.enrollmentDate = enrollmentDate;
     }
 
+    public String getRegistrationNumber() { return registrationNumber; }
+    public void setRegistrationNumber(String registrationNumber) { this.registrationNumber = registrationNumber; }
+
     /**
      * Get student's address
      * @return residential address
@@ -199,4 +230,18 @@ public class Student {
     public void setAddress(String address) {
         this.address = address;
     }
+
+    public String getDateOfBirth() { return dateOfBirth; }
+    public void setDateOfBirth(String dateOfBirth) { this.dateOfBirth = dateOfBirth; }
+    public String getGender() { return gender; }
+    public void setGender(String gender) { this.gender = gender; }
+    public String getAlternativePhone() { return alternativePhone; }
+    public void setAlternativePhone(String alternativePhone) { this.alternativePhone = alternativePhone; }
+    public String getCity() { return city; }
+    public void setCity(String city) { this.city = city; }
+    public String getCountry() { return country; }
+    public void setCountry(String country) { this.country = country; }
+
+    public java.time.LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(java.time.LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }

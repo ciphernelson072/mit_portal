@@ -1,6 +1,7 @@
 package com.sis.service;
 
 import com.sis.entity.Grade;
+import com.sis.entity.GradeStatus;
 import com.sis.entity.Student;
 import com.sis.repository.GradeRepository;
 import com.sis.repository.StudentRepository;
@@ -26,6 +27,9 @@ public class GradeService {
     @Autowired
     private StudentRepository studentRepository;
 
+    @Autowired
+    private AcademicResultCorrectionService resultCorrections;
+
     /**
      * Get all grades for a student
      * @param studentId student ID
@@ -50,6 +54,10 @@ public class GradeService {
      * @return saved grade
      */
     public Grade recordGrade(Grade grade) {
+        BigDecimal mappedGradePoint = GradeCalculationService.gradeToGpa(grade.getGradeValue());
+        grade.setGpaScore(mappedGradePoint);
+        grade.setGradingPolicyVersion(UgandanTertiaryGradingPolicy.VERSION);
+        grade.setRetakeRequired(mappedGradePoint.compareTo(UgandanTertiaryGradingPolicy.PASS_GRADE_POINT) < 0);
         Grade savedGrade = gradeRepository.save(grade);
         
         // Automatically recalculate student's CGPA after adding grade
@@ -68,8 +76,15 @@ public class GradeService {
         Optional<Grade> existing = gradeRepository.findById(id);
         if (existing.isPresent()) {
             Grade grade = existing.get();
+            ensureGradeIsNotApproved(grade, "updated");
             grade.setGradeValue(updatedGrade.getGradeValue());
-            grade.setGpaScore(updatedGrade.getGpaScore());
+            BigDecimal mappedGradePoint = GradeCalculationService.gradeToGpa(updatedGrade.getGradeValue());
+            if (updatedGrade.getGpaScore() != null && updatedGrade.getGpaScore().compareTo(mappedGradePoint) != 0) {
+                throw new IllegalArgumentException("Grade points are calculated from the institutional grade mapping.");
+            }
+            grade.setGpaScore(mappedGradePoint);
+            grade.setGradingPolicyVersion(UgandanTertiaryGradingPolicy.VERSION);
+            grade.setRetakeRequired(mappedGradePoint.compareTo(UgandanTertiaryGradingPolicy.PASS_GRADE_POINT) < 0);
             grade.setRemarks(updatedGrade.getRemarks());
             
             Grade savedGrade = gradeRepository.save(grade);
@@ -89,6 +104,10 @@ public class GradeService {
     public void deleteGrade(Long id) {
         Optional<Grade> grade = gradeRepository.findById(id);
         if (grade.isPresent()) {
+            ensureGradeIsNotApproved(grade.get(), "deleted");
+            if (resultCorrections != null && resultCorrections.hasHistory(id)) {
+                throw new IllegalStateException("Grades with correction history cannot be deleted.");
+            }
             Long studentId = grade.get().getStudent().getId();
             gradeRepository.deleteById(id);
             
@@ -96,6 +115,13 @@ public class GradeService {
             updateStudentCGPA(studentId);
         } else {
             throw new RuntimeException("Grade not found with id: " + id);
+        }
+    }
+
+    private void ensureGradeIsNotApproved(Grade grade, String action) {
+        if (grade.getStatus() == GradeStatus.APPROVED) {
+            throw new IllegalStateException(
+                    "Approved grades cannot be " + action + " directly. Use the controlled correction workflow.");
         }
     }
 
@@ -112,7 +138,7 @@ public class GradeService {
         }
 
         List<Grade> grades = gradeRepository.findByStudentId(studentId);
-        BigDecimal cgpa = calculateCGPA(grades);
+        BigDecimal cgpa = GradeCalculationService.calculateApprovedCgpa(grades);
 
         Student s = student.get();
         s.setCgpa(cgpa);
@@ -126,31 +152,6 @@ public class GradeService {
      * @param grades list of grades
      * @return calculated CGPA
      */
-    private BigDecimal calculateCGPA(List<Grade> grades) {
-        if (grades.isEmpty()) {
-            return BigDecimal.ZERO;
-        }
-
-        BigDecimal totalWeightedGpa = BigDecimal.ZERO;
-        int totalCredits = 0;
-
-        // Calculate weighted GPA: sum of (GPA * Credits)
-        for (Grade grade : grades) {
-            BigDecimal gpa = grade.getGpaScore();
-            Integer credits = grade.getCourse().getCredits();
-            if (credits == null) credits = 3;
-
-            totalWeightedGpa = totalWeightedGpa.add(gpa.multiply(new BigDecimal(credits)));
-            totalCredits += credits;
-        }
-
-        // CGPA = Total Weighted GPA / Total Credits
-        if (totalCredits > 0) {
-            return totalWeightedGpa.divide(new BigDecimal(totalCredits), 2, java.math.RoundingMode.HALF_UP);
-        }
-
-        return BigDecimal.ZERO;
-    }
 
     /**
      * Get GPA for a specific course
@@ -159,22 +160,6 @@ public class GradeService {
      * @return numeric GPA equivalent
      */
     public BigDecimal getGPAFromGrade(String letterGrade) {
-        if (letterGrade == null) return BigDecimal.ZERO;
-
-        return switch (letterGrade.toUpperCase()) {
-            case "A+", "A" -> new BigDecimal("4.0");
-            case "A-" -> new BigDecimal("3.7");
-            case "B+" -> new BigDecimal("3.3");
-            case "B" -> new BigDecimal("3.0");
-            case "B-" -> new BigDecimal("2.7");
-            case "C+" -> new BigDecimal("2.3");
-            case "C" -> new BigDecimal("2.0");
-            case "C-" -> new BigDecimal("1.7");
-            case "D+" -> new BigDecimal("1.3");
-            case "D" -> new BigDecimal("1.0");
-            case "D-" -> new BigDecimal("0.7");
-            case "F" -> new BigDecimal("0.0");
-            default -> BigDecimal.ZERO;
-        };
+        return GradeCalculationService.gradeToGpa(letterGrade);
     }
 }

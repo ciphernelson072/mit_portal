@@ -2,7 +2,7 @@ package com.sis.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -15,7 +15,14 @@ public class Teacher {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne(optional = false, cascade = CascadeType.ALL)
+    // PERSIST+MERGE only, not ALL: CascadeType.ALL includes REMOVE, which would
+    // silently hard-delete the linked User row (and, via User's own relations,
+    // cascade further) if this entity were ever removed - a surprising, easy-to-
+    // miss side effect. Nothing currently hard-deletes a Student/Teacher at all
+    // (AdminService only ever soft-deletes via isActive=false); if that changes,
+    // the delete should explicitly decide what happens to the User row in the
+    // service layer, not implicitly via cascade.
+    @OneToOne(optional = false, cascade = {CascadeType.PERSIST, CascadeType.MERGE}, fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", unique = true, nullable = false)
     private User user;
 
@@ -45,6 +52,10 @@ public class Teacher {
     // Department or subject specialization
     @Column
     private String department;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "department_id")
+    private Department homeDepartment;
 
     @OneToMany(mappedBy = "teacher")
     @JsonIgnore
@@ -184,5 +195,13 @@ public class Teacher {
      */
     public void setDepartment(String department) {
         this.department = department;
+    }
+
+    public Department getHomeDepartment() {
+        return homeDepartment;
+    }
+
+    public void setHomeDepartment(Department homeDepartment) {
+        this.homeDepartment = homeDepartment;
     }
 }

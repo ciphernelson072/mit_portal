@@ -1,0 +1,2 @@
+ALTER TABLE payment_attempts
+  ADD COLUMN payment_channel VARCHAR(30) NOT NULL DEFAULT 'BANK_TRANSFER';

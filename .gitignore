@@ -1,5 +1,22 @@
 HELP.md
 target/
+node_modules/
+frontend-dist/
+test-results/
+playwright-report/
+*.log
+/mvnlog.txt
+.idea/
+*.iml
+.env
+.env.*
+!.env.example
+!.env.cloudflare-tidb.example
+!.env.render.example
+.DS_Store
+Thumbs.db
+uploads/
+backups/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
@@ -12,6 +29,7 @@ target/
 .settings
 .springBeans
 .sts4-cache
+bin/
 
 ### IntelliJ IDEA ###
 .idea

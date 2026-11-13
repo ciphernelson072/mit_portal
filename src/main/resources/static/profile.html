@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MIT Portal – Profile</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="css/dashboard-style.css">
+  <link rel="stylesheet" href="css/modules-style.css">
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<header class="header">
+  <div class="header-container">
+    <div class="header-logo">
+      <img src="icons/logo.jpg" alt="MIT Logo" class="logo-icon">
+      <div class="brand-text">
+        <h1>MIT Portal</h1>
+        <span>Profile & Settings</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <div class="search-bar">
+        <input type="text" placeholder="Search...">
+        <button type="button" class="search-btn">🔍</button>
+      </div>
+      <div class="header-icons">
+        <button class="icon-btn" onclick="goToDashboard()" title="Back to Dashboard">⬅️</button>
+        <div class="icon-wrapper dropdown">
+          <button class="icon-btn profile-btn" id="profileBtn">
+            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%231a3a8c'/%3E%3Ccircle cx='50' cy='35' r='15' fill='%23fff'/%3E%3Cpath d='M20 80 Q20 60 50 60 Q80 60 80 80' fill='%23fff'/%3E%3C/svg%3E" alt="Profile" class="profile-avatar">
+          </button>
+          <div class="dropdown-menu" id="profileMenu">
+            <div class="dropdown-header">Account</div>
+            <a href="profile.html" class="menu-link">👤 My Profile</a>
+            <a href="profile.html#preferences" class="menu-link">⚙️ Settings</a>
+            <button class="menu-link logout-btn" onclick="handleLogoutClick()">🚪 Logout</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ===== MAIN CONTENT ===== -->
+<main class="main-content">
+
+  <!-- Navigation Tabs -->
+  <div class="module-tabs">
+    <button class="tab-btn active" onclick="switchTab('personal')">👤 Personal Info</button>
+    <button class="tab-btn" onclick="switchTab('academic')">📚 Academic Info</button>
+    <button class="tab-btn" onclick="switchTab('documents')">📄 Documents</button>
+    <button class="tab-btn" onclick="switchTab('requests')">🎫 Service Requests</button>
+    <button class="tab-btn" onclick="switchTab('security')">🔐 Security</button>
+    <button class="tab-btn" onclick="switchTab('preferences')">⚙️ Preferences</button>
+  </div>
+
+  <!-- TAB 1: PERSONAL INFO -->
+  <section class="tab-content active" id="personalTab">
+    <h2>Personal Information</h2>
+    
+    <div class="profile-form-container">
+      <div class="form-section">
+        <h3>Basic Details</h3>
+        <form class="form-grid">
+          <div class="form-group">
+            <label>First Name *</label>
+            <input type="text" disabled>
+          </div>
+          <div class="form-group">
+            <label>Last Name *</label>
+            <input type="text" disabled>
+          </div>
+          <div class="form-group">
+            <label>Contact Email</label>
+            <input type="email" disabled>
+          </div>
+          <div class="form-group">
+            <label>Phone Number</label>
+            <input type="tel">
+          </div>
+          <div class="form-group">
+            <label>Alternative Phone</label>
+            <input type="tel">
+          </div>
+          <div class="form-group">
+            <label>Date of Birth</label>
+            <input type="date">
+          </div>
+          <div class="form-group">
+            <label>Gender</label>
+            <select>
+              <option value="">Select gender</option>
+              <option>Male</option>
+              <option>Female</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="form-group full-width">
+            <label>Residential Address</label>
+            <input type="text">
+          </div>
+          <div class="form-group">
+            <label>City</label>
+            <input type="text">
+          </div>
+          <div class="form-group">
+            <label>Country</label>
+            <input type="text">
+          </div>
+        </form>
+        <p class="muted">Contact email is used for academic and other contact messages. It is separate from the account email used for sign-in and password recovery.</p>
+        <button class="btn-primary" onclick="editProfile()">✏️ Edit Profile</button>
+      </div>
+
+      <div class="form-section">
+        <h3>Contact Information</h3>
+        <div class="contact-info">
+          <div class="contact-item">
+            <span class="contact-label">Contact Email:</span>
+            <span></span>
+          </div>
+          <div class="contact-item">
+            <span class="contact-label">Phone:</span>
+            <span></span>
+          </div>
+          <div class="contact-item">
+            <span class="contact-label">Alternative Phone:</span>
+            <span></span>
+          </div>
+          <div class="contact-item">
+            <span class="contact-label">Permanent Address:</span>
+            <span></span>
+          </div>
+        </div>
+        <button class="btn-secondary" onclick="editContact()">Edit Contact Info</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 2: ACADEMIC INFO -->
+  <section class="tab-content" id="academicTab">
+    <h2>Academic Information</h2>
+    
+    <div class="academic-info">
+      <div class="info-grid">
+        <div class="info-card">
+          <p class="info-label">Registration Number</p>
+          <p class="info-value"></p>
+        </div>
+        <div class="info-card">
+          <p class="info-label">Program</p>
+          <p class="info-value"></p>
+        </div>
+        <div class="info-card">
+          <p class="info-label">Current Year</p>
+          <p class="info-value"></p>
+        </div>
+        <div class="info-card">
+          <p class="info-label">Current Semester</p>
+          <p class="info-value"></p>
+        </div>
+        <div class="info-card">
+          <p class="info-label">CGPA</p>
+          <p class="info-value"></p>
+        </div>
+        <div class="info-card">
+          <p class="info-label">Credits Completed</p>
+          <p class="info-value"></p>
+        </div>
+        <div class="info-card">
+          <p class="info-label">Enrollment Status</p>
+          <p class="info-value"></p>
+        </div>
+        <div class="info-card">
+          <p class="info-label">Admission Date</p>
+          <p class="info-value"></p>
+        </div>
+      </div>
+
+      <div class="academic-section">
+        <h3>Program Details</h3>
+        <table class="academic-table">
+          <tr>
+            <td>Program Name:</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>Duration:</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>Total Credits Required:</td>
+            <td>120 Credits</td>
+          </tr>
+          <tr>
+            <td>Admission Category:</td>
+            <td>Direct Entry</td>
+          </tr>
+          <tr>
+            <td>Expected Graduation:</td>
+            <td>August 2026</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 3: DOCUMENTS -->
+  <section class="tab-content" id="documentsTab">
+    <h2>Student Documents</h2>
+    
+    <div class="documents-container">
+      <div class="document-section">
+        <h3>Uploaded Documents</h3>
+        <div class="documents-list" id="documentsList">
+          <p class="document-empty">Loading documents...</p>
+        </div>
+      </div>
+
+      <div class="document-section">
+        <h3>Upload Additional Documents</h3>
+        <div class="upload-area">
+          <div class="upload-icon">📤</div>
+          <p class="upload-text">Drag and drop documents here or click to browse</p>
+          <p class="upload-hint">Supported formats: PDF, JPG, PNG, GIF (Max 10MB)</p>
+          <input type="file" id="documentFileInput" accept=".pdf,.jpg,.jpeg,.png,.gif,application/pdf,image/jpeg,image/png,image/gif" hidden>
+          <button class="btn-secondary" onclick="uploadDocument()">Choose File</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 4: SERVICE REQUESTS -->
+  <section class="tab-content" id="requestsTab">
+    <h2>Service Requests</h2>
+    
+    <div class="requests-container">
+      <h3>Request Documents & Services</h3>
+      <div class="requests-grid">
+        
+        <div class="request-card">
+          <div class="request-icon">🎓</div>
+          <h4>Student ID Card</h4>
+          <p>Request a replacement or duplicate ID card</p>
+          <div class="request-info">
+            <p><strong>Status:</strong> Available</p>
+            <p><strong>Processing Time:</strong> 3-5 working days</p>
+          </div>
+          <button class="btn-primary" onclick="requestService('idcard')">Request</button>
+        </div>
+
+        <div class="request-card">
+          <div class="request-icon">📜</div>
+          <h4>Transcript</h4>
+          <p>Request official academic transcript</p>
+          <div class="request-info">
+            <p><strong>Status:</strong> Available</p>
+            <p><strong>Processing Time:</strong> 2-3 working days</p>
+          </div>
+          <button class="btn-primary" onclick="requestService('transcript')">Request</button>
+        </div>
+
+        <div class="request-card">
+          <div class="request-icon">🏅</div>
+          <h4>Certificate of Completion</h4>
+          <p>Request completion certificate upon graduation</p>
+          <div class="request-info">
+            <p><strong>Status:</strong> Available after graduation</p>
+            <p><strong>Processing Time:</strong> 7 working days</p>
+          </div>
+          <button class="btn-primary" disabled>Request</button>
+        </div>
+
+        <div class="request-card">
+          <div class="request-icon">💼</div>
+          <h4>Reference Letter</h4>
+          <p>Request academic reference letter</p>
+          <div class="request-info">
+            <p><strong>Status:</strong> Available</p>
+            <p><strong>Processing Time:</strong> 5 working days</p>
+          </div>
+          <button class="btn-primary" onclick="requestService('reference')">Request</button>
+        </div>
+
+        <div class="request-card">
+          <div class="request-icon">🏠</div>
+          <h4>Hostel Accommodation</h4>
+          <p>Request hostel accommodation for next semester</p>
+          <div class="request-info">
+            <p><strong>Status:</strong> Available</p>
+          </div>
+          <button class="btn-primary" onclick="requestService('hostel')">Request</button>
+        </div>
+
+        <div class="request-card">
+          <div class="request-icon">🚌</div>
+          <h4>Transport Pass</h4>
+          <p>Request student transport pass</p>
+          <div class="request-info">
+            <p><strong>Status:</strong> Pending</p>
+            <p><strong>Valid:</strong> Per semester</p>
+          </div>
+          <button class="btn-primary" onclick="requestService('transport')">Request</button>
+        </div>
+
+      </div>
+
+      <h3 style="margin-top: 30px;">Pending Requests</h3>
+      <table class="requests-table">
+        <thead>
+          <tr>
+            <th>Request ID</th>
+            <th>Service</th>
+            <th>Request Date</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td colspan="5">Loading requests...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- TAB 5: SECURITY -->
+  <section class="tab-content" id="securityTab">
+    <h2>Security & Privacy</h2>
+    
+    <div class="security-container">
+      
+      <div class="security-section">
+        <h3>Password Management</h3>
+        <div class="security-card">
+          <p><strong>Last Changed:</strong> <span id="profileLastChanged">Not set</span></p>
+          <p class="security-hint">It's recommended to change your password every 90 days for security</p>
+          <button class="btn-primary" onclick="changePassword()">🔐 Change Password</button>
+        </div>
+      </div>
+
+      <div class="security-section">
+        <h3>Security status</h3>
+        <div class="security-card">
+          <p><strong>Session protection:</strong> Active</p>
+          <p class="security-hint">Access cookies are HttpOnly, short-lived, and refresh sessions can be revoked.</p>
+        </div>
+      </div>
+
+      <div class="security-section">
+        <h3>Sign-in security</h3>
+        <div class="security-card">
+          <p class="security-hint">Manage optional authenticator two-factor authentication and review or revoke your active sessions from the dedicated account security page.</p>
+          <a class="btn-secondary" href="account-security.html">Manage sign-in security</a>
+        </div>
+      </div>
+
+      <div class="security-section">
+        <h3>Privacy Settings</h3>
+        <div class="security-card">
+          <p class="security-hint">These choices are saved as account preferences; they do not change institutional data-access rules. “Receive email notifications” opts in to optional grade, CGPA, and announcement emails. Security and account emails are unaffected.</p>
+          <label class="checkbox-item">
+            <input type="checkbox" checked>
+            <span>Allow instructors to view my grades</span>
+          </label>
+          <label class="checkbox-item">
+            <input type="checkbox" checked>
+            <span>Allow peers to see my profile</span>
+          </label>
+          <label class="checkbox-item">
+            <input type="checkbox">
+            <span>Receive email notifications</span>
+          </label>
+          <label class="checkbox-item">
+            <input type="checkbox" checked>
+            <span>Allow data collection for analytics</span>
+          </label>
+          <button class="btn-primary" onclick="savePrivacySettings()">💾 Save Settings</button>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- TAB 6: PREFERENCES -->
+  <section class="tab-content" id="preferencesTab">
+    <h2>Application Preferences</h2>
+    
+    <div class="preferences-container">
+      
+      <div class="preference-section">
+        <h3>Language</h3>
+        <p class="security-hint">Language choices are saved, but the portal interface is currently available in English only.</p>
+        <select class="preference-select" onchange="changeLanguage(this.value)">
+          <option selected>English</option>
+          <option disabled>Luganda (not available yet)</option>
+          <option disabled>Swahili (not available yet)</option>
+        </select>
+      </div>
+
+      <div class="preference-section">
+        <h3>Display Theme</h3>
+        <div class="preference-options">
+          <label class="radio-item">
+            <input type="radio" name="theme" value="light" checked>
+            <span>☀️ Light Theme</span>
+          </label>
+          <label class="radio-item">
+            <input type="radio" name="theme" value="dark">
+            <span>🌙 Dark Theme</span>
+          </label>
+          <label class="radio-item">
+            <input type="radio" name="theme" value="system">
+            <span>💻 System Default</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="preference-section" id="notificationPreferences">
+        <h3>Notifications</h3>
+        <p class="security-hint">Choose which categorized notices appear in the dashboard preview and notification list. Attendance alerts and announcements are in-app categories; these choices do not change optional email delivery.</p>
+        <label class="checkbox-item">
+          <input type="checkbox" checked>
+          <span>New assignments</span>
+        </label>
+        <label class="checkbox-item">
+          <input type="checkbox" checked>
+          <span>Grade announcements</span>
+        </label>
+        <label class="checkbox-item">
+          <input type="checkbox">
+          <span>System updates</span>
+        </label>
+        <label class="checkbox-item">
+          <input type="checkbox" checked>
+          <span>Payment confirmations</span>
+        </label>
+        <label class="checkbox-item">
+          <input type="checkbox" checked>
+          <span>Attendance alerts</span>
+        </label>
+        <label class="checkbox-item">
+          <input type="checkbox" checked>
+          <span>Announcements</span>
+        </label>
+      </div>
+
+      <div class="preference-section" id="quickLinkPreferences">
+        <h3>Quick Links</h3>
+        <p class="security-hint">Choose which shortcuts appear in the dashboard's My Quick Links section.</p>
+        <div class="quicklinks">
+          <label class="checkbox-item">
+            <input type="checkbox" checked>
+            <span>📚 My Courses</span>
+          </label>
+          <label class="checkbox-item">
+            <input type="checkbox" checked>
+            <span>📝 Assignments</span>
+          </label>
+          <label class="checkbox-item">
+            <input type="checkbox">
+            <span>🎓 Campus Events</span>
+          </label>
+          <label class="checkbox-item">
+            <input type="checkbox">
+            <span>💬 Messages</span>
+          </label>
+        </div>
+      </div>
+
+      <button class="btn-primary" onclick="savePreferences()">💾 Save Preferences</button>
+
+    </div>
+  </section>
+
+</main>
+
+<!-- ===== FOOTER ===== -->
+<footer class="footer">
+  <div class="footer-content">
+    <p>&copy; 2026 Makerere Institute of Technology. All rights reserved.</p>
+  </div>
+</footer>
+
+<script src="js/backend-only.js"></script>
+<script src="js/deployment-config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/dashboard-script.js"></script>
+<script src="js/theme.js"></script>
+<script src="js/modules-script.js"></script>
+</body>
+</html>

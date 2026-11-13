@@ -2,7 +2,7 @@ package com.sis.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -18,6 +18,13 @@ public class Course {
     @Column(nullable = false)
     private String name;
 
+    @Column(name = "course_code", nullable = false, unique = true, length = 30)
+    private String courseCode;
+
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id", nullable = false)
+    private CourseCategory category;
+
     // Academic semester/level for the course
     @Column
     private String semester;
@@ -26,7 +33,10 @@ public class Course {
     @Column(nullable = false, columnDefinition = "INT DEFAULT 3")
     private Integer credits = 3;
 
-    @ManyToOne(optional = false)
+    @Column(name = "is_core", nullable = false)
+    private Boolean core = false;
+
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "teacher_id")
     private Teacher teacher;
 
@@ -59,6 +69,22 @@ public class Course {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getCourseCode() {
+        return courseCode;
+    }
+
+    public void setCourseCode(String courseCode) {
+        this.courseCode = courseCode;
+    }
+
+    public CourseCategory getCategory() {
+        return category;
+    }
+
+    public void setCategory(CourseCategory category) {
+        this.category = category;
     }
 
     public Teacher getTeacher() {
@@ -107,5 +133,13 @@ public class Course {
      */
     public void setCredits(Integer credits) {
         this.credits = credits;
+    }
+
+    public Boolean getCore() {
+        return core;
+    }
+
+    public void setCore(Boolean core) {
+        this.core = core;
     }
 }

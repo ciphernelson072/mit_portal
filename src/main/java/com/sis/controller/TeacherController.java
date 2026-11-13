@@ -1,61 +1,258 @@
 package com.sis.controller;
 
-import com.sis.dto.AttendanceRequest;
-import com.sis.dto.GradeRequest;
+import com.sis.dto.AttendanceApprovalRequest;
+import com.sis.dto.AttendanceDto;
+import com.sis.dto.AttendanceDisputeDto;
+import com.sis.dto.ReviewAttendanceDisputeRequest;
+import com.sis.dto.CourseDto;
+import com.sis.dto.CourseUnitDto;
 import com.sis.dto.StudentProfileDto;
+import com.sis.dto.TeacherDashboardOverviewDto;
 import com.sis.dto.TeacherProfileDto;
+import com.sis.dto.TeacherGradeDto;
+import com.sis.dto.TeacherResultPublicationStatusDto;
 import com.sis.entity.Course;
 import com.sis.entity.Student;
+import com.sis.entity.Grade;
+import com.sis.exception.ErrorResponse;
+import com.sis.exception.ResourceNotFoundException;
+import com.sis.repository.GradeRepository;
+import com.sis.service.AttendanceService;
+import com.sis.service.AcademicReportService;
 import com.sis.service.SchoolService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/teacher")
-@PreAuthorize("hasAuthority('TEACHER')")
+@PreAuthorize("@permissionSecurity.canManageAcademicOperations()")
 public class TeacherController {
 
     private final SchoolService schoolService;
+    private final AttendanceService attendanceService;
+    private final GradeRepository gradeRepository;
+    private final AcademicReportService academicReportService;
 
-    public TeacherController(SchoolService schoolService) {
+    public TeacherController(SchoolService schoolService, AttendanceService attendanceService,
+                             GradeRepository gradeRepository, AcademicReportService academicReportService) {
         this.schoolService = schoolService;
+        this.attendanceService = attendanceService;
+        this.gradeRepository = gradeRepository;
+        this.academicReportService = academicReportService;
     }
 
+    @PostMapping("/attendance/approve")
+    public ResponseEntity<List<AttendanceDto>> approveRosterAttendance(
+            @Valid @RequestBody AttendanceApprovalRequest request) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(attendanceService.approveTeacherRosterAttendance(username, request).stream()
+                .map(schoolService::toAttendanceDto)
+                .collect(Collectors.toList()));
+    }
+
+    @GetMapping("/courses/{courseId}/attendance/disputes")
+    public ResponseEntity<List<AttendanceDisputeDto>> courseAttendanceDisputes(
+            @PathVariable Long courseId) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(attendanceService.listCourseDisputes(username, courseId));
+    }
+
+    @PatchMapping("/attendance/disputes/{disputeId}/review")
+    public ResponseEntity<AttendanceDisputeDto> reviewAttendanceDispute(
+            @PathVariable Long disputeId, @Valid @RequestBody ReviewAttendanceDisputeRequest request) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(attendanceService.reviewDispute(disputeId, request, username));
+    }
+
+    @GetMapping("/courses/{courseId}/grades")
+    public ResponseEntity<List<TeacherGradeDto>> listGradesForCourse(@PathVariable Long courseId) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        Course course = schoolService.getCourseById(courseId).orElse(null);
+        if (course == null) return ResponseEntity.notFound().build();
+        if (!schoolService.teacherOwnsCourse(username, course)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        List<TeacherGradeDto> grades = gradeRepository.findByCourseIdWithStudent(courseId).stream()
+                .map(grade -> new TeacherGradeDto(
+                        grade.getId(),
+                        grade.getStudent().getId(),
+                        grade.getStudent().getFullName(),
+                        grade.getGradeValue(),
+                        grade.getRemarks(),
+                        grade.getStatus() == null ? "PENDING" : grade.getStatus().name(),
+                        grade.getRejectionReason(),
+                        grade.getSubmittedAt(),
+                        grade.getAttemptNumber(),
+                        grade.getOriginalAttempt() == null ? null : grade.getOriginalAttempt().getId(),
+                        grade.getOriginalAttempt() == null ? "ORIGINAL_ATTEMPT" : "RETAKE_SUBMITTED",
+                        grade.getTotalMark(),
+                        grade.getGpaScore(),
+                        grade.getRetakeRequired()))
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(grades);
+    }
+
+    @Deprecated(forRemoval = true)
     @PostMapping("/grades")
-    public ResponseEntity<?> postGrade(@RequestBody GradeRequest request) {
-        Student student = schoolService.getStudentById(request.getStudentId())
-                .orElseThrow(() -> new IllegalArgumentException("Student not found"));
-        Course course = schoolService.getCourseById(request.getCourseId())
-                .orElseThrow(() -> new IllegalArgumentException("Course not found"));
-        return ResponseEntity.ok(schoolService.saveGrade(student, course, request.getGradeValue(), request.getRemarks()));
+    public ResponseEntity<ErrorResponse> postGrade() {
+        return legacyGradeEntryDisabled("/api/teacher/grades");
     }
 
-    @PostMapping("/attendance")
-    public ResponseEntity<?> postAttendance(@RequestBody AttendanceRequest request) {
-        Student student = schoolService.getStudentById(request.getStudentId())
-                .orElseThrow(() -> new IllegalArgumentException("Student not found"));
-        Course course = schoolService.getCourseById(request.getCourseId())
-                .orElseThrow(() -> new IllegalArgumentException("Course not found"));
-        return ResponseEntity.ok(schoolService.saveAttendance(student, course, request.getDate(), request.isPresent()));
+    @Deprecated(forRemoval = true)
+    @PutMapping("/grades/{gradeId}")
+    public ResponseEntity<ErrorResponse> updateGrade(@PathVariable Long gradeId) {
+        return legacyGradeEntryDisabled("/api/teacher/grades/" + gradeId);
     }
+
+    private ResponseEntity<ErrorResponse> legacyGradeEntryDisabled(String path) {
+        return ResponseEntity.status(HttpStatus.GONE).body(new ErrorResponse(
+                HttpStatus.GONE.value(),
+                "Direct grade entry is retired. Use the course assessment workflow to submit marks.",
+                LocalDateTime.now(),
+                path));
+    }
+
+    @DeleteMapping("/grades/{gradeId}")
+    public ResponseEntity<Void> deleteGrade(@PathVariable Long gradeId) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        Grade grade = schoolService.getGradeById(gradeId).orElse(null);
+        if (grade == null || !schoolService.teacherOwnsCourse(username, grade.getCourse())) return ResponseEntity.notFound().build();
+        schoolService.deleteGrade(grade);
+        return ResponseEntity.noContent().build();
+    }
+
 
     @GetMapping("/students/{studentId}/profile")
-    public ResponseEntity<?> getStudentProfile(@PathVariable Long studentId) {
-        return schoolService.getStudentById(studentId)
-                .map(student -> ResponseEntity.ok(schoolService.getStudentProfile(studentId)))
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<StudentProfileDto> getStudentProfile(@PathVariable Long studentId) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        Student student = schoolService.getStudentById(studentId).orElse(null);
+        if (student == null) {
+            return ResponseEntity.notFound().build();
+        }
+        boolean assignedCourseEnrollment = schoolService.getTeacherByUsername(username)
+                .map(teacher -> schoolService.getCoursesForTeacher(teacher.getId()).stream()
+                        .anyMatch(course -> schoolService.studentEnrolledInCourse(student.getId(), course.getId())))
+                .orElse(false);
+        return assignedCourseEnrollment
+                ? ResponseEntity.ok(schoolService.getStudentProfile(studentId))
+                : ResponseEntity.notFound().build();
     }
 
     @GetMapping("/courses/{courseId}/students")
     public ResponseEntity<List<StudentProfileDto>> listStudentsForCourse(@PathVariable Long courseId) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        Course course = schoolService.getCourseById(courseId)
+            .orElseThrow(() -> new ResourceNotFoundException("Course not found with id: " + courseId));
+        if (!schoolService.teacherOwnsCourse(username, course)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         return ResponseEntity.ok(schoolService.listStudentsByCourse(courseId).stream()
                 .map(student -> schoolService.getStudentProfile(student.getId()))
                 .collect(Collectors.toList()));
+    }
+
+    @GetMapping("/course-units/{unitId}/students")
+    public ResponseEntity<List<StudentProfileDto>> listStudentsForCourseUnit(@PathVariable Long unitId) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        if (!schoolService.teacherOwnsCourseUnit(username, unitId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        return ResponseEntity.ok(schoolService.listStudentsByCourseUnit(unitId).stream()
+                .map(student -> schoolService.getStudentProfile(student.getId()))
+                .collect(Collectors.toList()));
+    }
+
+    @GetMapping("/courses/{courseId}/attendance")
+    public ResponseEntity<List<AttendanceDto>> attendanceForCourse(@PathVariable Long courseId,
+            @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate date) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        Course course = schoolService.getCourseById(courseId)
+            .orElseThrow(() -> new ResourceNotFoundException("Course not found with id: " + courseId));
+        if (!schoolService.teacherOwnsCourse(username, course)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        return ResponseEntity.ok(attendanceService.getCourseAttendance(courseId, date).stream()
+                .map(schoolService::toAttendanceDto)
+                .collect(Collectors.toList()));
+    }
+
+    @GetMapping("/dashboard")
+    public ResponseEntity<TeacherDashboardOverviewDto> getDashboardOverview() {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        var teacher = schoolService.getTeacherByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("Teacher not found for user: " + username));
+
+        List<CourseDto> courses = schoolService.getCoursesForTeacher(teacher.getId());
+        List<Long> courseIds = courses.stream().map(CourseDto::getId).toList();
+
+        long studentCount = schoolService.countDistinctStudentsInCourses(courseIds);
+        long pendingGradeCount = schoolService.countPendingGradesInCourses(courseIds);
+        long upcomingAssignmentCount = schoolService.countUpcomingAssignmentsInCourses(
+                courseIds, java.time.LocalDateTime.now());
+
+        long pendingAttendanceCount = schoolService.countStudentsWithoutAttendanceInCourses(
+                courseIds, java.time.LocalDate.now());
+
+        TeacherDashboardOverviewDto overview = new TeacherDashboardOverviewDto(
+                (long) courses.size(),
+                studentCount,
+                pendingGradeCount,
+                upcomingAssignmentCount,
+                pendingAttendanceCount);
+        return ResponseEntity.ok(overview);
+    }
+
+    @GetMapping("/results/publication-status")
+    public ResponseEntity<List<TeacherResultPublicationStatusDto>> getResultPublicationStatuses() {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        var teacher = schoolService.getTeacherByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("Teacher not found for user: " + username));
+        if (teacher.getUser() == null || teacher.getUser().getId() == null) {
+            throw new IllegalStateException("Teacher account is unavailable for result status notifications.");
+        }
+        Long teacherUserId = teacher.getUser().getId();
+        List<Long> courseIds = schoolService.getCoursesForTeacher(teacher.getId()).stream()
+                .map(CourseDto::getId)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .toList();
+        if (courseIds.isEmpty()) {
+            return ResponseEntity.ok(List.of());
+        }
+
+        Map<Long, StudentResultCourses> studentCourses = new LinkedHashMap<>();
+        gradeRepository.findByCourseIdsWithStudentAndCourse(courseIds).forEach(grade -> {
+            Student student = grade.getStudent();
+            if (student != null && student.getId() != null && grade.getCourse() != null) {
+                studentCourses.computeIfAbsent(student.getId(),
+                                ignored -> new StudentResultCourses(student.getFullName()))
+                        .courseCodes().add(grade.getCourse().getCourseCode());
+            }
+        });
+
+        List<TeacherResultPublicationStatusDto> statuses = studentCourses.entrySet().stream()
+                .map(entry -> academicReportService.getTeacherPublicationStatus(
+                        entry.getKey(), entry.getValue().studentName(),
+                        List.copyOf(entry.getValue().courseCodes()), teacherUserId))
+                .toList();
+        return ResponseEntity.ok(statuses);
+    }
+
+    private record StudentResultCourses(String studentName, LinkedHashSet<String> courseCodes) {
+        private StudentResultCourses(String studentName) {
+            this(studentName, new LinkedHashSet<>());
+        }
     }
 
     @GetMapping("/me")
@@ -63,6 +260,26 @@ public class TeacherController {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         return schoolService.getTeacherProfileByUsername(username)
                 .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * Courses taught by the currently logged-in teacher. The frontend was already
+     * calling this exact URL before it existed anywhere in the backend.
+     */
+    @GetMapping("/my-courses")
+    public ResponseEntity<List<CourseDto>> getMyCourses() {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        return schoolService.getTeacherByUsername(username)
+                .map(teacher -> ResponseEntity.ok(schoolService.getCoursesForTeacher(teacher.getId())))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/course-units")
+    public ResponseEntity<List<CourseUnitDto>> getMyCourseUnits() {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        return schoolService.getTeacherByUsername(username)
+                .map(teacher -> ResponseEntity.ok(schoolService.getCourseUnitsForTeacher(teacher.getId())))
                 .orElse(ResponseEntity.notFound().build());
     }
 }

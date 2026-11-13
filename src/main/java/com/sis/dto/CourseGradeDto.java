@@ -1,6 +1,7 @@
 package com.sis.dto;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * Course Grade DTO - Represents grade information for a course
@@ -11,6 +12,7 @@ public class CourseGradeDto {
      * Course ID
      */
     private Long courseId;
+    private String courseCode;
 
     /**
      * Course name
@@ -33,7 +35,7 @@ public class CourseGradeDto {
     private String grade;
 
     /**
-     * GPA score (0.0-4.0)
+     * Grade point (0.0-5.0)
      */
     private BigDecimal gpaScore;
 
@@ -41,6 +43,15 @@ public class CourseGradeDto {
      * Weighted GPA (grade * credits)
      */
     private BigDecimal weightedGpa;
+    private BigDecimal totalMark;
+    private Boolean retakeRequired;
+    private Boolean coreCourse;
+    private String gradingPolicyVersion;
+    private String status;
+    private Integer attemptNumber;
+    private Long originalAttemptId;
+    private String attemptType;
+    private List<AssessmentMarkDto> assessmentComponents;
 
     /**
      * Teacher name
@@ -71,6 +82,14 @@ public class CourseGradeDto {
 
     public void setCourseName(String courseName) {
         this.courseName = courseName;
+    }
+
+    public String getCourseCode() {
+        return courseCode;
+    }
+
+    public void setCourseCode(String courseCode) {
+        this.courseCode = courseCode;
     }
 
     public String getSemester() {
@@ -112,6 +131,32 @@ public class CourseGradeDto {
     public void setWeightedGpa(BigDecimal weightedGpa) {
         this.weightedGpa = weightedGpa;
     }
+
+    public BigDecimal getTotalMark() {
+        return totalMark;
+    }
+
+    public void setTotalMark(BigDecimal totalMark) {
+        this.totalMark = totalMark;
+    }
+
+    public Boolean getRetakeRequired() { return retakeRequired; }
+    public void setRetakeRequired(Boolean retakeRequired) { this.retakeRequired = retakeRequired; }
+    public Boolean getCoreCourse() { return coreCourse; }
+    public void setCoreCourse(Boolean coreCourse) { this.coreCourse = coreCourse; }
+    public String getGradingPolicyVersion() { return gradingPolicyVersion; }
+    public void setGradingPolicyVersion(String gradingPolicyVersion) { this.gradingPolicyVersion = gradingPolicyVersion; }
+
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+    public Integer getAttemptNumber() { return attemptNumber; }
+    public void setAttemptNumber(Integer attemptNumber) { this.attemptNumber = attemptNumber; }
+    public Long getOriginalAttemptId() { return originalAttemptId; }
+    public void setOriginalAttemptId(Long originalAttemptId) { this.originalAttemptId = originalAttemptId; }
+    public String getAttemptType() { return attemptType; }
+    public void setAttemptType(String attemptType) { this.attemptType = attemptType; }
+    public List<AssessmentMarkDto> getAssessmentComponents() { return assessmentComponents; }
+    public void setAssessmentComponents(List<AssessmentMarkDto> assessmentComponents) { this.assessmentComponents = assessmentComponents; }
 
     public String getTeacherName() {
         return teacherName;

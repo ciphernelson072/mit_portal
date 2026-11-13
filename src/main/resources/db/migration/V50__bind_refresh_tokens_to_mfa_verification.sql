@@ -1,0 +1,2 @@
+ALTER TABLE refresh_tokens
+    ADD COLUMN mfa_verified BOOLEAN NOT NULL DEFAULT FALSE;

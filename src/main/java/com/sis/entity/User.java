@@ -1,11 +1,21 @@
 package com.sis.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import javax.persistence.*;
+import jakarta.persistence.*;
+import java.util.Locale;
 
 @Entity
-@Table(name = "users")
+@Table(name = "users",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_users_username_normalized", columnNames = "username_normalized"),
+                @UniqueConstraint(name = "uk_users_email_normalized", columnNames = "email_normalized")
+        },
+        indexes = {
+                @Index(name = "idx_users_username_normalized", columnList = "username_normalized"),
+                @Index(name = "idx_users_email_normalized", columnList = "email_normalized")
+        })
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class User {
 
@@ -15,6 +25,9 @@ public class User {
 
     @Column(nullable = false, unique = true)
     private String username;
+
+    @Column(name = "username_normalized", nullable = false, length = 255)
+    private String usernameNormalized;
 
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     @Column(nullable = false)
@@ -28,13 +41,28 @@ public class User {
     @Column(unique = true)
     private String email;
 
+    @Column(name = "email_normalized", length = 255)
+    private String emailNormalized;
+
     // Phone number for contact purposes
     @Column
     private String phone;
 
     // Soft delete flag - if false, user account is disabled
-    @Column(nullable = false, columnDefinition = "TINYINT(1) DEFAULT 1")
+    @Column(nullable = false)
     private Boolean isActive = true;
+
+    @Column(name = "mfa_enabled", nullable = false)
+    private Boolean mfaEnabled = false;
+
+    @Column(name = "mfa_secret")
+    private String mfaSecret;
+
+    @Column(name = "credential_version", nullable = false)
+    private int credentialVersion;
+
+    @Column(name = "password_change_required", nullable = false)
+    private boolean passwordChangeRequired;
 
     public User() {
     }
@@ -44,6 +72,7 @@ public class User {
         this.password = password;
         this.role = role;
         this.isActive = true;
+        normalizeIdentityFields();
     }
 
     public Long getId() {
@@ -58,8 +87,18 @@ public class User {
         return username;
     }
 
+    @JsonIgnore
+    public String getUsernameNormalized() {
+        return usernameNormalized;
+    }
+
     public void setUsername(String username) {
         this.username = username;
+        normalizeIdentityFields();
+    }
+
+    public void setUsernameNormalized(String usernameNormalized) {
+        this.usernameNormalized = usernameNormalized;
     }
 
     public String getPassword() {
@@ -86,12 +125,22 @@ public class User {
         return email;
     }
 
+    @JsonIgnore
+    public String getEmailNormalized() {
+        return emailNormalized;
+    }
+
     /**
      * Set user email address
      * @param email user's email
      */
     public void setEmail(String email) {
         this.email = email;
+        normalizeIdentityFields();
+    }
+
+    public void setEmailNormalized(String emailNormalized) {
+        this.emailNormalized = emailNormalized;
     }
 
     /**
@@ -124,5 +173,38 @@ public class User {
      */
     public void setIsActive(Boolean isActive) {
         this.isActive = isActive;
+    }
+
+    public Boolean getMfaEnabled() { return mfaEnabled; }
+    public void setMfaEnabled(Boolean mfaEnabled) { this.mfaEnabled = mfaEnabled; }
+
+    @JsonIgnore
+    public String getMfaSecret() { return mfaSecret; }
+    public void setMfaSecret(String mfaSecret) { this.mfaSecret = mfaSecret; }
+
+    @JsonIgnore
+    public int getCredentialVersion() { return credentialVersion; }
+    public void setCredentialVersion(int credentialVersion) { this.credentialVersion = credentialVersion; }
+    @JsonIgnore
+    public boolean isPasswordChangeRequired() { return passwordChangeRequired; }
+    public void setPasswordChangeRequired(boolean passwordChangeRequired) {
+        this.passwordChangeRequired = passwordChangeRequired;
+    }
+
+    @PrePersist
+    @PreUpdate
+    void normalizeIdentityFields() {
+        if (username == null) {
+            usernameNormalized = null;
+        } else {
+            username = username.trim();
+            usernameNormalized = username.toLowerCase(Locale.ROOT);
+        }
+        if (email == null) {
+            emailNormalized = null;
+        } else {
+            email = email.trim();
+            emailNormalized = email.toLowerCase(Locale.ROOT);
+        }
     }
 }
