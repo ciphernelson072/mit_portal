@@ -263,7 +263,9 @@ class GradeApprovalWorkflowTest {
         assertTrue(events.get(1).getDetails().contains("grade #52"));
         assertTrue(events.get(2).getDetails().contains("Grade #52"));
         assertTrue(events.get(3).getDetails().contains("Grade #53"));
-        Mockito.verifyNoInteractions(notifications);
+        Mockito.verify(notifications, Mockito.times(1)).create(
+                Mockito.anyLong(), Mockito.anyString(), Mockito.anyString(),
+                Mockito.eq(com.sis.entity.NotificationCategory.GRADE));
 
         Grade changedAfterReview = new Grade();
         changedAfterReview.setId(54L);

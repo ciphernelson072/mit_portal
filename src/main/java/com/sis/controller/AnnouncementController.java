@@ -7,6 +7,8 @@ import com.sis.exception.ResourceNotFoundException;
 import com.sis.service.SchoolService;
 import com.sis.repository.UserRepository;
 import com.sis.service.NotificationService;
+import com.sis.service.EmailService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -23,6 +25,8 @@ public class AnnouncementController {
     private final SchoolService schoolService;
     private final NotificationService notifications;
     private final UserRepository users;
+    @Autowired
+    private EmailService emailService;
 
     public AnnouncementController(SchoolService schoolService, NotificationService notifications, UserRepository users) {
         this.schoolService = schoolService;
@@ -44,6 +48,20 @@ public class AnnouncementController {
         AnnouncementDto ann = schoolService.createAnnouncement(request.getTitle(), request.getContent(), author);
         users.findActiveUserIdsExcluding(author.getId())
                 .forEach(userId -> notifications.create(userId, "New announcement", ann.getTitle()));
+        users.findActiveUserIdsExcluding(author.getId()).forEach(userId ->
+                users.findById(userId).ifPresent(user -> {
+                    if (user.getEmail() == null || emailService == null) {
+                        return;
+                    }
+                    try {
+                        emailService.sendAnnouncementNotification(
+                                user.getEmail(), user.getUsername(), ann.getTitle(), ann.getContent());
+                    } catch (IllegalArgumentException | IllegalStateException ex) {
+                        org.slf4j.LoggerFactory.getLogger(AnnouncementController.class)
+                                .warn("Announcement email was not delivered for user {}: {}",
+                                        userId, ex.getMessage());
+                    }
+                }));
         return ResponseEntity.status(HttpStatus.CREATED).body(ann);
     }
 }
