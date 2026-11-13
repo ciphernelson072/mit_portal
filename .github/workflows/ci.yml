@@ -22,7 +22,7 @@ jobs:
         run: ./mvnw -q test
 
       - name: Validate Flyway migrations against MySQL
-        run: ./mvnw -q -Pmysql-integration -Dtest=MySqlSchemaIntegrationTest test
+        run: ./mvnw -q -Dapi.version=1.40 -Pmysql-integration -Dtest=MySqlSchemaIntegrationTest test
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
