@@ -90,7 +90,7 @@ class AdmissionControllerEmailTest {
 
     private CreateAdmittedStudentRequest request() {
         CreateAdmittedStudentRequest request = new CreateAdmittedStudentRequest();
-        request.setEmail("applicant@example.test");
+        request.setEmail(" Applicant@Example.Test ");
         request.setFullName("Applicant Name");
         return request;
     }

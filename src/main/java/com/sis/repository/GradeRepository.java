@@ -23,6 +23,7 @@ public interface GradeRepository extends JpaRepository<Grade, Long> {
 
     List<Grade> findByStudentIdAndStatus(Long studentId, GradeStatus status);
     List<Grade> findByStudentIdAndCourseIdOrderByAttemptNumberAsc(Long studentId, Long courseId);
+    boolean existsByStudentIdAndCourseId(Long studentId, Long courseId);
     List<Grade> findByStudentIdAndStatusOrderByApprovedAtDescIdDesc(Long studentId, GradeStatus status);
     List<Grade> findTop5ByStudentIdAndStatusOrderByApprovedAtDescIdDesc(Long studentId, GradeStatus status);
         boolean existsByStudentIdAndCourseIdAndStatusAndGpaScoreGreaterThanEqual(
@@ -33,6 +34,10 @@ public interface GradeRepository extends JpaRepository<Grade, Long> {
 
     @Query("SELECT g FROM Grade g JOIN FETCH g.student WHERE g.course.id = :courseId ORDER BY g.student.fullName")
     List<Grade> findByCourseIdWithStudent(@Param("courseId") Long courseId);
+
+    @Query("SELECT g FROM Grade g JOIN FETCH g.student JOIN FETCH g.course "
+            + "WHERE g.course.id IN :courseIds ORDER BY g.student.fullName, g.course.courseCode")
+    List<Grade> findByCourseIdsWithStudentAndCourse(@Param("courseIds") List<Long> courseIds);
 
     @Query("SELECT g FROM Grade g JOIN FETCH g.student s JOIN FETCH s.user JOIN FETCH g.course "
             + "WHERE g.status IS NULL OR g.status = :status ORDER BY g.submittedAt DESC, g.id DESC")

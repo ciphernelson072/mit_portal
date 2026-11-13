@@ -334,20 +334,22 @@ public class GradeApprovalService {
                     : "Your grade submission for " + grade.getCourse().getName() + " was rejected: " + reason;
             notifications.create(userId, title, message, NotificationCategory.GRADE);
         }
+        String contactEmail = grade.getStudent().getEmail();
         if (emailService == null || notifications == null || userId == null
-                || !notifications.emailNotificationsEnabled(userId) || grade.getStudent().getEmail() == null) {
+                || !notifications.emailNotificationsEnabled(userId)
+                || !ProfileContactEmailService.isValidEmail(contactEmail)) {
             return;
         }
         try {
             if (approved) {
                 emailService.sendGradeNotification(
-                        grade.getStudent().getEmail(),
+                        contactEmail,
                         grade.getStudent().getFullName(),
                         grade.getCourse().getName(),
                         grade.getGradeValue());
                 if (grade.getStudent().getCgpa() != null) {
                     emailService.sendCGPAUpdateNotification(
-                            grade.getStudent().getEmail(),
+                            contactEmail,
                             grade.getStudent().getFullName(),
                             grade.getStudent().getCgpa().toPlainString());
                 }

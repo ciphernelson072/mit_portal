@@ -279,7 +279,7 @@
     </div>
 
     <div class="filters">
-      <input type="search" placeholder="Search by name, username, registration no. or email" class="search-input" data-admin-filter="student-search">
+      <input type="search" placeholder="Search by name, username, registration no. or contact email" class="search-input" data-admin-filter="student-search">
       <select class="filter-select" data-admin-filter="student-status" aria-label="Filter students by account status">
         <option value="">All account statuses</option>
         <option value="true">Active</option>
@@ -294,7 +294,7 @@
           <th>Name</th>
           <th>Class</th>
           <th>Approved CGPA</th>
-          <th>Email</th>
+          <th>Contact Email</th>
           <th>Status</th>
           <th>Actions</th>
         </tr>
@@ -303,6 +303,7 @@
         <tr><td colspan="7" style="text-align:center;">Select Students to load records.</td></tr>
       </tbody>
     </table>
+
   </section>
 
   <!-- ===== HUMAN RESOURCES MODULE ===== -->
@@ -404,6 +405,7 @@
       <h2>Staff Management</h2>
       <button class="btn-primary" onclick="openStaffForm()">➕ Add Staff Member</button>
     </div>
+    <p id="staffStatus" class="teacher-status" role="status" aria-live="polite"></p>
 
     <table class="table admin-table">
       <thead>
@@ -412,7 +414,7 @@
           <th>Name</th>
           <th>Position</th>
           <th>Home department</th>
-          <th>Email</th>
+          <th>Contact Email</th>
           <th>Status</th>
           <th>Actions</th>
         </tr>
@@ -441,8 +443,8 @@
       </select>
     </div>
     <table class="table admin-table">
-      <thead><tr><th>Request</th><th>Student</th><th>Type</th><th>Created</th><th>Status</th><th>Action</th></tr></thead>
-      <tbody><tr><td colspan="6" style="text-align:center;">Select Requests to load the queue.</td></tr></tbody>
+      <thead><tr><th>Request</th><th>Student</th><th>Type</th><th>Created</th><th>Administrator owner</th><th>Status</th><th>Action</th></tr></thead>
+      <tbody><tr><td colspan="7" style="text-align:center;">Select Requests to load the queue.</td></tr></tbody>
     </table>
   </section>
 
@@ -466,7 +468,7 @@
     </div>
     <div class="roster-wrap">
       <table class="table admin-table" id="admissionsTable">
-        <thead><tr><th>Application</th><th>Applicant</th><th>Email / Phone</th><th>Programme</th><th>Academic year</th><th>Submitted</th><th>Status</th><th>Reviewer notes</th><th>Decision</th></tr></thead>
+        <thead><tr><th>Application</th><th>Applicant</th><th>Applicant Email / Phone</th><th>Programme</th><th>Academic year</th><th>Submitted</th><th>Status</th><th>Reviewer notes</th><th>Decision</th></tr></thead>
         <tbody><tr><td colspan="9">Select Admissions to load applications.</td></tr></tbody>
       </table>
     </div>
@@ -492,7 +494,7 @@
       <button class="btn-primary" onclick="importGrades()">📥 Import Grades</button>
       <button class="btn-secondary" type="button" onclick="downloadGradeImportTemplate()">Download CSV Template</button>
       <button class="btn-secondary" onclick="exportGrades()">📤 Export Grades</button>
-      <p class="module-help">Use the CSV template for legacy grade imports. Imported grades remain pending and cannot be approved until the course assessment structure and component marks are recorded.</p>
+      <p class="module-help">Use imports for authorized batch or exceptional grade entry, not routine teacher marking. Each imported grade is attributed to the signed-in administrator and stays pending until the assigned teacher records and submits its assessment-component marks for normal review. Imports reject duplicate student-course grades; use the controlled correction or retake workflow for existing attempts.</p>
     </div>
 
     <table class="table admin-table">
@@ -518,6 +520,15 @@
         </tr>
       </tbody>
     </table>
+
+    <div class="settings-card">
+      <h3>Student grade appeals</h3>
+      <p>Request teacher consultation before a decision. A written teacher response is optional; staff must record the consultation. Approving an appeal does not change the grade or authorize a correction.</p>
+      <p id="gradeAppealAdminStatus" class="teacher-status" role="status"></p>
+      <div id="adminGradeAppealList" class="roster-wrap" aria-live="polite">
+        <p>Open Grades to load student appeals.</p>
+      </div>
+    </div>
   </section>
 
   <!-- ===== ACADEMIC OPERATIONS MODULE ===== -->
@@ -852,7 +863,7 @@
 
   <section id="usersModule" class="module">
     <div class="module-header"><h2>User Management</h2><div><button class="btn-secondary" onclick="loadUsers()">Active Users</button><button class="btn-secondary" onclick="loadDeletedUsers()">Deleted Users</button><button class="btn-primary" onclick="openUserForm()">Add User</button></div></div>
-    <div class="table-container"><table class="table admin-table"><thead><tr><th>ID</th><th>Username</th><th>Role</th><th>Email</th><th>Status</th><th>Actions</th></tr></thead><tbody><tr><td colspan="6">Loading users...</td></tr></tbody></table></div>
+    <div class="table-container"><table class="table admin-table"><thead><tr><th>ID</th><th>Username</th><th>Role</th><th>Account Email</th><th>Status</th><th>Actions</th></tr></thead><tbody><tr><td colspan="6">Loading users...</td></tr></tbody></table></div>
   </section>
 </main>
 

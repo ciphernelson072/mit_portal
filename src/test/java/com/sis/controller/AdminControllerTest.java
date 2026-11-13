@@ -15,6 +15,7 @@ import com.sis.repository.AuditLogRepository;
 import com.sis.entity.StudentLifecycleStatus;
 import com.sis.service.AdminService;
 import com.sis.service.EmailService;
+import com.sis.service.GradeImportService;
 import com.sis.service.SchoolService;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
@@ -34,6 +35,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -47,18 +50,74 @@ class AdminControllerTest {
         ReflectionTestUtils.setField(controller, "adminService", adminService);
         ReflectionTestUtils.setField(controller, "emailService", emailService);
         CreateTeacherRequest request = new CreateTeacherRequest();
-        request.setEmail("teacher@example.edu");
+        request.setEmail(" Teacher@Example.EDU ");
         request.setFullName("Teacher Example");
-        request.setUsername("teacher.user");
+        request.setUsername("Teacher.User");
         request.setPassword("temporary-secret");
         when(emailService.isDeliveryConfigured()).thenReturn(true);
-        when(adminService.hireTeacher(request)).thenReturn(new AdminTeacherDto());
+        AdminTeacherDto hired = new AdminTeacherDto();
+        hired.setEmail("teacher@example.edu");
+        hired.setUsername("teacher.user");
+        when(adminService.hireTeacher(request)).thenReturn(hired);
 
         var response = controller.hireTeacher(request);
 
         verify(emailService).sendHiringNotification("teacher@example.edu", "Teacher Example",
                 "teacher.user", "temporary-secret");
         assertEquals(201, response.getStatusCode().value());
+        assertTrue(Boolean.TRUE.equals(response.getBody().getEmailSent()));
+        assertTrue(response.getBody().getEmailDeliveryMessage().contains("sent"));
+    }
+
+    @Test
+    void reportsWhenHiringEmailIsNotConfiguredWithoutFailingTeacherCreation() {
+        AdminController controller = new AdminController();
+        AdminService adminService = mock(AdminService.class);
+        EmailService emailService = mock(EmailService.class);
+        ReflectionTestUtils.setField(controller, "adminService", adminService);
+        ReflectionTestUtils.setField(controller, "emailService", emailService);
+        CreateTeacherRequest request = new CreateTeacherRequest();
+        request.setEmail("teacher@example.edu");
+        request.setFullName("Teacher Example");
+        request.setUsername("Teacher.User");
+        when(emailService.isDeliveryConfigured()).thenReturn(false);
+        AdminTeacherDto hired = new AdminTeacherDto();
+        hired.setEmail("teacher@example.edu");
+        hired.setUsername("teacher.user");
+        when(adminService.hireTeacher(request)).thenReturn(hired);
+
+        var response = controller.hireTeacher(request);
+
+        assertEquals(201, response.getStatusCode().value());
+        assertFalse(Boolean.TRUE.equals(response.getBody().getEmailSent()));
+        assertTrue(response.getBody().getEmailDeliveryMessage().contains("not configured"));
+        verify(emailService, never()).sendHiringNotification(any(), any(), any(), any());
+    }
+
+    @Test
+    void reportsHiringEmailProviderFailureWithoutSuggestingDuplicateHire() {
+        AdminController controller = new AdminController();
+        AdminService adminService = mock(AdminService.class);
+        EmailService emailService = mock(EmailService.class);
+        ReflectionTestUtils.setField(controller, "adminService", adminService);
+        ReflectionTestUtils.setField(controller, "emailService", emailService);
+        CreateTeacherRequest request = new CreateTeacherRequest();
+        request.setEmail("teacher@example.edu");
+        request.setFullName("Teacher Example");
+        request.setUsername("Teacher.User");
+        when(emailService.isDeliveryConfigured()).thenReturn(true);
+        AdminTeacherDto hired = new AdminTeacherDto();
+        hired.setEmail("teacher@example.edu");
+        hired.setUsername("teacher.user");
+        when(adminService.hireTeacher(request)).thenReturn(hired);
+        doThrow(new IllegalStateException("provider unavailable")).when(emailService)
+                .sendHiringNotification("teacher@example.edu", "Teacher Example", "teacher.user", null);
+
+        var response = controller.hireTeacher(request);
+
+        assertEquals(201, response.getStatusCode().value());
+        assertFalse(Boolean.TRUE.equals(response.getBody().getEmailSent()));
+        assertTrue(response.getBody().getEmailDeliveryMessage().contains("do not submit the hire request again"));
     }
 
     @Test
@@ -94,32 +153,10 @@ class AdminControllerTest {
     }
 
     @Test
-    void gradeImportIsAuditedWithAuthenticatedAdminActor() {
+    void gradeImportDelegatesToValidatedServiceWithAuthenticatedAdminActor() {
         AdminController controller = new AdminController();
-        AdminService adminService = mock(AdminService.class);
-        SchoolService schoolService = mock(SchoolService.class);
-        AuditLogRepository auditLogs = mock(AuditLogRepository.class);
-        ReflectionTestUtils.setField(controller, "adminService", adminService);
-        ReflectionTestUtils.setField(controller, "schoolService", schoolService);
-        ReflectionTestUtils.setField(controller, "auditLogRepository", auditLogs);
-
-        User admin = new User();
-        admin.setId(17L);
-        when(schoolService.getUserByUsername("audit-admin")).thenReturn(java.util.Optional.of(admin));
-        com.sis.entity.Student student = new com.sis.entity.Student();
-        student.setId(24L);
-        User studentUser = new User();
-        studentUser.setUsername("student-24");
-        student.setUser(studentUser);
-        com.sis.entity.Course course = new com.sis.entity.Course();
-        course.setId(31L);
-        course.setName("Accounting");
-        com.sis.entity.Grade grade = new com.sis.entity.Grade(student, course, "A", "Reviewed");
-        grade.setId(45L);
-        when(schoolService.getStudentById(24L)).thenReturn(java.util.Optional.of(student));
-        when(schoolService.getCourseById(31L)).thenReturn(java.util.Optional.of(course));
-        when(schoolService.studentEnrolledInCourse(24L, 31L)).thenReturn(true);
-        when(schoolService.saveGrade(student, course, "A", "Reviewed")).thenReturn(grade);
+        GradeImportService gradeImportService = mock(GradeImportService.class);
+        ReflectionTestUtils.setField(controller, "gradeImportService", gradeImportService);
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken("audit-admin", "n/a",
                         AuthorityUtils.createAuthorityList("ADMIN")));
@@ -130,13 +167,10 @@ class AdminControllerTest {
             request.setCourseId(31L);
             request.setGradeValue("A");
             request.setRemarks("Reviewed");
-            controller.importGrade(request);
+            var response = controller.importGrade(request);
 
-            var auditCaptor = forClass(AuditLog.class);
-            verify(auditLogs).save(auditCaptor.capture());
-            assertEquals(17L, auditCaptor.getValue().getUserId());
-            assertEquals("GRADE_IMPORTED", auditCaptor.getValue().getAction());
-            assertTrue(auditCaptor.getValue().getDetails().contains("Grade 45"));
+            verify(gradeImportService).importGrade(request, "audit-admin");
+            assertEquals(201, response.getStatusCode().value());
         } finally {
             SecurityContextHolder.clearContext();
         }

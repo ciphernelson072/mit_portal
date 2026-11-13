@@ -2,6 +2,9 @@ package com.sis.controller;
 
 import com.sis.dto.CreateServiceRequest;
 import com.sis.dto.ServiceRequestDto;
+import com.sis.dto.ServiceRequestAssigneeDto;
+import com.sis.dto.ServiceRequestEventDto;
+import com.sis.dto.UpdateServiceRequestAssignee;
 import com.sis.dto.UpdateServiceRequestStatus;
 import com.sis.service.SchoolService;
 import com.sis.service.ServiceRequestService;
@@ -62,10 +65,25 @@ public class ServiceRequestController {
         return ResponseEntity.ok(requestService.listAll());
     }
 
+    @GetMapping("/admin/assignees")
+    @PreAuthorize("@permissionSecurity.canManageServiceRequests()")
+    public ResponseEntity<List<ServiceRequestAssigneeDto>> listAssignees() {
+        return ResponseEntity.ok(requestService.listActiveAdminAssignees());
+    }
+
     @GetMapping("/admin/{id}")
     @PreAuthorize("@permissionSecurity.canManageServiceRequests()")
     public ResponseEntity<ServiceRequestDto> getOne(@PathVariable Long id) {
         return requestService.findOne(id).map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/admin/{id}/history")
+    @PreAuthorize("@permissionSecurity.canManageServiceRequests()")
+    public ResponseEntity<List<ServiceRequestEventDto>> getHistory(@PathVariable Long id) {
+        if (requestService.findOne(id).isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(requestService.listHistory(id));
     }
 
     @GetMapping("/{id}")
@@ -106,6 +124,17 @@ public class ServiceRequestController {
             return ResponseEntity.badRequest().build();
         }
         return requestService.updateStatus(id, request.getStatus(), SecurityContextHolder.getContext().getAuthentication().getName())
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PatchMapping("/admin/{id}/assignee")
+    @PreAuthorize("@permissionSecurity.canManageServiceRequests()")
+    public ResponseEntity<ServiceRequestDto> updateAssignee(
+            @PathVariable Long id, @RequestBody UpdateServiceRequestAssignee request) {
+        return requestService.updateAssignee(
+                        id, request.getAssigneeId(),
+                        SecurityContextHolder.getContext().getAuthentication().getName())
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }

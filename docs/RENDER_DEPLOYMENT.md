@@ -1,5 +1,22 @@
 # Render deployment for testing
 
+## Current test deployment
+
+The Render Free test service was verified after deployment of commit `9c212d4`
+on 10 November 2026. GitHub Actions passed the backend, MySQL migration,
+frontend, browser, and Docker image gates; Render readiness returned `UP`, and
+the gateway, student sign-in, employee sign-in, and public pages returned
+HTTP 200. The public service is
+[`https://makerere-institute-of-technology.onrender.com/`](https://makerere-institute-of-technology.onrender.com/).
+This is a test deployment, not production approval.
+
+The active Free service uses `UPLOAD_DIR=/tmp/uploads`; uploads are ephemeral
+and may be lost on restart or redeploy. The Free Blueprint now uses the same
+path. Verify the service is connected to an isolated test database before
+creating accounts or entering data. Never use real student records in this
+environment. Documentation and sitemap changes made after commit `9c212d4`
+are not part of that deployed release unless separately built and deployed.
+
 The root `render.yaml` Blueprint is for a paid Starter service with a persistent
 uploads disk. For public student testing on Render Free, select
 [`render.free.yaml`](../render.free.yaml) as the Blueprint file instead. This
@@ -17,31 +34,32 @@ first healthy startup, set the bootstrap flag to `false` and remove the three
 bootstrap values. Use that administrator account to create the student test
 accounts yourself; do not turn on `SAMPLE_DATA_ENABLED`.
 
-The free Blueprint turns on Resend using private, prompted environment values.
+For a newly created service from `render.free.yaml`, the Blueprint turns on
+Resend using private, prompted environment values. This describes the template;
+verify the active image-based service's environment in the Render dashboard.
 Enter the Resend API key and verified sender in Render's secret environment
 fields; never commit them. Configure the exact service HTTPS origin in both
 `FRONTEND_URL` and `CORS_ALLOWED_ORIGINS`. The Blueprint requests automatic
 deployment after connected GitHub checks pass. Connect the intended branch to
 GitHub Actions CI before enabling student access.
 
-## Existing image-based Render service
+## Image-based Render service and release flow
 
-The existing Render service was inspected on 8 November 2026. Its dashboard
-shows a prebuilt Docker image from `ciphernelson/mit-portal`, rather than a
-Git-connected service. Pushing a Git branch alone therefore does not publish
-new application code to this service. The GitHub Actions workflow publishes
-`ciphernelson/mit-portal:latest` and a commit-specific tag only on pushes to
-`main` and `fix/admin-login-offline-styles`, after the existing CI gates pass.
-The commit-specific image is retained for audit/rollback; Render must use the
-mutable `latest` tag for subsequent image updates to trigger automatic deploys.
+The Render service consumes a prebuilt Docker Hub image rather than building
+the Git branch directly. The GitHub Actions workflow publishes
+`docker.io/ciphernelson/mit-portal:latest` and a commit-specific tag on pushes
+to `main` and `fix/admin-login-offline-styles`, after the CI gates pass. The
+10 November 2026 release confirmed the `latest` image flow and automatic Render
+deployment. A Git push alone is not deployment evidence: confirm the workflow,
+the deployed release, and service health for each release.
 
 The GitHub Actions repository secrets `DOCKERHUB_USERNAME` and
 `DOCKERHUB_TOKEN` must be configured; never put registry tokens in workflow
 files or chat. Confirm in Render that the image source is set to
 `docker.io/ciphernelson/mit-portal:latest` and image updates are set to deploy
 automatically. Verify the deployed image digest and application health after
-the first release. Until the workflow passes and Render is pointed at the
-mutable tag, do not claim that a Git push will deploy this service.
+each release; do not claim that a Git push updated the service until those
+checks pass.
 
 The CI workflow runs backend, MySQL migration, frontend, and browser tests and
 builds the same Docker image used by Render. For local release verification,

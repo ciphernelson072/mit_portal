@@ -2,15 +2,20 @@ package com.sis.service;
 
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
+import jakarta.mail.internet.AddressException;
+import jakarta.mail.internet.InternetAddress;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.MailException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import com.sis.exception.EmailDeliveryException;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.client.RestClientResponseException;
 import java.time.Instant;
@@ -45,6 +50,9 @@ public class EmailService {
 
     @Value("${spring.mail.username:}")
     private String fromEmail;
+
+    @Value("${spring.mail.password:}")
+    private String mailPassword;
 
     @Value("${app.mail.provider:smtp}")
     private String mailProvider;
@@ -220,13 +228,19 @@ public class EmailService {
      * @param body email content
      */
     private void sendEmail(String recipientEmail, String subject, String body) {
+        if (!isValidEmail(recipientEmail)) {
+            throw new IllegalArgumentException("A valid recipient email address is required.");
+        }
+        if (!StringUtils.hasText(subject) || subject.contains("\r") || subject.contains("\n")) {
+            throw new IllegalArgumentException("Email subject must be a non-empty single line.");
+        }
+        if (!StringUtils.hasText(body)) {
+            throw new IllegalArgumentException("Email content is required.");
+        }
         if (!mailEnabled || !isDeliveryConfigured()) {
             logger.warning("Email delivery disabled or provider not configured. Provider=" + mailProvider);
-            throw new IllegalStateException("Email delivery is not configured for this environment.");
-        }
-
-        if (!StringUtils.hasText(recipientEmail)) {
-            throw new IllegalArgumentException("Recipient email is required");
+            throw new EmailDeliveryException(
+                    "Email delivery is disabled or not fully configured. Check the email provider settings.");
         }
 
         try {
@@ -238,22 +252,24 @@ public class EmailService {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
             helper.setFrom(fromEmail);
-            helper.setTo(recipientEmail);
+            helper.setTo(recipientEmail.trim());
             helper.setSubject(subject);
             helper.setText(body, false);
             mailSender.send(message);
-            logger.info("Email sent to: " + recipientEmail);
-            logger.info("Subject: " + subject);
+            logger.info("Email accepted by SMTP provider.");
         } catch (MessagingException e) {
-            logger.severe("Error sending email: " + e.getMessage());
-            throw new IllegalStateException("Failed to send email", e);
+            logger.log(java.util.logging.Level.WARNING, "Could not compose the email message.", e);
+            throw new EmailDeliveryException("Email provider could not accept the message.", e);
         } catch (RestClientResponseException e) {
             logger.warning("Email API request failed with HTTP status " + e.getStatusCode().value());
-            throw new IllegalStateException(
-                    "Email provider rejected the request (HTTP " + e.getStatusCode().value() + ").");
-        } catch (Exception e) {
-            logger.severe("Error sending email: " + e.getMessage());
-            throw new IllegalStateException("Failed to send email", e);
+            throw new EmailDeliveryException(
+                    "Email provider rejected the message (HTTP " + e.getStatusCode().value()
+                            + "). Check provider settings and sender verification.", e);
+        } catch (MailException | RestClientException e) {
+            logger.log(java.util.logging.Level.WARNING,
+                    "Email provider send failed (provider=" + mailProvider + ").", e);
+            throw new EmailDeliveryException(
+                    "Email provider could not accept the message. Check the email configuration and try again.", e);
         }
     }
 
@@ -289,10 +305,25 @@ public class EmailService {
     }
 
     private boolean hasSmtpConfiguration() {
-        return StringUtils.hasText(fromEmail)
+        return isValidEmail(fromEmail)
                 && !"your-email@gmail.com".equalsIgnoreCase(fromEmail)
                 && StringUtils.hasText(mailHost)
-                && mailPort > 0;
+                && mailPort > 0
+                && mailPort <= 65535
+                && StringUtils.hasText(mailPassword);
+    }
+
+    private boolean isValidEmail(String email) {
+        if (!StringUtils.hasText(email) || email.length() > 254) {
+            return false;
+        }
+        try {
+            InternetAddress address = new InternetAddress(email.trim(), true);
+            address.validate();
+            return address.getAddress().equals(email.trim());
+        } catch (AddressException ex) {
+            return false;
+        }
     }
 
     public boolean isDeliveryConfigured() {
@@ -300,7 +331,7 @@ public class EmailService {
             return false;
         }
         if ("resend".equalsIgnoreCase(mailProvider)) {
-            return StringUtils.hasText(mailApiKey) && StringUtils.hasText(mailApiFromEmail);
+            return StringUtils.hasText(mailApiKey) && isValidEmail(mailApiFromEmail);
         }
         return "smtp".equalsIgnoreCase(mailProvider) && mailSender != null && hasSmtpConfiguration();
     }
@@ -317,10 +348,10 @@ public class EmailService {
                 "Welcome! You have been successfully hired by our institution.\n\n" +
                 "Your login credentials are:\n" +
                 "Username: " + username + "\n" +
-                "Password: " + password + "\n\n" +
-                "Please change your password after your first login for security.\n\n" +
-                "Login URL: " + frontendUrl + "/login\n" +
-                "Teacher Portal: " + frontendUrl + "/templates/teacher-dashboard.html\n\n" +
+                "One-time temporary password: " + password + "\n\n" +
+                "The portal will require you to choose a new password before you can access teacher services.\n\n" +
+                "Sign-in page: " + frontendUrl + "/portal-login.html\n" +
+                "Teacher portal: " + frontendUrl + "/teacher-dashboard.html\n\n" +
                 "Best regards,\n" +
                 "Human Resources";
     }

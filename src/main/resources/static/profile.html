@@ -73,7 +73,7 @@
             <input type="text" disabled>
           </div>
           <div class="form-group">
-            <label>Email *</label>
+            <label>Contact Email</label>
             <input type="email" disabled>
           </div>
           <div class="form-group">
@@ -110,6 +110,7 @@
             <input type="text">
           </div>
         </form>
+        <p class="muted">Contact email is used for academic and other contact messages. It is separate from the account email used for sign-in and password recovery.</p>
         <button class="btn-primary" onclick="editProfile()">✏️ Edit Profile</button>
       </div>
 
@@ -117,7 +118,7 @@
         <h3>Contact Information</h3>
         <div class="contact-info">
           <div class="contact-item">
-            <span class="contact-label">Primary Email:</span>
+            <span class="contact-label">Contact Email:</span>
             <span></span>
           </div>
           <div class="contact-item">
@@ -418,7 +419,7 @@
 
       <div class="preference-section" id="notificationPreferences">
         <h3>Notifications</h3>
-        <p class="security-hint">Choose which categorized notices appear in the dashboard preview and notification list. This does not change email delivery.</p>
+        <p class="security-hint">Choose which categorized notices appear in the dashboard preview and notification list. Attendance alerts and announcements are in-app categories; these choices do not change optional email delivery.</p>
         <label class="checkbox-item">
           <input type="checkbox" checked>
           <span>New assignments</span>
@@ -434,6 +435,14 @@
         <label class="checkbox-item">
           <input type="checkbox" checked>
           <span>Payment confirmations</span>
+        </label>
+        <label class="checkbox-item">
+          <input type="checkbox" checked>
+          <span>Attendance alerts</span>
+        </label>
+        <label class="checkbox-item">
+          <input type="checkbox" checked>
+          <span>Announcements</span>
         </label>
       </div>
 

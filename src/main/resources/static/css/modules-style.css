@@ -38,9 +38,13 @@
 .payment-attempt-row { display: grid; grid-template-columns: 1fr 1fr 1.4fr auto; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--border-light); font-size: 13px; overflow-wrap: anywhere; }
 
 #assignmentSubmissionDialog { width: min(620px, calc(100vw - 28px)); padding: 24px; border: 1px solid var(--border-light); border-radius: 8px; color: var(--text-dark); background: var(--bg-light); box-shadow: 0 24px 70px rgba(0, 0, 0, .28); }
+#gradeAppealDialog { width: min(620px, calc(100vw - 28px)); padding: 24px; border: 1px solid var(--border-light); border-radius: 8px; color: var(--text-dark); background: var(--bg-light); box-shadow: 0 24px 70px rgba(0, 0, 0, .28); }
 #assignmentSubmissionDialog::backdrop { background: rgba(14, 25, 31, .58); }
+#gradeAppealDialog::backdrop { background: rgba(14, 25, 31, .58); }
 #assignmentSubmissionDialog h2 { margin-top: 0; }
+#gradeAppealDialog h2 { margin-top: 0; }
 #assignmentSubmissionDialog label { display: block; margin: 12px 0 6px; font-weight: 700; }
+#gradeAppealDialog label { display: block; margin: 12px 0 6px; font-weight: 700; }
 #assignmentSubmissionContent { width: 100%; min-height: 180px; padding: 10px; border: 1px solid var(--border-light); border-radius: 4px; color: var(--text-dark); background: var(--bg-light); resize: vertical; }
 #assignmentSubmissionStatus { min-height: 20px; color: var(--text-secondary); }
 

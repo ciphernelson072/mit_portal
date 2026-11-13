@@ -175,6 +175,10 @@ class GradeApprovalWorkflowTest {
         User actor = new User();
         actor.setId(31L);
         Mockito.when(users.findByUsernameNormalized(Mockito.anyString())).thenReturn(java.util.Optional.of(actor));
+        User submittingTeacher = new User();
+        submittingTeacher.setId(43L);
+        Mockito.when(users.findByUsernameNormalized("teacher1"))
+                .thenReturn(java.util.Optional.of(submittingTeacher));
         Mockito.when(gradeRepository.save(Mockito.any(Grade.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -231,6 +235,8 @@ class GradeApprovalWorkflowTest {
         Grade toReject = new Grade();
         toReject.setId(53L);
         toReject.setStudent(student);
+        toReject.setCourse(course);
+        toReject.setSubmittedBy("teacher1");
         toReject.setStatus(GradeStatus.PENDING);
         Mockito.when(gradeRepository.findByIdForUpdate(52L)).thenReturn(java.util.Optional.of(toApprove));
         Mockito.when(gradeRepository.findByIdForUpdate(53L)).thenReturn(java.util.Optional.of(toReject));
@@ -260,15 +266,25 @@ class GradeApprovalWorkflowTest {
         assertEquals(List.of("GRADE_SUBMITTED_FOR_APPROVAL", "GRADE_ASSESSMENT_REVIEWED",
                 "GRADE_APPROVED", "GRADE_REJECTED"),
             events.stream().map(AuditLog::getAction).collect(java.util.stream.Collectors.toList()));
-        assertTrue(events.stream().allMatch(event -> Long.valueOf(31L).equals(event.getUserId())));
+        assertEquals(43L, events.get(0).getUserId());
+        assertTrue(events.subList(1, events.size()).stream()
+                .allMatch(event -> Long.valueOf(31L).equals(event.getUserId())));
         assertTrue(events.get(0).getDetails().contains("Grade #51"));
         assertTrue(events.get(1).getDetails().contains("grade #52"));
         assertTrue(events.get(2).getDetails().contains("Grade #52"));
         assertTrue(events.get(3).getDetails().contains("Grade #53"));
-        Mockito.verify(notifications, Mockito.times(1)).create(
+        verify(notifications).create(
+                43L, "Grade needs revision",
+                "Grade #53 for Database Systems was rejected: Missing assessment evidence",
+                com.sis.entity.NotificationCategory.GRADE);
+        verify(notifications).create(
+                42L, "Grade needs revision",
+                "Your grade submission for Database Systems was rejected: Missing assessment evidence",
+                com.sis.entity.NotificationCategory.GRADE);
+        Mockito.verify(notifications, Mockito.times(3)).create(
                 Mockito.anyLong(), Mockito.anyString(), Mockito.anyString(),
                 Mockito.eq(com.sis.entity.NotificationCategory.GRADE));
-        Mockito.verify(notifications).emailNotificationsEnabled(42L);
+        Mockito.verify(notifications, Mockito.times(2)).emailNotificationsEnabled(42L);
         Mockito.verify(emailService, Mockito.never()).sendGradeNotification(
                 Mockito.anyString(), Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
 

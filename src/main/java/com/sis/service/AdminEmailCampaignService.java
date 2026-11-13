@@ -3,11 +3,8 @@ package com.sis.service;
 import com.sis.dto.AdminEmailRecipientDto;
 import com.sis.dto.BulkEmailRequest;
 import com.sis.dto.BulkEmailResponse;
-import com.sis.entity.Student;
-import com.sis.entity.Teacher;
+import com.sis.entity.Role;
 import com.sis.entity.User;
-import com.sis.repository.StudentRepository;
-import com.sis.repository.TeacherRepository;
 import com.sis.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,22 +28,20 @@ public class AdminEmailCampaignService {
     private static final Logger logger = LoggerFactory.getLogger(AdminEmailCampaignService.class);
 
     private final UserRepository userRepository;
-    private final StudentRepository studentRepository;
-    private final TeacherRepository teacherRepository;
+    private final ProfileContactEmailService contactEmails;
     private final EmailService emailService;
 
-    public AdminEmailCampaignService(UserRepository userRepository, StudentRepository studentRepository,
-                                     TeacherRepository teacherRepository, EmailService emailService) {
+    public AdminEmailCampaignService(UserRepository userRepository, ProfileContactEmailService contactEmails,
+                                     EmailService emailService) {
         this.userRepository = userRepository;
-        this.studentRepository = studentRepository;
-        this.teacherRepository = teacherRepository;
+        this.contactEmails = contactEmails;
         this.emailService = emailService;
     }
 
     @Transactional(readOnly = true)
     public List<AdminEmailRecipientDto> listRecipients() {
         List<User> activeUsers = userRepository.findByIsActiveTrueOrderByIdAsc();
-        Map<Long, String> profileEmails = profileEmailsForUsers(activeUsers.stream()
+        Map<Long, String> profileEmails = contactEmails.findForUsers(activeUsers.stream()
                 .map(User::getId)
                 .collect(Collectors.toSet()));
         return activeUsers.stream()
@@ -87,7 +82,7 @@ public class AdminEmailCampaignService {
 
         Map<Long, User> selectedUsers = new LinkedHashMap<>();
         userRepository.findAllById(uniqueIds).forEach(user -> selectedUsers.put(user.getId(), user));
-        Map<Long, String> profileEmails = profileEmailsForUsers(uniqueIds);
+        Map<Long, String> profileEmails = contactEmails.findForUsers(uniqueIds);
         List<String> unavailableUsers = new ArrayList<>();
         for (Long id : uniqueIds) {
             User user = selectedUsers.get(id);
@@ -117,26 +112,11 @@ public class AdminEmailCampaignService {
         return new BulkEmailResponse(uniqueIds.size(), sentCount, failedUsernames);
     }
 
-    private Map<Long, String> profileEmailsForUsers(Set<Long> userIds) {
-        Map<Long, String> profileEmails = new LinkedHashMap<>();
-        if (userIds.isEmpty()) {
-            return profileEmails;
-        }
-        for (Student student : studentRepository.findAllWithUserByUserIdIn(userIds)) {
-            if (Boolean.TRUE.equals(student.getUser().getIsActive()) && isValidEmail(student.getEmail())) {
-                profileEmails.putIfAbsent(student.getUser().getId(), student.getEmail().trim());
-            }
-        }
-        for (Teacher teacher : teacherRepository.findAllWithUserByUserIdIn(userIds)) {
-            if (Boolean.TRUE.equals(teacher.getUser().getIsActive()) && isValidEmail(teacher.getEmail())) {
-                profileEmails.putIfAbsent(teacher.getUser().getId(), teacher.getEmail().trim());
-            }
-        }
-        return profileEmails;
-    }
-
     private String preferredEmail(User user, Map<Long, String> profileEmails) {
-        return isValidEmail(user.getEmail()) ? user.getEmail() : profileEmails.get(user.getId());
+        if (user.getRole() == Role.ADMIN) {
+            return isValidEmail(user.getEmail()) ? user.getEmail() : null;
+        }
+        return profileEmails.get(user.getId());
     }
 
     private boolean isValidEmail(String email) {

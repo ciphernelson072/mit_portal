@@ -11,6 +11,7 @@ import com.sis.entity.PaymentRefund;
 import com.sis.entity.Student;
 import com.sis.entity.User;
 import com.sis.dto.CreatePaymentAttemptRequest;
+import com.sis.dto.FlutterwaveCheckoutDetails;
 import com.sis.dto.PaymentDestinationView;
 import com.sis.repository.AuditLogRepository;
 import com.sis.repository.FeeRepository;
@@ -36,6 +37,88 @@ import static org.mockito.Mockito.when;
 import org.mockito.ArgumentCaptor;
 
 class PaymentAttemptServiceTest {
+
+    @Test
+    void flutterwaveCheckoutUsesStudentContactEmailInsteadOfAccountEmail() {
+        PaymentAttemptRepository attempts = mock(PaymentAttemptRepository.class);
+        FeeRepository fees = mock(FeeRepository.class);
+        PaymentAllocationRepository allocations = mock(PaymentAllocationRepository.class);
+        FeeWaiverRepository waivers = mock(FeeWaiverRepository.class);
+        AuditLogRepository auditLogs = mock(AuditLogRepository.class);
+        UserRepository users = mock(UserRepository.class);
+        PaymentTransactionRepository transactions = mock(PaymentTransactionRepository.class);
+        PaymentDestinationService destinations = mock(PaymentDestinationService.class);
+        NotificationService notifications = mock(NotificationService.class);
+        PaymentRefundRepository refunds = mock(PaymentRefundRepository.class);
+
+        User user = new User();
+        user.setId(42L);
+        user.setEmail("account@example.test");
+        Student student = new Student(user, "Student", "Grade 10");
+        student.setId(14L);
+        student.setEmail("contact@example.test");
+        Fee fee = new Fee();
+        fee.setId(25L);
+        fee.setStudent(student);
+        fee.setAmount(new BigDecimal("100.00"));
+        when(fees.findByIdForUpdate(25L)).thenReturn(Optional.of(fee));
+        when(destinations.list()).thenReturn(List.of(new PaymentDestinationView(
+                PaymentChannel.FLUTTERWAVE, "Flutterwave", true, null, null)));
+        when(attempts.findFirstByFeeIdAndStudentIdAndPaymentChannelAndStatusOrderByCreatedAtDesc(
+                25L, 14L, PaymentChannel.FLUTTERWAVE, PaymentAttemptStatus.PENDING))
+                .thenReturn(Optional.empty());
+        when(allocations.findByFeeIdOrderByAllocatedAtAsc(25L)).thenReturn(List.of());
+        when(attempts.sumAmountByFeeIdAndStatus(25L, PaymentAttemptStatus.PENDING))
+                .thenReturn(BigDecimal.ZERO);
+        when(waivers.findByFeeIdAndActiveTrueOrderByApprovedAtDesc(25L)).thenReturn(List.of());
+        when(attempts.save(any(PaymentAttempt.class))).thenAnswer(invocation -> {
+            PaymentAttempt attempt = invocation.getArgument(0);
+            attempt.setId(91L);
+            return attempt;
+        });
+        PaymentAttemptService service = new PaymentAttemptService(
+                attempts, fees, allocations, waivers, auditLogs, users, transactions,
+                destinations, notifications, refunds);
+
+        FlutterwaveCheckoutDetails details = service.createFlutterwaveAttempt(25L, 14L);
+
+        assertThat(details.getEmail()).isEqualTo("contact@example.test");
+    }
+
+    @Test
+    void flutterwaveCheckoutRejectsMissingContactEmailEvenWhenAccountEmailExists() {
+        PaymentAttemptRepository attempts = mock(PaymentAttemptRepository.class);
+        FeeRepository fees = mock(FeeRepository.class);
+        PaymentAllocationRepository allocations = mock(PaymentAllocationRepository.class);
+        FeeWaiverRepository waivers = mock(FeeWaiverRepository.class);
+        AuditLogRepository auditLogs = mock(AuditLogRepository.class);
+        UserRepository users = mock(UserRepository.class);
+        PaymentTransactionRepository transactions = mock(PaymentTransactionRepository.class);
+        PaymentDestinationService destinations = mock(PaymentDestinationService.class);
+        NotificationService notifications = mock(NotificationService.class);
+        PaymentRefundRepository refunds = mock(PaymentRefundRepository.class);
+
+        User user = new User();
+        user.setId(42L);
+        user.setEmail("account@example.test");
+        Student student = new Student(user, "Student", "Grade 10");
+        student.setId(14L);
+        Fee fee = new Fee();
+        fee.setId(25L);
+        fee.setStudent(student);
+        fee.setAmount(new BigDecimal("100.00"));
+        when(fees.findByIdForUpdate(25L)).thenReturn(Optional.of(fee));
+        when(destinations.list()).thenReturn(List.of(new PaymentDestinationView(
+                PaymentChannel.FLUTTERWAVE, "Flutterwave", true, null, null)));
+        PaymentAttemptService service = new PaymentAttemptService(
+                attempts, fees, allocations, waivers, auditLogs, users, transactions,
+                destinations, notifications, refunds);
+
+        assertThatThrownBy(() -> service.createFlutterwaveAttempt(25L, 14L))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Add a valid email address to your student profile before paying online");
+        verify(attempts, never()).save(any(PaymentAttempt.class));
+    }
 
     @Test
     void confirmsPaymentAndOnlyNotifiesOnceForRepeatedConfirmation() {

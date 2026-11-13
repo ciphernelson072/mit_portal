@@ -22,9 +22,12 @@ public class PreferencePolicyService {
             NotificationCategory.ASSIGNMENT,
             NotificationCategory.GRADE,
             NotificationCategory.SYSTEM,
-            NotificationCategory.PAYMENT
+            NotificationCategory.PAYMENT,
+            NotificationCategory.ATTENDANCE,
+            NotificationCategory.ANNOUNCEMENT
     );
-    private static final List<Boolean> DEFAULT_NOTIFICATION_VISIBILITY = List.of(true, true, false, true);
+    private static final List<Boolean> DEFAULT_NOTIFICATION_VISIBILITY =
+            List.of(true, true, false, true, true, true);
 
     private final UserPreferenceRepository preferences;
 

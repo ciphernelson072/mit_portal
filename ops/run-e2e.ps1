@@ -41,9 +41,17 @@ $applicationStderr = Join-Path ([IO.Path]::GetTempPath()) "mit-portal-e2e-$([Gui
 $previousBaseUrl = $env:BASE_URL
 
 try {
-    & (Join-Path $projectRoot 'mvnw.cmd') -q -DskipTests package
-    if ($LASTEXITCODE -ne 0) {
-        throw "Building the portal for isolated browser tests failed with exit code $LASTEXITCODE."
+    $nativeErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $packageOutput = & (Join-Path $projectRoot 'mvnw.cmd') -q -DskipTests package 2>&1
+        $packageExitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $nativeErrorActionPreference
+    }
+    $packageOutput | ForEach-Object { Write-Output $_ }
+    if ($packageExitCode -ne 0) {
+        throw "Building the portal for isolated browser tests failed with exit code $packageExitCode."
     }
     if (-not (Test-Path -LiteralPath $jarPath -PathType Leaf)) {
         throw "The browser-test application JAR was not created at $jarPath."
@@ -107,9 +115,17 @@ try {
     if (-not [string]::IsNullOrWhiteSpace($TestName)) {
         $testRunnerArguments += @('--grep', $TestName)
     }
-    & npm run test:e2e -- @testRunnerArguments
-    if ($LASTEXITCODE -ne 0) {
-        throw "The isolated browser tests failed with exit code $LASTEXITCODE."
+    $nativeErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $testOutput = & npm run test:e2e -- @testRunnerArguments 2>&1
+        $testExitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $nativeErrorActionPreference
+    }
+    $testOutput | ForEach-Object { Write-Output $_ }
+    if ($testExitCode -ne 0) {
+        throw "The isolated browser tests failed with exit code $testExitCode."
     }
     $testSucceeded = $true
 } finally {

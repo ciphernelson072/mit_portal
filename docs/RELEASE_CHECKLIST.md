@@ -7,36 +7,242 @@ actual target environment.
 
 ## Verification records
 
-### Login redirect regression fix (8 November 2026)
+### Disposable MySQL and TiDB schema validation (11 November 2026)
 
-- [x] Removed unauthenticated login-page redirects based only on stale
-  localStorage role hints; server authentication and protected-route role checks
-  remain enforced.
-- [x] Bumped the service-worker cache from v22 to v23 to invalidate previously
-  cached static assets when the updated worker installs.
-- [x] Added browser regressions for stale ADMIN and STUDENT role hints.
-- [x] Current local validation: 395 Java tests, 12 frontend unit tests,
-  30-file JavaScript syntax validation, both targeted stale-role browser tests,
-  and the complete 90-test isolated Playwright suite passed. The generated JAR
-  was inspected to confirm the login changes and v23 service worker are inside.
-- [x] All relative Markdown file links in the repository resolve.
-- [x] Added a GitHub Actions publish step for verified pushes to `main` and
-  `fix/admin-login-offline-styles`; it publishes `latest` and a commit-specific
-  Docker Hub tag after all preceding CI gates pass.
-- [ ] Confirm GitHub Actions secrets `DOCKERHUB_USERNAME` and
-  `DOCKERHUB_TOKEN` exist and the image publish job succeeds.
-- [ ] Update the existing Render image source from its pinned digest to
-  `docker.io/ciphernelson/mit-portal:latest` so future published images can
-  auto-deploy. Verify the deployed digest and health before marking the login
-  fix live.
-- [ ] Run current CI, including backend, MySQL migrations, frontend, browser,
-  and Docker image gates, on the release commit. Docker and GitHub CI were
-  unavailable from this local environment during this pass.
-- [ ] After deployment, verify `/actuator/health`, `/admin-login.html`, and
-  `/index.html` on the Render origin; with stale browser role hints present,
-  each login form must remain visible. Confirm the deployed commit in Render.
-- [ ] Do not claim the fix is live until the remote deployment and browser
-  acceptance checks above pass.
+- [x] Docker Desktop 29.8.2 responded to `docker info`.
+- [x] MySQL 8.0 Testcontainers integration applied all 53 Flyway migrations
+  through V53 and passed Hibernate schema validation: 1 test, 0 failures,
+  errors, or skips.
+- [x] Disposable TiDB v8.5.0 accepted all 53 migrations; the portal started
+  with Hibernate schema validation enabled and `/actuator/health` returned
+  `UP`. The TiDB container was local and loopback-only.
+- [x] Four public-site Playwright checks passed against the TiDB-backed app;
+  four source-backed grade-appeal/correction browser checks passed.
+- [x] Full isolated H2/sample-data browser regression passed: 106 tests,
+  including student service-request ownership/status updates, public pages,
+  student/teacher/admin flows, and responsive checks. The disposable H2
+  server used a separate loopback port and was stopped after testing.
+- [x] Full Maven suite passed: 429 tests, 0 failures, errors, or skips; the
+  separate MySQL migration test passed (1 test). Frontend validation passed
+  for 31 JavaScript files and all 12 unit tests.
+- [ ] Apply no migration to the configured TiDB pilot or Render database until
+  its identity, backup, schema-adoption plan, and a data-preserving-copy
+  rehearsal are reviewed. The disposable TiDB result is not target-data
+  acceptance.
+
+### Render portal gateway release (10 November 2026)
+
+- [x] Commit `9c212d4` passed GitHub Actions backend, MySQL migration,
+  frontend, browser, and Docker image gates; the published `latest` image was
+  deployed to Render.
+- [x] Render readiness returned `UP`; `/`, `/index.html`, `/admin-login.html`,
+  `/public/index.html`, `/home.html`, and `/css/home.css` returned HTTP 200.
+- [x] Confirmed the live Free test service uses ephemeral `/tmp/uploads`;
+  production persistence and backup/restore remain open gates.
+- [ ] Confirm the active Render database is isolated from live/institutional
+  data before further testing.
+- [ ] Complete privileged-account MFA/recovery, durable uploads, off-site
+  backup and restore rehearsal, institution-approved public content, verified
+  provider behavior, and target-topology user acceptance before production.
+
+The sitemap and documentation updates made after `9c212d4` are not part of the
+deployed image. They require their own passing CI and deployment before being
+marked live.
+
+### Teacher result-publication notification (10 November 2026)
+
+- [x] On first publication, notify each current teacher assigned to a course in
+  the approved student-result snapshot; aggregate multiple course codes per
+  teacher and do not include marks in the notification.
+- [x] Re-publishing the same snapshot does not create duplicate teacher or
+  student notifications.
+- [x] Focused backend coverage passed: 2 `AcademicReportApprovalPersistenceTest`
+  tests and 5 `TeacherControllerFetchTest` tests, with 0 failures or errors.
+- [x] Full Maven suite passed after student status and teacher notification
+  changes: 406 tests, 0 failures, 0 errors, or skips.
+- [x] Add a teacher result-status feed for pending, blocked, awaiting publication,
+  published, and invalidated results; scope course labels to assigned courses
+  and omit marks/report details.
+- [x] Notify assigned teachers for blocked and invalidated states without
+  exposing marks or return reasons; repeated status-feed reads do not duplicate
+  notifications for the same result version.
+- [x] Focused backend coverage passed: 2 `AcademicReportApprovalPersistenceTest`
+  and 5 `TeacherControllerFetchTest` tests, with 0 failures or errors.
+- [x] Validate V52 and current V53 on disposable MySQL 8.0 and TiDB v8.5.0,
+  including Hibernate schema validation. See the 11 November record above;
+  the configured pilot/production database remains untouched.
+- [x] Source-backed Playwright test confirms status display, safe HTML escaping,
+  and status-only table columns.
+- [ ] Run full CI and deploy this source update before marking it live.
+
+### Student grade-appeal workflow (local source)
+
+- [x] Restrict student appeals to their own approved grade in currently
+  published official results; prevent duplicate active appeals for a grade.
+- [x] Add an audited lifecycle: staff requests teacher consultation, the
+  assigned teacher may respond in writing, staff may record consultation
+  without a written response, and an authorized administrator records the
+  decision.
+- [x] Keep appeal approval separate from grade correction authorization; no
+  marks are included in appeal list DTOs.
+- [x] Add student, teacher, and admin UI flows, including escaped user content
+  and the admin panel under Grades.
+- [x] Focused `AcademicReportApprovalPersistenceTest`: 2 tests, 0 failures,
+  errors, or skips; covers unpublished/other-student denial, duplicate active
+  appeal, consultation, decision gating, and both teacher-response paths.
+- [x] Source-backed Playwright coverage passed: student appeal submission and
+  status, student correction-state visibility/escaping, teacher response, and
+  administrator consultation/decision (4 tests).
+- [x] Frontend build and unit tests passed: 31 JavaScript files validated and
+  all 12 unit tests passed.
+- [x] Full Maven suite passed: 403 tests, 0 failures, errors, or skips.
+- [x] MySQL 8.0 Testcontainers integration passed: Flyway validated and applied
+  all 51 migrations, including V51, and the application context passed
+  Hibernate schema validation.
+- [x] `GradeApprovalWorkflowTest`: 8 tests passed; the rejection test asserts
+  exact grade-category notification recipients and message content for the
+  submitting teacher and student.
+- [x] V51 passed disposable MySQL 8.0 and TiDB v8.5.0 migration and Hibernate
+  schema validation. This does not replace validation on the intended
+  data-preserving database copy, which remains a release gate.
+- [ ] Run full CI and deploy this source update before marking it live.
+
+### Student pre-publication grade status (local source)
+
+- [x] Add an authenticated, student-scoped status endpoint that returns only
+  course code, course name, and workflow status, and returns no rows after
+  official publication.
+- [x] Keep published grade details on the existing publication-gated endpoint;
+  omit marks, grade values, GPA, and return reasons from the status DTO.
+- [x] Add student UI labels for pending, approved-awaiting-publication, and
+  returned grades; safely escape course text and hide the panel after publication.
+- [x] Focused backend validation passed: 10 `AcademicRecordServiceTest` and
+  82 `SecurityIntegrationTest` tests, with 0 failures or errors.
+- [x] `StudentControllerTest`: 4 tests passed, including authenticated
+  pre-publication status delivery and an empty response after publication.
+- [x] Frontend build and unit tests passed: 31 JavaScript files validated and
+  all 12 unit tests passed.
+- [x] Full Maven suite passed: 406 tests, 0 failures, 0 errors, or skips.
+- [x] Isolated browser validation passed for the provisional status view and
+  the existing published grade-appeal flow: 2 tests, 0 failures.
+- [ ] Run full CI and validate on the supported target database before
+  deployment.
+- [ ] Deploy this source update only after the remaining release gates are met.
+
+### Student absent/late attendance alerts (local source)
+
+- [x] Send an in-app `ATTENDANCE` notification when a teacher first records a
+  student absent or late, or changes an existing record into either state.
+- [x] Avoid duplicate notices on unchanged roster resubmissions; notification
+  text contains course/date only, not teacher remarks.
+- [x] Keep teacher-submitted attendance authoritative with no added
+  administrator approval step; retain the existing student dispute workflow.
+- [x] Add an attendance-alert preference, visible by default and preserved for
+  existing four-category settings.
+- [x] Increment the service-worker cache version so installed clients refresh
+  the dashboard notification categories and preference UI.
+- [x] `AttendanceApprovalServiceTest` and `PreferencePolicyServiceTest` passed.
+- [x] Source-backed Playwright checks profile preference defaults and dashboard
+  filtering for the new `ATTENDANCE` notification category.
+- [x] Full Maven suite passed: 406 tests, 0 failures, errors, or skips;
+  frontend build and all 12 JavaScript unit tests passed.
+- [ ] Run full CI and verify the new notification category in the target
+  database/deployment before marking live.
+
+### Announcement notification preferences (local source)
+
+- [x] Store newly published announcement alerts under their own `ANNOUNCEMENT`
+  category rather than the general system category.
+- [x] Add an independent profile preference and preserve existing notification
+  category indexes; older four- and five-value settings default announcements
+  to visible.
+- [x] Keep the in-app visibility preference separate from optional email
+  delivery, which remains governed by the explicit email opt-in.
+- [x] Increment the service-worker cache to v28 so installed clients refresh
+  the announcement preference and categorized dashboard notification assets.
+- [x] Cover category filtering and legacy preference compatibility in backend
+  tests; profile save/reload and dashboard filtering are covered in Playwright.
+- [x] Focused backend tests passed: 5 `PreferencePolicyServiceTest`, 1
+  `NotificationServiceTest`, and 2 `AnnouncementEmailPreferenceTest` tests.
+- [x] Frontend unit tests passed: 12 tests; focused Playwright preference flows
+  passed: 2 tests.
+- [ ] Verify announcement role targeting and email delivery in the target
+  environment; programme/course targeting and recipient delivery summaries
+  remain unsupported.
+
+### Service-request ownership and history (local source)
+
+- [x] Allow service-request managers to assign, reassign, or unassign a request
+  to an active administrator; reject inactive or non-administrator assignees.
+- [x] Record request creation, status changes, and owner changes in an
+  append-only event timeline with actor identity and timestamp.
+- [x] Show current owner, last-update time, and event history in the admin
+  request queue/detail view. Status updates that do not change the status do
+  not create duplicate history entries or notifications.
+- [x] Preserve legacy requests without fabricating historical status events;
+  their prior last-update timestamp is explicitly reported as untracked.
+- [x] V53 passed disposable MySQL 8.0 and TiDB v8.5.0 migration and Hibernate
+  schema validation. Verify the admin ownership/history workflow and migration
+  on the reviewed intended-database copy before deployment.
+- [x] Teacher-hiring email points to the current portal login and teacher
+  dashboard routes, identifies the password as one-time, and requires a
+  password change. Admin feedback reports email delivery state without
+  returning the temporary password; focused backend and browser checks pass.
+- [ ] Decide whether service requests, attendance disputes, grade appeals, or
+  grade corrections need transactional email; these currently use in-portal
+  notifications only. Staff leave submissions and reviews also notify through
+  in-portal alerts, not email. Do not change these channels without an approved
+  notification and consent policy.
+- [ ] Verify password-reset, email-verification, admission, hiring, announcement,
+  grade, and administrator campaign delivery in the approved target environment.
+  Provider acceptance is not evidence of inbox delivery; record bounce,
+  retry/reconciliation, and monitoring behavior.
+- [x] Administrator campaigns continue after an individual send failure and
+  report partial results. The browser marks partial delivery as an error and
+  retains only failed recipients when every failed username maps to the
+  submitted selection; otherwise, it clears the selection and requires a fresh
+  recipient list before retry, preventing accidental duplicate sends.
+- [x] Partial-campaign browser regression passed: 1 test, 0 failures; partial
+  delivery is visibly reported and only the failed recipient remains selected
+  for retry.
+- [x] Stale/unmatched campaign failure names clear all recipient selections and
+  require a fresh recipient-list load before retry; browser regression passed.
+- [x] Password-reset and verification resend endpoints preserve their generic
+  response when the mail provider fails; `SecurityIntegrationTest` also verifies
+  failed delivery leaves no reset or verification token persisted.
+- [x] Frontend build validated 31 JavaScript files and all 12 frontend unit
+  tests passed after the email recovery and partial-campaign updates.
+
+### Legacy administrator grade-import safeguards (10 November 2026)
+
+- [x] Preflight the full file before creating records; reject repeated rows,
+  existing student-course attempts, unrecognized grade values, mismatched
+  optional GPA values, and students not enrolled in the course.
+- [x] Record the authenticated administrator as the grade submitter and audit
+  actor for file and single-grade imports.
+- [x] Keep imported grades pending for assessment marks and normal approval.
+- [x] Retire teacher direct grade create/update routes with HTTP 410 and a clear
+  migration message; current dashboard uses component-based grading APIs.
+- [x] Keep admin file/single-grade imports as an operational path for authorized
+  batch or exceptional entry, not routine teacher marking. The admin interface
+  states the assigned-teacher component-mark verification and normal approval
+  requirements.
+- [x] Focused import/admin/teacher controller tests passed: 22 tests,
+  0 failures, 0 errors, or skips.
+- [x] Follow-up coverage passed: 11 `GradeImportServiceTest`, 9
+  `AcademicRecordServiceTest`, and the focused administrator-only import/review
+  access integration test; all passed with no failures or errors.
+- [x] Full Maven suite passed after retiring the legacy teacher routes:
+  403 tests, 0 failures, 0 errors, or skips.
+- [ ] Run full CI and deploy this source update before marking it live.
+
+### Historical login redirect record (8 November 2026)
+
+At that review, the service-worker cache was v23; stale ADMIN and STUDENT
+localStorage role hints no longer redirected login pages; related browser
+regressions were added; and local Maven, frontend, and Playwright checks passed.
+The deployment and CI items listed as pending at the time were completed by the
+10 November release record above.
 
 ### Current source verification (7 November 2026)
 

@@ -1633,6 +1633,8 @@ body {
 .teacher-card { min-width: 0; padding: 22px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-light); box-shadow: var(--shadow-sm); }
 .teacher-card h2 { margin-bottom: 6px; font-size: 20px; }
 .teacher-card > p { margin-bottom: 18px; color: var(--text-secondary); font-size: 13px; }
+#teacherPublicationStatusList .status-badge.pending { background: rgba(245, 158, 11, 0.12); color: #92400e; }
+body.dark-mode #teacherPublicationStatusList .status-badge.pending { background: rgba(245, 158, 11, 0.16); color: #fbbf24; }
 .teacher-field { display: grid; grid-template-columns: minmax(110px, .35fr) minmax(0, 1fr); align-items: center; gap: 10px; margin-bottom: 12px; }
 .teacher-field label { color: var(--text-secondary); font-size: 13px; font-weight: 700; }
 .teacher-field input,

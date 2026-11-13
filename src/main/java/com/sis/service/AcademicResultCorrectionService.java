@@ -135,6 +135,13 @@ public class AcademicResultCorrectionService {
                     correction.setSubmittedAt(LocalDateTime.now());
                     audit(actor, "GRADE_CORRECTION_SUBMITTED",
                             "Correction #" + correction.getId() + " resubmitted for grade #" + gradeId);
+                    if (notifications != null) {
+                        users.findByRoleAndIsActiveTrue(Role.ADMIN).forEach(admin ->
+                                notifications.create(admin.getId(), "Grade correction submitted for review",
+                                        "Correction #" + correction.getId() + " for grade #" + gradeId
+                                                + " is ready for administrator review.",
+                                        NotificationCategory.GRADE));
+                    }
                 });
     }
 

@@ -12,6 +12,7 @@ import com.sis.dto.ResetPasswordRequest;
 import com.sis.dto.ResetTokenRequest;
 import com.sis.entity.Role;
 import com.sis.entity.User;
+import com.sis.exception.EmailDeliveryException;
 import com.sis.security.JwtAuthenticationFilter;
 import com.sis.security.MfaPolicy;
 import com.sis.service.JwtService;
@@ -33,6 +34,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.sis.dto.SessionDto;
 import com.sis.entity.RefreshToken;
 import com.sis.repository.RefreshTokenRepository;
@@ -67,6 +70,7 @@ import java.util.Map;
 public class AuthController {
 
     private static final String REFRESH_TOKEN_COOKIE = "refresh_token";
+    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
@@ -578,7 +582,8 @@ public class AuthController {
 
     @PostMapping("/forgot-password")
     public ResponseEntity<String> requestPasswordReset(@Valid @RequestBody EmailRequest request) {
-        authenticationService.requestPasswordReset(request.getEmail());
+        attemptRecoveryEmail(() -> authenticationService.requestPasswordReset(request.getEmail()),
+                "password reset");
         return ResponseEntity.ok("If the email is registered, password reset instructions will be sent.");
     }
 
@@ -608,13 +613,24 @@ public class AuthController {
 
     @PostMapping("/resend-password-reset")
     public ResponseEntity<String> resendPasswordReset(@Valid @RequestBody EmailRequest request) {
-        authenticationService.resendPasswordResetEmail(request.getEmail());
+        attemptRecoveryEmail(() -> authenticationService.resendPasswordResetEmail(request.getEmail()),
+                "password reset resend");
         return ResponseEntity.ok("If the email is registered, password reset instructions will be sent.");
     }
 
     @PostMapping("/resend-email-verification")
     public ResponseEntity<String> resendEmailVerification(@Valid @RequestBody EmailRequest request) {
-        authenticationService.resendEmailVerification(request.getEmail());
+        attemptRecoveryEmail(() -> authenticationService.resendEmailVerification(request.getEmail()),
+                "email verification resend");
         return ResponseEntity.ok("If the account exists, a verification email has been sent.");
+    }
+
+    private void attemptRecoveryEmail(Runnable request, String operation) {
+        try {
+            request.run();
+        } catch (EmailDeliveryException ignored) {
+            // A provider failure must not make registered accounts distinguishable.
+            logger.warn("{} email delivery failed; returning the generic recovery response", operation);
+        }
     }
 }

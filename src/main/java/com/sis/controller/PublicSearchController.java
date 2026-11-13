@@ -11,7 +11,7 @@ import java.util.List;
 @RestController
 public class PublicSearchController {
     private static final List<String> PUBLIC_PATHS = List.of(
-            "/", "/public/about.html", "/public/programmes.html",
+            "/public/index.html", "/public/about.html", "/public/programmes.html",
             "/public/admissions.html", "/public/contact.html", "/admissions.html"
     );
     private static final List<String> PRIVATE_PATHS = List.of(

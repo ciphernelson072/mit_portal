@@ -58,7 +58,7 @@ function renderEmailRecipients() {
         ${selectedEmailRecipientIds.has(Number(recipient.id)) ? 'checked' : ''}>
       <span class="email-recipient-identity">
         <strong>${escapeHtml(recipient.username)}</strong>
-        <span>${escapeHtml(recipient.email)}</span>
+        <span>${escapeHtml(recipient.email)} · ${recipient.role === 'ADMIN' ? 'Account email' : 'Contact email'}</span>
       </span>
       <span class="email-recipient-role">${escapeHtml(recipient.role)}</span>
     </label>
@@ -200,9 +200,24 @@ document.getElementById('emailCampaignForm')?.addEventListener('submit', async e
     const result = await response.json();
     const failedNames = Array.isArray(result.failedUsernames) ? result.failedUsernames : [];
     if (result.failedCount > 0) {
+      const failedNameSet = new Set(failedNames);
+      const failedIds = emailRecipients
+        .filter(recipient => recipientIds.includes(Number(recipient.id))
+          && failedNameSet.has(String(recipient.username)))
+        .map(recipient => Number(recipient.id));
+      const allFailuresMatched = Number.isSafeInteger(result.failedCount)
+        && result.failedCount === failedNames.length
+        && failedIds.length === result.failedCount;
+      selectedEmailRecipientIds.clear();
+      if (allFailuresMatched) {
+        failedIds.forEach(id => selectedEmailRecipientIds.add(id));
+      }
+      renderEmailRecipients();
       setEmailCampaignStatus(
-        `Sent ${result.sentCount} of ${result.recipientCount}. Failed: ${failedNames.join(', ')}.`,
-        result.sentCount === 0
+        allFailuresMatched
+          ? `Sent ${result.sentCount} of ${result.recipientCount}. Failed: ${failedNames.join(', ')}. Failed recipients remain selected for retry.`
+          : `Sent ${result.sentCount} of ${result.recipientCount}. Failed recipients could not all be matched; selection was cleared. Refresh the recipient list before retrying.`,
+        true
       );
     } else {
       setEmailCampaignStatus(`Email sent successfully to ${result.sentCount} recipient(s).`);

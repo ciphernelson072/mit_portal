@@ -37,9 +37,6 @@ public class AdminSystemStatusController {
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
     private final boolean mailEnabled;
-    private final String mailHost;
-    private final String fromEmail;
-    private final int mailPort;
     private final EmailService emailService;
     private final String backupStatusFile;
     private final String uploadBackupStatusFile;
@@ -48,9 +45,6 @@ public class AdminSystemStatusController {
     public AdminSystemStatusController(JdbcTemplate jdbcTemplate,
                                        ObjectMapper objectMapper,
                                        @Value("${app.mail.enabled:false}") boolean mailEnabled,
-                                       @Value("${spring.mail.host:}") String mailHost,
-                                       @Value("${spring.mail.username:}") String fromEmail,
-                                       @Value("${spring.mail.port:25}") int mailPort,
                                        EmailService emailService,
                                        @Value("${app.backup.status-file:}") String backupStatusFile,
                                        @Value("${app.backup.upload-status-file:}") String uploadBackupStatusFile,
@@ -58,9 +52,6 @@ public class AdminSystemStatusController {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
         this.mailEnabled = mailEnabled;
-        this.mailHost = mailHost;
-        this.fromEmail = fromEmail;
-        this.mailPort = mailPort;
         this.emailService = emailService;
         this.backupStatusFile = backupStatusFile;
         this.uploadBackupStatusFile = uploadBackupStatusFile;
@@ -158,14 +149,10 @@ public class AdminSystemStatusController {
     }
 
     private Map<String, Object> emailStatus() {
-        boolean smtpConfigured = StringUtils.hasText(fromEmail)
-                && !"your-email@gmail.com".equalsIgnoreCase(fromEmail)
-                && StringUtils.hasText(mailHost)
-                && mailPort > 0;
         if (!mailEnabled) {
             return component("disabled", "Disabled", "Email delivery is disabled by configuration.");
         }
-        if (!smtpConfigured && !emailService.isDeliveryConfigured()) {
+        if (!emailService.isDeliveryConfigured()) {
             return component("incomplete", "Incomplete", "Email delivery is enabled but provider settings are incomplete.");
         }
         java.time.Instant testSentAt = emailService.getLastSuccessfulTestEmailAt();

@@ -41,6 +41,7 @@ import com.sis.entity.AccreditationStatus;
 import com.sis.entity.PasswordResetToken;
 import com.sis.entity.EmailVerificationToken;
 import com.sis.entity.RefreshToken;
+import com.sis.exception.EmailDeliveryException;
 import com.sis.repository.AccreditationRecordRepository;
 import com.sis.repository.AuditLogRepository;
 import com.sis.repository.CampusRepository;
@@ -60,6 +61,7 @@ import com.sis.repository.PermissionRepository;
 import com.sis.repository.ProgramRepository;
 import com.sis.repository.RolePermissionRepository;
 import com.sis.repository.ServiceRequestRepository;
+import com.sis.repository.ServiceRequestEventRepository;
 import com.sis.repository.StaffRepository;
 import com.sis.repository.StudentRepository;
 import com.sis.repository.TeacherRepository;
@@ -112,7 +114,9 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.mockito.ArgumentCaptor;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 
 /**
@@ -202,6 +206,9 @@ class SecurityIntegrationTest {
     private ServiceRequestRepository serviceRequestRepository;
 
     @Autowired
+    private ServiceRequestEventRepository serviceRequestEventRepository;
+
+    @Autowired
     private LeaveRequestRepository leaveRequestRepository;
 
     @Autowired
@@ -219,7 +226,7 @@ class SecurityIntegrationTest {
     @Autowired
     private AdminService adminService;
 
-    @Autowired
+    @MockitoSpyBean
     private AuthenticationService authenticationService;
 
     @Autowired
@@ -682,7 +689,9 @@ class SecurityIntegrationTest {
         ResponseEntity<String> sitemap = restTemplate.getForEntity("/sitemap.xml", String.class);
         assertEquals(HttpStatus.OK, sitemap.getStatusCode());
         assertNotNull(sitemap.getBody());
+        assertTrue(sitemap.getBody().contains("<loc>http://localhost:8080/public/index.html</loc>"));
         assertTrue(sitemap.getBody().contains("<loc>http://localhost:8080/public/programmes.html</loc>"));
+        assertFalse(sitemap.getBody().contains("<loc>http://localhost:8080/</loc>"));
         ResponseEntity<String> robots = restTemplate.getForEntity("/robots.txt", String.class);
         assertEquals(HttpStatus.OK, robots.getStatusCode());
         assertNotNull(robots.getBody());
@@ -990,6 +999,50 @@ class SecurityIntegrationTest {
     }
 
     @Test
+    void recoveryEmailProviderFailuresKeepGenericPublicResponses() {
+        String recoveryEmail = "recovery-" + java.util.UUID.randomUUID() + "@example.test";
+        User recoveryUser = new User("recovery-" + java.util.UUID.randomUUID(), "encoded", Role.STUDENT);
+        recoveryUser.setEmail(recoveryEmail);
+        recoveryUser = userRepository.saveAndFlush(recoveryUser);
+
+        doThrow(new EmailDeliveryException("provider unavailable"))
+                .when(emailService).sendPasswordReset(eq(recoveryEmail), anyString(), eq(recoveryUser.getUsername()));
+        doThrow(new EmailDeliveryException("provider unavailable"))
+                .when(emailService).sendEmailVerification(eq(recoveryEmail), anyString(), eq(recoveryUser.getUsername()));
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<String> body = new HttpEntity<>("{\"email\":\"" + recoveryEmail + "\"}", headers);
+
+        try {
+            ResponseEntity<String> forgot = restTemplate.postForEntity(
+                    "/api/auth/forgot-password", body, String.class);
+            ResponseEntity<String> resetResend = restTemplate.postForEntity(
+                    "/api/auth/resend-password-reset", body, String.class);
+            ResponseEntity<String> verificationResend = restTemplate.postForEntity(
+                    "/api/auth/resend-email-verification", body, String.class);
+
+            assertEquals(HttpStatus.OK, forgot.getStatusCode());
+            assertEquals(HttpStatus.OK, resetResend.getStatusCode());
+            assertEquals(HttpStatus.OK, verificationResend.getStatusCode());
+            assertEquals("If the email is registered, password reset instructions will be sent.", forgot.getBody());
+            assertEquals(forgot.getBody(), resetResend.getBody());
+            assertEquals("If the account exists, a verification email has been sent.",
+                    verificationResend.getBody());
+            assertFalse(passwordResetTokenRepository.findByUser(recoveryUser).isPresent());
+            assertFalse(emailVerificationTokenRepository.findByEmailIgnoreCase(recoveryEmail).isPresent());
+            verify(emailService, org.mockito.Mockito.times(2))
+                    .sendPasswordReset(eq(recoveryEmail), anyString(), eq(recoveryUser.getUsername()));
+            verify(emailService)
+                    .sendEmailVerification(eq(recoveryEmail), anyString(), eq(recoveryUser.getUsername()));
+        } finally {
+            passwordResetTokenRepository.deleteByUser(recoveryUser);
+            emailVerificationTokenRepository.deleteByUser(recoveryUser);
+            userRepository.delete(recoveryUser);
+        }
+    }
+
+    @Test
     void emailVerificationTokenUsesPostBodiesInsteadOfUrlQueries() {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -1175,7 +1228,13 @@ class SecurityIntegrationTest {
             exchangeAs("student1", "student123", "/api/student/requests/admin", HttpMethod.GET, null)
                 .getStatusCode());
         assertEquals(HttpStatus.FORBIDDEN,
+            exchangeAs("student1", "student123", "/api/student/requests/admin/assignees", HttpMethod.GET, null)
+                .getStatusCode());
+        assertEquals(HttpStatus.FORBIDDEN,
             exchangeAs("teacher1", "teacher123", "/api/student/requests/admin", HttpMethod.GET, null)
+                .getStatusCode());
+        assertEquals(HttpStatus.FORBIDDEN,
+            exchangeAs("teacher1", "teacher123", "/api/student/requests/admin/assignees", HttpMethod.GET, null)
                 .getStatusCode());
         assertEquals(HttpStatus.OK,
             exchangeAs("student1", "student123", "/api/student/requests", HttpMethod.GET, null)
@@ -1244,6 +1303,12 @@ class SecurityIntegrationTest {
         assertEquals(HttpStatus.FORBIDDEN,
             restTemplate.exchange("/api/admin/grades/999999/reject", HttpMethod.POST, teacherRequest, String.class)
                 .getStatusCode());
+        assertEquals(HttpStatus.FORBIDDEN,
+            exchangeAs("teacher1", "teacher123", "/api/admin/grades/import",
+                HttpMethod.POST, "{}").getStatusCode());
+        assertEquals(HttpStatus.FORBIDDEN,
+            exchangeAs("student1", "student123", "/api/admin/grades/import",
+                HttpMethod.POST, "{}").getStatusCode());
     }
 
     @Test
@@ -1389,6 +1454,24 @@ class SecurityIntegrationTest {
         long studentId = profile.path("id").asLong();
         assertTrue(studentId > 0);
         assertTrue(profile.path("cgpa").isNull());
+
+        ResponseEntity<String> gradeStatusesResponse = exchangeAs(
+            "student1", "student123", "/api/student/grade-status", HttpMethod.GET, null);
+        assertEquals(HttpStatus.OK, gradeStatusesResponse.getStatusCode());
+        JsonNode gradeStatuses = objectMapper.readTree(gradeStatusesResponse.getBody());
+        assertTrue(gradeStatuses.isArray());
+        gradeStatuses.forEach(status -> {
+            assertTrue(status.has("courseCode"));
+            assertTrue(status.has("courseName"));
+            assertTrue(status.has("status"));
+            assertTrue(!status.has("gradeId"));
+            assertTrue(!status.has("gradeValue"));
+            assertTrue(!status.has("gpaScore"));
+            assertTrue(!status.has("rejectionReason"));
+        });
+        assertEquals(HttpStatus.FORBIDDEN,
+            exchangeAs("teacher1", "teacher123", "/api/student/grade-status", HttpMethod.GET, null)
+                .getStatusCode());
 
         ResponseEntity<String> reportResponse = exchangeAs("student1", "student123",
             "/api/reports/academic/" + studentId, HttpMethod.GET, null);
@@ -1881,6 +1964,45 @@ class SecurityIntegrationTest {
             .findFirst()
             .orElseThrow();
         org.junit.jupiter.api.Assertions.assertTrue(audit.getDetails().contains("OPEN to IN_PROGRESS"));
+        assertTrue(request.getUpdatedAt() != null);
+        assertTrue(serviceRequestEventRepository.findForRequestInOrder(request.getId()).stream()
+                .anyMatch(event -> "STATUS_CHANGED".equals(event.getEventType())
+                        && "OPEN".equals(event.getFromStatus())
+                        && "IN_PROGRESS".equals(event.getToStatus())
+                        && "admin".equals(event.getActorUsername())));
+    }
+
+    @Test
+    void adminCanAssignServiceRequestAndReadItsTimestampedHistory() throws Exception {
+        Student student = studentRepository.findByUserUsername("student1").orElseThrow();
+        User requester = userRepository.findByUsername("student1").orElseThrow();
+        Long requestId = serviceRequestService.create(
+                student, requester, "SUPPORT_TICKET", "Assignment test", "Assign to admin").getId();
+        Long adminId = userRepository.findByUsername("admin").orElseThrow().getId();
+
+        try {
+            ResponseEntity<String> assignmentResponse = exchangeAs(
+                    "admin", "admin123", "/api/student/requests/admin/" + requestId + "/assignee",
+                    HttpMethod.PATCH, "{\"assigneeId\":" + adminId + "}");
+            assertEquals(HttpStatus.OK, assignmentResponse.getStatusCode());
+            assertTrue(objectMapper.readTree(assignmentResponse.getBody()).path("assigneeId").asLong() == adminId);
+
+            ResponseEntity<String> historyResponse = exchangeAs(
+                    "admin", "admin123", "/api/student/requests/admin/" + requestId + "/history",
+                    HttpMethod.GET, null);
+            assertEquals(HttpStatus.OK, historyResponse.getStatusCode());
+            JsonNode history = objectMapper.readTree(historyResponse.getBody());
+            assertTrue(history.size() >= 2);
+            assertTrue(java.util.stream.StreamSupport.stream(history.spliterator(), false)
+                    .anyMatch(event -> "CREATED".equals(event.path("eventType").asText())
+                            && event.path("createdAt").isTextual()));
+            assertTrue(java.util.stream.StreamSupport.stream(history.spliterator(), false)
+                    .anyMatch(event -> "ASSIGNED".equals(event.path("eventType").asText())
+                            && "admin".equals(event.path("toAssigneeUsername").asText())
+                            && "admin".equals(event.path("actorUsername").asText())));
+        } finally {
+            serviceRequestRepository.deleteById(requestId);
+        }
     }
 
     @Test

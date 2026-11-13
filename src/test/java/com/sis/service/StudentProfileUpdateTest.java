@@ -34,6 +34,7 @@ class StudentProfileUpdateTest {
         GradeRepository grades = mock(GradeRepository.class);
         User user = new User("student", "encoded", Role.STUDENT);
         user.setId(4L);
+        user.setEmail("account@example.test");
         Student student = new Student(user, "Student Name", "Year One");
         student.setId(9L);
         when(users.findByUsernameIgnoreCase(anyString())).thenReturn(Optional.of(user));
@@ -68,5 +69,7 @@ class StudentProfileUpdateTest {
         assertThat(student.getAlternativePhone()).isEqualTo("0711111111");
         assertThat(student.getCity()).isEqualTo("Kampala");
         assertThat(student.getCountry()).isEqualTo("Uganda");
+        assertThat(student.getEmail()).isEqualTo("student@example.edu");
+        assertThat(user.getEmail()).isEqualTo("account@example.test");
     }
 }

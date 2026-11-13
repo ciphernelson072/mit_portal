@@ -19,6 +19,7 @@ import com.sis.dto.CreateAttendanceDisputeRequest;
 import com.sis.dto.ReviewAttendanceDisputeRequest;
 import com.sis.entity.AttendanceDispute;
 import com.sis.entity.AuditLog;
+import com.sis.entity.NotificationCategory;
 import com.sis.service.NotificationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -120,6 +121,9 @@ public class AttendanceService {
         enrolledStudents.forEach(student -> {
             AttendanceApprovalRequest.StudentAttendanceMark mark = submitted.get(student.getId());
             Attendance attendance = existingAttendance.get(student.getId());
+            boolean newRecord = attendance == null;
+            boolean previouslyPresent = attendance != null && attendance.isPresent();
+            boolean previouslyLate = attendance != null && attendance.isLate();
             if (attendance == null) {
                 attendance = new Attendance(student, course, request.getDate(),
                         Boolean.TRUE.equals(mark.getPresent()));
@@ -127,10 +131,31 @@ public class AttendanceService {
             attendance.setPresent(Boolean.TRUE.equals(mark.getPresent()));
             attendance.setRemarks(mark.getRemarks());
             attendance.setLate(mark.isLate());
-            attendanceRepository.save(attendance);
+            Attendance saved = attendanceRepository.save(attendance);
+            boolean newlyAbsent = !saved.isPresent() && previouslyPresent;
+            boolean newlyLate = saved.isPresent() && saved.isLate() && !previouslyLate;
+            boolean newlyRecordedAbsent = newRecord && !saved.isPresent();
+            boolean newlyRecordedLate = newRecord && saved.isPresent() && saved.isLate();
+            if (newlyAbsent || newlyLate || newlyRecordedAbsent || newlyRecordedLate) {
+                notifyStudentOfAttendanceStatus(saved);
+            }
         });
         return attendanceRepository.findByCourseIdAndDateWithStudentAndCourse(course.getId(), request.getDate());
         }
+
+    private void notifyStudentOfAttendanceStatus(Attendance attendance) {
+        Student student = attendance.getStudent();
+        if (student == null || student.getUser() == null || student.getUser().getId() == null) {
+            throw new IllegalStateException("Student account is unavailable for attendance status notification.");
+        }
+        Course course = attendance.getCourse();
+        String status = attendance.isPresent() ? "late" : "absent";
+        notifications.create(student.getUser().getId(), "Attendance marked " + status,
+                "You were marked " + status + " for "
+                        + (course.getCourseCode() == null ? course.getName() : course.getCourseCode())
+                        + " on " + attendance.getDate() + ".",
+                NotificationCategory.ATTENDANCE);
+    }
 
     /**
      * Calculate attendance percentage for student in course.
@@ -218,7 +243,7 @@ public class AttendanceService {
     }
 
     public AttendanceDisputeDto reviewDispute(Long disputeId, ReviewAttendanceDisputeRequest request, String username) {
-        AttendanceDispute dispute = disputeRepository.findById(disputeId)
+        AttendanceDispute dispute = disputeRepository.findByIdForUpdate(disputeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Attendance dispute not found."));
         User reviewer = userRepository.findByUsernameNormalized(username)
                 .orElseThrow(() -> new ResourceNotFoundException("Reviewer not found."));
@@ -232,6 +257,12 @@ public class AttendanceService {
         }
         if (!Set.of("APPROVED", "REJECTED", "ESCALATED").contains(request.getStatus())) {
             throw new IllegalArgumentException("Invalid dispute status.");
+        }
+        if ("APPROVED".equals(dispute.getStatus()) || "REJECTED".equals(dispute.getStatus())) {
+            throw new IllegalStateException("Attendance dispute is already finalized.");
+        }
+        if (request.getStatus().equals(dispute.getStatus())) {
+            return toDisputeDto(dispute);
         }
         dispute.setStatus(request.getStatus());
         dispute.setResolution(request.getResolution());

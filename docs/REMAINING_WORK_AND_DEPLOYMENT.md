@@ -1,33 +1,149 @@
 # Remaining Work and Render Deployment Runbook
 
-Last reviewed: 8 November 2026
+Last reviewed: 11 November 2026
 
-This document consolidates the remaining release work and the steps for a
-controlled Render test deployment. It is not evidence that Render, an external
-database, email, or production operations have been provisioned. Use it with
+This document records current release status and remaining production-readiness
+work. Use it with
 the [Render deployment details](./RENDER_DEPLOYMENT.md), the
 [release checklist](./RELEASE_CHECKLIST.md), and the
 [integration inventory](./INTEGRATION_GAPS.md).
 The role-by-role cross-workflow findings are recorded in
 [ROLE_WORKFLOW_GAPS.md](./ROLE_WORKFLOW_GAPS.md).
 
-## Current release status (8 November 2026)
+## Verification update (11 November 2026)
 
-The login redirect fix is present in the local source: stale browser role hints
-no longer redirect the admin or student login pages, and the service-worker
-cache version is v23. Browser regression tests cover both roles. These local
-changes are not proof of a Render release. The current branch is
-`fix/admin-login-offline-styles`; its working tree contains uncommitted changes.
-The existing Render service was observed to run a prebuilt Docker Hub image,
-not directly build a Git branch. CI now publishes a tested image to the
-`latest` and commit-specific tags on `main` and the current fix branch, assuming
-the documented Docker Hub secrets exist. The current Render image source is
-pinned to a digest, so it must be changed to the mutable `latest` tag after the
-publish workflow passes. GitHub CI for this exact source state and public login
-acceptance are still pending. Do not assume a Git push will update the live
-service until the image setting is updated. Complete the image-release setup in
-[RENDER_DEPLOYMENT.md](./RENDER_DEPLOYMENT.md), then verify the deployed image
-digest and login flows using the [release checklist](./RELEASE_CHECKLIST.md).
+Docker Desktop is responsive (29.8.2). The isolated MySQL 8.0 Testcontainers
+check passed: Flyway applied all 53 migrations through V53 and the Spring
+application context passed Hibernate schema validation (1 test, 0 failures).
+
+An isolated TiDB v8.5.0 container was also started on loopback only, using a
+disposable schema. All 53 migrations applied, Hibernate schema validation
+passed, the portal started and `/actuator/health` returned `UP`. Four public
+site Playwright checks passed against this TiDB-backed application, and four
+source-backed grade-appeal/correction browser checks passed. The full isolated
+H2/sample-data browser suite passed 106 tests; the service-request test also
+verified owner assignment and status changes using accessible controls. The
+full Maven suite passed 417 tests (0 failures, errors, or skips), and the
+separate MySQL Testcontainers migration test passed (1 test); frontend
+validation passed for 31 JavaScript files and all 12 unit tests passed.
+
+These are local disposable-database results, not evidence that migrations
+have been applied to the configured TiDB pilot or any Render/institutional
+database. No existing or production-like database was accessed or changed.
+Deployment remains paused pending a reviewed backup and data-preserving-copy
+check against the intended database, provider and institutional acceptance,
+and the remaining production operations gates below.
+
+## Current release status (10 November 2026)
+
+The portal gateway release is live on the Render Free test service at
+[`https://makerere-institute-of-technology.onrender.com/`](https://makerere-institute-of-technology.onrender.com/).
+Commit `9c212d4` passed GitHub Actions backend, MySQL migration, frontend,
+browser, and Docker image gates, and Render deployed the published `latest`
+image. Readiness returned `UP`; `/`, `/index.html`, `/admin-login.html`,
+`/public/index.html`, `/home.html`, and `/css/home.css` returned HTTP 200.
+Student and employee login forms remain at their existing paths.
+
+The Free service uses ephemeral `UPLOAD_DIR=/tmp/uploads`; uploaded files can
+be lost on restart or redeploy. Confirm the configured database is isolated
+from live/institutional data before any further testing. This release is not
+production approval. Remaining production gates include institution-approved
+privacy/contact/admissions content; privileged-account MFA and recovery
+readiness; durable upload storage; tested, off-site database and upload backups
+with a restore rehearsal; verified mail and payment-provider behavior; and
+authenticated end-to-end acceptance against the intended database topology.
+See the [Render deployment details](./RENDER_DEPLOYMENT.md), [release
+checklist](./RELEASE_CHECKLIST.md), and
+[privacy, retention, and recovery gates](./PRIVACY_RETENTION_AND_RECOVERY.md).
+
+The documentation and sitemap corrections now in the working tree are newer
+than deployed commit `9c212d4`; they are not live until a later verified release.
+
+## Additional source work (10 November 2026)
+
+Academic result publication now sends an in-app grade notification to each
+current teacher assigned to a course in the published student snapshot.
+Notifications are grouped by teacher, include course codes but no marks, and
+are emitted only on the first publication of a result version. The focused
+`AcademicReportApprovalPersistenceTest` passes (2 tests, 0 failures). The
+teacher status feed is covered by that test and 5 `TeacherControllerFetchTest`
+tests, and a source-backed Playwright test verifies escaped output and status-
+only columns. Frontend validation passed for 31 JavaScript files, with 12 unit
+tests passing. The full Maven suite passed 403 tests with 0 failures, errors,
+or skips. This source change is local and is not included in deployed commit
+`9c212d4`.
+
+The teacher dashboard now has a status-only feed for pending, blocked,
+awaiting-publication, published, and invalidated result states. Blocked and
+invalidated states now create deduplicated teacher notifications. The local source
+now includes a student grade-appeal lifecycle with teacher consultation,
+administrator decisions, an independent correction-authorization boundary,
+and student/teacher/admin interfaces. Its backend, frontend, and source-backed
+browser checks pass; the update is not deployed.
+
+The earlier 10 November note that Docker and V52 validation were unavailable
+is superseded by the 11 November verification update above. The local
+disposable MySQL and TiDB databases both accepted all 53 migrations, including
+V51-V53, and passed Hibernate schema validation. Data-preserving-copy checks
+against the intended database and deployment remain open. Deployment is
+intentionally waiting until the remaining updates and release checks are
+complete. Provisional result visibility is now
+status-only before publication: students see course and workflow status, but
+not marks, grade values, or return reasons; the status endpoint returns no
+rows after publication. Grade import policy is confirmed as controlled
+administrator batch/exception entry while assessment-component grading remains
+canonical for routine work; see [role workflow gaps](./ROLE_WORKFLOW_GAPS.md)
+and [academic results workflow](./ACADEMIC_RESULTS_WORKFLOW.md).
+
+Legacy administrator grade imports now validate current-policy grades, supplied
+GPA values, enrollment, and existing student-course attempts before writing.
+They record the administrator as the submitting actor and keep imported records
+in the existing pending assessment/approval flow. The new policy keeps imports
+available for authorized batch or exceptional operations, not routine teacher
+marking; assigned teachers must record and submit component marks before normal
+review and approval. The old teacher direct
+create/update endpoints now return HTTP 410; the dashboard already uses the
+assessment-component APIs. The 22 focused import/admin/teacher controller tests
+and full Maven suite (403 tests, 0 failures, 0 errors, or skips) passed after
+this retirement. Follow-up focused coverage verifies the pending state,
+provenance, admin-only endpoint access, and the admin UI policy guidance; see
+[integration gaps](./INTEGRATION_GAPS.md).
+
+Student grade appeals now use Flyway V51 and allow one active appeal per
+published grade. Staff records teacher consultation (with or without a written
+response) before an authorized administrator decides. An approved appeal does
+not alter a grade or replace the separate correction workflow. Local focused
+backend tests, all 403 Maven tests, frontend validation/unit tests, and four
+source-backed Playwright role-flow tests pass. MySQL 8.0 migration validation
+passed; target TiDB validation, data-preserving-copy verification, and
+deployment remain open; see the
+[academic results workflow](./ACADEMIC_RESULTS_WORKFLOW.md) and
+[release checklist](./RELEASE_CHECKLIST.md).
+
+Student pre-publication grade status is implemented locally through a
+student-scoped status-only API and a separate Academics panel. Detailed grade
+results remain hidden until publication. Targeted backend, frontend, and
+isolated browser checks pass; target-database validation and deployment remain
+pending; see the [release checklist](./RELEASE_CHECKLIST.md).
+
+Teacher status notifications now cover blocked and invalidated results with
+deduplication per teacher, student, state, and result version. Focused backend
+tests, the complete Maven suite (406 tests, 0 failures), frontend build/unit
+tests (12 passing), and the focused teacher-status browser test passed. V52
+target-database validation, full CI, and deployment remain pending; deployment
+stays paused until the other release gates are complete.
+
+Students now receive configurable in-app attendance alerts when newly marked
+absent or late or when attendance transitions into those states. Teacher
+attendance remains authoritative without an added administrator approval
+step; the existing student dispute workflow is unchanged. Focused attendance
+and preference tests pass, as does frontend validation. Target-environment
+acceptance and deployment remain pending.
+
+## Historical release status (8 November 2026)
+
+The notes below record the state at that review and are superseded by the
+10 November release status above.
 
 ## Current status update (3 November 2026)
 

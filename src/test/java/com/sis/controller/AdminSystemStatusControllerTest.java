@@ -94,9 +94,9 @@ class AdminSystemStatusControllerTest {
         EmailService emailService = mock(EmailService.class);
         Instant sentAt = Instant.now();
         when(emailService.getLastSuccessfulTestEmailAt()).thenReturn(sentAt);
+        when(emailService.isDeliveryConfigured()).thenReturn(true);
         AdminSystemStatusController controller = new AdminSystemStatusController(
-                healthyJdbcTemplate(), new ObjectMapper(), true, "smtp.gmail.com",
-                "sender@example.com", 587, emailService, "", "", 36);
+                healthyJdbcTemplate(), new ObjectMapper(), true, emailService, "", "", 36);
 
         Map<?, ?> email = (Map<?, ?>) controller.status().get("email");
 
@@ -107,9 +107,10 @@ class AdminSystemStatusControllerTest {
 
     @Test
     void reportsConfiguredSmtpAsReadyBeforeSendingATestMessage() {
+        EmailService emailService = mock(EmailService.class);
+        when(emailService.isDeliveryConfigured()).thenReturn(true);
         AdminSystemStatusController controller = new AdminSystemStatusController(
-                healthyJdbcTemplate(), new ObjectMapper(), true, "smtp.gmail.com",
-                "sender@example.com", 587, mock(EmailService.class), "", "", 36);
+                healthyJdbcTemplate(), new ObjectMapper(), true, emailService, "", "", 36);
 
         Map<?, ?> email = (Map<?, ?>) controller.status().get("email");
 
@@ -118,12 +119,21 @@ class AdminSystemStatusControllerTest {
     }
 
     @Test
+    void reportsIncompleteEmailProviderWhenDeliveryIsNotConfigured() {
+        AdminSystemStatusController controller = new AdminSystemStatusController(
+                healthyJdbcTemplate(), new ObjectMapper(), true, mock(EmailService.class), "", "", 36);
+
+        Map<?, ?> email = (Map<?, ?>) controller.status().get("email");
+
+        assertThat(email.get("status")).isEqualTo("incomplete");
+    }
+
+    @Test
     void reportsConfiguredApiEmailProviderAsReady() {
         EmailService emailService = mock(EmailService.class);
         when(emailService.isDeliveryConfigured()).thenReturn(true);
         AdminSystemStatusController controller = new AdminSystemStatusController(
-                healthyJdbcTemplate(), new ObjectMapper(), true, "", "", 0,
-                emailService, "", "", 36);
+                healthyJdbcTemplate(), new ObjectMapper(), true, emailService, "", "", 36);
 
         Map<?, ?> email = (Map<?, ?>) controller.status().get("email");
 
@@ -136,7 +146,7 @@ class AdminSystemStatusControllerTest {
     }
 
     private AdminSystemStatusController controller(String statusFile, String uploadStatusFile, long maxAgeHours) {
-        return new AdminSystemStatusController(healthyJdbcTemplate(), new ObjectMapper(), false, "", "", 25,
+        return new AdminSystemStatusController(healthyJdbcTemplate(), new ObjectMapper(), false,
                 mock(EmailService.class), statusFile, uploadStatusFile, maxAgeHours);
     }
 

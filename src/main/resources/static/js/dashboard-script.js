@@ -100,7 +100,7 @@ async function loadUserData() {
     const profileNameEl = document.querySelector('.profile-name');
     if (profileNameEl) profileNameEl.textContent = profile.fullName || profile.username || 'Student';
     const profileEmailEl = document.querySelector('.profile-email');
-    if (profileEmailEl) profileEmailEl.textContent = profile.email || profile.username || '—';
+    if (profileEmailEl) profileEmailEl.textContent = profile.email || '—';
     const programValues = document.querySelectorAll('.program-info p');
     if (programValues[0]) programValues[0].innerHTML = `<strong>Reg No:</strong> ${escapeHtml(profile.registrationNumber || '—')}`;
     if (programValues[2]) programValues[2].innerHTML = `<strong>Enrollment:</strong> ${escapeHtml(profile.enrollmentDate || '—')}`;
@@ -212,9 +212,9 @@ async function loadNotifications() {
     }
 
     const enabledCategories = new Set(
-      ['ASSIGNMENT', 'GRADE', 'SYSTEM', 'PAYMENT'].filter((category, index) => {
+      ['ASSIGNMENT', 'GRADE', 'SYSTEM', 'PAYMENT', 'ATTENDANCE', 'ANNOUNCEMENT'].filter((category, index) => {
         const selected = Array.isArray(categorySettings) ? categorySettings[index] : undefined;
-        return typeof selected === 'boolean' ? selected : [true, true, false, true][index];
+        return typeof selected === 'boolean' ? selected : [true, true, false, true, true, true][index];
       })
     );
     const visibleNotifications = notifications.filter(item =>

@@ -1,5 +1,6 @@
 package com.sis.service;
 
+import com.sis.dto.AdminEmailRecipientDto;
 import com.sis.dto.BulkEmailRequest;
 import com.sis.dto.BulkEmailResponse;
 import com.sis.entity.Role;
@@ -29,12 +30,13 @@ class AdminEmailCampaignServiceTest {
     private final TeacherRepository teacherRepository = mock(TeacherRepository.class);
     private final EmailService emailService = mock(EmailService.class);
     private final AdminEmailCampaignService campaignService =
-            new AdminEmailCampaignService(userRepository, studentRepository, teacherRepository, emailService);
+            new AdminEmailCampaignService(userRepository,
+                    new ProfileContactEmailService(studentRepository, teacherRepository), emailService);
 
     @Test
     void recipientPickerIncludesOnlyActiveAccountsWithValidEmailAddresses() {
         User valid = user(1L, "admin", "admin@example.test", true);
-        User noEmail = user(2L, "no-email", null, true);
+        User noEmail = user(2L, "no-email", null, true, Role.STUDENT);
         User malformed = user(3L, "malformed", "not-an-email", true);
         User inactive = user(4L, "inactive", "inactive@example.test", false);
         when(userRepository.findByIsActiveTrueOrderByIdAsc())
@@ -46,9 +48,10 @@ class AdminEmailCampaignServiceTest {
         when(teacherRepository.findAllWithUserByUserIdIn(Set.of(1L, 2L, 3L, 4L)))
                 .thenReturn(List.of());
 
-        List<?> recipients = campaignService.listRecipients();
+        List<AdminEmailRecipientDto> recipients = campaignService.listRecipients();
 
         assertEquals(2, recipients.size());
+        assertEquals("profile@example.test", recipients.get(1).getEmail());
         verify(userRepository).findByIsActiveTrueOrderByIdAsc();
     }
 
@@ -67,6 +70,39 @@ class AdminEmailCampaignServiceTest {
         assertEquals(0, response.getFailedCount());
         verify(emailService).sendComposedEmail("first@example.test", "Portal update", "Hello users.");
         verify(emailService).sendComposedEmail("second@example.test", "Portal update", "Hello users.");
+    }
+
+    @Test
+    void usesStudentAndTeacherProfileEmailsForCampaignsInsteadOfAccountEmails() {
+        User studentUser = user(1L, "student-user", "student-account@example.test", true, Role.STUDENT);
+        User teacherUser = user(2L, "teacher-user", "teacher-account@example.test", true, Role.TEACHER);
+        Student student = new Student(studentUser, "Student", "Grade 10");
+        student.setEmail("student-contact@example.test");
+        Teacher teacher = new Teacher(teacherUser, "Teacher");
+        teacher.setEmail("teacher-contact@example.test");
+        when(studentRepository.findAllWithUserByUserIdIn(Set.of(1L, 2L))).thenReturn(List.of(student));
+        when(teacherRepository.findAllWithUserByUserIdIn(Set.of(1L, 2L))).thenReturn(List.of(teacher));
+        when(userRepository.findAllById(anyIterable())).thenReturn(List.of(studentUser, teacherUser));
+
+        BulkEmailResponse response = campaignService.sendCampaign(request(List.of(1L, 2L)));
+
+        assertEquals(2, response.getSentCount());
+        verify(emailService).sendComposedEmail("student-contact@example.test", "Portal update", "Hello users.");
+        verify(emailService).sendComposedEmail("teacher-contact@example.test", "Portal update", "Hello users.");
+    }
+
+    @Test
+    void doesNotUseAccountEmailAsContactAddressWhenStudentProfileEmailIsMissing() {
+        User studentUser = user(1L, "student-user", "student-account@example.test", true, Role.STUDENT);
+        when(studentRepository.findAllWithUserByUserIdIn(Set.of(1L))).thenReturn(List.of());
+        when(teacherRepository.findAllWithUserByUserIdIn(Set.of(1L))).thenReturn(List.of());
+        when(userRepository.findAllById(anyIterable())).thenReturn(List.of(studentUser));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> campaignService.sendCampaign(request(List.of(1L))));
+
+        verify(emailService, never()).sendComposedEmail(
+                "student-account@example.test", "Portal update", "Hello users.");
     }
 
     @Test
@@ -110,7 +146,11 @@ class AdminEmailCampaignServiceTest {
     }
 
     private User user(Long id, String username, String email, boolean active) {
-        User user = new User(username, "encoded", Role.ADMIN);
+        return user(id, username, email, active, Role.ADMIN);
+    }
+
+    private User user(Long id, String username, String email, boolean active, Role role) {
+        User user = new User(username, "encoded", role);
         user.setId(id);
         user.setEmail(email);
         user.setIsActive(active);

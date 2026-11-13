@@ -101,6 +101,12 @@ public class PaymentAttemptService {
         if (fee.isPaid()) {
             throw new IllegalStateException("Fee is already paid");
         }
+        Student student = fee.getStudent();
+        User user = student.getUser();
+        String email = student.getEmail();
+        if (!ProfileContactEmailService.isValidEmail(email)) {
+            throw new IllegalStateException("Add a valid email address to your student profile before paying online");
+        }
         LocalDateTime now = LocalDateTime.now();
         PaymentAttempt existing = attempts
                 .findFirstByFeeIdAndStudentIdAndPaymentChannelAndStatusOrderByCreatedAtDesc(
@@ -126,16 +132,6 @@ public class PaymentAttemptService {
         BigDecimal amount = fee.getAmount().subtract(allocated).subtract(pending).subtract(waived);
         if (amount.signum() <= 0) {
             throw new IllegalStateException("There is no outstanding balance available for Flutterwave checkout");
-        }
-
-        Student student = fee.getStudent();
-        User user = student.getUser();
-        String email = user.getEmail();
-        if (email == null || email.isBlank()) {
-            email = student.getEmail();
-        }
-        if (email == null || email.isBlank()) {
-            throw new IllegalStateException("Add a valid email address to your student profile before paying online");
         }
 
         PaymentAttempt attempt = new PaymentAttempt();
@@ -333,11 +329,8 @@ public class PaymentAttemptService {
 
     private FlutterwaveCheckoutDetails checkoutDetails(PaymentAttempt attempt, Fee fee, boolean existingCheckout) {
         Student student = fee.getStudent();
-        User user = student.getUser();
-        String email = user.getEmail() == null || user.getEmail().isBlank()
-                ? student.getEmail() : user.getEmail();
         return new FlutterwaveCheckoutDetails(attempt.getId(), fee.getId(), attempt.getProviderReference(),
-                attempt.getAmount(), email, student.getFullName(), student.getPhone(),
+                attempt.getAmount(), student.getEmail().trim(), student.getFullName(), student.getPhone(),
                 attempt.getCheckoutUrl(), attempt.getCheckoutExpiresAt(), existingCheckout);
     }
 

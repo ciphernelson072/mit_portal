@@ -563,6 +563,10 @@ public class SchoolService {
         return academicRecordService.getGradeDtosForStudent(studentId);
     }
 
+    public List<StudentGradeStatusDto> getGradeStatusesForStudent(Long studentId) {
+        return academicRecordService.getGradeStatusesForStudent(studentId);
+    }
+
     public List<AdminGradeDto> getAllGradeDtos() {
         return gradeRepository.findAllWithStudentUserAndCourse().stream()
                 .map(grade -> new AdminGradeDto(

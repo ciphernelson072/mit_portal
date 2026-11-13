@@ -406,7 +406,7 @@ test.describe('responsive portal surfaces', () => {
     const row = page.locator('.grades-table tbody tr').first();
     await expect(row.locator('td')).toHaveText([
       'CS401', 'Database Systems', 'Coursework: 36/40', 'Final paper: 48/60',
-      '—', '84.00', 'A', '4.00', 'APPROVED',
+      '—', '84.00', 'A', '4.00', 'APPROVED', 'Request review',
     ]);
     await expect(page.locator('.gpa-card .gpa-value').nth(1)).toHaveText('3.60');
     await expect(page.locator('.gpa-card .gpa-value').nth(2)).toHaveText('5');
@@ -1023,6 +1023,9 @@ test.describe('responsive portal surfaces', () => {
 
     await page.goto('/admin-dashboard.html');
     await page.evaluate(() => switchModule('grades'));
+    await expect(page.locator('#gradesModule .module-help')).toContainText(
+      'authorized batch or exceptional grade entry, not routine teacher marking',
+    );
     const gradeRows = page.locator('#gradesModule table tbody tr');
     await expect(gradeRows).toHaveCount(2);
 
@@ -1333,6 +1336,8 @@ test('profile preferences load, save independently, and preserve other settings'
   await expect(privacy.nth(1)).toBeChecked();
   await expect(notifications.nth(0)).not.toBeChecked();
   await expect(notifications.nth(2)).toBeChecked();
+  await expect(notifications.nth(4)).toBeChecked();
+  await expect(notifications.nth(5)).toBeChecked();
   await expect(quickLinks.nth(0)).not.toBeChecked();
   await expect(quickLinks.nth(3)).toBeChecked();
   await expect(page.locator('#preferencesTab input[name="theme"][value="dark"]')).toBeChecked();
@@ -1349,19 +1354,73 @@ test('profile preferences load, save independently, and preserve other settings'
 
   await page.getByRole('button', { name: /Preferences/ }).click();
   await notifications.nth(0).check();
+  await notifications.nth(5).uncheck();
   await page.locator('#preferencesTab input[name="theme"][value="system"]').check();
   const preferencesSaveDialog = page.waitForEvent('dialog');
   const preferencesSaveClick = page.getByRole('button', { name: /Save Preferences/ }).click();
   await (await preferencesSaveDialog).accept();
   await preferencesSaveClick;
   await expect.poll(() => JSON.parse(storedPreferences.settingsJson).notifications[0]).toBe(true);
+  expect(JSON.parse(storedPreferences.settingsJson).notifications).toEqual(
+    [true, true, true, false, true, false]
+  );
   expect(JSON.parse(storedPreferences.settingsJson).privacy[0]).toBe(true);
   expect(storedPreferences.theme).toBe('system');
 
   await page.reload();
   await expect(privacy.nth(0)).toBeChecked();
   await expect(notifications.nth(0)).toBeChecked();
+  await expect(notifications.nth(5)).not.toBeChecked();
   await expect(page.locator('#preferencesTab input[name="theme"][value="system"]')).toBeChecked();
+});
+
+test('profile displays the contact email rather than an email-shaped username', async ({ page }) => {
+  await login(page, 'student1', 'student123');
+  await page.route('**/api/**', async route => {
+    const url = new URL(route.request().url());
+    if (url.pathname === '/api/student/profile') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+        id: 7,
+        username: 'student@example.test',
+        fullName: 'Test Student',
+        email: 'contact@example.test',
+      }) });
+    } else if (url.pathname === '/api/portal/preferences') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+        language: 'English', theme: 'light', settingsJson: '{}',
+      }) });
+    } else if (url.pathname === '/api/auth/mfa/status') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: 'false' });
+    } else {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+    }
+  });
+
+  await page.goto('/profile.html');
+
+  await expect(page.locator('#personalTab .form-grid input[type="email"]'))
+    .toHaveValue('contact@example.test');
+  await expect(page.locator('#personalTab .contact-item').first()).toContainText('contact@example.test');
+  await expect(page.locator('#personalTab')).toContainText(
+    'separate from the account email used for sign-in and password recovery'
+  );
+});
+
+test('student dashboard does not display the account username as a missing contact email', async ({ page }) => {
+  await login(page, 'student1', 'student123');
+  await page.route('**/api/student/profile', route => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      id: 7,
+      username: 'student@example.test',
+      fullName: 'Test Student',
+    }),
+  }));
+
+  await page.goto('/dashboard.html');
+
+  await expect(page.locator('.profile-email')).toHaveText('—');
 });
 
 test('profile does not advertise MFA when the deployment has MFA disabled', async ({ page }) => {
@@ -1421,6 +1480,7 @@ test('dashboard renders selected quick links and supports deep links into module
 
 test('dashboard notification preferences filter the preview by explicit category', async ({ page }) => {
   await login(page, 'student1', 'student123');
+  let settingsJson = JSON.stringify({ notifications: [false, true, false, false] });
   await page.route('**/api/**', async route => {
     const url = new URL(route.request().url());
     if (url.pathname === '/api/portal/preferences') {
@@ -1428,7 +1488,7 @@ test('dashboard notification preferences filter the preview by explicit category
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          settingsJson: JSON.stringify({ notifications: [false, true, false, false] }),
+          settingsJson,
         }),
       });
       return;
@@ -1442,6 +1502,8 @@ test('dashboard notification preferences filter the preview by explicit category
           { id: 2, title: 'Grade posted', message: 'A new grade is available', category: 'GRADE', read: false },
           { id: 3, title: 'System update', message: 'Scheduled maintenance', category: 'SYSTEM', read: false },
           { id: 4, title: 'Payment due', message: 'A payment is due', category: 'PAYMENT', read: false },
+          { id: 5, title: 'Attendance marked absent', message: 'You were marked absent for ATT101', category: 'ATTENDANCE', read: false },
+          { id: 6, title: 'Portal update', message: 'Updated information', category: 'ANNOUNCEMENT', read: false },
         ]),
       });
       return;
@@ -1451,12 +1513,20 @@ test('dashboard notification preferences filter the preview by explicit category
 
   await page.goto('/dashboard.html');
   const list = page.locator('.notification-list');
-  await expect(list.locator('.notification-item')).toHaveCount(1);
+  await expect(list.locator('.notification-item')).toHaveCount(3);
   await expect(list).toContainText('Grade posted');
+  await expect(list).toContainText('Attendance marked absent');
+  await expect(list).toContainText('Portal update');
   await expect(list).not.toContainText('Assignment due');
   await expect(list).not.toContainText('System update');
   await expect(list).not.toContainText('Payment due');
-  await expect(page.locator('#notificationBadge')).toHaveText('1');
+  await expect(page.locator('#notificationBadge')).toHaveText('3');
+
+  settingsJson = JSON.stringify({ notifications: [false, true, false, false, true, false] });
+  await page.goto('/dashboard.html');
+  await expect(page.locator('.notification-list .notification-item')).toHaveCount(2);
+  await expect(page.locator('.notification-list')).not.toContainText('Portal update');
+  await expect(page.locator('#notificationBadge')).toHaveText('2');
 });
 
 test('admissions explains missing programme/year setup and blocks submission', async ({ page }) => {

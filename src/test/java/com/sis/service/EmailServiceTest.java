@@ -45,6 +45,7 @@ class EmailServiceTest {
         ReflectionTestUtils.setField(emailService, "fromEmail", "portal@example.test");
         ReflectionTestUtils.setField(emailService, "mailHost", "smtp.example.test");
         ReflectionTestUtils.setField(emailService, "mailPort", 587);
+        ReflectionTestUtils.setField(emailService, "mailPassword", "test-smtp-password");
         ReflectionTestUtils.setField(emailService, "mailEnabled", true);
         ReflectionTestUtils.setField(emailService, "mailProvider", "smtp");
         ReflectionTestUtils.setField(emailService, "frontendUrl", FRONTEND_URL);
@@ -92,6 +93,21 @@ class EmailServiceTest {
     }
 
     @Test
+    void hiringEmailUsesCurrentPortalRoutesAndLabelsPasswordAsOneTime() throws Exception {
+        emailService.sendHiringNotification(
+                "teacher@example.test", "Teacher Name", "teacher.user", "one-time-secret");
+
+        String body = emailBody();
+        assertTrue(body.contains(FRONTEND_URL + "/portal-login.html"));
+        assertTrue(body.contains(FRONTEND_URL + "/teacher-dashboard.html"));
+        assertTrue(body.contains("One-time temporary password: one-time-secret"));
+        assertTrue(body.contains("require you to choose a new password before you can access teacher services"));
+        assertFalse(body.contains("/templates/"));
+        assertFalse(body.contains(FRONTEND_URL + "/login"));
+        verify(mailSender).send(message);
+    }
+
+    @Test
     void emailVerificationLinkUsesStaticPageAndUrlFragment() throws Exception {
         emailService.sendEmailVerification("student@example.test", "verification-secret", "student");
 
@@ -118,6 +134,30 @@ class EmailServiceTest {
                 () -> emailService.sendTestEmail("admin@example.test"));
 
         assertTrue(emailService.getLastSuccessfulTestEmailAt() == null);
+    }
+
+    @Test
+    void smtpIsNotConfiguredWithoutAuthenticationPassword() {
+        ReflectionTestUtils.setField(emailService, "mailPassword", "");
+
+        assertFalse(emailService.isDeliveryConfigured());
+    }
+
+    @Test
+    void resendIsNotConfiguredWithAnInvalidSenderAddress() {
+        configureResend(emailService);
+        ReflectionTestUtils.setField(emailService, "mailApiFromEmail", "not-an-email");
+
+        assertFalse(emailService.isDeliveryConfigured());
+    }
+
+    @Test
+    void invalidRecipientIsRejectedBeforeProviderCall() {
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class,
+                () -> emailService.sendTestEmail("not-an-email"));
+
+        org.mockito.Mockito.verify(mailSender, org.mockito.Mockito.never()).send(message);
     }
 
     @Test

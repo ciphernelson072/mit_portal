@@ -2,11 +2,14 @@ package com.sis.entity;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "service_requests", indexes = {
         @Index(name = "idx_service_request_student", columnList = "student_id"),
-        @Index(name = "idx_service_request_status", columnList = "status")
+        @Index(name = "idx_service_request_status", columnList = "status"),
+        @Index(name = "idx_service_request_assigned_admin", columnList = "assigned_admin_id")
 })
 public class ServiceRequest {
 
@@ -37,8 +40,22 @@ public class ServiceRequest {
     @Column(nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt = LocalDateTime.now();
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "assigned_admin_id")
+    private User assignedAdmin;
+
+    @Column(name = "assigned_at")
+    private LocalDateTime assignedAt;
+
     @Column(length = 50)
     private String requesterRole = "STUDENT";
+
+    @OneToMany(mappedBy = "serviceRequest", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("createdAt ASC")
+    private List<ServiceRequestEvent> events = new ArrayList<>();
 
     public ServiceRequest() {}
 
@@ -59,7 +76,18 @@ public class ServiceRequest {
     public String getDetails() { return details; }
     public String getStatus() { return status; }
     public LocalDateTime getCreatedAt() { return createdAt; }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public User getAssignedAdmin() { return assignedAdmin; }
+    public LocalDateTime getAssignedAt() { return assignedAt; }
     public String getRequesterRole() { return requesterRole; }
+    public List<ServiceRequestEvent> getEvents() { return events; }
+    public void addEvent(ServiceRequestEvent event) {
+        events.add(event);
+        event.setServiceRequest(this);
+    }
     public void setStatus(String status) { this.status = status; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+    public void setAssignedAdmin(User assignedAdmin) { this.assignedAdmin = assignedAdmin; }
+    public void setAssignedAt(LocalDateTime assignedAt) { this.assignedAt = assignedAt; }
     public void setRequesterRole(String requesterRole) { this.requesterRole = requesterRole; }
 }

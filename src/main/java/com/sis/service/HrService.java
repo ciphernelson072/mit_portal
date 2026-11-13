@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @Transactional
@@ -21,12 +22,18 @@ public class HrService {
     private final LeaveRequestRepository leaves;
     private final UserRepository users;
     private final AuditLogRepository auditLogs;
+    private final NotificationService notifications;
+    private final NotificationRecipientService notificationRecipients;
 
-    public HrService(StaffRepository staff, LeaveRequestRepository leaves, UserRepository users, AuditLogRepository auditLogs) {
+    public HrService(StaffRepository staff, LeaveRequestRepository leaves, UserRepository users,
+                     AuditLogRepository auditLogs, NotificationService notifications,
+                     NotificationRecipientService notificationRecipients) {
         this.staff = staff;
         this.leaves = leaves;
         this.users = users;
         this.auditLogs = auditLogs;
+        this.notifications = notifications;
+        this.notificationRecipients = notificationRecipients;
     }
 
     public Staff createStaff(CreateStaffRequest request) {
@@ -71,8 +78,14 @@ public class HrService {
         leave.setEndDate(request.getEndDate());
         leave.setReason(request.getReason());
         LeaveRequest saved = leaves.save(leave);
-        return leaves.findByIdWithStaffUser(saved.getId())
+        LeaveRequest reloaded = leaves.findByIdWithStaffUser(saved.getId())
                 .orElseThrow(() -> new IllegalStateException("Saved leave request could not be reloaded"));
+        notificationRecipients.findActiveUsersWithPermission("HR_MANAGE", Role.ADMIN).stream()
+                .filter(admin -> !Objects.equals(admin.getId(), employee.getUser().getId()))
+                .forEach(admin -> notifications.create(admin.getId(), "Staff leave request submitted",
+                        employee.getFullName() + " requested leave from " + saved.getStartDate()
+                                + " through " + saved.getEndDate() + "."));
+        return reloaded;
     }
 
     @Transactional(readOnly = true)
@@ -100,6 +113,9 @@ public class HrService {
                 .getId();
         auditLogs.save(new AuditLog(userId, "HR_LEAVE_REVIEWED",
                 "Leave request #" + saved.getId() + " reviewed by " + reviewer + " status " + saved.getStatus()));
+        notifications.create(saved.getStaff().getUser().getId(), "Staff leave request updated",
+                "Your leave request from " + saved.getStartDate() + " through " + saved.getEndDate()
+                        + " was " + saved.getStatus().name().toLowerCase() + ".");
         return saved;
     }
 }

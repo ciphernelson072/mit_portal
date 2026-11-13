@@ -20,7 +20,7 @@ import com.sis.service.GradeApprovalService;
 import com.sis.service.NotificationService;
 import com.sis.service.StudentService;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -36,8 +36,9 @@ import static org.mockito.Mockito.when;
 class GradeApprovalEmailPreferenceTest {
 
     @ParameterizedTest
-    @ValueSource(booleans = {false, true})
-    void gradeAndCgpaEmailsFollowSavedEmailOptIn(boolean emailEnabled) {
+    @CsvSource({"false,student@example.com", "true,student@example.com", "true,not-an-email", "true,''"})
+    void gradeAndCgpaEmailsRequireOptInAndValidContactEmail(
+            boolean emailEnabled, String contactEmail) {
         GradeRepository grades = mock(GradeRepository.class);
         StudentRepository students = mock(StudentRepository.class);
         StudentService studentService = mock(StudentService.class);
@@ -54,10 +55,11 @@ class GradeApprovalEmailPreferenceTest {
 
         User studentUser = new User();
         studentUser.setId(42L);
+        studentUser.setEmail("account@example.test");
         Student student = new Student();
         student.setId(14L);
         student.setUser(studentUser);
-        student.setEmail("student@example.com");
+        student.setEmail(contactEmail);
         student.setFullName("Test Student");
         student.setCgpa(new BigDecimal("4.50"));
 
@@ -103,7 +105,7 @@ class GradeApprovalEmailPreferenceTest {
         service.acknowledgeAssessmentReview(52L, "admin");
         service.approve(52L, "admin");
 
-        if (emailEnabled) {
+        if (emailEnabled && "student@example.com".equals(contactEmail)) {
             verify(emailService).sendGradeNotification(
                     "student@example.com", "Test Student", "Database Systems", "A");
             verify(emailService).sendCGPAUpdateNotification(

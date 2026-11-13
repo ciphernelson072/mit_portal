@@ -25,6 +25,8 @@ class PreferencePolicyServiceTest {
         assertTrue(service.isNotificationCategoryVisible(9L, NotificationCategory.GRADE));
         assertFalse(service.isNotificationCategoryVisible(9L, NotificationCategory.SYSTEM));
         assertTrue(service.isNotificationCategoryVisible(9L, NotificationCategory.PAYMENT));
+        assertTrue(service.isNotificationCategoryVisible(9L, NotificationCategory.ATTENDANCE));
+        assertTrue(service.isNotificationCategoryVisible(9L, NotificationCategory.ANNOUNCEMENT));
     }
 
     @Test
@@ -41,6 +43,23 @@ class PreferencePolicyServiceTest {
         assertTrue(service.isNotificationCategoryVisible(11L, NotificationCategory.GRADE));
         assertTrue(service.isNotificationCategoryVisible(11L, NotificationCategory.SYSTEM));
         assertFalse(service.isNotificationCategoryVisible(11L, NotificationCategory.PAYMENT));
+        assertTrue(service.isNotificationCategoryVisible(11L, NotificationCategory.ATTENDANCE));
+        assertTrue(service.isNotificationCategoryVisible(11L, NotificationCategory.ANNOUNCEMENT));
+    }
+
+    @Test
+    void respectsExplicitAnnouncementVisibilityWhileDefaultingOlderPreferenceArraysToVisible() {
+        UserPreferenceRepository preferences = mock(UserPreferenceRepository.class);
+        PreferencePolicyService service = new PreferencePolicyService(preferences);
+
+        UserPreference preference = new UserPreference();
+        preference.setUserId(13L);
+        preference.setSettingsJson("{\"notifications\":[true,true,false,true,true]}");
+        when(preferences.findByUserId(13L)).thenReturn(Optional.of(preference));
+        assertTrue(service.isNotificationCategoryVisible(13L, NotificationCategory.ANNOUNCEMENT));
+
+        preference.setSettingsJson("{\"notifications\":[true,true,false,true,true,false]}");
+        assertFalse(service.isNotificationCategoryVisible(13L, NotificationCategory.ANNOUNCEMENT));
     }
 
     @Test

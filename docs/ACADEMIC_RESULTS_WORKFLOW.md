@@ -52,17 +52,32 @@ correction-to-republication acceptance remains separate from source and migratio
    administrator grade approval; administrators must then approve and publish
    the resulting semester version again.
 
-Students see publication status and, where available, course names with no
-result submission before release. Student grade APIs, transcripts, CGPA,
+Before publication, students can see the course and workflow status for
+submitted grades (awaiting review, approved but awaiting publication, or
+returned for revision). This status-only view omits marks, grade values, GPA,
+and return reasons. The endpoint returns no workflow rows after publication;
+the existing published grade/report behavior remains unchanged. Students also
+see course names with no result submission where available. Student grade APIs, transcripts, CGPA,
 earned credits, academic standing, award classification, and PDF downloads
 remain masked or denied until the current approved results version is
 published. Semester GPA, earned credits, and academic standing are calculated
 server-side; the browser renders those official values instead of deriving
 them.
 
+The teacher result-status feed reports blocked and invalidated states without
+marks or return reasons. When the feed observes either state, it creates one
+grade-category notification per assigned teacher, student, status, and result
+version; repeated feed reads do not duplicate notifications. The grade-category
+visibility preference controls whether the notification appears in a teacher's
+in-app notification list.
+
 Academic report endpoints:
 
 - `GET /api/reports/academic/{studentId}/status` — workflow status.
+- `GET /api/student/grade-status` — authenticated student's pre-publication
+  course and workflow status only; empty after official publication.
+- `GET /api/student/grades` — published grade details; empty until official
+  publication.
 - `POST /api/admin/grades/{gradeId}/review` — validate and record administrator
   acknowledgment of the exact pending assessment/result state.
 - `POST /api/reports/academic/{studentId}/approve` — approve a results version.
@@ -163,6 +178,22 @@ authorized correction/revalidation. Existing approval/publication snapshots
 must be reviewed and republished after migration where the results version
 changes.
 
+## Student grade appeals
+
+Migration V51 adds an audited appeal record linked to a grade. A student can
+appeal only their own approved grade while the result is in the currently
+published official report. Only one active appeal is allowed per grade; a new
+appeal may be submitted after the previous one is decided.
+
+The staff workflow requests consultation with the assigned teacher. The teacher
+may submit a written response, or staff may record that consultation occurred
+without one. An administrator with grade-approval permission records the final
+decision only after consultation is recorded. Students and staff can follow
+appeal status; the teacher queue is scoped to assigned courses. Appeal
+approval records an outcome for review and does not change marks or authorize
+a correction. Any grade change must still follow the separate administrator
+correction-authorization, teacher update, reapproval, and republication path.
+
 The specified policy does not define which retake attempt contributes to
 CGPA, credit replacement/earning on a retake, attempt limits, or an official
 CGPA rounding rule. The existing implementation currently reports a
@@ -170,14 +201,18 @@ credit-weighted CGPA rounded to two decimal places using `HALF_UP`; this
 implementation detail is not represented as an institution-approved rounding
 rule. Retake-attempt treatment remains blocked rather than guessed: approved
 retake attempts continue to block CGPA finalization until the institute defines
-the attempt-treatment rule. Correction, appeal, and result-reopening procedure
-also requires institutional sign-off.
+the attempt-treatment rule. Correction and result-reopening procedure, along
+with appeal deadlines and escalation, still require institutional sign-off.
+The appeal implementation is local source only until target-database
+validation and release gates pass.
 
 ## Required validation before release
 
-- Apply V41-V44 to a fresh disposable database for each supported database
-  engine; verify Hibernate schema validation and data-preserving migration of
-  an existing-schema copy before any production migration.
+- V41-V44 and V51 were applied with Hibernate schema validation on disposable
+  MySQL 8.0 and TiDB v8.5.0 on 11 November 2026; the complete current set of
+  53 migrations also passed on both disposable engines. Verify data-preserving
+  migration of a reviewed intended-database copy before any production
+  migration.
 - Test teacher ownership, administrator-only configuration/approval/publication,
   missing marks, zero marks, duplicate components, invalid weights, out-of-range
   scores, retake history, changed results after approval, and unpublished
@@ -185,6 +220,9 @@ also requires institutional sign-off.
 - Verify V44 on the target database, exercise the admin correction control and
   assigned-teacher update/submission, confirm the old report is locked, and
   approve and republish the resulting version before official use.
+- Verify V51 against a reviewed TiDB data-preserving copy, then exercise
+  student submission, teacher consultation, administrator decision, and the
+  separate grade correction workflow against the intended database topology.
 - Configure and verify each programme's award type and each course's core
   designation. Confirm the remaining retake-attempt treatment before accepting
   CGPA/credits involving retakes as final.

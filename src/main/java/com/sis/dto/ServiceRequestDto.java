@@ -14,6 +14,10 @@ public class ServiceRequestDto {
     private String requesterUsername;
     private String requesterName;
     private String requesterRole;
+    private LocalDateTime updatedAt;
+    private Long assigneeId;
+    private String assigneeUsername;
+    private LocalDateTime assignedAt;
 
     public ServiceRequestDto() {}
 
@@ -53,4 +57,12 @@ public class ServiceRequestDto {
     public String getRequesterUsername() { return requesterUsername; }
     public String getRequesterName() { return requesterName; }
     public String getRequesterRole() { return requesterRole; }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public Long getAssigneeId() { return assigneeId; }
+    public String getAssigneeUsername() { return assigneeUsername; }
+    public LocalDateTime getAssignedAt() { return assignedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+    public void setAssigneeId(Long assigneeId) { this.assigneeId = assigneeId; }
+    public void setAssigneeUsername(String assigneeUsername) { this.assigneeUsername = assigneeUsername; }
+    public void setAssignedAt(LocalDateTime assignedAt) { this.assignedAt = assignedAt; }
 }

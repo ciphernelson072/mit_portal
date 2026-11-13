@@ -28,6 +28,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findByIsActiveTrueOrderByIdAsc();
     List<User> findByIsActiveFalseOrderByIdAsc();
     List<User> findByRoleAndIsActiveTrue(Role role);
+    List<User> findByRoleAndIsActiveTrueOrderByIdAsc(Role role);
     @Query("select user.id from User user where user.isActive = true and user.id <> :excludedUserId order by user.id")
     List<Long> findActiveUserIdsExcluding(@Param("excludedUserId") Long excludedUserId);
     long countByIsActiveTrue();

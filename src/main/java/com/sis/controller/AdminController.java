@@ -253,13 +253,26 @@ public class AdminController {
     @PostMapping("/teachers/hire")
     public ResponseEntity<AdminTeacherDto> hireTeacher(@Valid @RequestBody CreateTeacherRequest request) {
         AdminTeacherDto hired = adminService.hireTeacher(request);
-        if (request.getEmail() != null && !request.getEmail().isBlank()
-                && emailService.isDeliveryConfigured()) {
+        String accountEmail = hired.getEmail();
+        if (accountEmail == null || accountEmail.isBlank()) {
+            hired.setEmailSent(false);
+            hired.setEmailDeliveryMessage(
+                    "Teacher account created, but no email address was provided. Arrange sign-in details using the approved secure handoff.");
+        } else if (!emailService.isDeliveryConfigured()) {
+            hired.setEmailSent(false);
+            hired.setEmailDeliveryMessage(
+                    "Teacher account created, but email delivery is not configured. Arrange sign-in details using the approved secure handoff.");
+        } else {
             try {
-                emailService.sendHiringNotification(request.getEmail(), request.getFullName(),
-                        request.getUsername(), request.getPassword());
+                emailService.sendHiringNotification(accountEmail, request.getFullName(),
+                        hired.getUsername(), request.getPassword());
+                hired.setEmailSent(true);
+                hired.setEmailDeliveryMessage("One-time sign-in details sent to the teacher's email.");
             } catch (IllegalStateException exception) {
                 logger.warning("Hiring sign-in email could not be delivered for " + request.getUsername());
+                hired.setEmailSent(false);
+                hired.setEmailDeliveryMessage(
+                        "Teacher account created, but email delivery failed. Arrange sign-in details using the approved secure handoff; do not submit the hire request again.");
             }
         }
         return ResponseEntity.status(HttpStatus.CREATED).body(hired);
@@ -335,38 +348,9 @@ public class AdminController {
 
     @PostMapping("/grades/import")
     public ResponseEntity<AdminGradeDto> importGrade(@Valid @RequestBody AdminGradeImportRequest request) {
-        Student student = schoolService.getStudentById(request.getStudentId())
-            .orElseThrow(() -> new ResourceNotFoundException("Student not found"));
-        Course course = schoolService.getCourseById(request.getCourseId())
-            .orElseThrow(() -> new ResourceNotFoundException("Course not found"));
-        if (!schoolService.studentEnrolledInCourse(student.getId(), course.getId())) {
-            throw new IllegalArgumentException("Student is not enrolled in the grade course.");
-        }
-        Grade grade = schoolService.saveGrade(student, course, request.getGradeValue(), request.getRemarks());
-        if (request.getGpaScore() != null && request.getGpaScore().compareTo(grade.getGpaScore()) != 0) {
-            throw new IllegalArgumentException("GPA score is calculated from the institutional grade mapping.");
-        }
-        auditLogRepository.save(new AuditLog(currentAdminId(), "GRADE_IMPORTED",
-                "Grade " + grade.getId() + " imported for student " + student.getId()
-                        + " in course " + course.getId()));
-        return ResponseEntity.status(HttpStatus.CREATED).body(new AdminGradeDto(
-                grade.getId(),
-                student.getId(),
-                student.getFullName(),
-                student.getUser().getUsername(),
-                course.getId(),
-                course.getName(),
-                grade.getGradeValue(),
-                grade.getGpaScore(),
-                grade.getRemarks(),
-                grade.getStatus() != null ? grade.getStatus().name() : "PENDING",
-                grade.getSubmittedBy(),
-                grade.getApprovedBy(),
-                grade.getRejectedBy(),
-                grade.getRejectionReason(),
-                grade.getTotalMark(),
-                grade.getRetakeRequired(),
-                grade.getGradingPolicyVersion()));
+        String importedBy = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(gradeImportService.importGrade(request, importedBy));
     }
 
     @PostMapping("/grades/import-file")
