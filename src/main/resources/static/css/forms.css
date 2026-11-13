@@ -1,0 +1,305 @@
+/* ============================================================================
+   Forms & Input Styling
+   Comprehensive styling for form elements, inputs, and validation states
+   ============================================================================ */
+
+/* Form Container */
+.form-container {
+    max-width: 100%;
+    margin: 0;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group:last-child {
+    margin-bottom: 0;
+}
+
+/* Labels */
+.form-group label {
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #2c3e50;
+    font-size: 0.95rem;
+}
+
+.form-group label .required {
+    color: #e74c3c;
+    margin-left: 0.25rem;
+}
+
+/* Input Fields */
+.form-group input,
+.form-group textarea,
+.form-group select {
+    padding: 0.75rem 1rem;
+    border: 1px solid #bdc3c7;
+    border-radius: 4px;
+    font-size: 1rem;
+    font-family: inherit;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    background-color: #fff;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+/* Textarea */
+.form-group textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+/* Select */
+.form-group select {
+    cursor: pointer;
+}
+
+/* Input Validation States */
+.form-group input.error,
+.form-group textarea.error,
+.form-group select.error {
+    border-color: #e74c3c;
+    box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.1);
+}
+
+.form-group input.success,
+.form-group textarea.success,
+.form-group select.success {
+    border-color: #27ae60;
+    box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.1);
+}
+
+/* Error Message */
+.form-error {
+    color: #e74c3c;
+    font-size: 0.85rem;
+    margin-top: 0.25rem;
+    display: none;
+}
+
+.form-group input.error ~ .form-error,
+.form-group textarea.error ~ .form-error,
+.form-group select.error ~ .form-error {
+    display: block;
+}
+
+/* Success Message */
+.form-success {
+    color: #27ae60;
+    font-size: 0.85rem;
+    margin-top: 0.25rem;
+    display: none;
+}
+
+.form-group input.success ~ .form-success {
+    display: block;
+}
+
+/* Placeholder styling */
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+    color: #95a5a6;
+}
+
+/* Disabled state */
+.form-group input:disabled,
+.form-group textarea:disabled,
+.form-group select:disabled {
+    background-color: #ecf0f1;
+    color: #7f8c8d;
+    cursor: not-allowed;
+    border-color: #bdc3c7;
+}
+
+/* Form Group with Icon */
+.form-group.form-group-icon {
+    position: relative;
+}
+
+.form-group-icon input {
+    padding-left: 2.5rem;
+}
+
+.form-group-icon .form-icon {
+    position: absolute;
+    left: 0.75rem;
+    top: 2.5rem;
+    color: #7f8c8d;
+    pointer-events: none;
+}
+
+/* Checkbox and Radio */
+.form-group input[type="checkbox"],
+.form-group input[type="radio"] {
+    width: auto;
+    margin-right: 0.5rem;
+    cursor: pointer;
+}
+
+.form-group input[type="checkbox"] + label,
+.form-group input[type="radio"] + label {
+    display: inline;
+    margin: 0;
+    margin-left: 0.5rem;
+    font-weight: normal;
+}
+
+/* File Input */
+.form-group input[type="file"] {
+    padding: 0.5rem;
+    border: 2px dashed #bdc3c7;
+}
+
+.form-group input[type="file"]:focus {
+    border-color: #3498db;
+}
+
+/* Form Row (Side-by-side inputs) */
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+}
+
+.form-row .form-group {
+    margin-bottom: 0;
+}
+
+/* Badge Styling */
+.badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.badge-admin {
+    background-color: #e74c3c;
+    color: white;
+}
+
+.badge-teacher {
+    background-color: #3498db;
+    color: white;
+}
+
+.badge-student {
+    background-color: #27ae60;
+    color: white;
+}
+
+/* Form Section Titles */
+.form-section-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin: 1.5rem 0 1rem 0;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #ecf0f1;
+}
+
+/* Required Field Indicator */
+.form-required::after {
+    content: ' *';
+    color: #e74c3c;
+}
+
+/* Loading State */
+.form-loading {
+    pointer-events: none;
+    opacity: 0.6;
+}
+
+.form-loading input,
+.form-loading textarea,
+.form-loading select,
+.form-loading button {
+    opacity: 0.5;
+}
+
+/* Responsive Forms */
+@media (max-width: 768px) {
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .form-group {
+        margin-bottom: 1rem;
+    }
+
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+        font-size: 16px; /* Prevents auto-zoom on iOS */
+    }
+}
+
+/* Custom Select Dropdown */
+select {
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1.5em 1.5em;
+    padding-right: 2.5rem;
+}
+
+select::-ms-expand {
+    display: none;
+}
+
+/* Checkbox Custom Styling */
+input[type="checkbox"] + label::before {
+    content: '';
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    border: 2px solid #bdc3c7;
+    border-radius: 3px;
+    margin-right: 0.5rem;
+    vertical-align: middle;
+    background-color: white;
+    transition: all 0.2s ease;
+}
+
+input[type="checkbox"]:checked + label::before {
+    background-color: #3498db;
+    border-color: #3498db;
+    content: '✓';
+    color: white;
+    text-align: center;
+    line-height: 16px;
+    font-size: 12px;
+}
+
+/* Form Help Text */
+.form-help {
+    font-size: 0.85rem;
+    color: #7f8c8d;
+    margin-top: 0.25rem;
+}
+
+/* Form Submit Button Container */
+.form-buttons {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+    margin-top: 2rem;
+}
+
+.form-buttons button {
+    margin: 0;
+}

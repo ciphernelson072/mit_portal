@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - SIS</title>
+    <!-- Link to external CSS files -->
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/admin-dashboard.css">
+    <link rel="stylesheet" href="/css/forms.css">
+</head>
+<body>
+    <!-- Main Navigation Bar -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <div class="navbar-brand">
+                <h1>SIS Admin Dashboard</h1>
+            </div>
+            <ul class="navbar-menu">
+                <li><a href="#dashboard" class="nav-link active" data-tab="dashboard">Dashboard</a></li>
+                <li><a href="#students" class="nav-link" data-tab="students">Students</a></li>
+                <li><a href="#teachers" class="nav-link" data-tab="teachers">Teachers</a></li>
+                <li><a href="#users" class="nav-link" data-tab="users">Users</a></li>
+                <li><a href="#" class="nav-link logout-btn" id="logoutBtn">Logout</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Page Content Area -->
+    <main class="main-content">
+
+        <!-- DASHBOARD TAB -->
+        <section id="dashboard" class="tab-content active">
+            <h2>Dashboard Statistics</h2>
+            <div class="stats-container">
+                <!-- Statistics Cards -->
+                <div class="stat-card">
+                    <h3>Total Students</h3>
+                    <p class="stat-value" id="totalStudents">0</p>
+                    <a href="#" onclick="switchTab('students')" class="stat-link">View All</a>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Teachers</h3>
+                    <p class="stat-value" id="totalTeachers">0</p>
+                    <a href="#" onclick="switchTab('teachers')" class="stat-link">View All</a>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Users</h3>
+                    <p class="stat-value" id="totalUsers">0</p>
+                    <a href="#" onclick="switchTab('users')" class="stat-link">View All</a>
+                </div>
+                <div class="stat-card danger">
+                    <h3>Deleted Users</h3>
+                    <p class="stat-value" id="deletedUsers">0</p>
+                    <a href="#" onclick="switchTab('users')" class="stat-link">Recover</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- STUDENTS TAB -->
+        <section id="students" class="tab-content">
+            <h2>Student Management</h2>
+            
+            <!-- Admit New Student Button -->
+            <button class="btn btn-primary" id="admitStudentBtn">+ Admit New Student</button>
+
+            <!-- Students Table -->
+            <table class="data-table" id="studentsTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Class</th>
+                        <th>CGPA</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="studentsTableBody">
+                    <!-- Dynamically populated -->
+                </tbody>
+            </table>
+        </section>
+
+        <!-- TEACHERS TAB -->
+        <section id="teachers" class="tab-content">
+            <h2>Teacher Management</h2>
+            
+            <!-- Hire New Teacher Button -->
+            <button class="btn btn-primary" id="hireTeacherBtn">+ Hire New Teacher</button>
+
+            <!-- Teachers Table -->
+            <table class="data-table" id="teachersTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Department</th>
+                        <th>Qualification</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="teachersTableBody">
+                    <!-- Dynamically populated -->
+                </tbody>
+            </table>
+        </section>
+
+        <!-- USERS TAB -->
+        <section id="users" class="tab-content">
+            <h2>User Management</h2>
+            
+            <!-- Create New User Button -->
+            <button class="btn btn-primary" id="createUserBtn">+ Create New User</button>
+
+            <!-- Users Table -->
+            <table class="data-table" id="usersTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Username</th>
+                        <th>Role</th>
+                        <th>Email</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="usersTableBody">
+                    <!-- Dynamically populated -->
+                </tbody>
+            </table>
+        </section>
+
+    </main>
+
+    <!-- MODAL: Admit Student Form -->
+    <div id="admitStudentModal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeModal('admitStudentModal')">&times;</span>
+            <h2>Admit New Student</h2>
+            <form id="admitStudentForm" class="form-container">
+                <div class="form-group">
+                    <label for="admitUsername">Username:</label>
+                    <input type="text" id="admitUsername" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="admitPassword">Password:</label>
+                    <input type="password" id="admitPassword" name="password" required>
+                </div>
+                <div class="form-group">
+                    <label for="admitFullName">Full Name:</label>
+                    <input type="text" id="admitFullName" name="fullName" required>
+                </div>
+                <div class="form-group">
+                    <label for="admitClassName">Class:</label>
+                    <input type="text" id="admitClassName" name="className">
+                </div>
+                <div class="form-group">
+                    <label for="admitEmail">Email:</label>
+                    <input type="email" id="admitEmail" name="email">
+                </div>
+                <div class="form-group">
+                    <label for="admitPhone">Phone:</label>
+                    <input type="tel" id="admitPhone" name="phone">
+                </div>
+                <button type="submit" class="btn btn-success">Admit Student</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: Hire Teacher Form -->
+    <div id="hireTeacherModal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeModal('hireTeacherModal')">&times;</span>
+            <h2>Hire New Teacher</h2>
+            <form id="hireTeacherForm" class="form-container">
+                <div class="form-group">
+                    <label for="hireUsername">Username:</label>
+                    <input type="text" id="hireUsername" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="hirePassword">Password:</label>
+                    <input type="password" id="hirePassword" name="password" required>
+                </div>
+                <div class="form-group">
+                    <label for="hireFullName">Full Name:</label>
+                    <input type="text" id="hireFullName" name="fullName" required>
+                </div>
+                <div class="form-group">
+                    <label for="hireDepartment">Department:</label>
+                    <input type="text" id="hireDepartment" name="department">
+                </div>
+                <div class="form-group">
+                    <label for="hireQualification">Qualification:</label>
+                    <textarea id="hireQualification" name="qualification" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="hireExperience">Years of Experience:</label>
+                    <input type="number" id="hireExperience" name="yearsOfExperience" min="0">
+                </div>
+                <div class="form-group">
+                    <label for="hireEmail">Email:</label>
+                    <input type="email" id="hireEmail" name="email">
+                </div>
+                <div class="form-group">
+                    <label for="hirePhone">Phone:</label>
+                    <input type="tel" id="hirePhone" name="phone">
+                </div>
+                <button type="submit" class="btn btn-success">Hire Teacher</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: Create User Form -->
+    <div id="createUserModal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeModal('createUserModal')">&times;</span>
+            <h2>Create New User</h2>
+            <form id="createUserForm" class="form-container">
+                <div class="form-group">
+                    <label for="createUsername">Username:</label>
+                    <input type="text" id="createUsername" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="createPassword">Password:</label>
+                    <input type="password" id="createPassword" name="password" required>
+                </div>
+                <div class="form-group">
+                    <label for="createRole">Role:</label>
+                    <select id="createRole" name="role" required>
+                        <option value="ADMIN">Admin</option>
+                        <option value="TEACHER">Teacher</option>
+                        <option value="STUDENT">Student</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="createEmail">Email:</label>
+                    <input type="email" id="createEmail" name="email">
+                </div>
+                <div class="form-group">
+                    <label for="createPhone">Phone:</label>
+                    <input type="tel" id="createPhone" name="phone">
+                </div>
+                <button type="submit" class="btn btn-success">Create User</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: Confirmation Dialog -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content modal-small">
+            <h2 id="confirmTitle">Confirm Action</h2>
+            <p id="confirmMessage"></p>
+            <div class="button-group">
+                <button class="btn btn-danger" id="confirmYesBtn">Yes, Proceed</button>
+                <button class="btn btn-secondary" onclick="closeModal('confirmModal')">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Edit Student -->
+    <div id="editStudentModal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeModal('editStudentModal')">&times;</span>
+            <h2>Edit Student</h2>
+            <form id="editStudentForm" class="form-container">
+                <input type="hidden" id="editStudentId" name="id">
+                <div class="form-group">
+                    <label for="editStudentFullName">Full Name:</label>
+                    <input type="text" id="editStudentFullName" name="fullName" required>
+                </div>
+                <div class="form-group">
+                    <label for="editStudentClassName">Class:</label>
+                    <input type="text" id="editStudentClassName" name="className">
+                </div>
+                <div class="form-group">
+                    <label for="editStudentEmail">Email:</label>
+                    <input type="email" id="editStudentEmail" name="email">
+                </div>
+                <div class="form-group">
+                    <label for="editStudentPhone">Phone:</label>
+                    <input type="tel" id="editStudentPhone" name="phone">
+                </div>
+                <div class="form-group">
+                    <label for="editStudentAddress">Address:</label>
+                    <textarea id="editStudentAddress" name="address" rows="3"></textarea>
+                </div>
+                <button type="submit" class="btn btn-success">Update Student</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: View Student CGPA -->
+    <div id="viewCGPAModal" class="modal">
+        <div class="modal-content modal-small">
+            <span class="modal-close" onclick="closeModal('viewCGPAModal')">&times;</span>
+            <h2>Student CGPA</h2>
+            <div id="cgpaDetails">
+                <!-- Dynamically populated -->
+            </div>
+            <button class="btn btn-secondary" onclick="closeModal('viewCGPAModal')">Close</button>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="notificationToast" class="notification-toast"></div>
+
+    <!-- Link to external JavaScript files -->
+    <script src="/js/admin-dashboard.js"></script>
+    <script src="/js/forms.js"></script>
+    <script src="/js/performance-monitor.js"></script>
+</body>
+</html>
