@@ -38,6 +38,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Component
 public class RateLimitFilter extends OncePerRequestFilter {
 
+    private static final int MAX_BUCKETS = 10_000;
+
     @Value("${ratelimit.auth.capacity}")
     private int capacity;
 
@@ -58,6 +60,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private Set<String> trustedProxyAddresses = Collections.emptySet();
     private final ConcurrentHashMap<String, Bucket> buckets = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Bucket> overflowBuckets = new ConcurrentHashMap<>();
+    private final Object bucketCreationLock = new Object();
 
     @PostConstruct
     public void initializeTrustedProxies() {
@@ -89,7 +93,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         int requestCapacity = authenticationRequest ? capacity : admissionsCapacity;
         int refillRate = authenticationRequest ? refillPerMinute : admissionsRefillPerMinute;
         String key = limiter + ":" + clientKey(request);
-        Bucket bucket = buckets.computeIfAbsent(key, k -> new Bucket(requestCapacity));
+        Bucket bucket = getBucket(key, limiter, requestCapacity);
 
         if (!bucket.tryConsume(refillRate)) {
             response.setStatus(429); // Too Many Requests
@@ -100,6 +104,27 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private Bucket getBucket(String key, String limiter, int requestCapacity) {
+        Bucket bucket = buckets.get(key);
+        if (bucket != null) {
+            return bucket;
+        }
+
+        synchronized (bucketCreationLock) {
+            bucket = buckets.get(key);
+            if (bucket != null) {
+                return bucket;
+            }
+            if (buckets.size() < MAX_BUCKETS) {
+                bucket = new Bucket(requestCapacity);
+                buckets.put(key, bucket);
+                return bucket;
+            }
+        }
+
+        return overflowBuckets.computeIfAbsent(limiter, ignored -> new Bucket(requestCapacity));
     }
 
     private String clientKey(HttpServletRequest request) {
