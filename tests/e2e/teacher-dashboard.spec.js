@@ -172,6 +172,7 @@ test('teacher can select a course grade and submit it for approval', async ({ pa
   const gradebook = page.locator('#teacherGradeList');
   await expect(gradebook).toContainText('Alice Student');
   await page.locator('[data-edit-grade="61"]').click();
+  await expect(page.locator('#gradeStatus')).toContainText('Editing assessment marks for Alice Student');
   await expect(page.locator('#gradeRecordId')).toHaveValue('61');
   await expect(page.locator('#gradeStudent')).toHaveValue('7');
   await expect(page.locator('#gradeRemarks')).toHaveValue('Good work');
