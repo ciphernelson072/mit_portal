@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MIT Portal – Documents</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="css/dashboard-style.css">
+</head>
+<body>
+  <header class="header">
+    <div class="header-container">
+      <div class="header-logo">
+        <img src="icons/logo.jpg" alt="MIT Logo" class="logo-icon">
+        <div class="brand-text">
+          <h1>MIT Portal</h1>
+          <span>Documents</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="header-icons">
+          <a href="dashboard.html" class="btn-primary">Back to dashboard</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <section class="profile-summary">
+      <div class="profile-container">
+        <div class="profile-info-section">
+          <div class="profile-greeting">
+            <h2>Documents</h2>
+            <p id="documentSummary">Loading your uploaded files…</p>
+          </div>
+        </div>
+        <div class="program-info">
+          <button type="button" class="btn-primary" id="toggleUpload">Upload document</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="dashboard-grid">
+      <div class="card" id="uploadCard" style="grid-column: 1 / -1;">
+        <div class="card-header">
+          <h3>Upload a document</h3>
+        </div>
+        <div class="card-content">
+          <form id="uploadForm">
+            <div style="display:grid; gap:12px;">
+              <label>
+                <span>Document name</span><br>
+                <input id="documentName" name="name" type="text" required style="width:100%; max-width:420px;" />
+              </label>
+              <label>
+                <span>Choose file</span><br>
+                <input id="documentFile" name="file" type="file" accept=".pdf,.jpg,.jpeg,.png,.gif,application/pdf,image/jpeg,image/png,image/gif" required />
+                <small>PDF, JPG, PNG, or GIF. Maximum size: 10 MB.</small>
+              </label>
+              <button type="submit" class="btn-primary">Save document</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="card" style="grid-column: 1 / -1;">
+        <div class="card-header">
+          <h3>Your documents</h3>
+        </div>
+        <div class="card-content">
+          <div id="documentsList" class="notification-list"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/backend-only.js"></script>
+  <script src="js/deployment-config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/theme.js"></script>
+  <script src="js/documents.js"></script>
+</body>
+</html>

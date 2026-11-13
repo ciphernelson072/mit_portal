@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MIT Portal - Operations</title>
+  <link rel="stylesheet" href="css/operations-style.css">
+</head>
+<body>
+  <header class="operations-header">
+    <div>
+      <p class="eyebrow">Makerere Institute of Technology</p>
+      <h1>Operations workspace</h1>
+      <p class="subtitle">Access institutional workflows through the same secured API used by the portal.</p>
+    </div>
+    <div class="header-actions">
+      <span id="roleBadge" class="role-badge"></span>
+      <a id="homeLink" class="button secondary" href="index.html">Return to dashboard</a>
+      <button id="logoutButton" class="button danger" type="button">Log out</button>
+    </div>
+  </header>
+
+  <main class="operations-layout">
+    <aside class="filters-panel" aria-label="Workflow filters">
+      <label for="searchInput">Search workflows</label>
+      <input id="searchInput" type="search" placeholder="e.g. library, admission">
+      <label for="domainFilter">Domain</label>
+      <select id="domainFilter"><option value="">All domains</option></select>
+      <p class="filter-help">Choose a workflow to load records or submit a guided form. Access and validation remain enforced by the server.</p>
+      <div id="summary" class="summary"></div>
+    </aside>
+
+    <section class="workspace" aria-live="polite">
+      <div id="status" class="status" role="status" hidden></div>
+      <section id="resultPanel" class="result-panel" hidden aria-live="polite">
+        <div class="result-heading"><h2 id="resultTitle">Response</h2><button id="clearResult" class="button secondary" type="button">Clear</button></div>
+        <div id="resultContent" class="result-content"></div>
+      </section>
+      <div id="workflowGrid" class="workflow-grid"></div>
+    </section>
+  </main>
+
+  <dialog id="requestDialog" class="request-dialog">
+    <form method="dialog" id="requestForm">
+      <div class="dialog-header">
+        <div>
+          <p id="requestMethod" class="method-label"></p>
+          <h2 id="requestTitle"></h2>
+          <p id="requestPath" class="request-path"></p>
+        </div>
+        <button class="icon-button" value="cancel" aria-label="Close request form">×</button>
+      </div>
+      <label for="pathInput">Endpoint pattern</label>
+      <input id="pathInput" readonly>
+      <div id="fieldGrid" class="field-grid"></div>
+      <p class="muted">Required fields are marked. IDs refer to records already present in the portal.</p>
+      <div class="dialog-actions">
+        <button class="button secondary" value="cancel">Cancel</button>
+        <button id="sendButton" class="button primary" value="default">Send request</button>
+      </div>
+    </form>
+  </dialog>
+  <script src="js/deployment-config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/operations.js"></script>
+</body>
+</html>

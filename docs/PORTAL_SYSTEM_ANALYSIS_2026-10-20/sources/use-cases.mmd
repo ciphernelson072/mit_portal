@@ -1,0 +1,22 @@
+flowchart LR
+  Student[Student]
+  Teacher[Teacher]
+  Admin[Administrator]
+  Public[Prospective student]
+  Student --> S1((Authenticate and manage own profile))
+  Student --> S2((View courses grades attendance))
+  Student --> S3((Register for a course section))
+  Student --> S4((View fees and submit payment reference))
+  Student --> S5((Send messages and requests))
+  Teacher --> T1((View assigned course roster))
+  Teacher --> T2((Record grades and submit for approval))
+  Teacher --> T3((Record attendance))
+  Teacher --> T4((Publish materials and assignments))
+  Teacher --> T5((Export assigned-course roster or grades))
+  Admin --> A1((Manage users courses and academic setup))
+  Admin --> A2((Review admissions and provision accounts))
+  Admin --> A3((Review grades payment attempts and requests))
+  Admin --> A4((View reports and export authorized datasets))
+  Admin --> A5((Manage system settings and audit))
+  Public --> P1((Submit admission application))
+  Public --> P2((Check application status))

@@ -1,0 +1,80 @@
+erDiagram
+  USER ||--o| STUDENT : "user_id unique"
+  USER ||--o| TEACHER : "user_id unique"
+  TEACHER ||--o{ COURSE : teaches
+  COURSE_CATEGORY ||--o{ COURSE : classifies
+  COURSE ||--o{ COURSE_SECTION : offers
+  ACADEMIC_YEAR ||--o{ ACADEMIC_TERM : contains
+  ACADEMIC_TERM ||--o{ COURSE_SECTION : schedules
+  STUDENT ||--o{ COURSE_REGISTRATION : makes
+  COURSE_SECTION ||--o{ COURSE_REGISTRATION : receives
+  STUDENT ||--o{ GRADE : earns
+  COURSE ||--o{ GRADE : assessed_in
+  STUDENT ||--o{ ATTENDANCE : has
+  COURSE ||--o{ ATTENDANCE : records
+  USER {
+    long id PK
+    string username UK
+    string role
+    boolean is_active
+  }
+  STUDENT {
+    long id PK
+    long user_id FK_UK
+    string registration_number UK
+    string full_name
+    decimal cgpa
+  }
+  TEACHER {
+    long id PK
+    long user_id FK_UK
+    long department_id FK
+    string full_name
+  }
+  COURSE_CATEGORY {
+    long id PK
+    string name
+  }
+  COURSE {
+    long id PK
+    long category_id FK
+    long teacher_id FK
+    string course_code UK
+  }
+  ACADEMIC_YEAR {
+    long id PK
+    string code UK
+  }
+  ACADEMIC_TERM {
+    long id PK
+    long academic_year_id FK
+    string code UK
+    boolean registration_open
+  }
+  COURSE_SECTION {
+    long id PK
+    long course_id FK
+    long academic_term_id FK
+    string section_code
+    int capacity
+  }
+  COURSE_REGISTRATION {
+    long id PK
+    long student_id FK
+    long section_id FK
+    string status
+  }
+  GRADE {
+    long id PK
+    long student_id FK
+    long course_id FK
+    string grade_value
+    string status
+  }
+  ATTENDANCE {
+    long id PK
+    long student_id FK
+    long course_id FK
+    date date
+    boolean present
+  }

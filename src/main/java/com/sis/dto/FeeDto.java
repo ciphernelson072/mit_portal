@@ -7,6 +7,8 @@ public class FeeDto {
     private Long id;
     private String description;
     private BigDecimal amount;
+    private BigDecimal amountPaid;
+    private BigDecimal balance;
     private boolean paid;
     private LocalDate dueDate;
     private LocalDate paidDate;
@@ -18,6 +20,8 @@ public class FeeDto {
         this.id = id;
         this.description = description;
         this.amount = amount;
+        this.amountPaid = paid ? amount : BigDecimal.ZERO;
+        this.balance = paid ? BigDecimal.ZERO : amount;
         this.paid = paid;
         this.dueDate = dueDate;
         this.paidDate = paidDate;
@@ -45,6 +49,13 @@ public class FeeDto {
 
     public void setAmount(BigDecimal amount) {
         this.amount = amount;
+    }
+
+    public BigDecimal getAmountPaid() { return amountPaid; }
+    public BigDecimal getBalance() { return balance; }
+    public void setSettlementAmounts(BigDecimal amountPaid, BigDecimal balance) {
+        this.amountPaid = amountPaid;
+        this.balance = balance;
     }
 
     public boolean isPaid() {

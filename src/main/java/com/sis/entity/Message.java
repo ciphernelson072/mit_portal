@@ -24,7 +24,7 @@ public class Message {
     @Column(nullable = false)
     private String subject;
 
-    @Column(nullable = false, length = 1000)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
     @Column(nullable = false)

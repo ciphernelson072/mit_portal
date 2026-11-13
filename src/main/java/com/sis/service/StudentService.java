@@ -85,6 +85,11 @@ public class StudentService {
             student.setPhone(updatedStudent.getPhone());
             student.setAddress(updatedStudent.getAddress());
             student.setEnrollmentDate(updatedStudent.getEnrollmentDate());
+            student.setDateOfBirth(updatedStudent.getDateOfBirth());
+            student.setGender(updatedStudent.getGender());
+            student.setAlternativePhone(updatedStudent.getAlternativePhone());
+            student.setCity(updatedStudent.getCity());
+            student.setCountry(updatedStudent.getCountry());
             if (updatedStudent.getProfileImagePath() != null) {
                 student.setProfileImagePath(updatedStudent.getProfileImagePath());
             }
@@ -120,37 +125,12 @@ public class StudentService {
             throw new RuntimeException("Student not found with id: " + studentId);
         }
 
-        List<Grade> grades = gradeRepository.findByStudentId(studentId);
-        if (grades.isEmpty()) {
-            return BigDecimal.ZERO;
-        }
-
-        BigDecimal totalWeightedGpa = BigDecimal.ZERO;
-        int totalCredits = 0;
-
-        // Calculate weighted GPA: sum of (GPA * Credits)
-        for (Grade grade : grades) {
-            BigDecimal gpa = grade.getGpaScore();
-            Integer credits = grade.getCourse().getCredits();
-            if (credits == null) credits = 3;
-
-            totalWeightedGpa = totalWeightedGpa.add(gpa.multiply(new BigDecimal(credits)));
-            totalCredits += credits;
-        }
-
-        // CGPA = Total Weighted GPA / Total Credits
-        if (totalCredits > 0) {
-            BigDecimal cgpa = totalWeightedGpa.divide(new BigDecimal(totalCredits), 2, java.math.RoundingMode.HALF_UP);
-            
-            // Update student CGPA
-            Student s = student.get();
-            s.setCgpa(cgpa);
-            studentRepository.save(s);
-            
-            return cgpa;
-        }
-
-        return BigDecimal.ZERO;
+        BigDecimal cgpa = GradeCalculationService.calculateApprovedCgpa(
+                gradeRepository.findByStudentId(studentId));
+        Student s = student.get();
+        s.setCgpa(cgpa);
+        studentRepository.save(s);
+        return cgpa;
     }
 
     /**

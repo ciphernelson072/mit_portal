@@ -1,27 +1,34 @@
 package com.sis.service;
 
+import com.sis.dto.AttendanceApprovalRequest;
 import com.sis.entity.Attendance;
-import com.sis.entity.Student;
 import com.sis.entity.Course;
+import com.sis.entity.Student;
+import com.sis.entity.Teacher;
+import com.sis.entity.User;
 import com.sis.exception.ResourceNotFoundException;
 import com.sis.repository.AttendanceRepository;
+import com.sis.repository.CourseRepository;
+import com.sis.repository.TeacherRepository;
+import com.sis.repository.UserRepository;
+import com.sis.repository.StudentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.logging.Logger;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
- * Attendance Service - Manages student attendance records
- * Handles attendance tracking, recording, and reporting
+ * Attendance Service - Manages student attendance records.
+ * Handles attendance tracking, recording, and reporting.
  */
 @Service
 @Transactional
 public class AttendanceService {
-
-    private static final Logger logger = Logger.getLogger(AttendanceService.class.getName());
 
     @Autowired
     private AttendanceRepository attendanceRepository;
@@ -29,108 +36,119 @@ public class AttendanceService {
     @Autowired
     private StudentService studentService;
 
-    /**
-     * Record attendance for student in course
-     * @param studentId student ID
-     * @param courseId course ID
-     * @param date attendance date
-     * @param present whether student was present
-     * @param remarks optional remarks
-     * @return created attendance record
-     */
-    public Attendance recordAttendance(Long studentId, Long courseId, LocalDate date, boolean present, String remarks) {
-        // Validation would go here
-        Student student = studentService.getStudentById(studentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Student not found with ID: " + studentId));
+    @Autowired
+    private CourseRepository courseRepository;
 
-        Attendance attendance = new Attendance();
-        attendance.setStudent(student);
-        attendance.setDate(date);
-        attendance.setPresent(present);
-        attendance.setRemarks(remarks);
+    @Autowired
+    private TeacherRepository teacherRepository;
 
-        Attendance saved = attendanceRepository.save(attendance);
-        logger.info("Attendance recorded for student: " + student.getFullName() + " on " + date);
-        return saved;
-    }
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private StudentRepository studentRepository;
 
     /**
-     * Get all attendance records for student
-     * @param studentId student ID
-     * @return list of attendance records
+     * Get all attendance records for student.
      */
     public List<Attendance> getStudentAttendance(Long studentId) {
-        Student student = studentService.getStudentById(studentId)
+        studentService.getStudentById(studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found with ID: " + studentId));
-        return attendanceRepository.findByStudent(student);
+        return attendanceRepository.findByStudentIdWithCourse(studentId);
     }
 
+    @Transactional(readOnly = true)
+    public List<Attendance> getCourseAttendance(Long courseId, LocalDate date) {
+        if (!courseRepository.existsById(courseId)) {
+            throw new ResourceNotFoundException("Course not found with ID: " + courseId);
+        }
+        return attendanceRepository.findByCourseIdAndDateWithStudentAndCourse(courseId, date);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Attendance> getAllAttendance() {
+        return attendanceRepository.findAllWithStudentAndCourse();
+    }
+
+    public List<Attendance> approveTeacherRosterAttendance(String teacherUsername, AttendanceApprovalRequest request) {
+        String normalizedUsername = teacherUsername == null ? null : teacherUsername.trim();
+        User user = userRepository.findByUsernameIgnoreCase(normalizedUsername)
+            .orElseThrow(() -> new ResourceNotFoundException("Teacher account not found: " + teacherUsername));
+        Teacher teacher = teacherRepository.findByUserId(user.getId())
+            .orElseThrow(() -> new ResourceNotFoundException("Teacher profile not found for user: " + teacherUsername));
+        Course course = courseRepository.findById(request.getCourseId())
+            .orElseThrow(() -> new ResourceNotFoundException("Course not found with ID: " + request.getCourseId()));
+        if (course.getTeacher() == null || !course.getTeacher().getId().equals(teacher.getId())) {
+            throw new ResourceNotFoundException("Teacher is not assigned to this course.");
+    }
+
+        List<Student> enrolledStudents = studentRepository.findByCourseIdIncludingRegistrations(course.getId());
+        Set<Long> enrolledIds = enrolledStudents.stream().map(Student::getId).collect(Collectors.toSet());
+        Map<Long, AttendanceApprovalRequest.StudentAttendanceMark> submitted = request.getRecords().stream()
+            .collect(Collectors.toMap(AttendanceApprovalRequest.StudentAttendanceMark::getStudentId, mark -> mark,
+                (first, ignored) -> first));
+        if (submitted.size() != request.getRecords().size() || !enrolledIds.equals(submitted.keySet())) {
+            throw new IllegalArgumentException("Attendance must include every enrolled student exactly once.");
+        }
+        if (request.getRecords().stream().anyMatch(mark -> mark.getPresent() == null)) {
+            throw new IllegalArgumentException("An attendance status is required for every enrolled student.");
+        }
+        if (request.getRecords().stream().anyMatch(mark -> mark.isLate() && !Boolean.TRUE.equals(mark.getPresent()))) {
+            throw new IllegalArgumentException("A student marked late must also be marked present.");
+        }
+
+        Map<Long, Attendance> existingAttendance = attendanceRepository
+                .findByCourseIdAndDateWithStudentAndCourse(course.getId(), request.getDate()).stream()
+                .collect(Collectors.toMap(record -> record.getStudent().getId(), record -> record));
+        enrolledStudents.forEach(student -> {
+            AttendanceApprovalRequest.StudentAttendanceMark mark = submitted.get(student.getId());
+            Attendance attendance = existingAttendance.get(student.getId());
+            if (attendance == null) {
+                attendance = new Attendance(student, course, request.getDate(),
+                        Boolean.TRUE.equals(mark.getPresent()));
+            }
+            attendance.setPresent(Boolean.TRUE.equals(mark.getPresent()));
+            attendance.setRemarks(mark.getRemarks());
+            attendance.setLate(mark.isLate());
+            attendanceRepository.save(attendance);
+        });
+        return attendanceRepository.findByCourseIdAndDateWithStudentAndCourse(course.getId(), request.getDate());
+        }
+
     /**
-     * Calculate attendance percentage for student in course
-     * @param studentId student ID
-     * @param courseId course ID
+     * Calculate attendance percentage for student in course.
+     * <p>
+     * This used to be hardcoded to always return {@code 85.5f} regardless of input
+     * (the original comment said "For now, returning a placeholder"). Now computed for
+     * real: present records / total records for that student+course, as a 0-100 float.
+     * Returns 0 if the student has no attendance records for the course yet, rather
+     * than dividing by zero.
+     *
      * @return attendance percentage (0-100)
      */
     public float getAttendancePercentage(Long studentId, Long courseId) {
-        Student student = studentService.getStudentById(studentId)
+        // Validate the student exists (keeps the same 404 behavior callers already expect)
+        studentService.getStudentById(studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found with ID: " + studentId));
+        if (!courseRepository.existsById(courseId)) {
+            throw new ResourceNotFoundException("Course not found with ID: " + courseId);
+        }
 
-        // Would need to fetch course from repository
-        // For now, returning a placeholder
-        return 85.5f;
+        List<Attendance> records = attendanceRepository.findByStudentIdAndCourseId(studentId, courseId);
+        if (records.isEmpty()) {
+            return 0f;
+        }
+        long presentCount = records.stream().filter(Attendance::isPresent).count();
+        return (presentCount * 100f) / records.size();
     }
 
     /**
-     * Get attendance records between dates
-     * @param studentId student ID
-     * @param startDate start date
-     * @param endDate end date
-     * @return list of attendance records
+     * Get attendance records between dates.
      */
     public List<Attendance> getAttendanceByDateRange(Long studentId, LocalDate startDate, LocalDate endDate) {
-        Student student = studentService.getStudentById(studentId)
+        studentService.getStudentById(studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found with ID: " + studentId));
-        return attendanceRepository.findByStudentAndDateRange(student, startDate, endDate);
+        return attendanceRepository.findByStudentIdAndDateRangeWithStudentAndCourse(studentId, startDate, endDate);
     }
 
-    /**
-     * Update attendance record
-     * @param attendanceId attendance ID
-     * @param present presence status
-     * @param remarks remarks
-     * @return updated attendance record
-     */
-    public Attendance updateAttendance(Long attendanceId, boolean present, String remarks) {
-        Attendance attendance = attendanceRepository.findById(attendanceId)
-                .orElseThrow(() -> new ResourceNotFoundException("Attendance record not found with ID: " + attendanceId));
-
-        attendance.setPresent(present);
-        attendance.setRemarks(remarks);
-
-        Attendance updated = attendanceRepository.save(attendance);
-        logger.info("Attendance record updated: " + attendanceId);
-        return updated;
-    }
-
-    /**
-     * Delete attendance record
-     * @param attendanceId attendance ID
-     */
-    public void deleteAttendance(Long attendanceId) {
-        Attendance attendance = attendanceRepository.findById(attendanceId)
-                .orElseThrow(() -> new ResourceNotFoundException("Attendance record not found with ID: " + attendanceId));
-
-        attendanceRepository.delete(attendance);
-        logger.info("Attendance record deleted: " + attendanceId);
-    }
-
-    /**
-     * Get attendance record by ID
-     * @param attendanceId attendance ID
-     * @return attendance record if found
-     */
-    public Attendance getAttendanceById(Long attendanceId) {
-        return attendanceRepository.findById(attendanceId)
-                .orElseThrow(() -> new ResourceNotFoundException("Attendance record not found with ID: " + attendanceId));
-    }
 }

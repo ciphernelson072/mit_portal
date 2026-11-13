@@ -1,0 +1,13 @@
+{
+  "files.autoSave": "afterDelay",
+  "files.autoSaveDelay": 1000,
+  "java.configuration.runtimes": [
+    {
+      "name": "JavaSE-21",
+      "path": "C:\\Program Files\\Java\\jdk-21.0.12",
+      "default": true
+    }
+  ],
+  "java.jdt.ls.java.home": "C:\\Program Files\\Java\\jdk-21.0.12",
+  "java.saveActions.organizeImports": false
+}

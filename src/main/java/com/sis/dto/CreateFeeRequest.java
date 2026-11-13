@@ -1,12 +1,25 @@
 package com.sis.dto;
 
+import javax.validation.constraints.DecimalMin;
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.NotNull;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
 public class CreateFeeRequest {
+
+    @NotNull(message = "Student ID is required")
     private Long studentId;
+
+    @NotBlank(message = "Description is required")
     private String description;
+
+    @NotNull(message = "Amount is required")
+    @DecimalMin(value = "0.0", inclusive = false, message = "Amount must be greater than zero")
     private BigDecimal amount;
+
+    @NotNull(message = "Due date is required")
     private LocalDate dueDate;
 
     public CreateFeeRequest() {

@@ -1,8 +1,19 @@
 package com.sis.dto;
 
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.Size;
+
 public class SendMessageRequest {
+
+    @NotBlank(message = "Receiver username is required")
     private String receiverUsername;
+
+    @NotBlank(message = "Subject is required")
+    @Size(max = 200, message = "Subject must be at most 200 characters")
     private String subject;
+
+    @NotBlank(message = "Content is required")
+    @Size(max = 5000, message = "Content must be at most 5000 characters")
     private String content;
 
     public SendMessageRequest() {}

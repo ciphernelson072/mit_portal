@@ -1,5 +1,6 @@
 package com.sis.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import javax.persistence.*;
 import java.time.LocalDateTime;
 
@@ -120,6 +121,7 @@ public class EmailVerificationToken {
      * Get verification token string
      * @return token
      */
+    @JsonIgnore
     public String getToken() {
         return token;
     }

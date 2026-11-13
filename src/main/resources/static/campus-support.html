@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MIT Portal – Campus Life & Support</title>  <link rel="manifest" href="/manifest.json">  <link rel="stylesheet" href="css/dashboard-style.css">
+  <link rel="stylesheet" href="css/modules-style.css">
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<header class="header">
+  <div class="header-container">
+    <div class="header-logo">
+      <img src="icons/logo.jpg" alt="MIT Logo" class="logo-icon">
+      <div class="brand-text">
+        <h1>MIT Portal</h1>
+        <span>Campus Life & Support</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <div class="search-bar">
+        <input type="text" placeholder="Search events, FAQs...">
+        <button type="button" class="search-btn">🔍</button>
+      </div>
+      <div class="header-icons">
+        <button class="icon-btn" onclick="goToDashboard()" title="Back to Dashboard">⬅️</button>
+        <div class="icon-wrapper dropdown">
+          <button class="icon-btn profile-btn" id="profileBtn">
+            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%231a3a8c'/%3E%3Ccircle cx='50' cy='35' r='15' fill='%23fff'/%3E%3Cpath d='M20 80 Q20 60 50 60 Q80 60 80 80' fill='%23fff'/%3E%3C/svg%3E" alt="Profile" class="profile-avatar">
+          </button>
+          <div class="dropdown-menu" id="profileMenu">
+            <div class="dropdown-header">Account</div>
+            <a href="profile.html" class="menu-link">👤 My Profile</a>
+            <a href="profile.html#preferences" class="menu-link">⚙️ Settings</a>
+            <button class="menu-link logout-btn" onclick="handleLogoutClick()">🚪 Logout</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ===== MAIN CONTENT ===== -->
+<main class="main-content">
+
+  <!-- Navigation Tabs -->
+  <div class="module-tabs">
+    <button class="tab-btn active" onclick="switchTab('events')">🎉 Events</button>
+    <button class="tab-btn" onclick="switchTab('clubs')">🎭 Clubs & Societies</button>
+    <button class="tab-btn" onclick="switchTab('hostel')">🏠 Hostel</button>
+    <button class="tab-btn" onclick="switchTab('transport')">🚌 Transport</button>
+    <button class="tab-btn" onclick="switchTab('helpdesk')">🎫 Help Desk</button>
+    <button class="tab-btn" onclick="switchTab('faq')">❓ FAQs</button>
+    <button class="tab-btn" onclick="switchTab('chat')">💬 AI Chat Support</button>
+  </div>
+
+  <!-- TAB 1: EVENTS -->
+  <section class="tab-content active" id="eventsTab">
+    <h2>Campus Events</h2>
+    
+    <div class="events-container">
+      
+      <div class="event-card featured">
+        <div class="event-header">
+          <h3>🎓 Graduation Ceremony 2026</h3>
+          <span class="event-badge">Featured</span>
+        </div>
+        <div class="event-body">
+          <div class="event-detail">
+            <span class="detail-label">📅 Date:</span>
+            <span>August 15, 2026</span>
+          </div>
+          <div class="event-detail">
+            <span class="detail-label">⏰ Time:</span>
+            <span>9:00 AM - 12:00 PM</span>
+          </div>
+          <div class="event-detail">
+            <span class="detail-label">📍 Location:</span>
+            <span>Main Campus Grounds</span>
+          </div>
+          <p class="event-description">Celebrate your achievements at MIT's annual graduation ceremony. All 2nd year students proceeding to 3rd year are invited.</p>
+        </div>
+        <div class="event-actions">
+          <button class="btn-primary" onclick="registerEvent(this)">✓ Registered</button>
+          <button class="btn-secondary" onclick="viewEventDetails(this)">View Details</button>
+        </div>
+      </div>
+
+      <div class="event-card">
+        <div class="event-header">
+          <h3>🎨 Tech Art Exhibition</h3>
+        </div>
+        <div class="event-body">
+          <div class="event-detail">
+            <span class="detail-label">📅 Date:</span>
+            <span>June 20-22, 2026</span>
+          </div>
+          <div class="event-detail">
+            <span class="detail-label">📍 Location:</span>
+            <span>Student Center</span>
+          </div>
+          <p class="event-description">Showcase of digital art projects created by IT students. Open to all.</p>
+        </div>
+        <div class="event-actions">
+          <button class="btn-primary" onclick="registerEvent(this)">Register</button>
+          <button class="btn-secondary" onclick="viewEventDetails(this)">Learn More</button>
+        </div>
+      </div>
+
+      <div class="event-card">
+        <div class="event-header">
+          <h3>🏃 Sports Day 2026</h3>
+        </div>
+        <div class="event-body">
+          <div class="event-detail">
+            <span class="detail-label">📅 Date:</span>
+            <span>July 5, 2026</span>
+          </div>
+          <div class="event-detail">
+            <span class="detail-label">📍 Location:</span>
+            <span>Sports Ground</span>
+          </div>
+          <p class="event-description">Annual inter-faculty sports competition. Teams from all programs welcome!</p>
+        </div>
+        <div class="event-actions">
+          <button class="btn-primary" onclick="registerEvent(this)">Register Team</button>
+          <button class="btn-secondary" onclick="viewEventDetails(this)">Details</button>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- TAB 2: CLUBS & SOCIETIES -->
+  <section class="tab-content" id="clubsTab">
+    <h2>Clubs & Societies</h2>
+    
+    <div class="clubs-container">
+      
+      <div class="club-card">
+        <div class="club-icon">💻</div>
+        <h3>Programming Club</h3>
+        <p class="club-description">Learn coding, participate in hackathons, and network with fellow developers.</p>
+        <div class="club-info">
+          <span>👥 250 Members</span>
+          <span>📅 Meets: Every Thursday 3 PM</span>
+        </div>
+        <button class="btn-primary" onclick="joinClub('programming')">✓ Member</button>
+      </div>
+
+      <div class="club-card">
+        <div class="club-icon">🎮</div>
+        <h3>Gaming Society</h3>
+        <p class="club-description">Gaming tournaments, esports competitions, and casual gaming sessions.</p>
+        <div class="club-info">
+          <span>👥 180 Members</span>
+          <span>📅 Meets: Weekends</span>
+        </div>
+        <button class="btn-primary" onclick="joinClub('gaming')">Join Club</button>
+      </div>
+
+      <div class="club-card">
+        <div class="club-icon">🎵</div>
+        <h3>Music & Entertainment</h3>
+        <p class="club-description">Concerts, talent shows, and performances throughout the year.</p>
+        <div class="club-info">
+          <span>👥 120 Members</span>
+          <span>📅 Meets: Fridays 4 PM</span>
+        </div>
+        <button class="btn-primary" onclick="joinClub('music')">Join Club</button>
+      </div>
+
+      <div class="club-card">
+        <div class="club-icon">📖</div>
+        <h3>Debate & Drama Club</h3>
+        <p class="club-description">Develop public speaking skills and showcase your talent on stage.</p>
+        <div class="club-info">
+          <span>👥 95 Members</span>
+          <span>📅 Meets: Tuesdays 5 PM</span>
+        </div>
+        <button class="btn-primary" onclick="joinClub('debate')">Join Club</button>
+      </div>
+
+      <div class="club-card">
+        <div class="club-icon">🌍</div>
+        <h3>Environmental Club</h3>
+        <p class="club-description">Conservation projects, awareness campaigns, and sustainability initiatives.</p>
+        <div class="club-info">
+          <span>👥 140 Members</span>
+          <span>📅 Meets: Wednesdays 2 PM</span>
+        </div>
+        <button class="btn-primary" onclick="joinClub('environment')">Join Club</button>
+      </div>
+
+      <div class="club-card">
+        <div class="club-icon">🤝</div>
+        <h3>Entrepreneurship Club</h3>
+        <p class="club-description">Business ideas, startup pitches, and mentorship from successful entrepreneurs.</p>
+        <div class="club-info">
+          <span>👥 110 Members</span>
+          <span>📅 Meets: Mondays 4 PM</span>
+        </div>
+        <button class="btn-primary" onclick="joinClub('entrepreneurship')">✓ Member</button>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- TAB 3: HOSTEL -->
+  <section class="tab-content" id="hostelTab">
+    <h2>Hostel & Accommodation</h2>
+    
+    <div class="hostel-container">
+      <div class="hostel-info">
+        <h3>Current Accommodation</h3>
+        <div class="accommodation-card">
+          <div class="accommodation-detail">
+            <span class="detail-label">Block:</span>
+            <span>Alpha Block (A-Wing)</span>
+          </div>
+          <div class="accommodation-detail">
+            <span class="detail-label">Room Number:</span>
+            <span>A304</span>
+          </div>
+          <div class="accommodation-detail">
+            <span class="detail-label">Room Type:</span>
+            <span>Double Occupancy</span>
+          </div>
+          <div class="accommodation-detail">
+            <span class="detail-label">Roommate:</span>
+            <span>Peter Lubogo</span>
+          </div>
+          <div class="accommodation-detail">
+            <span class="detail-label">Check-in Date:</span>
+            <span>January 15, 2026</span>
+          </div>
+          <div class="accommodation-detail">
+            <span class="detail-label">Status:</span>
+            <span><span id="hostelStatus" class="status-badge">Loading...</span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="hostel-rules">
+        <h3>Hostel Rules & Guidelines</h3>
+        <ul class="rules-list">
+          <li>Check-in time: 2:00 PM</li>
+          <li>Check-out time: 10:00 AM</li>
+          <li>Quiet hours: 10:00 PM - 8:00 AM</li>
+          <li>No visitors after 8:00 PM on weekdays</li>
+          <li>Cooking not allowed in rooms</li>
+          <li>Alcoholic beverages prohibited</li>
+          <li>Smoking only in designated areas</li>
+        </ul>
+      </div>
+
+      <div class="hostel-facilities">
+        <h3>Hostel Facilities</h3>
+        <div class="facilities-grid">
+          <div class="facility-item">
+            <span>🚿 Hot Water Shower</span>
+          </div>
+          <div class="facility-item">
+            <span>📚 Study Room</span>
+          </div>
+          <div class="facility-item">
+            <span>🧊 Common Kitchen</span>
+          </div>
+          <div class="facility-item">
+            <span>🏋️ Gym Facility</span>
+          </div>
+          <div class="facility-item">
+            <span>📺 Recreation Room</span>
+          </div>
+          <div class="facility-item">
+            <span>🌐 WiFi Internet</span>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn-primary" onclick="requestHostel()">Request New Accommodation</button>
+    </div>
+  </section>
+
+  <!-- TAB 4: TRANSPORT -->
+  <section class="tab-content" id="transportTab">
+    <h2>Transport Services</h2>
+    
+    <div class="transport-container">
+      <h3>Campus Shuttle Routes</h3>
+      <div class="routes-grid">
+        
+        <div class="route-card">
+          <div class="route-number">Route 1</div>
+          <h4>Main Campus → City Center</h4>
+          <p><strong>Schedule:</strong> Every 30 mins</p>
+          <p><strong>Time:</strong> 7:00 AM - 6:00 PM</p>
+          <p><strong>Cost:</strong> Free (Student Pass)</p>
+          <button class="btn-secondary" onclick="viewRoute(1)">View Map</button>
+        </div>
+
+        <div class="route-card">
+          <div class="route-number">Route 2</div>
+          <h4>Main Campus → Hostel Complex</h4>
+          <p><strong>Schedule:</strong> Every 15 mins</p>
+          <p><strong>Time:</strong> 6:00 AM - 11:00 PM</p>
+          <p><strong>Cost:</strong> Free (Student Pass)</p>
+          <button class="btn-secondary" onclick="viewRoute(2)">View Map</button>
+        </div>
+
+        <div class="route-card">
+          <div class="route-number">Route 3</div>
+          <h4>Main Campus → Medical Center</h4>
+          <p><strong>Schedule:</strong> Every 45 mins</p>
+          <p><strong>Time:</strong> 8:00 AM - 5:00 PM</p>
+          <p><strong>Cost:</strong> Free (Student Pass)</p>
+          <button class="btn-secondary" onclick="viewRoute(3)">View Map</button>
+        </div>
+
+      </div>
+
+      <h3 style="margin-top: 30px;">Transport Pass Status</h3>
+      <div class="pass-status">
+        <div class="pass-card">
+          <p><strong>Pass Type:</strong> Student Semester Pass</p>
+          <p><strong>Status:</strong> <span id="transportPassStatus" class="status-badge active-badge">Loading...</span></p>
+          <p><strong>Valid Until:</strong> <span id="transportPassValidUntil">Loading...</span></p>
+          <button class="btn-secondary" onclick="renewPass()">Renew Pass</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 5: HELPDESK -->
+  <section class="tab-content" id="helpdeskTab">
+    <h2>Help Desk & Support Tickets</h2>
+    
+    <div class="helpdesk-container">
+      <div class="helpdesk-hero">
+        <h3>Need Help?</h3>
+        <p>Submit a support ticket and our team will assist you within 24-48 hours.</p>
+        <button class="btn-primary" onclick="submitTicket()">🎫 Create New Ticket</button>
+      </div>
+
+      <h3>Your Support Tickets</h3>
+      <table class="tickets-table">
+        <thead>
+          <tr>
+            <th>Ticket ID</th>
+            <th>Subject</th>
+            <th>Category</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>#TKT-2026-045</td>
+            <td>Grade not updated in transcript</td>
+            <td>Academic</td>
+            <td><span class="status-badge">Open</span></td>
+            <td>June 12, 2026</td>
+            <td><button class="btn-secondary small" onclick="viewTicket()">View</button></td>
+          </tr>
+          <tr>
+            <td>#TKT-2026-044</td>
+            <td>Portal login issues</td>
+            <td>Technical</td>
+            <td><span class="status-badge completed">Resolved</span></td>
+            <td>June 8, 2026</td>
+            <td><button class="btn-secondary small" onclick="viewTicket()">View</button></td>
+          </tr>
+          <tr>
+            <td>#TKT-2026-043</td>
+            <td>ID card replacement request</td>
+            <td>Administration</td>
+            <td><span class="status-badge">In Progress</span></td>
+            <td>June 5, 2026</td>
+            <td><button class="btn-secondary small" onclick="viewTicket()">View</button></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 style="margin-top: 30px;">Contact Information</h3>
+      <div class="contact-info-box">
+        <div class="contact-item">
+          <span class="icon">📧</span>
+          <div>
+            <p><strong>Email:</strong> support@mit.ac.ug</p>
+            <p class="text-muted">Response time: Within 24 hours</p>
+          </div>
+        </div>
+        <div class="contact-item">
+          <span class="icon">📱</span>
+          <div>
+            <p><strong>Phone:</strong> +256 741 902525</p>
+            <p class="text-muted">Monday - Friday: 9:00 AM - 5:00 PM</p>
+          </div>
+        </div>
+        <div class="contact-item">
+          <span class="icon">📍</span>
+          <div>
+            <p><strong>Visit Us:</strong> Student Services Center, Block B</p>
+            <p class="text-muted">Office hours: 9:00 AM - 4:00 PM</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 6: FAQs -->
+  <section class="tab-content" id="faqTab">
+    <h2>Frequently Asked Questions</h2>
+    
+    <div class="faq-container">
+      
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFAQ(this)">
+          <span>❓ How do I reset my password?</span>
+          <span class="faq-arrow">→</span>
+        </div>
+        <div class="faq-answer">
+          <p>Click on "Forgot Password" on the login page. Enter your student ID or email, and you'll receive a password reset link via email within minutes.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFAQ(this)">
+          <span>❓ How do I view my grades?</span>
+          <span class="faq-arrow">→</span>
+        </div>
+        <div class="faq-answer">
+          <p>Navigate to Academics → Grades to see your transcript and all grades posted by your instructors. Grades are typically posted within 2 weeks of exams.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFAQ(this)">
+          <span>❓ How do I pay my fees online?</span>
+          <span class="faq-arrow">→</span>
+        </div>
+        <div class="faq-answer">
+          <p>Go to Finance → Pending Payments, select the payment, and click "Pay Online". You can pay via mobile money, bank transfer, or card. Receipts are automatically generated.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFAQ(this)">
+          <span>❓ How do I request a transcript?</span>
+          <span class="faq-arrow">→</span>
+        </div>
+        <div class="faq-answer">
+          <p>Go to Profile → Service Requests, click "Transcript", and fill out the request form. Official transcripts are processed within 2-3 working days.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFAQ(this)">
+          <span>❓ What's the attendance requirement?</span>
+          <span class="faq-arrow">→</span>
+        </div>
+        <div class="faq-answer">
+          <p>You can track your attendance in Attendance → Overview. Course attendance requirements are governed by the current institute academic regulations.</p>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFAQ(this)">
+          <span>❓ How do I join clubs or societies?</span>
+          <span class="faq-arrow">→</span>
+        </div>
+        <div class="faq-answer">
+          <p>Go to Campus Life → Clubs & Societies and click "Join Club" on any club you're interested in. You'll receive club schedules and information via email.</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- TAB 7: AI CHAT SUPPORT -->
+  <section class="tab-content" id="chatTab">
+    <h2>AI Chat Support</h2>
+    
+    <div class="chat-container">
+      <div class="chat-messages" id="chatMessages">
+        <div class="chat-message bot">
+          <div class="message-content">
+            👋 Hello! I'm the MIT Student Portal Assistant. How can I help you today?
+          </div>
+          <span class="message-time">Just now</span>
+        </div>
+      </div>
+
+      <div class="chat-suggestions">
+        <p>Quick questions:</p>
+        <button class="suggestion-btn" onclick="askQuestion('How do I check my grades?')">📊 View my grades</button>
+        <button class="suggestion-btn" onclick="askQuestion('How do I pay fees?')">💳 Pay fees online</button>
+        <button class="suggestion-btn" onclick="askQuestion('What are my pending assignments?')">📝 My assignments</button>
+        <button class="suggestion-btn" onclick="askQuestion('Where is my hostel?')">🏠 Hostel location</button>
+      </div>
+
+      <div class="chat-input">
+        <input type="text" id="chatInput" maxlength="5000" placeholder="Type your question here..." onkeypress="handleChatSubmit(event)">
+        <button class="btn-primary" onclick="sendChatMessage()">Send</button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ===== FOOTER ===== -->
+<footer class="footer">
+  <div class="footer-content">
+    <p>&copy; 2026 Makerere Institute of Technology. All rights reserved.</p>
+  </div>
+</footer>
+
+<script src="js/backend-only.js"></script>
+<script src="js/deployment-config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/dashboard-script.js"></script>
+<script src="js/modules-script.js"></script>
+</body>
+</html>
