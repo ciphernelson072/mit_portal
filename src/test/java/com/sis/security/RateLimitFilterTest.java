@@ -107,6 +107,21 @@ class RateLimitFilterTest {
                 "POST", "/api/auth/login").getStatus());
     }
 
+    @Test
+    void boundsRateLimitBucketsAndSharesOverflowBucketByLimiter() throws ServletException, IOException {
+        RateLimitFilter filter = configuredFilter("");
+
+        for (int i = 0; i < 10_000; i++) {
+            assertEquals(200, send(filter, "198.51." + (i / 256) + "." + (i % 256), null).getStatus());
+        }
+
+        assertEquals(200, send(filter, "203.0.113.1", null).getStatus());
+        assertEquals(429, send(filter, "203.0.113.2", null).getStatus(),
+                "Unknown clients after the cap must share the overflow bucket");
+        assertEquals(10_000, ((java.util.Map<?, ?>) ReflectionTestUtils.getField(filter, "buckets")).size());
+        assertEquals(1, ((java.util.Map<?, ?>) ReflectionTestUtils.getField(filter, "overflowBuckets")).size());
+    }
+
     private RateLimitFilter configuredFilter(String trustedProxyAddresses) {
         RateLimitFilter filter = new RateLimitFilter();
         ReflectionTestUtils.setField(filter, "capacity", 1);

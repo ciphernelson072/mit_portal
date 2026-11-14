@@ -124,7 +124,10 @@ test('service worker precaches public pages but not authenticated dashboard page
     './', './portal-gateway.html', './index.html', './admissions.html', './course-catalog.html',
     './admin-login.html', './css/auth.css', './css/portal-gateway.css', './icons/campus-login.png',
     './css/course-catalog.css', './js/course-catalog.js', './js/theme.js',
+    './portal-login.html', './public/css/portal-login.css', './js/portal-login.js',
     './public/index.html', './public/js/site.js',
+    './public/images/campus-gathering.jpg', './public/images/academic-community.jpg',
+    './public/images/campus-activity.jpg',
   ]) {
     assert.ok(coreAssets.includes(asset), `${asset} should be available for offline startup`);
   }
