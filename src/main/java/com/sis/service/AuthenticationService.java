@@ -80,7 +80,7 @@ public class AuthenticationService {
         passwordResetTokenRepository.save(resetToken);
 
         // Send email
-        emailService.sendPasswordReset(email, token, user.getUsername());
+        emailService.sendPasswordReset(user.getEmail(), token, user.getUsername());
         logger.info(() -> "Password reset token created for user: " + user.getUsername());
     }
 
@@ -159,10 +159,10 @@ public class AuthenticationService {
      * @param email email to verify
      */
     public void requestEmailVerification(User user, String email) {
-        String normalizedEmail = email == null ? null : email.trim().toLowerCase(Locale.ROOT);
-        Optional<EmailVerificationToken> existingOpt = normalizedEmail == null
+        String verificationEmail = email == null ? null : email.trim();
+        Optional<EmailVerificationToken> existingOpt = verificationEmail == null
                 ? Optional.empty()
-                : emailVerificationTokenRepository.findByEmailIgnoreCase(normalizedEmail);
+                : emailVerificationTokenRepository.findByEmailIgnoreCase(verificationEmail);
         if (existingOpt.isPresent()) {
             emailVerificationTokenRepository.delete(existingOpt.get());
         }
@@ -172,11 +172,11 @@ public class AuthenticationService {
         LocalDateTime expiryDate = LocalDateTime.now().plusSeconds(EMAIL_VERIFICATION_EXPIRATION_MS / 1000);
 
         EmailVerificationToken verificationToken = new EmailVerificationToken(
-                hashVerificationToken(token), user, normalizedEmail, expiryDate);
+                hashVerificationToken(token), user, verificationEmail, expiryDate);
         emailVerificationTokenRepository.save(verificationToken);
 
         // Send email
-        emailService.sendEmailVerification(normalizedEmail, token, user.getUsername());
+        emailService.sendEmailVerification(verificationEmail, token, user.getUsername());
         logger.info(() -> "Email verification token created for user: " + user.getUsername());
     }
 
@@ -315,12 +315,15 @@ public class AuthenticationService {
      * @param email the email to verify
      */
     public void resendEmailVerification(String email) {
-        Optional<User> userOpt = userRepository.findByEmailNormalized(email);
+        String normalizedEmail = email == null ? null : email.trim();
+        Optional<User> userOpt = normalizedEmail == null || normalizedEmail.isEmpty()
+                ? Optional.empty()
+                : userRepository.findByEmailNormalized(normalizedEmail);
 
         if (userOpt.isEmpty()) {
             return;
         }
 
-        requestEmailVerification(userOpt.get(), email);
+        requestEmailVerification(userOpt.get(), userOpt.get().getEmail());
     }
 }
