@@ -53,6 +53,10 @@ document.addEventListener('DOMContentLoaded', function() {
   initModuleData();
   setupModuleSearch();
   setupPaymentDialog();
+  document.getElementById('gradeAppealForm')?.addEventListener('submit', submitGradeAppeal);
+  document.getElementById('cancelGradeAppeal')?.addEventListener('click', () => {
+    document.getElementById('gradeAppealDialog')?.close();
+  });
   const hashTab = window.location.hash.replace('#', '');
   if (['security', 'preferences', 'grades', 'timetable', 'courses', 'assignments', 'events'].includes(hashTab)) {
     switchTab(hashTab);
@@ -150,13 +154,14 @@ function renderChatHistory(messages) {
 
 async function loadAcademicsData() {
   try {
-    const [courses, grades, profile, assignments, exams, studentStatus] = await Promise.all([
+    const [courses, grades, profile, assignments, exams, studentStatus, appeals] = await Promise.all([
       apiGet('/student/courses'),
       apiGet('/student/grades'),
       apiGet('/student/profile'),
       apiGet('/portal/student/assignments'),
       apiGet('/portal/student/exams'),
       apiGet('/student/my-status'),
+      apiGet('/student/grade-appeals'),
     ]);
     const timetable = await apiGet('/academic/student/timetable');
     const examResults = await apiGet('/academic/student/exam-results');
@@ -170,7 +175,8 @@ async function loadAcademicsData() {
       ? `Current Courses (${semesters.join(', ')})`
       : 'Current Courses';
     renderCourseCards(courses, grades);
-    renderGradesTable(grades, profile, resultStatus, studentStatus);
+    renderGradesTable(grades, profile, resultStatus, studentStatus, appeals);
+    renderStudentGradeAppeals(appeals);
     window._assignments = assignments;
     window._exams = exams;
     renderAssignments(assignments);
@@ -181,6 +187,25 @@ async function loadAcademicsData() {
   } catch (err) {
     console.error('Failed to load academics data', err);
   }
+}
+
+function renderStudentGradeAppeals(appeals) {
+  const container = document.getElementById('studentGradeAppealList');
+  if (!container) return;
+  if (!Array.isArray(appeals) || appeals.length === 0) {
+    container.innerHTML = '<p>No grade appeals have been submitted.</p>';
+    return;
+  }
+  container.innerHTML = `
+    <table class="table"><thead><tr><th>Course</th><th>Status</th><th>Reason</th><th>Teacher response</th><th>Decision</th></tr></thead>
+      <tbody>${appeals.map(item => `<tr>
+        <td>${escapeHtml(item.courseCode)} · ${escapeHtml(item.courseName)}</td>
+        <td>${escapeHtml(item.status)}</td>
+        <td>${escapeHtml(item.reason)}</td>
+        <td>${escapeHtml(item.teacherResponse || (item.teacherConsultedAt ? 'Consulted; no written response' : 'Not yet consulted'))}</td>
+        <td>${escapeHtml(item.decisionNote || 'Pending')}</td>
+      </tr>`).join('')}</tbody>
+    </table>`;
 }
 
 async function loadCourseRegistrationPanel() {
@@ -452,7 +477,7 @@ function renderCourseCards(courses, grades) {
   // here rather than faked - neither is tracked anywhere in the backend.
 }
 
-function renderGradesTable(grades, profile, resultStatus = null, studentStatus = null) {
+function renderGradesTable(grades, profile, resultStatus = null, studentStatus = null, appeals = []) {
   const gpaCards = document.querySelectorAll('.gpa-card .gpa-value');
   const finalized = resultStatus?.published === true;
   const publicationStatus = document.getElementById('gradePublicationStatus');
@@ -496,10 +521,14 @@ function renderGradesTable(grades, profile, resultStatus = null, studentStatus =
   if (!tbody) return;
 
   if (!grades.length) {
-    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--text-secondary,#666);">${finalized ? 'No published grades are available.' : 'Results are pending administrative approval and publication.'}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; color:var(--text-secondary,#666);">${finalized ? 'No published grades are available.' : 'Results are pending administrative approval and publication.'}</td></tr>`;
     return;
   }
 
+  const activeAppealStatuses = new Set(['OPEN', 'TEACHER_REVIEW', 'READY_FOR_DECISION']);
+  const activeGradeAppeals = new Set((Array.isArray(appeals) ? appeals : [])
+    .filter(appeal => activeAppealStatuses.has(appeal.status))
+    .map(appeal => Number(appeal.gradeId)));
   tbody.innerHTML = grades.map(g => {
     const components = Array.isArray(g.assessmentComponents) ? g.assessmentComponents : [];
     const display = (type) => {
@@ -519,8 +548,44 @@ function renderGradesTable(grades, profile, resultStatus = null, studentStatus =
         <td><span class="grade-badge">${escapeHtml(g.grade ?? g.gradeValue ?? '—')}</span></td>
         <td>${g.gpaScore != null ? Number(g.gpaScore).toFixed(2) : '—'}</td>
         <td>${g.retakeRequired ? 'RETAKE REQUIRED · ' : ''}${escapeHtml(g.attemptType === 'RETAKE_SUBMITTED' ? `RETAKE SUBMITTED · attempt ${g.attemptNumber}` : g.status || 'PENDING')}</td>
+        <td>${finalized && g.id
+          ? activeGradeAppeals.has(Number(g.id))
+            ? 'Appeal in progress'
+            : `<button class="btn-small" type="button" onclick="openGradeAppeal(${Number(g.id)})">Request review</button>`
+          : '—'}</td>
       </tr>`;
   }).join('');
+}
+
+function openGradeAppeal(gradeId) {
+  const dialog = document.getElementById('gradeAppealDialog');
+  if (!dialog) return;
+  document.getElementById('gradeAppealGradeId').value = String(gradeId);
+  document.getElementById('gradeAppealCourse').textContent = `Grade record #${gradeId}`;
+  document.getElementById('gradeAppealReason').value = '';
+  document.getElementById('gradeAppealFormStatus').textContent = '';
+  dialog.showModal();
+}
+
+async function submitGradeAppeal(event) {
+  event.preventDefault();
+  const status = document.getElementById('gradeAppealFormStatus');
+  const gradeId = Number(document.getElementById('gradeAppealGradeId').value);
+  const reason = document.getElementById('gradeAppealReason').value.trim();
+  if (!gradeId || !reason) {
+    status.textContent = 'Enter a reason for requesting the review.';
+    return;
+  }
+  try {
+    await apiFetch('/student/grade-appeals', {
+      method: 'POST',
+      body: JSON.stringify({ gradeId, reason }),
+    });
+    document.getElementById('gradeAppealDialog').close();
+    await loadAcademicsData();
+  } catch (error) {
+    status.textContent = error.message || 'Unable to submit the grade appeal.';
+  }
 }
 
 function renderAnalytics(grades, attendance, profile = null) {
