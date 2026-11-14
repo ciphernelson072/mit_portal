@@ -10,6 +10,7 @@ import com.sis.dto.StudentProfileDto;
 import com.sis.dto.TeacherDashboardOverviewDto;
 import com.sis.dto.TeacherProfileDto;
 import com.sis.dto.TeacherGradeDto;
+import com.sis.dto.TeacherResultPublicationStatusDto;
 import com.sis.entity.Course;
 import com.sis.entity.CourseUnit;
 import com.sis.entity.Student;
@@ -17,6 +18,7 @@ import com.sis.entity.Grade;
 import com.sis.exception.ResourceNotFoundException;
 import com.sis.repository.GradeRepository;
 import com.sis.service.AttendanceService;
+import com.sis.service.AcademicReportService;
 import com.sis.service.SchoolService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,6 +28,9 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
@@ -36,12 +41,14 @@ public class TeacherController {
     private final SchoolService schoolService;
     private final AttendanceService attendanceService;
     private final GradeRepository gradeRepository;
+    private final AcademicReportService academicReportService;
 
     public TeacherController(SchoolService schoolService, AttendanceService attendanceService,
-                             GradeRepository gradeRepository) {
+                             GradeRepository gradeRepository, AcademicReportService academicReportService) {
         this.schoolService = schoolService;
         this.attendanceService = attendanceService;
         this.gradeRepository = gradeRepository;
+        this.academicReportService = academicReportService;
     }
 
     @PostMapping("/attendance/approve")
@@ -196,6 +203,45 @@ public class TeacherController {
                 upcomingAssignmentCount,
                 pendingAttendanceCount);
         return ResponseEntity.ok(overview);
+    }
+
+    @GetMapping("/results/publication-status")
+    public ResponseEntity<List<TeacherResultPublicationStatusDto>> getResultPublicationStatuses() {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        var teacher = schoolService.getTeacherByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("Teacher not found for user: " + username));
+        if (teacher.getUser() == null || teacher.getUser().getId() == null) {
+            throw new IllegalStateException("Teacher account is unavailable for result publication status.");
+        }
+
+        List<CourseDto> courses = schoolService.getCoursesForTeacher(teacher.getId());
+        List<Long> courseIds = courses.stream()
+                .map(CourseDto::getId)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .toList();
+        if (courseIds.isEmpty()) {
+            return ResponseEntity.ok(List.of());
+        }
+
+        Map<Long, Student> studentsById = new LinkedHashMap<>();
+        Map<Long, LinkedHashSet<String>> courseCodesByStudent = new LinkedHashMap<>();
+        for (Grade grade : gradeRepository.findByCourseIdsWithStudentAndCourse(courseIds)) {
+            Student student = grade.getStudent();
+            studentsById.putIfAbsent(student.getId(), student);
+            courseCodesByStudent.computeIfAbsent(student.getId(), ignored -> new LinkedHashSet<>())
+                    .add(grade.getCourse().getCourseCode());
+        }
+
+        Long teacherUserId = teacher.getUser().getId();
+        List<TeacherResultPublicationStatusDto> statuses = studentsById.entrySet().stream()
+                .map(entry -> academicReportService.getTeacherPublicationStatus(
+                        entry.getKey(),
+                        entry.getValue().getFullName(),
+                        List.copyOf(courseCodesByStudent.get(entry.getKey())),
+                        teacherUserId))
+                .toList();
+        return ResponseEntity.ok(statuses);
     }
 
     @GetMapping("/me")

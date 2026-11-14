@@ -25,6 +25,8 @@ test('public website pages render with their shared navigation and public-only f
     await page.goto(path);
     await expect(page.getByRole('heading', { name: heading })).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Main navigation' })
+      .getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/public/index.html');
     const campusLogo = page.locator('.site-header .brand-logo');
     await expect(campusLogo).toHaveAttribute('src', '/icons/logo.jpg');
     await expect.poll(() => campusLogo.evaluate(image => image.naturalWidth)).toBeGreaterThan(0);
@@ -34,7 +36,7 @@ test('public website pages render with their shared navigation and public-only f
     await expect.poll(() => campusPhoto.evaluate(image => image.naturalWidth)).toBeGreaterThan(0);
     await expect(page.locator('meta[property="og:title"]')).toHaveAttribute('content', /Makerere Institute of Technology/);
     const footer = page.locator('footer');
-    await expect(footer.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
+    await expect(footer.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/public/index.html');
     await expect(footer.getByRole('link', { name: 'Contact' })).toHaveAttribute('href', '/public/contact.html');
     await expect(footer.getByRole('link', { name: /portal|staff|admin/i })).toHaveCount(0);
     await expect(footer.getByRole('heading', { name: 'Follow MIT' })).toBeVisible();
@@ -53,7 +55,7 @@ test('public website pages render with their shared navigation and public-only f
 });
 
 test('public homepage exposes PWA install help and registers the installable app', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/public/index.html');
   await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', '/manifest.json');
   await expect(page.getByRole('button', { name: 'Install portal' })).toBeVisible();
   await page.getByRole('button', { name: 'Install portal' }).click();
@@ -69,10 +71,43 @@ test('public homepage exposes PWA install help and registers the installable app
   await expect(page.getByRole('button', { name: 'Install portal' })).toBeHidden();
 });
 
-test('student portal login remains available at its explicit path', async ({ page }) => {
+test('student and employee login forms remain available at their explicit paths', async ({ page }) => {
   await page.goto('/index.html');
   await expect(page.getByText('Student Portal', { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Welcome Back' })).toBeVisible();
+
+  await page.goto('/admin-login.html');
+  await expect(page.locator('.login-container')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Admin Portal' })).toBeVisible();
+});
+
+test('portal gateway links to the existing student, employee, and public destinations', async ({ page }) => {
+  await page.goto('/');
+
+  await expect(page.getByRole('heading', { name: 'Welcome to MIT' })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Choose your portal' })).toBeVisible();
+  await expect(page.getByRole('link', { name: /student.*student portal/i })).toHaveAttribute('href', '/index.html');
+  await expect(page.getByRole('link', { name: /employee.*employee portal/i })).toHaveAttribute('href', '/admin-login.html');
+  await expect(page.getByRole('link', { name: /guest.*public information/i })).toHaveAttribute('href', '/public/index.html');
+
+  await page.keyboard.press('Tab');
+  await expect(page.locator('.skip-link')).toBeFocused();
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Tab');
+  const firstPortalChoice = page.locator('.portal-card').first();
+  await expect(firstPortalChoice).toBeFocused();
+  await expect.poll(() => firstPortalChoice.evaluate(element => getComputedStyle(element).outlineStyle))
+    .not.toBe('none');
+});
+
+test('portal gateway fits a narrow mobile viewport and keeps all destinations visible', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 780 });
+  await page.goto('/');
+
+  for (const name of ['Student', 'Employee', 'Guest']) {
+    await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
+  }
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
 });
 
 test('public pages use a transparent hero overlay header and switch to navy on scroll', async ({ page }) => {
