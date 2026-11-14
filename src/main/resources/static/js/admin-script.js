@@ -196,7 +196,7 @@ function switchModule(moduleName, clickedElement = null) {
   else if (moduleName === 'admissions') loadAdmissionApplications();
   else if (moduleName === 'dashboard') loadDashboard();
   else if (moduleName === 'finance') loadAdminFinance();
-  else if (moduleName === 'grades') loadAdminGrades();
+  else if (moduleName === 'grades') { loadAdminGrades(); loadAdminGradeAppeals(); }
   else if (moduleName === 'academic') setupAcademicForms();
   else if (moduleName === 'users') loadUsers();
 }
@@ -734,6 +734,87 @@ async function loadAdminGrades() {
     </tr>`;
     }).join('') : '<tr><td colspan="12">No grades found.</td></tr>';
   } catch (err) { tbody.innerHTML = `<tr><td colspan="12">${escapeHtml(err.message)}</td></tr>`; }
+}
+
+async function loadAdminGradeAppeals() {
+  const list = document.getElementById('adminGradeAppealList');
+  if (!list) return;
+  try {
+    const appeals = await apiGet('/admin/grade-appeals');
+    list.innerHTML = appeals.length ? `
+      <table class="admin-table">
+        <thead><tr><th>Student</th><th>Course</th><th>Request</th><th>Status</th><th>Teacher response</th><th>Decision note</th><th>Actions</th></tr></thead>
+        <tbody>${appeals.map(item => {
+          let actions = '—';
+          if (item.status === 'OPEN') {
+            actions = `<button class="btn-small" type="button" onclick="requestGradeAppealConsultation(${Number(item.id)})">Request teacher consultation</button>`;
+          } else if (item.status === 'TEACHER_REVIEW') {
+            actions = `<button class="btn-small" type="button" onclick="confirmGradeAppealConsultation(${Number(item.id)})">Confirm consulted; no written response</button>`;
+          } else if (item.status === 'READY_FOR_DECISION') {
+            actions = `<button class="btn-small" type="button" onclick="decideGradeAppeal(${Number(item.id)}, 'APPROVED')">Approve appeal</button>
+              <button class="btn-small danger" type="button" onclick="decideGradeAppeal(${Number(item.id)}, 'REJECTED')">Reject appeal</button>`;
+          }
+          return `<tr>
+            <td>${escapeHtml(item.studentName)}<br><small>${escapeHtml(item.registrationNumber || '')}</small></td>
+            <td>${escapeHtml(item.courseCode)} · ${escapeHtml(item.courseName)}</td>
+            <td>${escapeHtml(item.reason)}</td>
+            <td>${escapeHtml(item.status)}</td>
+            <td>${escapeHtml(item.teacherResponse || (item.teacherConsultedAt ? 'Consulted; no written response' : 'Not consulted'))}</td>
+            <td>${escapeHtml(item.decisionNote || '—')}</td>
+            <td>${actions}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>` : '<p>No student grade appeals have been submitted.</p>';
+    setAdminStatus('gradeAppealAdminStatus', '', '');
+    return true;
+  } catch (error) {
+    list.innerHTML = '';
+    setAdminStatus('gradeAppealAdminStatus', error.message || 'Unable to load grade appeals.', 'error');
+    return false;
+  }
+}
+
+async function requestGradeAppealConsultation(id) {
+  try {
+    await apiFetch(`/admin/grade-appeals/${id}/teacher-consultation`, { method: 'POST' });
+    await loadAdminGradeAppeals();
+  } catch (error) {
+    setAdminStatus('gradeAppealAdminStatus', error.message || 'Unable to request teacher consultation.', 'error');
+  }
+}
+
+async function confirmGradeAppealConsultation(id) {
+  if (!confirm('Confirm that the assigned teacher has been consulted. This records the consultation without a written teacher response. Continue?')) return;
+  try {
+    await apiFetch(`/admin/grade-appeals/${id}/confirm-teacher-consultation`, { method: 'POST' });
+    await loadAdminGradeAppeals();
+  } catch (error) {
+    setAdminStatus('gradeAppealAdminStatus', error.message || 'Unable to record teacher consultation.', 'error');
+  }
+}
+
+async function decideGradeAppeal(id, decision) {
+  const note = prompt('Required decision note (maximum 2,000 characters):');
+  if (!note || !note.trim()) return;
+  if (note.trim().length > 2000) {
+    setAdminStatus('gradeAppealAdminStatus', 'Decision notes must be 2,000 characters or fewer.', 'error');
+    return;
+  }
+  try {
+    await apiFetch(`/admin/grade-appeals/${id}/decision`, {
+      method: 'POST',
+      body: JSON.stringify({ decision, note: note.trim() }),
+    });
+    if (await loadAdminGradeAppeals()) {
+      setAdminStatus('gradeAppealAdminStatus',
+        decision === 'APPROVED'
+          ? 'Appeal approved for review. A grade correction still requires separate authorization.'
+          : 'Appeal rejected and the student has been notified.',
+        'success');
+    }
+  } catch (error) {
+    setAdminStatus('gradeAppealAdminStatus', error.message || 'Unable to record the appeal decision.', 'error');
+  }
 }
 
 async function reviewGradeAssessments(id) {
