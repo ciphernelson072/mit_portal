@@ -67,6 +67,12 @@
         });
       });
     }
+    document.querySelectorAll('.auth-theme-toggle[data-theme-toggle]').forEach(button => {
+      button.addEventListener('click', () => {
+        const current = document.documentElement.dataset.theme || systemTheme();
+        setSharedTheme(current === 'dark' ? 'light' : 'dark');
+      });
+    });
   }
 
   window.setSharedTheme = setSharedTheme;

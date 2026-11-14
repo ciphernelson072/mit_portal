@@ -1,0 +1,381 @@
+:root {
+  --auth-primary: #2d5f8b;
+  --auth-primary-dark: #173a5f;
+  --auth-accent: #c62828;
+  --auth-text: #172b46;
+  --auth-muted: #65758b;
+  --auth-border: #cdd7e2;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.auth-theme-toggle {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  z-index: 100;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(255, 255, 255, .72);
+  border-radius: 50%;
+  color: #172b46;
+  background: rgba(255, 255, 255, .94);
+  box-shadow: 0 8px 24px rgba(5, 25, 45, .22);
+  cursor: pointer;
+  font-size: 19px;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+.portal-auth-page,
+.staff-auth-page,
+.forced-auth-page {
+  background-color: #dfe5ec;
+  background-image: linear-gradient(rgba(8, 25, 45, .06), rgba(8, 25, 45, .06)),
+    url('../icons/campus-login.png');
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+.staff-auth-page {
+  min-height: 100vh;
+  margin: 0;
+  padding: 24px;
+  display: grid;
+  place-items: center;
+  color: var(--auth-text);
+  font-family: Arial, Helvetica, sans-serif;
+  background-color: transparent;
+}
+
+.staff-auth-page::after {
+  position: fixed;
+  right: 0;
+  bottom: 12px;
+  left: 0;
+  z-index: 10;
+  content: '© 2024 MIS NET. Secure Administration Access. All Rights Reserved. \00a0 🛡️';
+  color: rgba(255, 255, 255, .78);
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 12px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.staff-auth-page .login-container {
+  width: min(440px, 100%);
+  padding: 36px 40px 32px;
+  border-radius: 8px;
+  border: 1px solid rgba(103, 178, 241, .72);
+  background: rgba(15, 15, 18, .92);
+  box-shadow: 0 18px 55px rgba(7, 24, 43, .28);
+  backdrop-filter: blur(4px);
+}
+
+.staff-auth-page .login-header {
+  margin-bottom: 22px;
+  text-align: center;
+}
+
+.staff-auth-page .admin-icon {
+  margin-bottom: 8px;
+  font-size: 30px;
+}
+
+.staff-auth-page .login-header h1 {
+  margin: 0 0 7px;
+  color: #fff;
+  font-size: 34px;
+}
+
+.staff-auth-page .login-header p {
+  margin: 0;
+  color: #cfd3dd;
+}
+
+.staff-auth-page .alert {
+  display: none;
+  margin-bottom: 18px;
+  padding: 10px 12px;
+  border-left: 4px solid var(--auth-accent);
+  background: #fff2f2;
+  color: #8d1b1b;
+}
+
+.staff-auth-page .alert.show {
+  display: block;
+}
+
+.staff-auth-page .alert p {
+  margin: 0;
+}
+
+.staff-auth-page .form-group {
+  margin-bottom: 16px;
+}
+
+.staff-auth-page label {
+  display: block;
+  margin-bottom: 6px;
+  color: #fff;
+  font-weight: 600;
+}
+
+.staff-auth-page input[type='text'],
+.staff-auth-page input[type='password'] {
+  width: 100%;
+  height: 50px;
+  padding: 8px 12px;
+  border: 1px solid rgba(203, 215, 229, .4);
+  border-radius: 5px;
+  color: #fff;
+  background: rgba(255, 255, 255, .07);
+}
+
+.staff-auth-page input::placeholder {
+  color: #b9c1cb;
+}
+
+.staff-auth-page input:focus {
+  border-color: #bfe5c8;
+  outline: 0;
+  box-shadow: 0 0 0 2px rgba(77, 176, 255, .38), 0 0 12px rgba(77, 176, 255, .35);
+}
+
+.staff-auth-page .btn-login {
+  width: 100%;
+  height: 52px;
+  border: 0;
+  border-radius: 5px;
+  color: #fff;
+  background: linear-gradient(90deg, #a91945, #d91e68);
+  font-weight: 700;
+}
+
+.staff-auth-page .btn-login:hover {
+  background: linear-gradient(90deg, #94163d, #c4195b);
+}
+
+.staff-auth-page .login-footer {
+  margin-top: 18px;
+  text-align: center;
+}
+
+.staff-auth-page .login-footer p {
+  margin: 0;
+}
+
+.staff-auth-page a {
+  color: #80b9ff;
+}
+
+.staff-auth-page .login-footer {
+  color: #fff;
+}
+
+.staff-auth-page .login-container::after {
+  display: block;
+  margin-top: 12px;
+  content: 'Need help? Contact Campus IT Help Desk: +256 769 234213';
+  color: #fff;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 12px;
+  text-align: center;
+}
+
+.portal-auth-page .card {
+  box-shadow: 0 18px 48px rgba(15, 30, 48, .25);
+}
+
+.portal-auth-page .card-header {
+  padding: 20px 26px 16px;
+  gap: 16px;
+}
+
+.portal-auth-page .logo-shield {
+  width: 72px;
+  height: 72px;
+}
+
+.portal-auth-page .card-body {
+  padding: 22px 28px 18px;
+}
+
+.portal-auth-page .input-wrap input {
+  height: 50px;
+  border-width: 1.5px;
+  border-radius: 7px;
+  font-size: 15px;
+}
+
+.portal-auth-page .btn-next {
+  height: 52px;
+  border-radius: 7px;
+  background: #b7164d;
+  font-size: 16px;
+}
+
+.portal-auth-page .btn-next:hover {
+  background: #9b123f;
+}
+
+.portal-auth-page .card-footer {
+  padding: 16px 24px 18px;
+  text-align: center;
+}
+
+.portal-auth-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.portal-auth-page .page-wrapper {
+  filter: drop-shadow(0 18px 45px rgba(4, 18, 34, .32));
+}
+
+.portal-auth-page .card {
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .86);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .97);
+}
+
+.portal-auth-page .card-header,
+.portal-auth-page .card-body,
+.portal-auth-page .card-footer {
+  background: rgba(255, 255, 255, .97);
+}
+
+.portal-auth-page .card-footer {
+  border-top: 1px solid #edf1f5;
+  border-radius: 0;
+}
+
+html[data-theme='dark'] .portal-auth-page .card,
+html[data-theme='dark'] .portal-auth-page .card-header,
+html[data-theme='dark'] .portal-auth-page .card-body,
+html[data-theme='dark'] .portal-auth-page .card-footer,
+html[data-theme='dark'] .forced-auth-page main {
+  border-color: rgba(151, 183, 215, .18);
+  background: rgba(18, 29, 43, .97);
+  color: #eef4fa;
+}
+
+html[data-theme='dark'] .portal-auth-page .header-text h1,
+html[data-theme='dark'] .portal-auth-page .step-header h2,
+html[data-theme='dark'] .forced-auth-page h1 {
+  color: #fff;
+}
+
+html[data-theme='dark'] .portal-auth-page .step-header p,
+html[data-theme='dark'] .portal-auth-page .card-footer,
+html[data-theme='dark'] .forced-auth-page main {
+  color: #cbd7e3;
+}
+
+html[data-theme='dark'] .portal-auth-page .input-wrap input,
+html[data-theme='dark'] .forced-auth-page input {
+  border-color: rgba(189, 208, 226, .28);
+  color: #fff;
+  background: rgba(255, 255, 255, .07);
+}
+
+html[data-theme='dark'] .auth-theme-toggle {
+  border-color: rgba(202, 218, 234, .42);
+  color: #fff;
+  background: rgba(18, 29, 43, .94);
+}
+
+html[data-theme='light'] .staff-auth-page .login-container {
+  border-color: rgba(45, 95, 139, .32);
+  background: rgba(255, 255, 255, .96);
+}
+
+html[data-theme='light'] .staff-auth-page .login-header h1,
+html[data-theme='light'] .staff-auth-page label {
+  color: #172b46;
+}
+
+html[data-theme='light'] .staff-auth-page .login-header p,
+html[data-theme='light'] .staff-auth-page .login-footer {
+  color: #526579;
+}
+
+html[data-theme='light'] .staff-auth-page input[type='text'],
+html[data-theme='light'] .staff-auth-page input[type='password'] {
+  border-color: #cdd7e2;
+  color: #172b46;
+  background: #fff;
+}
+
+html[data-theme='light'] .staff-auth-page input::placeholder {
+  color: #7a8897;
+}
+
+.forced-auth-page {
+  min-height: 100vh;
+  margin: 0;
+  padding: 24px 16px;
+  display: grid;
+  place-items: center;
+  font-family: Arial, Helvetica, sans-serif;
+  background-color: transparent;
+}
+
+.forced-auth-page main {
+  width: min(440px, 100%);
+  padding: 28px;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 12px 36px rgba(23, 58, 95, .16);
+}
+
+.forced-auth-page h1 {
+  margin-top: 0;
+  color: var(--auth-primary-dark);
+}
+
+.forced-auth-page label {
+  display: block;
+  margin-top: 14px;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.forced-auth-page input {
+  width: 100%;
+  height: 42px;
+  padding: 8px 12px;
+  border: 1px solid var(--auth-border);
+  border-radius: 5px;
+}
+
+.forced-auth-page button {
+  width: 100%;
+  height: 42px;
+  margin-top: 18px;
+  border: 0;
+  border-radius: 5px;
+  color: #fff;
+  background: var(--auth-primary);
+  font-weight: 700;
+}
+
+@media (max-width: 480px) {
+  .staff-auth-page,
+  .forced-auth-page {
+    padding: 16px;
+  }
+
+  .staff-auth-page .login-container,
+  .forced-auth-page main {
+    padding: 24px 20px;
+  }
+}
