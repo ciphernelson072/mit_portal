@@ -6,6 +6,7 @@ import com.sis.entity.CourseCategory;
 import com.sis.entity.AuditLog;
 import com.sis.entity.Grade;
 import com.sis.entity.GradeStatus;
+import com.sis.entity.NotificationCategory;
 import com.sis.entity.Student;
 import com.sis.entity.Teacher;
 import com.sis.entity.User;
@@ -16,6 +17,7 @@ import com.sis.repository.CourseRepository;
 import com.sis.repository.GradeRepository;
 import com.sis.repository.StudentRepository;
 import com.sis.repository.TeacherRepository;
+import com.sis.repository.TeacherResultStatusNotificationEventRepository;
 import com.sis.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,12 +27,17 @@ import org.springframework.context.annotation.Import;
 
 import javax.persistence.EntityManager;
 import java.util.Optional;
+import java.util.List;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 @DataJpaTest(properties = "sis.sample-data.enabled=false")
 @Import(AcademicReportService.class)
@@ -59,6 +66,9 @@ class AcademicReportApprovalPersistenceTest {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private TeacherResultStatusNotificationEventRepository statusNotificationEvents;
 
     @Autowired
     private EntityManager entityManager;
@@ -141,5 +151,95 @@ class AcademicReportApprovalPersistenceTest {
         entityManager.clear();
         assertThat(academicReportService.isOfficiallyPublished(student.getId())).isFalse();
         assertThat(academicReportService.getStudentVisibleReport(student.getId()).getCgpa()).isNull();
+    }
+
+    @Test
+    void publishedResultChangesAreReportedAndNotifiedOnlyOnce() {
+        ResultStatusFixture fixture = createResultStatusFixture("publication", GradeStatus.APPROVED);
+        List<String> courseCodes = List.of(fixture.course().getCourseCode());
+
+        assertThat(academicReportService.getTeacherPublicationStatus(
+                fixture.student().getId(), fixture.student().getFullName(), courseCodes, fixture.teacherUserId())
+                .getStatus()).isEqualTo("PENDING");
+        var approvedReport = academicReportService.approveAcademicReport(
+                fixture.student().getId(), fixture.adminUsername());
+        assertThat(academicReportService.getTeacherPublicationStatus(
+                fixture.student().getId(), fixture.student().getFullName(), courseCodes, fixture.teacherUserId())
+                .getStatus()).isEqualTo("AWAITING_PUBLICATION");
+        academicReportService.publishAcademicReport(
+                fixture.student().getId(), approvedReport.getResultsVersion(), fixture.adminUsername());
+        assertThat(academicReportService.getTeacherPublicationStatus(
+                fixture.student().getId(), fixture.student().getFullName(), courseCodes, fixture.teacherUserId())
+                .getStatus()).isEqualTo("PUBLISHED");
+
+        entityManager.flush();
+        entityManager.clear();
+        Grade changedGrade = gradeRepository.findById(fixture.grade().getId()).orElseThrow();
+        changedGrade.setRemarks("corrected after publication");
+        gradeRepository.saveAndFlush(changedGrade);
+
+        assertThat(academicReportService.getTeacherPublicationStatus(
+                fixture.student().getId(), fixture.student().getFullName(), courseCodes, fixture.teacherUserId())
+                .getStatus()).isEqualTo("INVALIDATED");
+        assertThat(academicReportService.getTeacherPublicationStatus(
+                fixture.student().getId(), fixture.student().getFullName(), courseCodes, fixture.teacherUserId())
+                .getStatus()).isEqualTo("INVALIDATED");
+
+        assertThat(statusNotificationEvents.count()).isEqualTo(1);
+        verify(notifications, times(1)).create(eq(fixture.teacherUserId()), eq("Student results published"),
+                anyString(), eq(NotificationCategory.GRADE));
+        verify(notifications, times(1)).create(eq(fixture.teacherUserId()), eq("Published results invalidated"),
+                anyString(), eq(NotificationCategory.GRADE));
+    }
+
+    @Test
+    void blockedResultsNotifyTheAssignedTeacherOnlyOnce() {
+        ResultStatusFixture fixture = createResultStatusFixture("blocked", GradeStatus.REJECTED);
+        List<String> courseCodes = List.of(fixture.course().getCourseCode());
+
+        assertThat(academicReportService.getTeacherPublicationStatus(
+                fixture.student().getId(), fixture.student().getFullName(), courseCodes, fixture.teacherUserId())
+                .getStatus()).isEqualTo("BLOCKED");
+        assertThat(academicReportService.getTeacherPublicationStatus(
+                fixture.student().getId(), fixture.student().getFullName(), courseCodes, fixture.teacherUserId())
+                .getStatus()).isEqualTo("BLOCKED");
+
+        assertThat(statusNotificationEvents.count()).isEqualTo(1);
+        verify(notifications, times(1)).create(eq(fixture.teacherUserId()), eq("Student results blocked"),
+                anyString(), eq(NotificationCategory.GRADE));
+    }
+
+    private ResultStatusFixture createResultStatusFixture(String suffix, GradeStatus status) {
+        Student student = studentRepository.saveAndFlush(new Student(
+                new User("status-student-" + suffix, "encoded", Role.STUDENT), "Status Student", "Year 1"));
+        Teacher teacher = teacherRepository.saveAndFlush(new Teacher(
+                new User("status-teacher-" + suffix, "encoded", Role.TEACHER), "Status Teacher"));
+        String adminUsername = "status-registrar-" + suffix;
+        userRepository.saveAndFlush(new User(adminUsername, "encoded", Role.ADMIN));
+        CourseCategory category = courseCategories.saveAndFlush(
+                new CourseCategory("STATUS", "Status Category"));
+        Course course = new Course();
+        course.setName("Status Workflow");
+        course.setCourseCode("STATUS101");
+        course.setCategory(category);
+        course.setTeacher(teacher);
+        course.setCredits(3);
+        course.setSemester("Semester 1");
+        course = courseRepository.saveAndFlush(course);
+
+        Grade grade = new Grade(student, course, "A", "initial result");
+        grade.setGpaScore(new BigDecimal("5.00"));
+        grade.setStatus(status);
+        if (status == GradeStatus.APPROVED) {
+            grade.setApprovedBy("registrar");
+            grade.setApprovedAt(LocalDateTime.now());
+        }
+        grade = gradeRepository.saveAndFlush(grade);
+        given(studentService.getStudentById(student.getId())).willReturn(Optional.of(student));
+        return new ResultStatusFixture(student, course, grade, teacher.getUser().getId(), adminUsername);
+    }
+
+    private record ResultStatusFixture(
+            Student student, Course course, Grade grade, Long teacherUserId, String adminUsername) {
     }
 }
