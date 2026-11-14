@@ -25,7 +25,43 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadTeacherNotifications();
   await loadTeacherRequests();
   await loadTeacherLeaveRequests();
+  if (normalizeRole(getRole()) === 'TEACHER') await loadTeacherGradeAppeals();
 });
+
+async function loadTeacherGradeAppeals() {
+  const list = document.getElementById('teacherGradeAppealList');
+  if (!list) return;
+  try {
+    const appeals = await apiGet('/teacher/grade-appeals');
+    list.innerHTML = appeals.length ? appeals.map(item => `
+      <article class="teacher-request-item">
+        <strong>${escapeHtml(item.courseCode)} · ${escapeHtml(item.studentName)}</strong>
+        <p>${escapeHtml(item.reason)}</p>
+        <label for="gradeAppealTeacherResponse-${Number(item.id)}">Optional response to the administrator</label>
+        <textarea id="gradeAppealTeacherResponse-${Number(item.id)}" maxlength="2000" rows="3"></textarea>
+        <button class="btn-secondary" type="button" onclick="submitTeacherGradeAppealResponse(${Number(item.id)})">Send response to administrator</button>
+      </article>`).join('') : '<p>No grade appeals currently require teacher review.</p>';
+  } catch (error) {
+    list.innerHTML = `<p role="alert">${escapeHtml(error.message || 'Unable to load grade appeals.')}</p>`;
+  }
+}
+
+async function submitTeacherGradeAppealResponse(id) {
+  const response = document.getElementById(`gradeAppealTeacherResponse-${Number(id)}`)?.value.trim();
+  if (!response) {
+    alert('Enter a response, or contact the administrator if you have no written response.');
+    return;
+  }
+  try {
+    await apiFetch(`/teacher/grade-appeals/${id}/response`, {
+      method: 'POST',
+      body: JSON.stringify({ response }),
+    });
+    await loadTeacherGradeAppeals();
+  } catch (error) {
+    alert(error.message || 'Unable to submit the teacher response.');
+  }
+}
 
 async function loadTeacherDashboard() {
   const fields = [
