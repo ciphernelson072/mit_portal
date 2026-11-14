@@ -2,7 +2,7 @@
   "name": "Makerere Institute of Technology Student Portal",
   "short_name": "MIT Portal",
   "description": "Student, teacher, and admin portal for Makerere Institute of Technology.",
-  "start_url": "/index.html",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",

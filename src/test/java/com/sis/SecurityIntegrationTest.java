@@ -519,7 +519,7 @@ class SecurityIntegrationTest {
         ResponseEntity<String> publicHome = restTemplate.getForEntity("/", String.class);
         assertEquals(HttpStatus.OK, publicHome.getStatusCode());
         assertNotNull(publicHome.getBody());
-        assertTrue(publicHome.getBody().contains("Practical learning for a changing world."));
+        assertTrue(publicHome.getBody().contains("Choose how to continue"));
         ResponseEntity<String> sitemap = restTemplate.getForEntity("/sitemap.xml", String.class);
         assertEquals(HttpStatus.OK, sitemap.getStatusCode());
         assertNotNull(sitemap.getBody());
