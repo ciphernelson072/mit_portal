@@ -380,7 +380,7 @@ test.describe('responsive portal surfaces', () => {
     const row = page.locator('.grades-table tbody tr').first();
     await expect(row.locator('td')).toHaveText([
       'CS401', 'Database Systems', 'Coursework: 36/40', 'Final paper: 48/60',
-      '—', '84.00', 'A', '4.00', 'APPROVED',
+      '—', '84.00', 'A', '4.00', 'APPROVED', 'Request review',
     ]);
     await expect(page.locator('.gpa-card .gpa-value').nth(1)).toHaveText('3.60');
     await expect(page.locator('.gpa-card .gpa-value').nth(2)).toHaveText('5');
