@@ -90,6 +90,7 @@ test('service worker bypasses POST, cross-origin, API, and actuator requests', (
 test('PWA manifest declares installed app icons at their real supported sizes', () => {
   const staticRoot = path.join(__dirname, '../src/main/resources/static');
   const manifest = JSON.parse(fs.readFileSync(path.join(staticRoot, 'manifest.json'), 'utf8'));
+  assert.equal(manifest.start_url, '/', 'installed app should open the portal gateway');
 
   for (const size of [192, 512]) {
     const icon = manifest.icons.find(candidate => candidate.sizes === `${size}x${size}`);
@@ -121,8 +122,9 @@ test('service worker precaches public pages but not authenticated dashboard page
   const coreAssets = [...assetsMatch[1].matchAll(/'([^']+)'/g)].map(match => match[1]);
 
   for (const asset of [
-    './', './index.html', './admissions.html', './course-catalog.html',
+    './', './home.html', './index.html', './admissions.html', './course-catalog.html',
     './admin-login.html', './css/auth.css', './icons/campus-login.png',
+    './css/home.css',
     './css/course-catalog.css', './js/course-catalog.js', './js/theme.js',
     './portal-login.html', './public/css/portal-login.css', './js/portal-login.js',
     './public/index.html', './public/js/site.js',
