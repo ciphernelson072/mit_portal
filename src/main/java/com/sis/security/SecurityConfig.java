@@ -110,6 +110,7 @@ public class SecurityConfig {
                                 "/api/v1/openapi",
                                 "/actuator/health", "/actuator/health/**",
                                 "/", "/portal-gateway.html", "/index.html", "/admissions.html",
+                                "/portal-login.html",
                                 "/admin-login.html", "/course-catalog.html",
                                 "/force-password-change.html",
                                 "/terms.html", "/privacy.html", "/support.html",

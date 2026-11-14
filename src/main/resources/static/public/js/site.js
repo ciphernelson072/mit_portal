@@ -74,7 +74,7 @@ if (menuButton && siteNavigation) {
   });
 
   siteNavigation.addEventListener('click', event => {
-    if (event.target instanceof HTMLAnchorElement && window.matchMedia('(max-width: 820px)').matches) {
+    if (event.target instanceof HTMLAnchorElement && window.matchMedia('(max-width: 1024px)').matches) {
       menuButton.setAttribute('aria-expanded', 'false');
       menuButton.setAttribute('aria-label', 'Open navigation');
       siteNavigation.classList.remove('is-open');
@@ -119,6 +119,134 @@ if (installAppButton && installAppStatus) {
       ? 'The portal has been installed.'
       : 'Installation was cancelled. You can install it later from your browser menu.';
   });
+}
+
+const photoCarousel = document.querySelector('[data-photo-carousel]');
+if (photoCarousel) {
+  const slides = [
+    {
+      src: '/public/images/campus-community.jpg',
+      alt: 'A group of people, some wearing graduation gowns, outside a glass-fronted building.',
+      caption: 'A group outside a glass-fronted building',
+    },
+    {
+      src: '/public/images/campus-gathering.jpg',
+      alt: 'A group gathered indoors beside national and institutional flags.',
+      caption: 'A gathering at the institute',
+    },
+    {
+      src: '/public/images/campus-activity.jpg',
+      alt: 'A group of people gathered in a hall while one person speaks at the front.',
+      caption: 'A group gathered for an institute activity',
+    },
+    {
+      src: '/public/images/academic-community.jpg',
+      alt: 'A line of people wearing colorful academic gowns and caps indoors.',
+      caption: 'Academic community',
+    },
+  ];
+  const firstImage = photoCarousel.querySelector('[data-carousel-image]');
+  const secondImage = photoCarousel.querySelector('[data-carousel-image-secondary]');
+  const caption = photoCarousel.querySelector('[data-carousel-caption]');
+  const status = photoCarousel.querySelector('[data-carousel-status]');
+  const previousButton = photoCarousel.querySelector('[data-carousel-previous]');
+  const nextButton = photoCarousel.querySelector('[data-carousel-next]');
+  const toggleButton = photoCarousel.querySelector('[data-carousel-toggle]');
+  const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const mobileViewport = window.matchMedia('(max-width: 700px)');
+  let activeImage = firstImage;
+  let currentSlide = 0;
+  let isPlaying = !motionPreference.matches && !mobileViewport.matches;
+  let timer;
+  let renderVersion = 0;
+  let pointerInput = false;
+
+  function updateRotationControl() {
+    toggleButton.hidden = motionPreference.matches || mobileViewport.matches;
+    toggleButton.textContent = isPlaying ? 'Pause' : 'Play';
+    toggleButton.setAttribute('aria-label', isPlaying ? 'Pause photo rotation' : 'Start photo rotation');
+    status.setAttribute('aria-live', isPlaying ? 'off' : 'polite');
+  }
+
+  function setPlaying(playing) {
+    isPlaying = playing;
+    window.clearInterval(timer);
+    if (isPlaying) {
+      timer = window.setInterval(() => showSlide((currentSlide + 1) % slides.length), 7000);
+    }
+    updateRotationControl();
+  }
+
+  async function showSlide(index) {
+    if (index === currentSlide) return;
+    const version = ++renderVersion;
+    const incomingImage = activeImage === firstImage ? secondImage : firstImage;
+    const slide = slides[index];
+    incomingImage.classList.remove('is-active');
+    incomingImage.alt = '';
+    incomingImage.setAttribute('aria-hidden', 'true');
+    incomingImage.src = slide.src;
+
+    try {
+      await incomingImage.decode();
+    } catch (error) {
+      if (!incomingImage.complete || incomingImage.naturalWidth === 0) {
+        console.error(`Unable to load public photo: ${slide.src}`, error);
+        return;
+      }
+    }
+    if (version !== renderVersion) return;
+
+    activeImage.classList.remove('is-active');
+    activeImage.alt = '';
+    activeImage.setAttribute('aria-hidden', 'true');
+    incomingImage.alt = slide.alt;
+    incomingImage.removeAttribute('aria-hidden');
+    incomingImage.classList.add('is-active');
+    activeImage = incomingImage;
+    currentSlide = index;
+    caption.textContent = slide.caption;
+    status.textContent = `Photo ${index + 1} of ${slides.length}: ${slide.caption}`;
+  }
+
+  previousButton.addEventListener('click', () => {
+    setPlaying(false);
+    showSlide((currentSlide + slides.length - 1) % slides.length);
+  });
+  nextButton.addEventListener('click', () => {
+    setPlaying(false);
+    showSlide((currentSlide + 1) % slides.length);
+  });
+  toggleButton.addEventListener('click', () => setPlaying(!isPlaying));
+  photoCarousel.addEventListener('focusin', event => {
+    if (!pointerInput && !photoCarousel.contains(event.relatedTarget)) setPlaying(false);
+  });
+  photoCarousel.addEventListener('pointerdown', () => {
+    pointerInput = true;
+    window.setTimeout(() => { pointerInput = false; }, 0);
+  });
+  photoCarousel.addEventListener('keydown', event => {
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      setPlaying(false);
+      showSlide((currentSlide + slides.length - 1) % slides.length);
+    } else if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      setPlaying(false);
+      showSlide((currentSlide + 1) % slides.length);
+    }
+  });
+  motionPreference.addEventListener('change', event => {
+    if (event.matches) setPlaying(false);
+    updateRotationControl();
+  });
+  mobileViewport.addEventListener('change', event => {
+    if (event.matches) setPlaying(false);
+    updateRotationControl();
+  });
+
+  updateRotationControl();
+  if (isPlaying) setPlaying(true);
 }
 
 if ('serviceWorker' in navigator) {
@@ -178,7 +306,7 @@ async function loadPublicPrograms() {
     status.textContent = '';
   } catch (error) {
     status.classList.add('notice-error');
-    status.textContent = `${error.message} Try again later or call admissions support.`;
+    status.textContent = `${error instanceof TypeError ? 'Programme information is temporarily unavailable.' : error.message} Try again later or call admissions support.`;
   }
 }
 
@@ -195,7 +323,7 @@ async function loadAcademicYear() {
       ? `The current application year is ${year.name}.`
       : 'The institute has not published an active application year. Contact admissions for current information.';
   } catch (error) {
-    target.textContent = `${error.message} Please contact admissions support for current information.`;
+    target.textContent = `${error instanceof TypeError ? 'Current admissions information is temporarily unavailable.' : error.message} Please contact admissions support for current information.`;
   }
 }
 
