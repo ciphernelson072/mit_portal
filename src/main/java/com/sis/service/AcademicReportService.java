@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -23,19 +25,24 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.sis.dto.AcademicReportDto;
 import com.sis.dto.CourseGradeDto;
+import com.sis.dto.TeacherResultPublicationStatusDto;
 import com.sis.entity.AcademicReportApproval;
 import com.sis.entity.AcademicResultSnapshot;
+import com.sis.entity.Course;
 import com.sis.entity.Grade;
 import com.sis.entity.GradeStatus;
 import com.sis.entity.Student;
 import com.sis.entity.StudentProgram;
+import com.sis.entity.TeacherResultStatusNotificationEvent;
 import com.sis.exception.ResourceNotFoundException;
 import com.sis.repository.AcademicResultSnapshotRepository;
 import com.sis.repository.AcademicReportApprovalRepository;
 import com.sis.repository.AuditLogRepository;
+import com.sis.repository.CourseRepository;
 import com.sis.repository.GradeRepository;
 import com.sis.repository.StudentRepository;
 import com.sis.repository.StudentProgramRepository;
+import com.sis.repository.TeacherResultStatusNotificationEventRepository;
 import com.sis.repository.TeacherRepository;
 import com.sis.repository.UserRepository;
 import com.sis.entity.AuditLog;
@@ -58,6 +65,9 @@ public class AcademicReportService {
     private GradeRepository gradeRepository;
 
     @Autowired
+    private CourseRepository courseRepository;
+
+    @Autowired
     private AcademicReportApprovalRepository approvalRepository;
 
     @Autowired
@@ -77,6 +87,9 @@ public class AcademicReportService {
 
     @Autowired
     private TeacherRepository teacherRepository;
+
+    @Autowired
+    private TeacherResultStatusNotificationEventRepository statusNotificationEvents;
 
     @Autowired
     private StudentProgramRepository studentPrograms;
@@ -278,10 +291,144 @@ public class AcademicReportService {
             notifications.create(student.getUser().getId(), "Academic results published",
                     "Your approved academic results are now available in the student portal.",
                     com.sis.entity.NotificationCategory.GRADE);
+            notifyAssignedTeachers(published, student);
         }
         logger.info("Academic result version " + resultsVersion + " published for student " + studentId
                 + " by " + publisherUsername);
         return reportFromSnapshot(published);
+    }
+
+    private void notifyAssignedTeachers(AcademicResultSnapshot snapshot, Student student) {
+        AcademicReportDto report = reportFromSnapshot(snapshot);
+        List<CourseGradeDto> courseGrades = report.getCourseGrades();
+        if (courseGrades == null) {
+            logger.warning("Cannot notify teachers for published result snapshot " + snapshot.getId()
+                    + ": the snapshot has no course-grade details.");
+            return;
+        }
+        if (courseGrades.stream().anyMatch(courseGrade -> courseGrade.getCourseId() == null)) {
+            throw new IllegalStateException("An approved result references a course without an identifier.");
+        }
+        List<Long> courseIds = courseGrades.stream()
+                .map(CourseGradeDto::getCourseId)
+                .distinct()
+                .toList();
+        if (courseIds.isEmpty()) {
+            return;
+        }
+
+        List<Course> courses = courseRepository.findAllById(courseIds);
+        if (courses.size() != courseIds.size()) {
+            throw new IllegalStateException("An approved result references a course that is no longer available.");
+        }
+
+        Map<Long, LinkedHashSet<String>> courseCodesByTeacherUser = new LinkedHashMap<>();
+        for (Course course : courses) {
+            if (course.getTeacher() == null || course.getTeacher().getUser() == null
+                    || course.getTeacher().getUser().getId() == null) {
+                throw new IllegalStateException("An approved result course has no valid teacher account.");
+            }
+            Long teacherUserId = course.getTeacher().getUser().getId();
+            courseCodesByTeacherUser.computeIfAbsent(teacherUserId, ignored -> new LinkedHashSet<>())
+                    .add(course.getCourseCode());
+        }
+
+        courseCodesByTeacherUser.forEach((teacherUserId, courseCodes) ->
+                notifications.create(teacherUserId, "Student results published",
+                        "Approved results for " + student.getFullName() + " including "
+                                + String.join(", ", courseCodes)
+                                + " are now available in the student portal.",
+                        com.sis.entity.NotificationCategory.GRADE));
+    }
+
+    public TeacherResultPublicationStatusDto getTeacherPublicationStatus(
+            Long studentId, String studentName, List<String> courseCodes, Long teacherUserId) {
+        List<Grade> grades = gradeRepository.findByStudentIdWithCourse(studentId);
+        String currentVersion = resultsVersion(grades, studentId);
+        AcademicResultSnapshot snapshot = snapshots.findFirstByStudentIdOrderByApprovedAtDescIdDesc(studentId)
+                .orElse(null);
+
+        if (snapshot != null && !snapshot.getResultsVersion().equals(currentVersion)) {
+            if (snapshot.getPublishedAt() != null) {
+                notifyTeacherOfStatusChange(studentId, studentName, courseCodes, teacherUserId,
+                        "INVALIDATED", currentVersion, snapshot.getResultsVersion());
+                return new TeacherResultPublicationStatusDto(studentId, studentName, courseCodes, "INVALIDATED",
+                        "Results changed after publication and need administrative review.");
+            }
+            return new TeacherResultPublicationStatusDto(studentId, studentName, courseCodes, "PENDING",
+                    "Results changed after approval and need administrative re-approval.");
+        }
+
+        boolean hasRetakes = grades.stream().anyMatch(grade -> grade.getOriginalAttempt() != null
+                || (grade.getAttemptNumber() != null && grade.getAttemptNumber() > 1));
+        boolean hasRejectedGrades = grades.stream().anyMatch(grade -> grade.getStatus() == GradeStatus.REJECTED);
+        if (hasRetakes || hasRejectedGrades) {
+            notifyTeacherOfStatusChange(studentId, studentName, courseCodes, teacherUserId,
+                    "BLOCKED", currentVersion, snapshot == null ? null : snapshot.getResultsVersion());
+            String message = hasRetakes
+                    ? "Retake results cannot be finalized until the institutional retake policy is configured."
+                    : "One or more grades were returned and require resolution before results can proceed.";
+            return new TeacherResultPublicationStatusDto(
+                    studentId, studentName, courseCodes, "BLOCKED", message);
+        }
+
+        boolean hasUnapprovedGrades = grades.stream()
+                .anyMatch(grade -> grade.getStatus() != GradeStatus.APPROVED);
+        if (snapshot == null) {
+            String message = hasUnapprovedGrades
+                    ? "Waiting for all submitted grades to be approved."
+                    : "Grades are approved and waiting for administrative result approval.";
+            return new TeacherResultPublicationStatusDto(
+                    studentId, studentName, courseCodes, "PENDING", message);
+        }
+
+        if (snapshot.getPublishedAt() == null) {
+            return new TeacherResultPublicationStatusDto(
+                    studentId, studentName, courseCodes, "AWAITING_PUBLICATION",
+                    "The current result version is approved and awaiting publication.");
+        }
+        return new TeacherResultPublicationStatusDto(
+                studentId, studentName, courseCodes, "PUBLISHED",
+                "The current result version has been published.");
+    }
+
+    private void notifyTeacherOfStatusChange(Long studentId, String studentName, List<String> courseCodes,
+                                             Long teacherUserId, String status, String currentVersion,
+                                             String approvedVersion) {
+        if (teacherUserId == null) {
+            throw new IllegalStateException("Teacher account is unavailable for result status notification.");
+        }
+        studentRepository.findByIdForUpdate(studentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Student not found with ID: " + studentId));
+        String eventKey = statusNotificationEventKey(
+                studentId, teacherUserId, status, currentVersion, approvedVersion);
+        if (statusNotificationEvents.existsById(eventKey)) {
+            return;
+        }
+
+        statusNotificationEvents.saveAndFlush(new TeacherResultStatusNotificationEvent(
+                eventKey, studentId, teacherUserId, status));
+        String title = "BLOCKED".equals(status)
+                ? "Student results blocked" : "Published results invalidated";
+        String message = "BLOCKED".equals(status)
+                ? "Results for " + studentName + " in " + String.join(", ", courseCodes)
+                        + " are blocked and require resolution in the portal."
+                : "Published results for " + studentName + " in " + String.join(", ", courseCodes)
+                        + " changed and require administrative review.";
+        notifications.create(teacherUserId, title, message, com.sis.entity.NotificationCategory.GRADE);
+    }
+
+    private String statusNotificationEventKey(Long studentId, Long teacherUserId, String status,
+                                              String currentVersion, String approvedVersion) {
+        String canonical = studentId + "|" + teacherUserId + "|" + status + "|"
+                + currentVersion + "|" + (approvedVersion == null ? "" : approvedVersion);
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(canonical.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(digest);
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("SHA-256 is unavailable for result notification deduplication.", ex);
+        }
     }
 
     public boolean isOfficiallyApproved(Long studentId) {

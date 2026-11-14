@@ -1,6 +1,7 @@
-const CACHE_NAME = 'mit-portal-cache-v31';
+const CACHE_NAME = 'mit-portal-cache-v34';
 const CORE_ASSETS = [
   './',
+  './portal-gateway.html',
   './index.html',
   './portal-login.html',
   './admissions.html',
@@ -16,6 +17,7 @@ const CORE_ASSETS = [
   './css/style.css',
   './css/auth.css',
   './public/css/portal-login.css',
+  './css/portal-gateway.css',
   './css/dashboard-style.css',
   './css/modules-style.css',
   './css/admin-style.css',
