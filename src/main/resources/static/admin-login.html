@@ -5,178 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>MIT Admin Portal – Login</title>
   <link rel="manifest" href="/manifest.json">
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family: 'Segoe UI', Arial, sans-serif;
-      background: linear-gradient(135deg, #1a3a8c 0%, #d81b60 100%);
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-    }
-
-    .login-container {
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-      width: 100%;
-      max-width: 400px;
-      padding: 40px;
-    }
-
-    .login-header {
-      text-align: center;
-      margin-bottom: 30px;
-    }
-
-    .admin-icon {
-      font-size: 48px;
-      margin-bottom: 12px;
-    }
-
-    .login-header h1 {
-      font-size: 24px;
-      color: #111;
-      margin-bottom: 4px;
-    }
-
-    .login-header p {
-      font-size: 13px;
-      color: #666;
-    }
-
-    .alert {
-      background: #fce4ec;
-      border-left: 4px solid #d81b60;
-      padding: 12px 16px;
-      border-radius: 4px;
-      margin-bottom: 20px;
-      display: none;
-    }
-
-    .alert.show {
-      display: block;
-    }
-
-    .alert p {
-      font-size: 13px;
-      color: #d81b60;
-    }
-
-    .form-group {
-      margin-bottom: 16px;
-    }
-
-    label {
-      display: block;
-      font-weight: 600;
-      font-size: 12px;
-      margin-bottom: 6px;
-      color: #333;
-    }
-
-    input {
-      width: 100%;
-      padding: 12px;
-      border: 1.5px solid #ddd;
-      border-radius: 6px;
-      font-size: 14px;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-
-    input:focus {
-      border-color: #d81b60;
-      background: #fafafa;
-    }
-
-    .role-selector {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      margin-bottom: 20px;
-    }
-
-    .role-btn {
-      padding: 12px;
-      border: 1.5px solid #ddd;
-      background: white;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: 600;
-      font-size: 12px;
-      transition: all 0.2s;
-    }
-
-    .role-btn.active {
-      background: #d81b60;
-      color: white;
-      border-color: #d81b60;
-    }
-
-    .btn-login {
-      width: 100%;
-      padding: 12px;
-      background: #d81b60;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      font-size: 14px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-
-    .btn-login:hover {
-      background: #ad1457;
-    }
-
-    .btn-login:active {
-      transform: scale(0.98);
-    }
-
-    .login-footer {
-      text-align: center;
-      margin-top: 20px;
-      font-size: 12px;
-      color: #999;
-    }
-
-    .login-footer a {
-      color: #d81b60;
-      text-decoration: none;
-    }
-
-    .info-box {
-      background: #f0f0f0;
-      padding: 12px;
-      border-radius: 6px;
-      font-size: 12px;
-      color: #666;
-      margin-top: 20px;
-      text-align: center;
-    }
-
-    @media (max-width: 480px) {
-      .login-container {
-        padding: 20px;
-      }
-
-      .login-header h1 {
-        font-size: 20px;
-      }
-    }
-
-  </style>
+  <link rel="stylesheet" href="/css/auth.css">
 </head>
-<body>
+<body class="staff-auth-page">
+<button class="auth-theme-toggle" type="button" data-theme-toggle aria-label="Switch to dark theme">🌙</button>
 
 <div class="login-container">
   <!-- Header -->
@@ -187,7 +19,7 @@
   </div>
 
   <!-- Alert -->
-  <div class="alert" id="alert">
+  <div class="alert" id="alert" role="alert" aria-live="assertive" hidden>
     <p id="alertText">Invalid credentials</p>
   </div>
 
@@ -223,13 +55,13 @@
 
   <!-- Footer -->
   <div class="login-footer">
-    <p><a href="#" onclick="requestAdminPasswordReset(event)">Forgot password?</a> | <a href="index.html">Student Login</a></p>
+    <p><a href="#" onclick="requestAdminPasswordReset(event)">Forgot password?</a> | <a href="/index.html">Student Login</a></p>
   </div>
 
 </div>
 
-<script src="js/deployment-config.js"></script>
-<script src="js/auth.js"></script>
+<script src="/js/deployment-config.js"></script>
+<script src="/js/auth.js"></script>
 <script>
   // Real authentication against POST /api/auth/login - the previous version
   // accepted a hardcoded email/password pair client-side and let the caller pick
@@ -243,8 +75,12 @@
   function showAlert(message) {
     const alert = document.getElementById('alert');
     document.getElementById('alertText').textContent = message;
+    alert.hidden = false;
     alert.classList.add('show');
-    setTimeout(() => alert.classList.remove('show'), 3000);
+    setTimeout(() => {
+      alert.classList.remove('show');
+      alert.hidden = true;
+    }, 5000);
   }
 
   async function handleAdminLogin(event) {
@@ -273,6 +109,19 @@
 
       if (!res.ok) {
         const errorBody = await res.clone().json().catch(() => ({}));
+        if (errorBody.mfaEnrollmentRequired) {
+          if (errorBody.role !== 'ADMIN' && errorBody.role !== 'TEACHER') {
+            await logout('admin-login.html');
+            showAlert('This is the staff portal. Students should sign in at the student portal.');
+            return;
+          }
+          setSession(errorBody.role, errorBody.username, errorBody.passwordChangeRequired);
+          setMfaEnrollmentRequired(true);
+          window.location.href = errorBody.passwordChangeRequired
+            ? 'force-password-change.html'
+            : 'account-security.html';
+          return;
+        }
         if (errorBody.mfaRequired) {
           document.getElementById('otpGroup').hidden = false;
           document.getElementById('otp').focus();
@@ -343,16 +192,13 @@
     }
   }
 
-  // Already signed in as staff? Skip straight to the dashboard. UX shortcut only
-  // (see auth.js) - the real check happens server-side on every API call.
+  // Do not redirect based only on the localStorage role hint. It can outlive
+  // the authentication cookies and otherwise send users away from this form.
   window.addEventListener('load', function() {
-    if (getRole() === 'ADMIN') {
-      window.location.href = 'admin-dashboard.html';
-    } else if (getRole() === 'TEACHER') {
-      window.location.href = 'teacher-dashboard.html';
-    }
+    document.getElementById('username').focus();
   });
 </script>
+<script src="/js/theme.js"></script>
 
 </body>
 </html>
