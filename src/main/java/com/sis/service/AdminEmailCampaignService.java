@@ -3,6 +3,7 @@ package com.sis.service;
 import com.sis.dto.AdminEmailRecipientDto;
 import com.sis.dto.BulkEmailRequest;
 import com.sis.dto.BulkEmailResponse;
+import com.sis.entity.Role;
 import com.sis.entity.Student;
 import com.sis.entity.Teacher;
 import com.sis.entity.User;
@@ -136,7 +137,10 @@ public class AdminEmailCampaignService {
     }
 
     private String preferredEmail(User user, Map<Long, String> profileEmails) {
-        return isValidEmail(user.getEmail()) ? user.getEmail() : profileEmails.get(user.getId());
+        if (user.getRole() == Role.ADMIN) {
+            return isValidEmail(user.getEmail()) ? user.getEmail() : null;
+        }
+        return profileEmails.get(user.getId());
     }
 
     private boolean isValidEmail(String email) {
