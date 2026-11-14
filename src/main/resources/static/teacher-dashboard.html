@@ -21,6 +21,7 @@
     <nav class="sidebar-nav" aria-label="Faculty workspace">
       <a href="#teacher-roster" class="nav-item"><span class="icon">👥</span><span>Class Roster</span></a>
       <a href="#teacher-grades" class="nav-item"><span class="icon">📝</span><span>Gradebook</span></a>
+      <a href="#teacher-results" class="nav-item"><span class="icon">📊</span><span>Result Status</span></a>
       <a href="#teacher-attendance" class="nav-item"><span class="icon">✓</span><span>Attendance</span></a>
       <a href="#teacher-materials" class="nav-item"><span class="icon">📚</span><span>Course Materials</span></a>
       <a href="#teacher-assignments" class="nav-item"><span class="icon">📅</span><span>Assignments</span></a>
@@ -101,6 +102,18 @@
     </section>
 
     <section class="teacher-grid">
+      <div class="teacher-card" id="teacher-results">
+        <div class="teacher-actions teacher-gradebook-heading">
+          <h2>Result publication status</h2>
+          <button class="btn-secondary" type="button" onclick="loadTeacherPublicationStatuses()">Refresh</button>
+        </div>
+        <p>Track result progress for students with grades in your assigned courses. This view shows status only, not marks or full reports.</p>
+        <div id="teacherPublicationStatus" class="teacher-status" role="status"></div>
+        <div id="teacherPublicationStatusList" class="roster-wrap" aria-live="polite">
+          <p>Loading result statuses...</p>
+        </div>
+      </div>
+
       <div class="teacher-card" id="teacher-roster">
         <h2>Assigned Courses</h2>
         <p>Select a course to view its enrolled students.</p>
