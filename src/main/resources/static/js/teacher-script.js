@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadTeacherNotifications();
   await loadTeacherRequests();
   await loadTeacherLeaveRequests();
+  if (normalizeRole(getRole()) === 'TEACHER') await loadTeacherPublicationStatuses();
   if (normalizeRole(getRole()) === 'TEACHER') await loadTeacherGradeAppeals();
 });
 
@@ -60,6 +61,42 @@ async function submitTeacherGradeAppealResponse(id) {
     await loadTeacherGradeAppeals();
   } catch (error) {
     alert(error.message || 'Unable to submit the teacher response.');
+  }
+}
+
+async function loadTeacherPublicationStatuses() {
+  const list = document.getElementById('teacherPublicationStatusList');
+  if (!list) return;
+  try {
+    const statuses = await apiGet('/teacher/results/publication-status');
+    list.innerHTML = statuses.length ? `
+      <table class="roster-table">
+        <thead><tr><th>Student</th><th>Assigned courses</th><th>Status</th><th>Details</th></tr></thead>
+        <tbody>${statuses.map(item => {
+          const status = String(item.status || 'PENDING').toUpperCase();
+          const badgeClass = status === 'PUBLISHED' ? 'success'
+            : ['BLOCKED', 'INVALIDATED'].includes(status) ? 'error'
+              : status === 'PENDING' ? 'pending' : 'muted';
+          const label = ({
+            PENDING: 'Pending',
+            BLOCKED: 'Blocked',
+            INVALIDATED: 'Changes required',
+            AWAITING_PUBLICATION: 'Awaiting publication',
+            PUBLISHED: 'Published',
+          })[status] || status;
+          const courseCodes = Array.isArray(item.courseCodes) ? item.courseCodes.join(', ') : '';
+          return `<tr>
+            <td>${escapeHtml(item.studentName || 'Student')}</td>
+            <td>${escapeHtml(courseCodes)}</td>
+            <td><span class="status-badge ${badgeClass}">${escapeHtml(label)}</span></td>
+            <td>${escapeHtml(item.message || '')}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>` : '<p>No result records are available for your assigned courses yet.</p>';
+    setStatus('teacherPublicationStatus', '', '');
+  } catch (err) {
+    list.innerHTML = '';
+    setStatus('teacherPublicationStatus', err.message || 'Unable to load result publication statuses.', 'error');
   }
 }
 

@@ -1,4 +1,6 @@
 const { test, expect } = require('@playwright/test');
+const fs = require('node:fs/promises');
+const path = require('node:path');
 
 let authTestClient = 100;
 
@@ -22,6 +24,87 @@ test('teacher dashboard has independent course selectors', async ({ page }) => {
   await expect(page.locator('#attendanceCourseSelect')).toHaveCount(1);
   await expect(page.locator('#courseSelect')).toHaveCount(0);
   await expect(page.locator('#attendanceStudent')).toHaveCount(0);
+});
+
+test('teacher can view result publication status without exposing grade marks', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('mitRole', 'TEACHER');
+    localStorage.setItem('mitUsername', 'teacher1');
+  });
+  const staticRoot = path.resolve(__dirname, '../../src/main/resources/static');
+  await page.route('**/*', async route => {
+    const url = new URL(route.request().url());
+    if (url.pathname.startsWith('/api/')) {
+      const payload = url.pathname === '/api/teacher/results/publication-status'
+        ? [{
+            studentId: 7,
+            studentName: '<img src=x onerror=alert(1)>',
+            courseCodes: ['CSC201'],
+            status: 'INVALIDATED',
+            message: 'Results changed after publication and need administrative review.',
+          }]
+        : url.pathname === '/api/teacher/me'
+          ? { fullName: 'Ruth Nakato' }
+          : url.pathname === '/api/teacher/dashboard'
+            ? {
+                assignedCourseCount: 0,
+                enrolledStudentCount: 0,
+                pendingGradeCount: 0,
+                upcomingAssignmentCount: 0,
+                pendingAttendanceCount: 0,
+              }
+            : [];
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(payload),
+      });
+      return;
+    }
+
+    const relativePath = decodeURIComponent(url.pathname).replace(/^\/+/, '');
+    const filePath = path.resolve(staticRoot, relativePath);
+    const relativeToRoot = path.relative(staticRoot, filePath);
+    if (relativeToRoot.startsWith('..') || path.isAbsolute(relativeToRoot)) {
+      await route.abort();
+      return;
+    }
+
+    const contentTypes = {
+      '.css': 'text/css',
+      '.html': 'text/html',
+      '.js': 'text/javascript',
+      '.json': 'application/json',
+      '.svg': 'image/svg+xml',
+    };
+    let body;
+    try {
+      body = await fs.readFile(filePath);
+    } catch (error) {
+      if (error.code !== 'ENOENT' && error.code !== 'EISDIR') throw error;
+      await route.fulfill({ status: 404, body: '' });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: contentTypes[path.extname(filePath)] || 'application/octet-stream',
+      body,
+    });
+  });
+
+  await page.goto('/teacher-dashboard.html');
+
+  const statusList = page.locator('#teacherPublicationStatusList');
+  await expect(statusList).toContainText('Changes required');
+  await expect(statusList).toContainText('<img src=x onerror=alert(1)>');
+  await expect(statusList.locator('img')).toHaveCount(0);
+  await expect(statusList).toContainText('CSC201');
+  await expect(statusList.locator('th')).toHaveText([
+    'Student',
+    'Assigned courses',
+    'Status',
+    'Details',
+  ]);
 });
 
 test('teacher approves a complete present and absent class roster', async ({ page }) => {
