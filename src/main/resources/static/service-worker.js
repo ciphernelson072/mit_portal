@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mit-portal-cache-v21';
+const CACHE_NAME = 'mit-portal-cache-v30';
 const CORE_ASSETS = [
   './',
   './index.html',
