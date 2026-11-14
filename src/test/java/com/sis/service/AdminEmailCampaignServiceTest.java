@@ -1,5 +1,6 @@
 package com.sis.service;
 
+import com.sis.dto.AdminEmailRecipientDto;
 import com.sis.dto.BulkEmailRequest;
 import com.sis.dto.BulkEmailResponse;
 import com.sis.entity.Role;
@@ -35,6 +36,7 @@ class AdminEmailCampaignServiceTest {
     void recipientPickerIncludesOnlyActiveAccountsWithValidEmailAddresses() {
         User valid = user(1L, "admin", "admin@example.test", true);
         User noEmail = user(2L, "no-email", null, true);
+        noEmail.setRole(Role.STUDENT);
         User malformed = user(3L, "malformed", "not-an-email", true);
         User inactive = user(4L, "inactive", "inactive@example.test", false);
         when(userRepository.findByIsActiveTrueOrderByIdAsc())
@@ -50,6 +52,24 @@ class AdminEmailCampaignServiceTest {
 
         assertEquals(2, recipients.size());
         verify(userRepository).findByIsActiveTrueOrderByIdAsc();
+    }
+
+    @Test
+    void studentCampaignUsesProfileContactAddressInsteadOfAccountAddress() {
+        User student = user(1L, "student-user", "account@example.test", true);
+        student.setRole(Role.STUDENT);
+        Student profile = new Student(student, "Student User", "Grade 10");
+        profile.setEmail("contact@example.test");
+        when(userRepository.findByIsActiveTrueOrderByIdAsc()).thenReturn(List.of(student));
+        when(studentRepository.findAllWithUserByUserIdIn(Set.of(1L))).thenReturn(List.of(profile));
+        when(teacherRepository.findAllWithUserByUserIdIn(Set.of(1L))).thenReturn(List.of());
+        when(userRepository.findAllById(anyIterable())).thenReturn(List.of(student));
+
+        List<AdminEmailRecipientDto> recipients = campaignService.listRecipients();
+        campaignService.sendCampaign(request(List.of(1L)));
+
+        assertEquals("contact@example.test", recipients.get(0).getEmail());
+        verify(emailService).sendComposedEmail("contact@example.test", "Portal update", "Hello users.");
     }
 
     @Test
