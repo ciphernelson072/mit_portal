@@ -31,6 +31,7 @@
         <a href="/public/programmes.html">Programmes</a>
         <a href="/public/admissions.html">Admissions</a>
         <a href="/public/contact.html">Contact</a>
+        <a class="nav-portal" href="/portal-login.html">Portal sign in</a>
         <a class="nav-apply" href="/admissions.html#admissionForm">Apply now</a>
       </nav>
     </div>
@@ -46,13 +47,21 @@
           <div class="hero-actions">
             <a class="button-link button-primary" href="/public/admissions.html">Explore admissions</a>
             <a class="button-link button-outline" href="/public/programmes.html">View programmes</a>
+            <a class="button-link button-outline" href="/portal-login.html">Portal sign in</a>
             <button class="button-link button-outline install-app-button" id="installAppButton" type="button">Install portal</button>
           </div>
           <p class="install-app-status" id="installAppStatus" role="status" aria-live="polite"></p>
         </div>
-        <figure class="hero-art">
-          <img src="/public/images/campus-community.jpg" alt="A group of people, some wearing graduation gowns, outside a glass-fronted building.">
-          <figcaption class="photo-caption">A group outside a glass-fronted building</figcaption>
+        <figure class="hero-art hero-carousel" data-photo-carousel role="region" aria-label="Scenes from the institute" aria-roledescription="carousel" tabindex="0">
+          <img class="hero-carousel-image is-active" data-carousel-image src="/public/images/campus-community.jpg" alt="A group of people, some wearing graduation gowns, outside a glass-fronted building.">
+          <img class="hero-carousel-image" data-carousel-image-secondary alt="" aria-hidden="true">
+          <figcaption class="photo-caption" data-carousel-caption>A group outside a glass-fronted building</figcaption>
+          <div class="carousel-controls" aria-label="Photo controls">
+            <button type="button" data-carousel-previous aria-label="Show previous photo">Previous</button>
+            <button type="button" data-carousel-toggle aria-label="Pause photo rotation">Pause</button>
+            <button type="button" data-carousel-next aria-label="Show next photo">Next</button>
+          </div>
+          <p class="visually-hidden" data-carousel-status aria-live="off">Photo 1 of 4</p>
         </figure>
       </div>
     </section>
@@ -114,7 +123,7 @@
         <p>Public information for prospective students and the wider community.</p>
       </div>
       <nav class="footer-links" aria-label="Footer navigation">
-        <a href="/public/index.html">Home</a><a href="/public/about.html">About</a><a href="/public/programmes.html">Programmes</a><a href="/public/admissions.html">Admissions</a><a href="/public/contact.html">Contact</a>
+        <a href="/public/index.html">Home</a><a href="/public/about.html">About</a><a href="/public/programmes.html">Programmes</a><a href="/public/admissions.html">Admissions</a><a href="/public/contact.html">Contact</a><a href="/portal-login.html">Portal sign in</a>
       </nav>
       <section class="footer-social" aria-labelledby="footer-social-heading">
         <h2 id="footer-social-heading">Follow MIT</h2>
