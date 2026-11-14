@@ -121,7 +121,8 @@ test('service worker precaches public pages but not authenticated dashboard page
   const coreAssets = [...assetsMatch[1].matchAll(/'([^']+)'/g)].map(match => match[1]);
 
   for (const asset of [
-    './', './index.html', './admissions.html', './course-catalog.html',
+    './', './portal-gateway.html', './index.html', './admissions.html', './course-catalog.html',
+    './css/portal-gateway.css', './icons/campus-login.png',
     './css/course-catalog.css', './js/course-catalog.js', './js/theme.js',
     './public/index.html', './public/js/site.js',
   ]) {

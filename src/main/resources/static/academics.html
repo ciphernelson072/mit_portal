@@ -442,6 +442,13 @@
         <h3 id="gradeCgpaNoticeTitle">CGPA NOT YET AVAILABLE</h3>
         <p id="gradeCgpaNoticeText">Final grades, GPA, credits earned, and academic standing will be shown after results are approved and published by the Academic Office.</p>
       </section>
+      <section aria-labelledby="gradeAppealHeading">
+        <h3 id="gradeAppealHeading">Grade appeal requests</h3>
+        <p>Appeals are available for published official grades. An approved appeal starts a review; it does not change the grade.</p>
+        <div id="studentGradeAppealList" class="table-container" aria-live="polite">
+          <p>Loading grade appeal requests…</p>
+        </div>
+      </section>
 
       <div class="table-container grades-table-scroll" tabindex="0" aria-label="Published course results table">
         <table class="grades-table">
@@ -456,10 +463,11 @@
               <th>Grade</th>
               <th>Grade Points</th>
               <th>Status</th>
+              <th>Appeal</th>
             </tr>
           </thead>
           <tbody>
-            <tr><td colspan="9">Results pending administrative approval and publication.</td></tr>
+            <tr><td colspan="10">Results pending administrative approval and publication.</td></tr>
           </tbody>
         </table>
       </div>
@@ -659,6 +667,21 @@
     <div class="assignment-actions">
       <button class="btn-secondary" id="cancelAssignmentSubmission" type="button">Cancel</button>
       <button class="btn-primary" type="submit">Submit</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="gradeAppealDialog" aria-labelledby="gradeAppealTitle">
+  <form id="gradeAppealForm">
+    <h2 id="gradeAppealTitle">Request a grade review</h2>
+    <p id="gradeAppealCourse"></p>
+    <input id="gradeAppealGradeId" type="hidden">
+    <label for="gradeAppealReason">Explain why you are requesting a review</label>
+    <textarea id="gradeAppealReason" maxlength="2000" required rows="6"></textarea>
+    <p id="gradeAppealFormStatus" role="status" aria-live="polite"></p>
+    <div class="assignment-actions">
+      <button class="btn-secondary" id="cancelGradeAppeal" type="button">Cancel</button>
+      <button class="btn-primary" type="submit">Submit appeal</button>
     </div>
   </form>
 </dialog>

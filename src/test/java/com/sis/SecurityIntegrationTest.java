@@ -519,14 +519,17 @@ class SecurityIntegrationTest {
         ResponseEntity<String> publicHome = restTemplate.getForEntity("/", String.class);
         assertEquals(HttpStatus.OK, publicHome.getStatusCode());
         assertNotNull(publicHome.getBody());
-        assertTrue(publicHome.getBody().contains("Practical learning for a changing world."));
+        assertTrue(publicHome.getBody().contains("Welcome to MIT"));
+        assertTrue(publicHome.getBody().contains("href=\"/public/index.html\""));
         ResponseEntity<String> sitemap = restTemplate.getForEntity("/sitemap.xml", String.class);
         assertEquals(HttpStatus.OK, sitemap.getStatusCode());
         assertNotNull(sitemap.getBody());
+        assertTrue(sitemap.getBody().contains("<loc>http://localhost:8080/public/index.html</loc>"));
         assertTrue(sitemap.getBody().contains("<loc>http://localhost:8080/public/programmes.html</loc>"));
         ResponseEntity<String> robots = restTemplate.getForEntity("/robots.txt", String.class);
         assertEquals(HttpStatus.OK, robots.getStatusCode());
         assertNotNull(robots.getBody());
+        assertTrue(robots.getBody().contains("Disallow: /portal-gateway.html"));
         assertTrue(robots.getBody().contains("Disallow: /api/"));
         assertTrue(robots.getBody().contains("Sitemap: http://localhost:8080/sitemap.xml"));
         ResponseEntity<String> portalLogin = restTemplate.getForEntity("/index.html", String.class);
@@ -534,7 +537,7 @@ class SecurityIntegrationTest {
         assertNotNull(portalLogin.getBody());
         assertTrue(portalLogin.getBody().contains("Student Portal"));
         for (String page : new String[]{
-                "/public/index.html", "/public/about.html", "/public/programmes.html",
+                "/portal-gateway.html", "/public/index.html", "/public/about.html", "/public/programmes.html",
                 "/public/admissions.html", "/public/contact.html",
                 "/public/css/site.css", "/public/js/site.js"}) {
             ResponseEntity<String> response = restTemplate.getForEntity(page, String.class);

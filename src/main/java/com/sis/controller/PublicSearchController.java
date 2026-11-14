@@ -11,11 +11,11 @@ import java.util.List;
 @RestController
 public class PublicSearchController {
     private static final List<String> PUBLIC_PATHS = List.of(
-            "/", "/public/about.html", "/public/programmes.html",
+            "/", "/public/index.html", "/public/about.html", "/public/programmes.html",
             "/public/admissions.html", "/public/contact.html", "/admissions.html"
     );
     private static final List<String> PRIVATE_PATHS = List.of(
-            "/index.html", "/dashboard.html", "/academics.html", "/attendance.html",
+            "/portal-gateway.html", "/index.html", "/dashboard.html", "/academics.html", "/attendance.html",
             "/finance.html", "/campus-support.html", "/profile.html", "/admin-dashboard.html",
             "/admin-login.html", "/teacher-dashboard.html", "/operations.html",
             "/file-management.html", "/api/"
