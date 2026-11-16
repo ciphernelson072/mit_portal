@@ -63,6 +63,24 @@ Blueprint. Keep those values private and stable after deployment. The
 production profile rejects placeholder or short values, root database users,
 sample data, and Flyway auto-baselining.
 
+## Flyway migration history
+
+Treat every applied versioned migration as immutable. Do not reuse a version
+number for a different schema change, and do not run `flyway repair` merely to
+silence a checksum mismatch. Preserve the exact migration files used by an
+existing database, add new changes at unused higher versions, and rehearse the
+upgrade against a disposable database copy after taking a verified backup.
+
+The Render migration failure identified previously recorded checksums for V46
+(`-1254657549`) and V47 (`-929712578`). The compatibility sequence preserves
+those versions as announcement-audience and attendance-dispute migrations,
+then applies later schema changes through V51. The checksums match the recorded
+values, and the regular backend suite passes; the MySQL/Testcontainers migration
+test remains unverified because Docker is unavailable in the current
+environment. Do not deploy this repair or run `flyway repair` against the
+existing database until the full sequence has passed against disposable MySQL
+and a verified backup and target migration history have been confirmed.
+
 ## First administrator on a new database
 
 An empty production database has no demo or default accounts. To create the
