@@ -4,12 +4,15 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.MigrationInfo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+
+import java.util.Arrays;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -51,6 +54,17 @@ class MySqlSchemaIntegrationTest {
     void flywayMigrationsBuildSchemaAcceptedByHibernate() {
         assumeTrue(MYSQL.isRunning(), "Docker/Testcontainers MySQL is unavailable in this environment");
         assertTrue(MYSQL.isRunning());
-        assertEquals("47", flyway.info().current().getVersion().getVersion());
+        assertEquals("51", flyway.info().current().getVersion().getVersion());
+        assertEquals(-1254657549, appliedChecksum("46"));
+        assertEquals(-929712578, appliedChecksum("47"));
+    }
+
+    private int appliedChecksum(String version) {
+        return Arrays.stream(flyway.info().applied())
+                .filter(migration -> migration.getVersion() != null)
+                .filter(migration -> version.equals(migration.getVersion().getVersion()))
+                .map(MigrationInfo::getChecksum)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Missing applied migration version " + version));
     }
 }

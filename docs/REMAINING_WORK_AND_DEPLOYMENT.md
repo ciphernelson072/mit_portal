@@ -1,6 +1,6 @@
 # Remaining Work and Render Deployment Runbook
 
-Last reviewed: 27 October 2026
+Last reviewed: 16 November 2026
 
 This document consolidates the remaining release work and the steps for a
 controlled Render test deployment. It is not evidence that Render, an external
@@ -11,9 +11,10 @@ the [Render deployment details](./RENDER_DEPLOYMENT.md), the
 
 ## Source and documentation update (31 October 2026)
 
-This source tree contains Flyway migrations V1-V45. The corrected V37-V42
-sequence has now been applied successfully to the TiDB pilot after a verified
-database backup. A separate disposable MySQL 8.0 database applied V1-V43, and
+At that review, this source tree contained Flyway migrations V1-V45. The
+corrected V37-V42 sequence has now been applied successfully to the TiDB pilot
+after a verified database backup. A separate disposable MySQL 8.0 database
+applied V1-V43, and
 the application passed Hibernate schema validation. The 31 October full Maven suite passed 384 tests with zero failures, errors,
 or skips (`.\mvnw.cmd test`). This source-level run does not replace provider
 sandbox testing or establish production-environment acceptance.
@@ -33,6 +34,23 @@ standing, and degree/diploma award classification. V44 and V45 were validated
 on disposable MySQL 8.0 and applied to the TiDB pilot. Retake replacement,
 retake credit treatment, and CGPA rounding remain unspecified and are not
 guessed. See the [academic results workflow](./ACADEMIC_RESULTS_WORKFLOW.md).
+
+## Render migration drift repair status (16 November 2026)
+
+The isolated `fix/render-flyway-migration-history` branch restores the V46 and
+V47 migration definitions whose checksums are recorded by the existing Render
+database, and moves the later grade-appeal and teacher-notification schema
+changes to V50 and V51. The two restored migration checksums were independently
+verified against the recorded values. The regular Maven backend suite passed
+395 tests with zero failures, errors, or skips.
+
+The MySQL/Testcontainers migration test was attempted with the
+`mysql-integration` profile but could not start because the Docker engine is
+unavailable. Therefore the full migration sequence and Hibernate schema
+validation have not yet been verified against disposable MySQL. No live
+database repair or Render redeploy has been performed. Before deployment,
+validate the complete sequence against disposable MySQL, confirm the target
+database's migration history, and take a verified backup.
 
 Flutterwave hosted-checkout and server-side verification code is present.
 Live-provider readiness is not established until sandbox flows, webhook
@@ -329,7 +347,7 @@ demo is **not** an acceptable substitute for a campus-user pilot over HTTPS.
    securely and rotate it according to institutional policy.
 
 The initial deployment applies all bundled Flyway migrations (currently
-V1-V45) to an empty database. Validate the complete migration set against the
+V1-V51) to an empty database. Validate the complete migration set against the
 selected database engine before deployment. Do not enable bootstrap against a
 populated database or treat it as an account recovery mechanism.
 
@@ -405,9 +423,12 @@ completed and approved.
 - [ ] Test rollback/roll-forward. A previous application image is not a safe
   rollback if it cannot operate with the already-migrated schema. Prefer a
   tested forward fix unless a compatible restore plan is approved.
-- [ ] Re-run the MySQL/Testcontainers migration test through V36 when the
-  Windows Testcontainers endpoint issue is resolved. A prior run of the
-  broader suite does not verify this migration through Testcontainers.
+- [ ] Run the MySQL/Testcontainers migration test through V51 when the Docker
+  engine is available. The regular backend suite does not verify Flyway
+  migration execution or Hibernate schema validation against MySQL.
+- [ ] For an existing Render database, confirm the recorded V46/V47 checksums
+  before deployment; never use `flyway repair` as a substitute for restoring
+  the matching migration definitions.
 - [ ] Confirm the GitHub Actions Playwright job passes. Its H2/sample-data
   workflows complement, but do not replace, the production-profile MySQL
   smoke test or real-deployment acceptance.
