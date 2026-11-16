@@ -54,9 +54,12 @@ class MySqlSchemaIntegrationTest {
     void flywayMigrationsBuildSchemaAcceptedByHibernate() {
         assumeTrue(MYSQL.isRunning(), "Docker/Testcontainers MySQL is unavailable in this environment");
         assertTrue(MYSQL.isRunning());
-        assertEquals("51", flyway.info().current().getVersion().getVersion());
+        assertEquals("52", flyway.info().current().getVersion().getVersion());
         assertEquals(-1254657549, appliedChecksum("46"));
         assertEquals(-929712578, appliedChecksum("47"));
+        assertEquals(18047753, appliedChecksum("50"));
+        assertEquals(718220594, appliedChecksum("51"));
+        assertEquals(1360576565, appliedChecksum("52"));
     }
 
     private int appliedChecksum(String version) {

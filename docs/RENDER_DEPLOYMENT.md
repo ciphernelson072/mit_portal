@@ -71,15 +71,15 @@ silence a checksum mismatch. Preserve the exact migration files used by an
 existing database, add new changes at unused higher versions, and rehearse the
 upgrade against a disposable database copy after taking a verified backup.
 
-The Render migration failure identified previously recorded checksums for V46
-(`-1254657549`) and V47 (`-929712578`). The compatibility sequence preserves
-those versions as announcement-audience and attendance-dispute migrations,
-then applies later schema changes through V51. The checksums match the recorded
-values, and the regular backend suite passes; the MySQL/Testcontainers migration
-test remains unverified because Docker is unavailable in the current
-environment. Do not deploy this repair or run `flyway repair` against the
-existing database until the full sequence has passed against disposable MySQL
-and a verified backup and target migration history have been confirmed.
+The latest Render deployment attempt failed validation because the existing
+database records V50 checksum `18047753` and V51 checksum `718220594`. Those
+checksums correspond to the MFA refresh-token migration at V50 and grade
+appeals at V51. Preserve those definitions and add teacher result-status
+notifications at V52; the complete expected sequence also preserves V46
+(`-1254657549`) and V47 (`-929712578`). Do not deploy this repair or run
+`flyway repair` against the existing database until the full sequence passes
+against disposable MySQL and a verified backup and target migration history
+have been confirmed.
 
 ## First administrator on a new database
 
