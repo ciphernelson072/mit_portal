@@ -37,20 +37,18 @@ guessed. See the [academic results workflow](./ACADEMIC_RESULTS_WORKFLOW.md).
 
 ## Render migration drift repair status (16 November 2026)
 
-The isolated `fix/render-flyway-migration-history` branch restores the V46 and
-V47 migration definitions whose checksums are recorded by the existing Render
-database, and moves the later grade-appeal and teacher-notification schema
-changes to V50 and V51. The two restored migration checksums were independently
-verified against the recorded values. The regular Maven backend suite passed
-395 tests with zero failures, errors, or skips.
+The follow-up release restores the V50 MFA refresh-token migration whose
+checksum (`18047753`) is recorded by the existing Render database, keeps grade
+appeals at V51 (`718220594`), and places teacher result-status notifications at
+V52 (`1360576565`). The previously restored V46 and V47 checksums remain
+`-1254657549` and `-929712578`.
 
-The MySQL/Testcontainers migration test was attempted with the
-`mysql-integration` profile but could not start because the Docker engine is
-unavailable. Therefore the full migration sequence and Hibernate schema
-validation have not yet been verified against disposable MySQL. No live
-database repair or Render redeploy has been performed. Before deployment,
-validate the complete sequence against disposable MySQL, confirm the target
-database's migration history, and take a verified backup.
+The published image was manually deployed to Render, but startup validation
+failed on the V50/V51 checksum conflicts; the previous live instance remained
+available. No database repair was run. Local MySQL/Testcontainers validation
+has not yet passed because the Docker engine is unavailable. Before another
+deployment, validate the full sequence against disposable MySQL, confirm the
+target database's migration history, and take a verified backup.
 
 Flutterwave hosted-checkout and server-side verification code is present.
 Live-provider readiness is not established until sandbox flows, webhook
