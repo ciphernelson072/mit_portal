@@ -37,7 +37,7 @@ body {
 .forced-auth-page {
   background-color: #dfe5ec;
   background-image: linear-gradient(rgba(8, 25, 45, .06), rgba(8, 25, 45, .06)),
-    url('../icons/campus-login.png');
+    url('../icons/campus-login.svg');
   background-position: center;
   background-size: cover;
   background-repeat: no-repeat;
@@ -103,18 +103,42 @@ body {
 .staff-auth-page .alert {
   display: none;
   margin-bottom: 18px;
-  padding: 10px 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(198, 40, 40, .28);
   border-left: 4px solid var(--auth-accent);
+  border-radius: 8px;
   background: #fff2f2;
-  color: #8d1b1b;
+  color: #762020;
+  box-shadow: 0 8px 24px rgba(10, 25, 45, .16);
+  font-size: 14px;
+  line-height: 1.45;
 }
 
 .staff-auth-page .alert.show {
   display: block;
+  animation: auth-alert-enter .18s ease-out;
 }
 
 .staff-auth-page .alert p {
   margin: 0;
+}
+
+.staff-auth-page .alert[data-type="success"] {
+  border-color: rgba(21, 128, 61, .28);
+  border-left-color: #15803d;
+  background: #effaf2;
+  color: #14532d;
+}
+
+@keyframes auth-alert-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .staff-auth-page .form-group {

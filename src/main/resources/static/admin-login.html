@@ -72,12 +72,18 @@
   // exactly like the student login (js/script.js) and exactly like the fix
   // applied to POST /api/auth/register earlier in this project.
 
-  function showAlert(message) {
+  let alertTimer;
+
+  function showAlert(message, type = 'error') {
     const alert = document.getElementById('alert');
     document.getElementById('alertText').textContent = message;
+    alert.dataset.type = type;
+    alert.setAttribute('role', type === 'error' ? 'alert' : 'status');
+    alert.setAttribute('aria-live', type === 'error' ? 'assertive' : 'polite');
     alert.hidden = false;
     alert.classList.add('show');
-    setTimeout(() => {
+    clearTimeout(alertTimer);
+    alertTimer = setTimeout(() => {
       alert.classList.remove('show');
       alert.hidden = true;
     }, 5000);
@@ -184,7 +190,7 @@
       if (!response.ok) {
         throw new Error(await getResponseErrorMessage(response, 'Password reset request failed. Please try again shortly.'));
       }
-      showAlert('If that email is registered, a reset link has been sent.');
+      showAlert('If that email is registered, a reset link has been sent.', 'success');
     } catch (error) {
       showAlert(error instanceof TypeError
         ? 'The portal service could not be reached. Please try again shortly.'

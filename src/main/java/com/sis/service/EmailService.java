@@ -15,9 +15,11 @@ import com.sis.exception.EmailDeliveryException;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.client.RestClientResponseException;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -27,7 +29,7 @@ import java.util.logging.Logger;
 /**
  * Email Service - Handles email notifications and communications
  * Sends emails for notifications, verification, and alerts
- * Supports SMTP and the Resend transactional email API.
+ * Supports SMTP and the Brevo transactional email API.
  */
 @Service
 public class EmailService {
@@ -40,7 +42,7 @@ public class EmailService {
 
     @Autowired
     public EmailService(JavaMailSender mailSender) {
-        this(mailSender, new RestTemplate());
+        this(mailSender, createRestTemplate());
     }
 
     EmailService(JavaMailSender mailSender, RestTemplate restTemplate) {
@@ -48,8 +50,18 @@ public class EmailService {
         this.restTemplate = restTemplate;
     }
 
-    @Value("${spring.mail.username:}")
+    private static RestTemplate createRestTemplate() {
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(Duration.ofSeconds(5));
+        requestFactory.setReadTimeout(Duration.ofSeconds(30));
+        return new RestTemplate(requestFactory);
+    }
+
+    @Value("${app.mail.from-email:}")
     private String fromEmail;
+
+    @Value("${spring.mail.username:}")
+    private String smtpUsername;
 
     @Value("${spring.mail.password:}")
     private String mailPassword;
@@ -244,9 +256,9 @@ public class EmailService {
         }
 
         try {
-            if ("resend".equalsIgnoreCase(mailProvider)) {
-                sendWithResend(recipientEmail, subject, body);
-                logger.info("Email accepted by Resend for delivery.");
+            if ("brevo".equalsIgnoreCase(mailProvider)) {
+                sendWithBrevo(recipientEmail, subject, body);
+                logger.info("Email accepted by Brevo for delivery.");
                 return;
             }
             MimeMessage message = mailSender.createMimeMessage();
@@ -261,7 +273,7 @@ public class EmailService {
             logger.log(java.util.logging.Level.WARNING, "Could not compose the email message.", e);
             throw new EmailDeliveryException("Email provider could not accept the message.", e);
         } catch (RestClientResponseException e) {
-            logger.warning("Email API request failed with HTTP status " + e.getStatusCode().value());
+            logger.warning("Email provider request failed with HTTP status " + e.getStatusCode().value());
             throw new EmailDeliveryException(
                     "Email provider rejected the message (HTTP " + e.getStatusCode().value()
                             + "). Check provider settings and sender verification.", e);
@@ -273,20 +285,23 @@ public class EmailService {
         }
     }
 
-    private void sendWithResend(String recipientEmail, String subject, String body) {
+    private void sendWithBrevo(String recipientEmail, String subject, String body) {
         HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(mailApiKey);
+        headers.set("api-key", mailApiKey);
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
 
         Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("from", mailFromName + " <" + mailApiFromEmail + ">");
-        payload.put("to", Collections.singletonList(recipientEmail));
+        Map<String, String> sender = new LinkedHashMap<>();
+        sender.put("name", mailFromName);
+        sender.put("email", mailApiFromEmail);
+        payload.put("sender", sender);
+        payload.put("to", Collections.singletonList(Collections.singletonMap("email", recipientEmail.trim())));
         payload.put("subject", subject);
-        payload.put("text", body);
+        payload.put("textContent", body);
 
         restTemplate.postForEntity(
-                "https://api.resend.com/emails",
+                "https://api.brevo.com/v3/smtp/email",
                 new HttpEntity<>(payload, headers),
                 String.class);
     }
@@ -306,7 +321,7 @@ public class EmailService {
 
     private boolean hasSmtpConfiguration() {
         return isValidEmail(fromEmail)
-                && !"your-email@gmail.com".equalsIgnoreCase(fromEmail)
+                && StringUtils.hasText(smtpUsername)
                 && StringUtils.hasText(mailHost)
                 && mailPort > 0
                 && mailPort <= 65535
@@ -330,7 +345,7 @@ public class EmailService {
         if (!mailEnabled) {
             return false;
         }
-        if ("resend".equalsIgnoreCase(mailProvider)) {
+        if ("brevo".equalsIgnoreCase(mailProvider)) {
             return StringUtils.hasText(mailApiKey) && isValidEmail(mailApiFromEmail);
         }
         return "smtp".equalsIgnoreCase(mailProvider) && mailSender != null && hasSmtpConfiguration();

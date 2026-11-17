@@ -3,6 +3,7 @@
 
 let currentTeachers = []; // cached for the "assign teacher" dropdown on Create Course
 let pendingAdminInputResolver = null;
+let adminToastTimer;
 
 // ===== INITIALIZATION =====
 document.addEventListener('DOMContentLoaded', function() {
@@ -17,6 +18,25 @@ document.addEventListener('DOMContentLoaded', function() {
   loadAdminAttendance();
   loadAdminNotifications();
 });
+
+function showAdminToast(message, type = 'info') {
+  const toast = document.getElementById('adminToast');
+  if (!toast) {
+    throw new Error('The admin notification region is unavailable.');
+  }
+
+  clearTimeout(adminToastTimer);
+  toast.textContent = message;
+  toast.dataset.type = type;
+  toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
+  toast.setAttribute('aria-live', type === 'error' ? 'assertive' : 'polite');
+  toast.hidden = false;
+  toast.classList.add('visible');
+  adminToastTimer = window.setTimeout(() => {
+    toast.classList.remove('visible');
+    toast.hidden = true;
+  }, 6000);
+}
 
 function setupHeaderDropdowns() {
   document.getElementById('notificationBtn')?.addEventListener('click', function() {
@@ -1516,7 +1536,8 @@ function renderSystemStatus(id, component) {
   element.title = component?.detail || 'System status could not be retrieved.';
   element.classList.remove('online', 'warning', 'error');
   if (status === 'online' || status === 'configured') element.classList.add('online');
-  else if (status === 'disabled' || status === 'incomplete' || status === 'not_configured') {
+  else if (status === 'disabled' || status === 'incomplete'
+    || status === 'not_configured' || status === 'untested') {
     element.classList.add('warning');
   } else element.classList.add('error');
 }
@@ -2964,8 +2985,23 @@ async function testEmail() {
   if (!recipient) return;
   try {
     await apiFetch('/admin/email/test', { method: 'POST', body: JSON.stringify({ recipient }) });
-    alert('The email provider accepted the test message. Check the recipient inbox and spam folder to confirm delivery.');
-  } catch (err) { alert(err.message || 'Test email failed.'); }
+    showAdminToast(
+      'The provider accepted the test message. Check the recipient inbox and spam folder to confirm delivery.',
+      'success',
+    );
+  } catch (err) {
+    const message = String(err.message || '');
+    const status = message.match(/\bHTTP\s+(\d{3})\b/i)?.[1];
+    if (status === '401') {
+      showAdminToast('Resend rejected the API key. Update the private Render MAIL_API_KEY setting and try again.', 'error');
+    } else if (status === '403') {
+      showAdminToast('Resend rejected the sender. Verify the sender domain in Resend and match it to MAIL_FROM_EMAIL.', 'error');
+    } else if (status === '422') {
+      showAdminToast('Resend rejected the message. Check the sender and recipient addresses, then try again.', 'error');
+    } else {
+      showAdminToast('The test email was not accepted. Check the Resend send log and private Render mail settings, then try again.', 'error');
+    }
+  }
 }
 function viewTask() { switchModule('requests'); }
 

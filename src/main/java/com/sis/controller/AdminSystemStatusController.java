@@ -157,11 +157,12 @@ public class AdminSystemStatusController {
         }
         java.time.Instant testSentAt = emailService.getLastSuccessfulTestEmailAt();
         if (testSentAt != null) {
-            return component("online", "Test sent",
-                    "The latest email test was accepted by the configured provider at " + testSentAt + ".");
+            return component("online", "Provider accepted a test",
+                    "The configured provider accepted the latest test at " + testSentAt
+                            + ". Check the recipient inbox to confirm delivery.");
         }
-        return component("online", "Configured; ready",
-                "Email provider settings are present and the mail service is ready to send messages.");
+        return component("untested", "Configured; not tested",
+                "Provider settings are present, but no successful test has confirmed email delivery.");
     }
 
     private Map<String, Object> component(String status, String label, String detail) {

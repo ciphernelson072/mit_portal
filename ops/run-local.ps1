@@ -15,7 +15,7 @@ try {
     $runtimeVariables = @(
         'MAIL_ENABLED',
         'MAIL_PROVIDER',
-        'MAIL_API_KEY',
+        'BREVO_API_KEY',
         'MAIL_FROM_EMAIL',
         'MAIL_FROM_NAME',
         'MAIL_HOST',
@@ -121,8 +121,8 @@ try {
         $mailProvider = if ([string]::IsNullOrWhiteSpace($env:MAIL_PROVIDER)) { 'smtp' } else { $env:MAIL_PROVIDER.Trim().ToLowerInvariant() }
         $requiredMailSettings = switch ($mailProvider) {
             'smtp' { @('MAIL_HOST', 'MAIL_USERNAME', 'MAIL_PASSWORD'); break }
-            'resend' { @('MAIL_API_KEY', 'MAIL_FROM_EMAIL'); break }
-            default { throw 'MAIL_PROVIDER must be either smtp or resend.' }
+            'brevo' { @('BREVO_API_KEY', 'MAIL_FROM_EMAIL'); break }
+            default { throw 'MAIL_PROVIDER must be either smtp or brevo.' }
         }
         $missing = $requiredMailSettings |
             Where-Object { [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($_, 'Process')) }

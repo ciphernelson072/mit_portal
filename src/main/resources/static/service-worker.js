@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mit-portal-cache-v29';
+const CACHE_NAME = 'mit-portal-cache-v30';
 const CORE_ASSETS = [
   './',
   './home.html',
@@ -26,6 +26,7 @@ const CORE_ASSETS = [
   './css/operations-style.css',
   './icons/background.webp',
   './icons/campus-login.png',
+  './icons/campus-login.svg',
   './icons/logo.jpg',
   './icons/pwa-180.png',
   './icons/pwa-192.png',

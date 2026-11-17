@@ -90,7 +90,7 @@ class AdminSystemStatusControllerTest {
     }
 
     @Test
-    void reportsEmailHealthyAfterSuccessfulSmtpTest() throws Exception {
+    void reportsProviderAcceptanceAfterSuccessfulEmailTest() throws Exception {
         EmailService emailService = mock(EmailService.class);
         Instant sentAt = Instant.now();
         when(emailService.getLastSuccessfulTestEmailAt()).thenReturn(sentAt);
@@ -101,12 +101,13 @@ class AdminSystemStatusControllerTest {
         Map<?, ?> email = (Map<?, ?>) controller.status().get("email");
 
         assertThat(email.get("status")).isEqualTo("online");
-        assertThat(email.get("label")).isEqualTo("Test sent");
-        assertThat(email.get("detail").toString()).contains(sentAt.toString());
+        assertThat(email.get("label")).isEqualTo("Provider accepted a test");
+        assertThat(email.get("detail").toString()).contains(sentAt.toString())
+                .contains("confirm delivery");
     }
 
     @Test
-    void reportsConfiguredSmtpAsReadyBeforeSendingATestMessage() {
+    void doesNotReportEmailAsReadyBeforeATestMessageSucceeds() {
         EmailService emailService = mock(EmailService.class);
         when(emailService.isDeliveryConfigured()).thenReturn(true);
         AdminSystemStatusController controller = new AdminSystemStatusController(
@@ -114,8 +115,8 @@ class AdminSystemStatusControllerTest {
 
         Map<?, ?> email = (Map<?, ?>) controller.status().get("email");
 
-        assertThat(email.get("status")).isEqualTo("online");
-        assertThat(email.get("label")).isEqualTo("Configured; ready");
+        assertThat(email.get("status")).isEqualTo("untested");
+        assertThat(email.get("label")).isEqualTo("Configured; not tested");
     }
 
     @Test
@@ -129,7 +130,7 @@ class AdminSystemStatusControllerTest {
     }
 
     @Test
-    void reportsConfiguredApiEmailProviderAsReady() {
+    void reportsConfiguredApiEmailProviderAsUntested() {
         EmailService emailService = mock(EmailService.class);
         when(emailService.isDeliveryConfigured()).thenReturn(true);
         AdminSystemStatusController controller = new AdminSystemStatusController(
@@ -137,8 +138,8 @@ class AdminSystemStatusControllerTest {
 
         Map<?, ?> email = (Map<?, ?>) controller.status().get("email");
 
-        assertThat(email.get("status")).isEqualTo("online");
-        assertThat(email.get("label")).isEqualTo("Configured; ready");
+        assertThat(email.get("status")).isEqualTo("untested");
+        assertThat(email.get("label")).isEqualTo("Configured; not tested");
     }
 
     private AdminSystemStatusController controller(String statusFile, long maxAgeHours) {

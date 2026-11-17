@@ -1809,7 +1809,7 @@ test('institution setup API is restricted to administrator accounts', async ({ p
   expect(statusResponse.status()).toBe(200);
   const status = await statusResponse.json();
   expect(status.database.status).toBe('online');
-  expect(['disabled', 'incomplete', 'configured', 'online']).toContain(status.email.status);
+  expect(['disabled', 'incomplete', 'configured', 'online', 'untested']).toContain(status.email.status);
   expect(['not_configured', 'online', 'stale', 'unavailable']).toContain(status.backup.status);
   await expect(page.locator('#databaseHealthStatus')).toContainText('Connected');
 
@@ -1820,6 +1820,29 @@ test('institution setup API is restricted to administrator accounts', async ({ p
   expect(studentStatusResponse.status()).toBe(403);
   const studentAdmissionsResponse = await page.request.get('/api/admissions/applications');
   expect(studentAdmissionsResponse.status()).toBe(403);
+});
+
+test('admin test email failures use an accessible in-page notification', async ({ page }) => {
+  await login(page, 'admin', 'admin123', true);
+  await page.evaluate(() => {
+    window.prompt = () => 'recipient@example.org';
+    window.apiFetch = async () => {
+      throw new Error('Email provider rejected the message (HTTP 401)');
+    };
+    window.alert = () => {
+      throw new Error('Unexpected browser alert');
+    };
+  });
+
+  await page.evaluate(() => testEmail());
+
+  const toast = page.locator('#adminToast');
+  await expect(toast).toBeVisible();
+  await expect(toast).toContainText('Resend rejected the API key');
+  await expect(toast).toHaveAttribute('role', 'alert');
+  await expect(toast).toHaveAttribute('aria-live', 'assertive');
+  await expect(toast).toHaveCSS('border-left-width', '4px');
+  await expect(toast).toHaveCSS('border-left-style', 'solid');
 });
 
 test('admin dashboard pending actions link to decision queues and support admission decisions', async ({ page }) => {

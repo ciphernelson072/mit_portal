@@ -151,14 +151,11 @@ Google groups it), keep `MAIL_ENABLED=false`, and save. Then run:
 The helper reads that private setting without displaying it, tests Gmail, and
 only then enables email and restarts the portal.
 
-For long-term institutional sending, Resend over HTTPS remains preferred.
-That option requires an institution-owned domain added to Resend, the exact
-Resend SPF/DKIM records published with its DNS provider, and the domain marked
-verified. Review existing SPF and DMARC policy before changing DNS. Then
-create a new send-only key restricted to the verified sender domain; do not
-reuse the existing `MIT Portal Render` key. Run the same helper with
-`-Provider resend` to test and configure it. Never use the temporary
-`trycloudflare.com` hostname as an email sender domain.
+For Brevo over HTTPS, verify the sender address in Brevo and create an API key.
+Run the same helper with `-Provider brevo`; it accepts the key through a hidden
+prompt, sends a test, and saves the credential only after Brevo accepts it.
+Render Free blocks outbound SMTP ports, so use Brevo's HTTPS API rather than
+SMTP there.
 
 Check the configuration before connecting:
 

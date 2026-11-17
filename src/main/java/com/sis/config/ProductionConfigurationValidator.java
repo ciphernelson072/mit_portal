@@ -100,17 +100,19 @@ public class ProductionConfigurationValidator {
             throw new IllegalStateException("UPLOAD_DIR must be configured in production.");
         }
         if (mailEnabled) {
-            if ("resend".equalsIgnoreCase(mailProvider)) {
-                requireConfigured("MAIL_API_KEY", mailApiKey);
-                rejectPlaceholder("MAIL_API_KEY", mailApiKey);
+            if ("brevo".equalsIgnoreCase(mailProvider)) {
+                requireConfigured("BREVO_API_KEY", mailApiKey);
+                rejectPlaceholder("BREVO_API_KEY", mailApiKey);
                 requireConfigured("MAIL_FROM_EMAIL", mailApiFromEmail);
                 rejectPlaceholder("MAIL_FROM_EMAIL", mailApiFromEmail);
             } else if ("smtp".equalsIgnoreCase(mailProvider)) {
                 requireConfigured("MAIL_HOST", mailHost);
                 requireConfigured("MAIL_USERNAME", mailUsername);
                 requireConfigured("MAIL_PASSWORD", mailPassword);
+                requireConfigured("MAIL_FROM_EMAIL", mailApiFromEmail);
+                rejectPlaceholder("MAIL_FROM_EMAIL", mailApiFromEmail);
             } else {
-                throw new IllegalStateException("MAIL_PROVIDER must be either smtp or resend.");
+                throw new IllegalStateException("MAIL_PROVIDER must be smtp or brevo.");
             }
         }
         requireAtLeast("PAYMENT_WEBHOOK_SECRET", paymentWebhookSecret, 32);

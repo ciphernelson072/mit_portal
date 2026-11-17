@@ -142,7 +142,7 @@ test('service worker precaches public pages but not authenticated dashboard page
 
   for (const asset of [
     './', './home.html', './index.html', './admissions.html', './course-catalog.html',
-    './admin-login.html', './css/auth.css', './icons/campus-login.png',
+    './admin-login.html', './css/auth.css', './icons/campus-login.png', './icons/campus-login.svg',
     './css/home.css',
     './css/course-catalog.css', './js/course-catalog.js', './js/theme.js',
     './portal-login.html', './js/portal-login.js', './public/css/portal-login.css',
@@ -154,7 +154,7 @@ test('service worker precaches public pages but not authenticated dashboard page
   for (const asset of ['./dashboard.html', './admin-dashboard.html', './teacher-dashboard.html']) {
     assert.ok(!coreAssets.includes(asset), `${asset} requires authentication and must not be precached for anonymous users`);
   }
-  assert.match(serviceWorkerSource, /const CACHE_NAME = 'mit-portal-cache-v29';/);
+  assert.match(serviceWorkerSource, /const CACHE_NAME = 'mit-portal-cache-v30';/);
 });
 
 test('admin login loads shared assets from the site root and keeps its initial alert hidden', () => {

@@ -21,6 +21,7 @@ import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
 import java.util.Properties;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -33,7 +34,6 @@ import org.springframework.mail.MailSendException;
 class EmailServiceTest {
 
     private static final String FRONTEND_URL = "https://portal.example.test";
-
     private JavaMailSender mailSender;
     private EmailService emailService;
     private MimeMessage message;
@@ -43,6 +43,7 @@ class EmailServiceTest {
         mailSender = mock(JavaMailSender.class);
         emailService = new EmailService(mailSender);
         ReflectionTestUtils.setField(emailService, "fromEmail", "portal@example.test");
+        ReflectionTestUtils.setField(emailService, "smtpUsername", "smtp-user");
         ReflectionTestUtils.setField(emailService, "mailHost", "smtp.example.test");
         ReflectionTestUtils.setField(emailService, "mailPort", 587);
         ReflectionTestUtils.setField(emailService, "mailPassword", "test-smtp-password");
@@ -144,8 +145,21 @@ class EmailServiceTest {
     }
 
     @Test
-    void resendIsNotConfiguredWithAnInvalidSenderAddress() {
-        configureResend(emailService);
+    void smtpUsesConfiguredSenderAddressSeparateFromAuthenticationUsername() throws Exception {
+        ReflectionTestUtils.setField(emailService, "smtpUsername", "smtp-user");
+        ReflectionTestUtils.setField(emailService, "fromEmail", "verified@example.test");
+
+        emailService.sendTestEmail("admin@example.test");
+
+        assertEquals(
+                "verified@example.test",
+                ((jakarta.mail.internet.InternetAddress) message.getFrom()[0]).getAddress());
+        verify(mailSender).send(message);
+    }
+
+    @Test
+    void brevoIsNotConfiguredWithAnInvalidSenderAddress() {
+        configureBrevo(emailService);
         ReflectionTestUtils.setField(emailService, "mailApiFromEmail", "not-an-email");
 
         assertFalse(emailService.isDeliveryConfigured());
@@ -161,49 +175,49 @@ class EmailServiceTest {
     }
 
     @Test
-    void resendProviderSendsAuthenticatedTransactionalEmailOverHttps() {
+    void brevoProviderSendsAuthenticatedTransactionalEmailOverHttps() {
         RestTemplate apiClient = new RestTemplate();
         MockRestServiceServer server = MockRestServiceServer.createServer(apiClient);
-        EmailService resendService = new EmailService(mailSender, apiClient);
-        configureResend(resendService);
-        server.expect(requestTo("https://api.resend.com/emails"))
+        EmailService brevoService = new EmailService(mailSender, apiClient);
+        configureBrevo(brevoService);
+        server.expect(requestTo("https://api.brevo.com/v3/smtp/email"))
                 .andExpect(method(HttpMethod.POST))
-                .andExpect(header("Authorization", "Bearer test-resend-api-key"))
+                .andExpect(header("api-key", "test-brevo-api-key"))
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(content().json("{\"from\":\"MIT Portal <verified@example.test>\","
-                        + "\"to\":[\"admin@example.test\"],"
+                .andExpect(content().json("{\"sender\":{\"name\":\"MIT Portal\",\"email\":\"verified@example.test\"},"
+                        + "\"to\":[{\"email\":\"admin@example.test\"}],"
                         + "\"subject\":\"MIT Portal email test\","
-                        + "\"text\":\"This is a test email from the MIT Portal administration service.\"}"))
+                        + "\"textContent\":\"This is a test email from the MIT Portal administration service.\"}"))
                 .andRespond(withSuccess("{\"id\":\"email-test-id\"}", MediaType.APPLICATION_JSON));
 
-        resendService.sendTestEmail("admin@example.test");
+        brevoService.sendTestEmail("admin@example.test");
 
         server.verify();
-        assertTrue(resendService.getLastSuccessfulTestEmailAt() != null);
-        assertTrue(resendService.isDeliveryConfigured());
+        assertTrue(brevoService.getLastSuccessfulTestEmailAt() != null);
+        assertTrue(brevoService.isDeliveryConfigured());
     }
 
     @Test
-    void resendProviderFailureDoesNotReportTestEmailAsSuccessful() {
+    void brevoProviderFailureDoesNotReportTestEmailAsSuccessful() {
         RestTemplate apiClient = new RestTemplate();
         MockRestServiceServer server = MockRestServiceServer.createServer(apiClient);
-        EmailService resendService = new EmailService(mailSender, apiClient);
-        configureResend(resendService);
-        server.expect(requestTo("https://api.resend.com/emails"))
+        EmailService brevoService = new EmailService(mailSender, apiClient);
+        configureBrevo(brevoService);
+        server.expect(requestTo("https://api.brevo.com/v3/smtp/email"))
                 .andRespond(withUnauthorizedRequest());
 
         org.junit.jupiter.api.Assertions.assertThrows(
                 IllegalStateException.class,
-                () -> resendService.sendTestEmail("admin@example.test"));
+                () -> brevoService.sendTestEmail("admin@example.test"));
 
         server.verify();
-        assertTrue(resendService.getLastSuccessfulTestEmailAt() == null);
+        assertTrue(brevoService.getLastSuccessfulTestEmailAt() == null);
     }
 
-    private void configureResend(EmailService service) {
+    private void configureBrevo(EmailService service) {
         ReflectionTestUtils.setField(service, "mailEnabled", true);
-        ReflectionTestUtils.setField(service, "mailProvider", "resend");
-        ReflectionTestUtils.setField(service, "mailApiKey", "test-resend-api-key");
+        ReflectionTestUtils.setField(service, "mailProvider", "brevo");
+        ReflectionTestUtils.setField(service, "mailApiKey", "test-brevo-api-key");
         ReflectionTestUtils.setField(service, "mailApiFromEmail", "verified@example.test");
         ReflectionTestUtils.setField(service, "mailFromName", "MIT Portal");
     }

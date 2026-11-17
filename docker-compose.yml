@@ -26,7 +26,7 @@ services:
       UPLOAD_BACKUP_STATUS_FILE: /app/backups/.uploads-backup-success
       MAIL_ENABLED: ${MAIL_ENABLED:-false}
       MAIL_PROVIDER: ${MAIL_PROVIDER:-smtp}
-      MAIL_API_KEY: ${MAIL_API_KEY:-}
+      BREVO_API_KEY: ${BREVO_API_KEY:-}
       MAIL_FROM_EMAIL: ${MAIL_FROM_EMAIL:-}
       MAIL_FROM_NAME: ${MAIL_FROM_NAME:-MIT Portal}
       MAIL_HOST: ${MAIL_HOST:-}

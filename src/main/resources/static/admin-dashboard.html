@@ -855,7 +855,7 @@
       <div class="settings-card">
         <h3>Email Configuration</h3>
         <p>Email delivery is configured securely on the portal host, not in this browser. Check the Email status on the dashboard after changing server settings.</p>
-        <p>For the Cloudflare/TiDB pilot, use Resend over HTTPS with a verified sender domain. Keep API keys in the private host environment file; never enter them here or send them in chat.</p>
+        <p>Use Brevo over HTTPS with a verified sender address. Keep the Brevo API key in the private host environment; never enter it here or send it in chat.</p>
         <button class="btn-secondary" onclick="testEmail()">Send Test Email</button>
       </div>
     </div>
@@ -873,6 +873,7 @@
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal-box" id="modalBox"></div>
 </div>
+<div id="adminToast" class="admin-toast" role="status" aria-live="polite" hidden></div>
 
 <script src="js/backend-only.js"></script>
 <script src="js/deployment-config.js"></script>

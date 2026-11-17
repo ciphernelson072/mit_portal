@@ -34,14 +34,14 @@ first healthy startup, set the bootstrap flag to `false` and remove the three
 bootstrap values. Use that administrator account to create the student test
 accounts yourself; do not turn on `SAMPLE_DATA_ENABLED`.
 
-For a newly created service from `render.free.yaml`, the Blueprint turns on
-Resend using private, prompted environment values. This describes the template;
-verify the active image-based service's environment in the Render dashboard.
-Enter the Resend API key and verified sender in Render's secret environment
-fields; never commit them. Configure the exact service HTTPS origin in both
-`FRONTEND_URL` and `CORS_ALLOWED_ORIGINS`. The Blueprint requests automatic
-deployment after connected GitHub checks pass. Connect the intended branch to
-GitHub Actions CI before enabling student access.
+For a newly created service from `render.free.yaml`, the Blueprint uses
+Brevo's HTTPS transactional email API, avoiding Render Free's blocked outbound
+SMTP ports. Configure `BREVO_API_KEY` and a sender address verified in Brevo
+in Render's private environment. This describes the template; verify the active
+image-based service's environment in the Render dashboard. Configure the exact
+service HTTPS origin in both `FRONTEND_URL` and `CORS_ALLOWED_ORIGINS`. The
+Blueprint requests automatic deployment after connected GitHub checks pass.
+Connect the intended branch to GitHub Actions CI before enabling student access.
 
 ## Image-based Render service and release flow
 
@@ -69,7 +69,7 @@ so a local Java installation is not needed. To trigger a deployment after
 pushing a clean, verified commit, set `RENDER_DEPLOY_HOOK_URL` and
 `RENDER_SERVICE_URL` in the PowerShell environment and add `-Deploy`; the script
 waits for the service health endpoint. The script does not create external
-databases or generate Render/Resend credentials.
+databases or generate Render/Brevo credentials.
 
 Render builds the commit on the branch configured for the service, not
 uncommitted local files. Confirm the reviewed commit is pushed to that connected
@@ -87,14 +87,12 @@ and generated secrets in Render's secret environment fields. The example uses
 the Blueprint's persistent upload disk at `/var/data/uploads`. Do not change
 this to an ephemeral path if uploaded files must survive restarts or deploys.
 
-The Blueprint uses Resend over HTTPS for email. Set the prompted `MAIL_API_KEY`
-and `MAIL_FROM_EMAIL` values to a Resend API key and verified sender address
-before deployment; do not put the API key in the repository. The application
-uses Resend for verification, password
-reset, notification, and admin test emails when configured; it sends plain-text
-message bodies. The SMTP-specific Actuator mail health check is disabled for
-this API mode, while the admin system status reports provider configuration and
-the time of its latest accepted test email.
+The Free Blueprint uses Brevo over HTTPS for verification, password reset,
+notifications, and admin test emails. Set `MAIL_PROVIDER=brevo`,
+`MAIL_ENABLED=true`, `BREVO_API_KEY`, and `MAIL_FROM_EMAIL` to a sender address
+verified in Brevo. Store the API key only in Render's secret environment. The
+admin system status reports provider configuration and the time of its latest
+accepted test email.
 For a phased list of all remaining work, post-deploy acceptance, and real-data
 gates, follow [REMAINING_WORK_AND_DEPLOYMENT.md](./REMAINING_WORK_AND_DEPLOYMENT.md).
 
@@ -177,16 +175,12 @@ addresses. Other local bind addresses keep forwarded headers untrusted unless
 
 ## Email and backup status
 
-The Blueprint enables email through Resend. Set `MAIL_API_KEY` and
-`MAIL_FROM_EMAIL` to valid Resend values and verify the sender domain before
-expecting email delivery. For SMTP instead, set `MAIL_PROVIDER=smtp`,
-`MAIL_ENABLED=true`, `MAIL_HOST`, `MAIL_USERNAME`, and
-`MAIL_PASSWORD`; keep STARTTLS enabled and use a port allowed by your Render
-plan. Render Free blocks outbound SMTP ports 25, 465, and 587. For Render Free,
-the application also supports Resend over HTTPS: set `MAIL_PROVIDER=resend`,
-`MAIL_ENABLED=true`, `MAIL_API_KEY`, and `MAIL_FROM_EMAIL` to a verified Resend
-sender. Keep the API key in Render's secret environment values and never in
-`render.yaml`. Confirm delivery with an administrator test email.
+The Free Blueprint uses Brevo over HTTPS: set `MAIL_PROVIDER=brevo`,
+`MAIL_ENABLED=true`, `BREVO_API_KEY`, and `MAIL_FROM_EMAIL` to a verified
+Brevo sender. Store the API key only in Render's secret environment. Render
+Free blocks outbound SMTP ports 25, 465, and 587, so configure Brevo's API,
+not SMTP. Confirm delivery with an administrator test email; API acceptance
+does not guarantee inbox delivery.
 
 Database backup status will remain `Not configured` until an external,
 successful backup process writes a marker, SQL artifact, and matching SHA-256
@@ -205,8 +199,8 @@ Before using the deployment with real data:
 3. Confirm the system-status API reports database connectivity and perform an
    administrator login, student login, role-boundary checks, and one upload and
    download using test accounts/data.
-4. Configure the Resend API key and verified sender, then send an administrator
-   test email if email delivery is in scope.
+4. Configure the selected mail provider and send an administrator test email
+   if email delivery is in scope.
 5. Establish database and upload backup/restore procedures before importing
    real student, finance, or identity data.
 
