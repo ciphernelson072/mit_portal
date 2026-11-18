@@ -46,8 +46,31 @@ class InstitutionAdminAcademicTermTest {
                 .containsEntry("code", "2026-T1")
                 .containsEntry("name", "Semester One")
                 .containsEntry("academicYearId", 5L)
+                .containsEntry("academicYearCode", "2026")
                 .containsEntry("registrationOpen", true);
         verify(terms).save(any(AcademicTerm.class));
+    }
+
+    @Test
+    void listsTermsWithAcademicYearDetails() {
+        AcademicYear year = academicYear();
+        AcademicTerm term = new AcademicTerm();
+        term.setId(12L);
+        term.setCode("2026-T1");
+        term.setName("Semester One");
+        term.setAcademicYear(year);
+        term.setStartDate(LocalDate.of(2026, 1, 1));
+        term.setEndDate(LocalDate.of(2026, 6, 30));
+        term.setRegistrationOpen(true);
+        when(terms.findByAcademicYearIdOrderByStartDateAsc(5L)).thenReturn(java.util.List.of(term));
+
+        var response = controller.academicTerms(5L);
+
+        assertThat(response).hasSize(1);
+        assertThat(response.get(0))
+                .containsEntry("academicYearId", 5L)
+                .containsEntry("academicYearCode", "2026");
+        verify(terms).findByAcademicYearIdOrderByStartDateAsc(5L);
     }
 
     @Test
@@ -84,7 +107,7 @@ class InstitutionAdminAcademicTermTest {
         term.setStartDate(LocalDate.of(2026, 1, 1));
         term.setEndDate(LocalDate.of(2026, 6, 30));
         term.setRegistrationOpen(true);
-        when(terms.findById(12L)).thenReturn(Optional.of(term));
+        when(terms.findWithAcademicYearById(12L)).thenReturn(Optional.of(term));
         when(terms.save(term)).thenReturn(term);
         UpdateAcademicTermRegistrationWindowRequest request = new UpdateAcademicTermRegistrationWindowRequest();
         request.setRegistrationOpen(false);
