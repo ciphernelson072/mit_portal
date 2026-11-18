@@ -1,5 +1,9 @@
 package com.sis;
 
+import com.sis.entity.AcademicTerm;
+import com.sis.entity.AcademicYear;
+import com.sis.repository.AcademicTermRepository;
+import com.sis.repository.AcademicYearRepository;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -7,10 +11,12 @@ import org.flywaydb.core.Flyway;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Comparator;
 
@@ -31,6 +37,12 @@ class MySqlSchemaIntegrationTest {
 
         @Autowired
         private Flyway flyway;
+
+        @Autowired
+        private AcademicTermRepository academicTerms;
+
+        @Autowired
+        private AcademicYearRepository academicYears;
 
     @DynamicPropertySource
     static void databaseProperties(DynamicPropertyRegistry registry) {
@@ -60,5 +72,27 @@ class MySqlSchemaIntegrationTest {
                 .max(Comparator.naturalOrder())
                 .orElseThrow(() -> new AssertionError("No versioned Flyway migrations were discovered"));
         assertEquals(latestMigrationVersion, flyway.info().current().getVersion());
+    }
+
+    @Test
+    @Transactional
+    void locksAcademicTermWithMysqlCompatibleQuery() {
+        AcademicYear year = new AcademicYear();
+        year.setCode("MYSQL-LOCK-AY");
+        year.setName("MySQL Lock Test Year");
+        year.setStartDate(LocalDate.of(2026, 1, 1));
+        year.setEndDate(LocalDate.of(2026, 12, 31));
+        year = academicYears.saveAndFlush(year);
+
+        AcademicTerm term = new AcademicTerm();
+        term.setCode("MYSQL-LOCK-T1");
+        term.setName("MySQL Lock Test Term");
+        term.setAcademicYear(year);
+        term.setStartDate(LocalDate.of(2026, 1, 1));
+        term.setEndDate(LocalDate.of(2026, 6, 30));
+        term = academicTerms.saveAndFlush(term);
+
+        assertEquals("MYSQL-LOCK-T1",
+                academicTerms.findByIdForUpdate(term.getId()).orElseThrow().getCode());
     }
 }

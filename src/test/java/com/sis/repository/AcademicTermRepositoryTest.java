@@ -51,4 +51,27 @@ class AcademicTermRepositoryTest {
                 .satisfies(result -> assertThat(result.getAcademicYear().getCode()).isEqualTo("FETCH-AY"));
         assertThat(termById.getAcademicYear().getCode()).isEqualTo("FETCH-AY");
     }
+
+    @Test
+    void locksTermRowForTimetableMutations() {
+        AcademicYear year = new AcademicYear();
+        year.setCode("LOCK-AY");
+        year.setName("Lock Test Year");
+        year.setStartDate(LocalDate.of(2026, 1, 1));
+        year.setEndDate(LocalDate.of(2026, 12, 31));
+        year = years.saveAndFlush(year);
+
+        AcademicTerm term = new AcademicTerm();
+        term.setCode("LOCK-T1");
+        term.setName("Lock Test Term");
+        term.setAcademicYear(year);
+        term.setStartDate(LocalDate.of(2026, 1, 1));
+        term.setEndDate(LocalDate.of(2026, 6, 30));
+        term = terms.saveAndFlush(term);
+        entityManager.clear();
+
+        AcademicTerm lockedTerm = terms.findByIdForUpdate(term.getId()).orElseThrow();
+
+        assertThat(lockedTerm.getCode()).isEqualTo("LOCK-T1");
+    }
 }
