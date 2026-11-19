@@ -140,9 +140,9 @@ public class AuthController {
             String role = user.getRole().name();
             boolean privilegedMfaRequired = mfaRequiredForPrivileged && mfaPolicy.isPrivileged(user);
             if (privilegedMfaRequired && !Boolean.TRUE.equals(user.getMfaEnabled())) {
-                refreshTokenService.revokeAllForUser(user.getId());
+                int credentialVersion = refreshTokenService.revokeAllSessions(user.getId());
                 String enrollmentToken = jwtService.generateMfaEnrollmentToken(
-                        user.getUsername(), role, user.getCredentialVersion());
+                        user.getUsername(), role, credentialVersion);
                 HttpHeaders headers = new HttpHeaders();
                 headers.add(HttpHeaders.SET_COOKIE, buildAccessCookie(enrollmentToken).toString());
                 headers.add(HttpHeaders.SET_COOKIE,
@@ -174,14 +174,15 @@ public class AuthController {
                 encryptLegacyMfaSecret(user, storedSecret, secret);
                 mfaVerified = true;
             }
+            RefreshTokenService.IssuedSession session =
+                    refreshTokenService.startSingleSession(user.getId(), mfaVerified);
             String accessToken = jwtService.generateToken(
-                    request.getUsername(), role, user.getCredentialVersion(),
+                    request.getUsername(), role, session.getCredentialVersion(),
                     privilegedMfaRequired, mfaVerified);
-            String refreshToken = refreshTokenService.issue(user, mfaVerified);
 
             HttpHeaders headers = new HttpHeaders();
             headers.add(HttpHeaders.SET_COOKIE, buildAccessCookie(accessToken).toString());
-            headers.add(HttpHeaders.SET_COOKIE, buildRefreshCookie(refreshToken).toString());
+            headers.add(HttpHeaders.SET_COOKIE, buildRefreshCookie(session.getRefreshToken()).toString());
 
             return ResponseEntity.ok().headers(headers).body(new AuthResponse(
                     role, request.getUsername(), user.isPasswordChangeRequired()));
@@ -343,9 +344,7 @@ public class AuthController {
     public ResponseEntity<Void> revokeAllSessions() {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         return schoolService.getUserByUsername(username).map(user -> {
-            refreshTokenService.revokeAllForUser(user.getId());
-            user.setCredentialVersion(user.getCredentialVersion() + 1);
-            schoolService.saveUser(user);
+            refreshTokenService.revokeAllSessions(user.getId());
             return ResponseEntity.ok().<Void>build();
         }).orElse(ResponseEntity.notFound().build());
     }
@@ -368,12 +367,11 @@ public class AuthController {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         return schoolService.getUserByUsername(username)
                 .flatMap(user -> refreshTokenRepository.findById(sessionId)
-                        .filter(token -> token.getUser().getId().equals(user.getId())))
-                .map(token -> {
-                    token.setRevoked(true);
-                    refreshTokenRepository.save(token);
-                    return ResponseEntity.ok().<Void>build();
-                })
+                        .filter(token -> token.getUser().getId().equals(user.getId()))
+                        .map(token -> {
+                            refreshTokenService.revokeSession(user.getId(), token.getId());
+                            return ResponseEntity.ok().<Void>build();
+                        }))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -507,8 +505,7 @@ public class AuthController {
     }
 
     private void revokeSessionsAfterMfaChange(User user) {
-        refreshTokenService.revokeAllForUser(user.getId());
-        user.setCredentialVersion(user.getCredentialVersion() + 1);
+        user.setCredentialVersion(refreshTokenService.revokeAllSessions(user.getId()));
     }
 
     private String buildOtpauthUri(String username, String secret) {

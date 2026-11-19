@@ -75,6 +75,8 @@ import com.sis.service.CustomUserDetailsService;
 import com.sis.service.EmailService;
 import com.sis.service.MfaSecretCipher;
 import com.sis.service.RefreshTokenService;
+import com.sis.service.JwtService;
+import com.sis.repository.RefreshTokenRepository;
 import com.sis.security.OriginValidationFilter;
 import com.sis.security.JwtAuthenticationFilter;
 import org.junit.jupiter.api.Test;
@@ -144,6 +146,12 @@ class SecurityIntegrationTest {
 
     @Autowired
     private RefreshTokenService refreshTokenService;
+
+    @Autowired
+    private JwtService jwtService;
+
+    @Autowired
+    private RefreshTokenRepository refreshTokenRepository;
 
     @Autowired
     private TestRestTemplate restTemplate;
@@ -375,7 +383,8 @@ class SecurityIntegrationTest {
                     new HttpEntity<>(refreshedAccessHeaders), String.class);
             assertEquals(HttpStatus.OK, refreshedPrivilegedApi.getStatusCode());
 
-            String unverifiedRefreshToken = refreshTokenService.issue(user, false);
+            String unverifiedRefreshToken =
+                    refreshTokenService.startSingleSession(user.getId(), false).getRefreshToken();
             HttpHeaders unverifiedRefreshHeaders = new HttpHeaders();
             unverifiedRefreshHeaders.set(HttpHeaders.COOKIE,
                     "refresh_token=" + unverifiedRefreshToken);
@@ -2605,6 +2614,92 @@ class SecurityIntegrationTest {
         boolean hasHttpOnlyAccessToken = setCookieHeaders.stream()
                 .anyMatch(c -> c.contains("access_token=") && c.toLowerCase().contains("httponly"));
         assertTrue(hasHttpOnlyAccessToken, "access_token cookie missing or not HttpOnly");
+    }
+
+    @Test
+    void aNewLoginReplacesThePreviousSessionAndInvalidatesItsAccessAndRefreshTokens() throws Exception {
+        ResponseEntity<String> firstLogin = loginStudent();
+        assertEquals(HttpStatus.OK, firstLogin.getStatusCode());
+
+        String oldAccessToken = accessTokenCookie(firstLogin);
+        String oldRefreshToken = cookieValue(firstLogin, "refresh_token");
+        ResponseEntity<String> secondLogin = loginStudent();
+        assertEquals(HttpStatus.OK, secondLogin.getStatusCode());
+
+        HttpHeaders oldAccessHeaders = new HttpHeaders();
+        oldAccessHeaders.set(HttpHeaders.COOKIE, "access_token=" + oldAccessToken);
+        assertFalse(restTemplate.exchange("/api/auth/authorities", HttpMethod.GET,
+                new HttpEntity<>(oldAccessHeaders), String.class).getStatusCode().is2xxSuccessful());
+
+        HttpHeaders oldRefreshHeaders = new HttpHeaders();
+        oldRefreshHeaders.set(HttpHeaders.COOKIE, "refresh_token=" + oldRefreshToken);
+        assertEquals(HttpStatus.UNAUTHORIZED,
+                restTemplate.exchange("/api/auth/refresh", HttpMethod.POST,
+                        new HttpEntity<>(oldRefreshHeaders), String.class).getStatusCode());
+
+        HttpHeaders currentHeaders = new HttpHeaders();
+        currentHeaders.set(HttpHeaders.COOKIE,
+                "access_token=" + accessTokenCookie(secondLogin));
+        ResponseEntity<String> currentSession =
+                restTemplate.exchange("/api/auth/sessions", HttpMethod.GET,
+                        new HttpEntity<>(currentHeaders), String.class);
+        assertEquals(HttpStatus.OK, currentSession.getStatusCode());
+        assertEquals(1, objectMapper.readTree(currentSession.getBody()).size());
+        assertEquals(HttpStatus.OK,
+                restTemplate.exchange("/api/auth/authorities", HttpMethod.GET,
+                        new HttpEntity<>(currentHeaders), String.class).getStatusCode());
+    }
+
+    @Test
+    void concurrentLoginsLeaveExactlyOneValidSession() throws Exception {
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            Future<ResponseEntity<String>> first = executor.submit(() -> loginStudentWhenReleased(ready, start));
+            Future<ResponseEntity<String>> second = executor.submit(() -> loginStudentWhenReleased(ready, start));
+            assertTrue(ready.await(5, TimeUnit.SECONDS), "Both login attempts should be ready");
+            start.countDown();
+
+            List<ResponseEntity<String>> logins =
+                    List.of(first.get(15, TimeUnit.SECONDS), second.get(15, TimeUnit.SECONDS));
+            assertTrue(logins.stream().allMatch(login -> login.getStatusCode() == HttpStatus.OK));
+
+            int currentCredentialVersion = userRepository.findByUsername("student1")
+                    .orElseThrow().getCredentialVersion();
+            long currentAccessTokens = logins.stream()
+                    .map(this::accessTokenCookie)
+                    .map(jwtService::getCredentialVersion)
+                    .filter(version -> version == currentCredentialVersion)
+                    .count();
+            assertEquals(1, currentAccessTokens);
+            List<RefreshToken> userTokens = refreshTokenRepository.findByUserIdOrderByExpiryDateDesc(
+                    userRepository.findByUsername("student1").orElseThrow().getId());
+            long activeRefreshTokens = userTokens.stream().filter(RefreshToken::isValid).count();
+            assertEquals(1, activeRefreshTokens,
+                    userTokens.stream().map(token -> token.getId() + ":revoked=" + token.isRevoked())
+                            .toList().toString());
+        } finally {
+            start.countDown();
+            executor.shutdownNow();
+        }
+    }
+
+    private ResponseEntity<String> loginStudent() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        return restTemplate.postForEntity("/api/auth/login",
+                new HttpEntity<>("{\"username\":\"student1\",\"password\":\"student123\"}", headers),
+                String.class);
+    }
+
+    private ResponseEntity<String> loginStudentWhenReleased(CountDownLatch ready, CountDownLatch start)
+            throws InterruptedException {
+        ready.countDown();
+        if (!start.await(5, TimeUnit.SECONDS)) {
+            throw new IllegalStateException("Timed out waiting to start concurrent login");
+        }
+        return loginStudent();
     }
 
     @Test
