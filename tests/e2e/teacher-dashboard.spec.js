@@ -26,6 +26,164 @@ test('teacher dashboard has independent course selectors', async ({ page }) => {
   await expect(page.locator('#attendanceStudent')).toHaveCount(0);
 });
 
+test('teacher leave history shows the actual server error', async ({ page }) => {
+  const loginResponse = await loginTeacher(page);
+  expect(loginResponse.ok()).toBeTruthy();
+
+  await page.addInitScript(() => {
+    localStorage.setItem('mitRole', 'TEACHER');
+    localStorage.setItem('mitUsername', 'teacher1');
+  });
+  await page.route('**/api/**', async route => {
+    const url = new URL(route.request().url());
+    if (url.pathname === '/api/hr/leave/mine') {
+      await route.fulfill({
+        status: 503,
+        contentType: 'application/json',
+        body: JSON.stringify({ message: 'HR service is temporarily unavailable.' }),
+      });
+    } else {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+    }
+  });
+
+  await page.goto('/teacher-dashboard.html');
+
+  await expect(page.locator('#teacherLeaveStatus'))
+    .toHaveText('HR service is temporarily unavailable.');
+  await expect(page.locator('#teacherLeaveList'))
+    .toHaveText('HR service is temporarily unavailable.');
+  await expect(page.locator('#teacherLeaveStatus'))
+    .not.toContainText('active HR staff profile is required');
+});
+
+test('teacher request stays confirmed when refreshing the request list fails', async ({ page }) => {
+  const loginResponse = await loginTeacher(page);
+  expect(loginResponse.ok()).toBeTruthy();
+
+  await page.addInitScript(() => {
+    localStorage.setItem('mitRole', 'TEACHER');
+    localStorage.setItem('mitUsername', 'teacher1');
+  });
+  let requestListReads = 0;
+  await page.route('**/api/**', async route => {
+    const request = route.request();
+    const url = new URL(request.url());
+    if (url.pathname === '/api/student/requests' && request.method() === 'GET') {
+      requestListReads += 1;
+      if (requestListReads > 1) {
+        await route.fulfill({
+          status: 503,
+          contentType: 'application/json',
+          body: JSON.stringify({ message: 'Request history is temporarily unavailable.' }),
+        });
+      } else {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+      }
+    } else if (url.pathname === '/api/student/requests' && request.method() === 'POST') {
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({ id: 21, subject: 'Room access', status: 'OPEN' }),
+      });
+    } else if (url.pathname === '/api/teacher/me') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ fullName: 'Test Teacher' }),
+      });
+    } else if (url.pathname === '/api/teacher/dashboard') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          assignedCourseCount: 0,
+          enrolledStudentCount: 0,
+          pendingGradeCount: 0,
+          upcomingAssignmentCount: 0,
+          pendingAttendanceCount: 0,
+        }),
+      });
+    } else {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+    }
+  });
+
+  await page.goto('/teacher-dashboard.html');
+  await expect(page.locator('#teacherRequestList')).toContainText('No requests submitted yet.');
+  await page.locator('#teacherRequestSubject').fill('Room access');
+  await page.locator('#teacherRequestDetails').fill('Please enable the assigned classroom.');
+  await page.locator('#teacherRequestForm button[type="submit"]').click();
+
+  await expect(page.locator('#teacherRequestStatus')).toHaveText('Request submitted successfully.');
+  await expect(page.locator('#teacherRequestList'))
+    .toContainText('Request history is temporarily unavailable.');
+});
+
+test('teacher leave request stays confirmed when refreshing leave history fails', async ({ page }) => {
+  const loginResponse = await loginTeacher(page);
+  expect(loginResponse.ok()).toBeTruthy();
+
+  await page.addInitScript(() => {
+    localStorage.setItem('mitRole', 'TEACHER');
+    localStorage.setItem('mitUsername', 'teacher1');
+  });
+  let leaveHistoryReads = 0;
+  await page.route('**/api/**', async route => {
+    const request = route.request();
+    const url = new URL(request.url());
+    if (url.pathname === '/api/hr/leave/mine' && request.method() === 'GET') {
+      leaveHistoryReads += 1;
+      if (leaveHistoryReads > 1) {
+        await route.fulfill({
+          status: 503,
+          contentType: 'application/json',
+          body: JSON.stringify({ message: 'Leave history is temporarily unavailable.' }),
+        });
+      } else {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+      }
+    } else if (url.pathname === '/api/hr/leave' && request.method() === 'POST') {
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({ id: 8, startDate: '2026-12-01', endDate: '2026-12-02', status: 'PENDING' }),
+      });
+    } else if (url.pathname === '/api/teacher/me') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ fullName: 'Test Teacher' }),
+      });
+    } else if (url.pathname === '/api/teacher/dashboard') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          assignedCourseCount: 0,
+          enrolledStudentCount: 0,
+          pendingGradeCount: 0,
+          upcomingAssignmentCount: 0,
+          pendingAttendanceCount: 0,
+        }),
+      });
+    } else {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+    }
+  });
+
+  await page.goto('/teacher-dashboard.html');
+  await expect(page.locator('#teacherLeaveList')).toContainText('No leave requests submitted yet.');
+  await page.locator('#teacherLeaveStart').fill('2026-12-01');
+  await page.locator('#teacherLeaveEnd').fill('2026-12-02');
+  await page.locator('#teacherLeaveReason').fill('Approved annual leave.');
+  await page.locator('#teacherLeaveForm button[type="submit"]').click();
+
+  await expect(page.locator('#teacherLeaveStatus')).toHaveText('Leave request submitted.');
+  await expect(page.locator('#teacherLeaveList'))
+    .toContainText('Leave history is temporarily unavailable.');
+});
+
 test('teacher can view result publication status without exposing grade marks', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('mitRole', 'TEACHER');
@@ -255,10 +413,10 @@ test('teacher can select a course grade and submit it for approval', async ({ pa
   const gradebook = page.locator('#teacherGradeList');
   await expect(gradebook).toContainText('Alice Student');
   await page.locator('[data-edit-grade="61"]').click();
-  await expect(page.locator('#gradeStatus')).toContainText('Editing assessment marks for Alice Student');
   await expect(page.locator('#gradeRecordId')).toHaveValue('61');
   await expect(page.locator('#gradeStudent')).toHaveValue('7');
   await expect(page.locator('#gradeRemarks')).toHaveValue('Good work');
+  await expect(page.locator('#gradeStatus')).toContainText('Editing assessment marks for');
   await page.locator('[data-component-score="12"]').fill('80');
   await page.getByRole('button', { name: 'Save assessment marks' }).click();
   await expect(page.locator('#gradeStatus')).toContainText('Calculated total: 80.00%');

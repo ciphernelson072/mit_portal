@@ -76,6 +76,32 @@ test('admin login routes first-time password changes before opening the dashboar
   });
 });
 
+test('stale staff role hint does not redirect away from the admin login form', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('mitRole', 'ADMIN');
+    localStorage.setItem('mitUsername', 'old-admin-session');
+  });
+
+  await page.goto('/admin-login.html');
+
+  await expect(page).toHaveURL(/admin-login\.html/);
+  await expect(page.locator('#username')).toBeVisible();
+  await expect(page.locator('#password')).toBeVisible();
+});
+
+test('stale student role hint does not redirect away from the student login form', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('mitRole', 'STUDENT');
+    localStorage.setItem('mitUsername', 'old-student-session');
+  });
+
+  await page.goto('/index.html');
+
+  await expect(page).toHaveURL(/index\.html/);
+  await expect(page.locator('#studentLoginForm')).toBeVisible();
+  await expect(page.locator('#username')).toBeVisible();
+});
+
 test('admin password change returns to the staff login form', async ({ page }) => {
   await page.route('**/api/auth/change-password', route => route.fulfill({ status: 200 }));
   await page.route('**/api/auth/logout', route => route.fulfill({ status: 200 }));
@@ -997,6 +1023,9 @@ test.describe('responsive portal surfaces', () => {
 
     await page.goto('/admin-dashboard.html');
     await page.evaluate(() => switchModule('grades'));
+    await expect(page.locator('#gradesModule .module-help')).toContainText(
+      'authorized batch or exceptional grade entry, not routine teacher marking',
+    );
     const gradeRows = page.locator('#gradesModule table tbody tr');
     await expect(gradeRows).toHaveCount(2);
 
@@ -1269,7 +1298,6 @@ test('password reset link secret is removed from history and posted in request b
 
 test('profile preferences load, save independently, and preserve other settings', async ({ page }) => {
   await login(page, 'student1', 'student123');
-  await page.addInitScript(() => { window.alert = () => {}; });
   let storedPreferences = {
     userId: 7,
     language: 'English',
@@ -1308,29 +1336,91 @@ test('profile preferences load, save independently, and preserve other settings'
   await expect(privacy.nth(1)).toBeChecked();
   await expect(notifications.nth(0)).not.toBeChecked();
   await expect(notifications.nth(2)).toBeChecked();
+  await expect(notifications.nth(4)).toBeChecked();
+  await expect(notifications.nth(5)).toBeChecked();
   await expect(quickLinks.nth(0)).not.toBeChecked();
   await expect(quickLinks.nth(3)).toBeChecked();
   await expect(page.locator('#preferencesTab input[name="theme"][value="dark"]')).toBeChecked();
 
   await page.getByRole('button', { name: /Security/ }).click();
   await privacy.nth(0).check();
-  await page.getByRole('button', { name: /Save Settings/ }).click();
+  const privacySaveDialog = page.waitForEvent('dialog');
+  const privacySaveClick = page.getByRole('button', { name: /Save Settings/ }).click();
+  await (await privacySaveDialog).accept();
+  await privacySaveClick;
   await expect.poll(() => JSON.parse(storedPreferences.settingsJson).privacy[0]).toBe(true);
   expect(JSON.parse(storedPreferences.settingsJson).notifications).toEqual([false, true, true, false]);
   expect(JSON.parse(storedPreferences.settingsJson).quickLinks).toEqual([false, true, false, true]);
 
   await page.getByRole('button', { name: /Preferences/ }).click();
   await notifications.nth(0).check();
+  await notifications.nth(5).uncheck();
   await page.locator('#preferencesTab input[name="theme"][value="system"]').check();
-  await page.getByRole('button', { name: /Save Preferences/ }).click();
+  const preferencesSaveDialog = page.waitForEvent('dialog');
+  const preferencesSaveClick = page.getByRole('button', { name: /Save Preferences/ }).click();
+  await (await preferencesSaveDialog).accept();
+  await preferencesSaveClick;
   await expect.poll(() => JSON.parse(storedPreferences.settingsJson).notifications[0]).toBe(true);
+  expect(JSON.parse(storedPreferences.settingsJson).notifications).toEqual(
+    [true, true, true, false, true, false]
+  );
   expect(JSON.parse(storedPreferences.settingsJson).privacy[0]).toBe(true);
   expect(storedPreferences.theme).toBe('system');
 
   await page.reload();
   await expect(privacy.nth(0)).toBeChecked();
   await expect(notifications.nth(0)).toBeChecked();
+  await expect(notifications.nth(5)).not.toBeChecked();
   await expect(page.locator('#preferencesTab input[name="theme"][value="system"]')).toBeChecked();
+});
+
+test('profile displays the contact email rather than an email-shaped username', async ({ page }) => {
+  await login(page, 'student1', 'student123');
+  await page.route('**/api/**', async route => {
+    const url = new URL(route.request().url());
+    if (url.pathname === '/api/student/profile') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+        id: 7,
+        username: 'student@example.test',
+        fullName: 'Test Student',
+        email: 'contact@example.test',
+      }) });
+    } else if (url.pathname === '/api/portal/preferences') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+        language: 'English', theme: 'light', settingsJson: '{}',
+      }) });
+    } else if (url.pathname === '/api/auth/mfa/status') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: 'false' });
+    } else {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+    }
+  });
+
+  await page.goto('/profile.html');
+
+  await expect(page.locator('#personalTab .form-grid input[type="email"]'))
+    .toHaveValue('contact@example.test');
+  await expect(page.locator('#personalTab .contact-item').first()).toContainText('contact@example.test');
+  await expect(page.locator('#personalTab')).toContainText(
+    'separate from the account email used for sign-in and password recovery'
+  );
+});
+
+test('student dashboard does not display the account username as a missing contact email', async ({ page }) => {
+  await login(page, 'student1', 'student123');
+  await page.route('**/api/student/profile', route => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      id: 7,
+      username: 'student@example.test',
+      fullName: 'Test Student',
+    }),
+  }));
+
+  await page.goto('/dashboard.html');
+
+  await expect(page.locator('.profile-email')).toHaveText('—');
 });
 
 test('profile does not advertise MFA when the deployment has MFA disabled', async ({ page }) => {
@@ -1390,6 +1480,7 @@ test('dashboard renders selected quick links and supports deep links into module
 
 test('dashboard notification preferences filter the preview by explicit category', async ({ page }) => {
   await login(page, 'student1', 'student123');
+  let settingsJson = JSON.stringify({ notifications: [false, true, false, false] });
   await page.route('**/api/**', async route => {
     const url = new URL(route.request().url());
     if (url.pathname === '/api/portal/preferences') {
@@ -1397,7 +1488,7 @@ test('dashboard notification preferences filter the preview by explicit category
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          settingsJson: JSON.stringify({ notifications: [false, true, false, false] }),
+          settingsJson,
         }),
       });
       return;
@@ -1411,6 +1502,8 @@ test('dashboard notification preferences filter the preview by explicit category
           { id: 2, title: 'Grade posted', message: 'A new grade is available', category: 'GRADE', read: false },
           { id: 3, title: 'System update', message: 'Scheduled maintenance', category: 'SYSTEM', read: false },
           { id: 4, title: 'Payment due', message: 'A payment is due', category: 'PAYMENT', read: false },
+          { id: 5, title: 'Attendance marked absent', message: 'You were marked absent for ATT101', category: 'ATTENDANCE', read: false },
+          { id: 6, title: 'Portal update', message: 'Updated information', category: 'ANNOUNCEMENT', read: false },
         ]),
       });
       return;
@@ -1420,12 +1513,20 @@ test('dashboard notification preferences filter the preview by explicit category
 
   await page.goto('/dashboard.html');
   const list = page.locator('.notification-list');
-  await expect(list.locator('.notification-item')).toHaveCount(1);
+  await expect(list.locator('.notification-item')).toHaveCount(3);
   await expect(list).toContainText('Grade posted');
+  await expect(list).toContainText('Attendance marked absent');
+  await expect(list).toContainText('Portal update');
   await expect(list).not.toContainText('Assignment due');
   await expect(list).not.toContainText('System update');
   await expect(list).not.toContainText('Payment due');
-  await expect(page.locator('#notificationBadge')).toHaveText('1');
+  await expect(page.locator('#notificationBadge')).toHaveText('3');
+
+  settingsJson = JSON.stringify({ notifications: [false, true, false, false, true, false] });
+  await page.goto('/dashboard.html');
+  await expect(page.locator('.notification-list .notification-item')).toHaveCount(2);
+  await expect(page.locator('.notification-list')).not.toContainText('Portal update');
+  await expect(page.locator('#notificationBadge')).toHaveText('2');
 });
 
 test('admissions explains missing programme/year setup and blocks submission', async ({ page }) => {
@@ -1708,7 +1809,7 @@ test('institution setup API is restricted to administrator accounts', async ({ p
   expect(statusResponse.status()).toBe(200);
   const status = await statusResponse.json();
   expect(status.database.status).toBe('online');
-  expect(['disabled', 'incomplete', 'configured', 'online']).toContain(status.email.status);
+  expect(['disabled', 'incomplete', 'configured', 'online', 'untested']).toContain(status.email.status);
   expect(['not_configured', 'online', 'stale', 'unavailable']).toContain(status.backup.status);
   await expect(page.locator('#databaseHealthStatus')).toContainText('Connected');
 
@@ -1719,6 +1820,29 @@ test('institution setup API is restricted to administrator accounts', async ({ p
   expect(studentStatusResponse.status()).toBe(403);
   const studentAdmissionsResponse = await page.request.get('/api/admissions/applications');
   expect(studentAdmissionsResponse.status()).toBe(403);
+});
+
+test('admin test email failures use an accessible in-page notification', async ({ page }) => {
+  await login(page, 'admin', 'admin123', true);
+  await page.evaluate(() => {
+    window.prompt = () => 'recipient@example.org';
+    window.apiFetch = async () => {
+      throw new Error('Email provider rejected the message (HTTP 401)');
+    };
+    window.alert = () => {
+      throw new Error('Unexpected browser alert');
+    };
+  });
+
+  await page.evaluate(() => testEmail());
+
+  const toast = page.locator('#adminToast');
+  await expect(toast).toBeVisible();
+  await expect(toast).toContainText('Resend rejected the API key');
+  await expect(toast).toHaveAttribute('role', 'alert');
+  await expect(toast).toHaveAttribute('aria-live', 'assertive');
+  await expect(toast).toHaveCSS('border-left-width', '4px');
+  await expect(toast).toHaveCSS('border-left-style', 'solid');
 });
 
 test('admin dashboard pending actions link to decision queues and support admission decisions', async ({ page }) => {

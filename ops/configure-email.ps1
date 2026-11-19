@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('gmail-smtp', 'resend')]
+    [ValidateSet('gmail-smtp', 'brevo')]
     [string]$Provider = 'gmail-smtp',
     [ValidatePattern('^[A-Za-z0-9.!#$%&''*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$')]
     [string]$GmailSender = 'nelliedelson@gmail.com',
@@ -25,20 +25,15 @@ if (-not (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue)) 
 }
 
 $senderAddress = $GmailSender.Trim()
-if ($Provider -eq 'resend') {
-    $senderDomain = (Read-Host 'Institution-owned, Resend-verified sending domain (domain only)').Trim().ToLowerInvariant()
-    if ($senderDomain -notmatch '^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$') {
-        throw 'Enter a valid domain that the institution owns and has verified in Resend.'
-    }
-
-    $senderAddress = (Read-Host "Verified sender email address (for example, admissions@$senderDomain)").Trim()
+if ($Provider -eq 'brevo') {
+    $senderAddress = (Read-Host 'Brevo-verified sender email address').Trim()
     try {
         $sender = [System.Net.Mail.MailAddress]::new($senderAddress)
     } catch {
-        throw 'Enter a valid sender email address on the verified domain.'
+        throw 'Enter a valid sender email address verified in Brevo.'
     }
-    if ($sender.Address -cne $senderAddress -or $sender.Host.ToLowerInvariant() -ne $senderDomain) {
-        throw 'The sender email address must use the exact Resend-verified domain.'
+    if ($sender.Address -cne $senderAddress) {
+        throw 'Enter only the sender email address verified in Brevo.'
     }
 } else {
     if (-not $UseEnvironmentCredential) {
@@ -128,7 +123,7 @@ if ($Provider -eq 'gmail-smtp') {
         }
     }
 } else {
-    $secureCredential = Read-Host 'Paste the new, send-only Resend API key (input is hidden)' -AsSecureString
+    $secureCredential = Read-Host 'Paste the Brevo API key (input is hidden)' -AsSecureString
     $credentialPointer = [IntPtr]::Zero
     try {
         $credentialPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureCredential)
@@ -140,31 +135,31 @@ if ($Provider -eq 'gmail-smtp') {
         $secureCredential.Dispose()
     }
     $secureCredential = $null
-    if ([string]::IsNullOrWhiteSpace($mailSecret) -or $mailSecret -notmatch '^re_[A-Za-z0-9_-]{20,}$') {
+    if ([string]::IsNullOrWhiteSpace($mailSecret)) {
         $mailSecret = $null
-        throw 'The supplied key does not look like a Resend API key. Create a new send-only key and try again.'
+        throw 'A Brevo API key is required.'
     }
 
     $payload = @{
-        from    = "MIT Student Portal <$senderAddress>"
-        to      = @($recipientAddress)
-        subject = 'MIT Student Portal email setup test'
-        text    = "This test confirms that the MIT Student Portal can send mail from $senderAddress using the configured Resend account. No password or sign-in credential is included."
+        sender     = @{ name = 'MIT Student Portal'; email = $senderAddress }
+        to         = @(@{ email = $recipientAddress })
+        subject    = 'MIT Student Portal email setup test'
+        textContent = "This test confirms that the MIT Student Portal can send mail from $senderAddress using the configured Brevo account. No password or sign-in credential is included."
     }
     $json = $payload | ConvertTo-Json -Depth 4
-    $headers = @{ Authorization = "Bearer $mailSecret" }
+    $headers = @{ 'api-key' = $mailSecret }
     try {
         $providerResponse = Invoke-RestMethod `
-            -Uri 'https://api.resend.com/emails' `
+            -Uri 'https://api.brevo.com/v3/smtp/email' `
             -Method Post `
             -Headers $headers `
             -ContentType 'application/json' `
             -Body $json `
             -TimeoutSec 30
-        if ([string]::IsNullOrWhiteSpace([string]$providerResponse.id)) {
-            throw 'Resend returned no message ID.'
+        if ([string]::IsNullOrWhiteSpace([string]$providerResponse.messageId)) {
+            throw 'Brevo returned no message ID.'
         }
-        $messageId = [string]$providerResponse.id
+        $messageId = [string]$providerResponse.messageId
     } catch {
         $statusCode = 0
         if ($_.Exception.Response -and $_.Exception.Response.StatusCode) {
@@ -174,15 +169,15 @@ if ($Provider -eq 'gmail-smtp') {
         $headers = $null
         $json = $null
         if ($statusCode -eq 401 -or $statusCode -eq 403) {
-            throw "Resend rejected the key or permissions (HTTP $statusCode). Confirm the key is a new send-enabled key. The private app settings were not changed."
+            throw "Brevo rejected the key or permissions (HTTP $statusCode). Confirm the API key is active. The private app settings were not changed."
         }
         if ($statusCode -eq 422) {
-            throw 'Resend rejected the sender or recipient. Confirm the sending domain is verified, the sender matches it exactly, and the recipient is permitted. The private app settings were not changed.'
+            throw 'Brevo rejected the sender or recipient. Confirm the sender is verified and the recipient is permitted. The private app settings were not changed.'
         }
         if ($statusCode -gt 0) {
-            throw "Resend did not accept the test email (HTTP $statusCode). The private app settings were not changed."
+            throw "Brevo did not accept the test email (HTTP $statusCode). The private app settings were not changed."
         }
-        throw 'Resend could not be reached or the API key was invalid. The private app settings were not changed.'
+        throw 'Brevo could not be reached or the API key was invalid. The private app settings were not changed.'
     }
 }
 
@@ -193,7 +188,10 @@ if ($Provider -eq 'gmail-smtp') {
     $mailValues = [ordered]@{
         MAIL_ENABLED          = 'true'
         MAIL_PROVIDER         = 'smtp'
+        BREVO_API_KEY         = ''
         MAIL_API_KEY          = ''
+        MAIL_APPS_SCRIPT_URL  = ''
+        MAIL_APPS_SCRIPT_TOKEN = ''
         MAIL_FROM_EMAIL       = $senderAddress
         MAIL_FROM_NAME        = 'MIT Portal'
         MAIL_HOST             = 'smtp.gmail.com'
@@ -207,8 +205,11 @@ if ($Provider -eq 'gmail-smtp') {
 } else {
     $mailValues = [ordered]@{
         MAIL_ENABLED          = 'true'
-        MAIL_PROVIDER         = 'resend'
-        MAIL_API_KEY          = $mailSecret
+        MAIL_PROVIDER         = 'brevo'
+        BREVO_API_KEY         = $mailSecret
+        MAIL_API_KEY          = ''
+        MAIL_APPS_SCRIPT_URL  = ''
+        MAIL_APPS_SCRIPT_TOKEN = ''
         MAIL_FROM_EMAIL       = $senderAddress
         MAIL_FROM_NAME        = 'MIT Portal'
         MAIL_HOST             = ''
@@ -230,6 +231,7 @@ if ($listener) {
     $application = Get-CimInstance Win32_Process -Filter "ProcessId = $applicationPid"
     if ($application.Name -ne 'java.exe' -or $application.CommandLine -notmatch 'com\.sis\.SisApplication') {
         $mailSecret = $null
+        $mailValues.BREVO_API_KEY = ''
         $mailValues.MAIL_API_KEY = ''
         $mailValues.MAIL_PASSWORD = ''
         throw "Port $Port is occupied by a process that is not the Student Portal. No app settings were changed."
@@ -260,6 +262,7 @@ foreach ($name in $mailValues.Keys) {
 $utf8WithoutBom = [System.Text.UTF8Encoding]::new($false)
 [System.IO.File]::WriteAllLines($environmentPath, $updatedLines, $utf8WithoutBom)
 $mailSecret = $null
+$mailValues.BREVO_API_KEY = $null
 $mailValues.MAIL_API_KEY = $null
 $mailValues.MAIL_PASSWORD = $null
 $updatedLines.Clear()

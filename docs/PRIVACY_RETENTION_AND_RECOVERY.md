@@ -24,8 +24,10 @@ owner approves it. Before real data is used:
 
 ## Hosting acceptance
 
-The Render blueprint configures persistent uploads, HTTPS operation assumptions,
-and environment-secret placeholders, but launch approval still requires:
+The paid Render Blueprint configures a persistent uploads disk. The active
+Render Free test service instead uses ephemeral `/tmp/uploads`; files may be
+lost on restart or redeploy. Neither configuration alone establishes production
+readiness. Launch approval still requires:
 
 - TLS certificate and custom-domain verification;
 - database and upload persistence across restarts and redeployments;

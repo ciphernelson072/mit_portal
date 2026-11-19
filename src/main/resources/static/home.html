@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Choose secure student, employee, or guest access to Makerere Institute of Technology.">
+  <meta name="theme-color" content="#12304a">
+  <meta name="robots" content="noindex">
+  <title>Welcome | Makerere Institute of Technology</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icons/pwa-180.png">
+  <link rel="stylesheet" href="/css/home.css">
+</head>
+<body class="gateway-page">
+  <a class="skip-link" href="#main-content">Skip to portal choices</a>
+  <div class="gateway-shell">
+    <header class="gateway-header">
+      <a class="gateway-brand" href="/" aria-label="Makerere Institute of Technology home">
+        <img src="/icons/logo.jpg" alt="">
+        <span>
+          <strong>MAKERERE INSTITUTE OF TECHNOLOGY</strong>
+          <small>Student Information Portal</small>
+        </span>
+      </a>
+      <a class="gateway-public-link" href="/public/index.html">Explore MIT</a>
+    </header>
+
+    <main class="gateway-main" id="main-content">
+      <section class="gateway-card" aria-labelledby="gateway-title">
+        <div class="gateway-card-heading">
+          <p class="gateway-eyebrow">Welcome</p>
+          <h1 id="gateway-title">Choose how to continue</h1>
+          <p>Secure access to learning, institute services, and public information.</p>
+        </div>
+        <nav class="audience-options" aria-label="Choose a portal">
+          <a class="audience-option" href="/index.html">
+            <span class="audience-icon" aria-hidden="true">S</span>
+            <span class="audience-name">Student</span>
+            <span class="audience-description">Sign in to student services</span>
+            <span class="audience-action">Continue <span aria-hidden="true">→</span></span>
+          </a>
+          <a class="audience-option" href="/admin-login.html">
+            <span class="audience-icon" aria-hidden="true">E</span>
+            <span class="audience-name">Employee</span>
+            <span class="audience-description">Staff and administrator sign in</span>
+            <span class="audience-action">Continue <span aria-hidden="true">→</span></span>
+          </a>
+          <a class="audience-option audience-option-guest" href="/public/index.html">
+            <span class="audience-icon" aria-hidden="true">G</span>
+            <span class="audience-name">Guest</span>
+            <span class="audience-description">Programmes, admissions, and contacts</span>
+            <span class="audience-action">Explore public information <span aria-hidden="true">→</span></span>
+          </a>
+        </nav>
+        <p class="gateway-security-note">Your account is verified by the institute. Choose the audience that best describes your visit.</p>
+      </section>
+    </main>
+
+    <footer class="gateway-footer">
+      <span>© <span data-current-year>2026</span> Makerere Institute of Technology</span>
+      <span class="gateway-footer-links">
+        <a href="/terms.html">Terms</a>
+        <a href="/privacy.html">Privacy</a>
+        <a href="/public/contact.html">Get help</a>
+      </span>
+    </footer>
+  </div>
+  <script>
+    document.querySelector('[data-current-year]').textContent = String(new Date().getFullYear());
+  </script>
+</body>
+</html>

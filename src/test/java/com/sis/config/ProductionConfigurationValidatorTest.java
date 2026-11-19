@@ -2,8 +2,8 @@ package com.sis.config;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
-import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
-import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
+import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
+import org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -190,20 +190,20 @@ class ProductionConfigurationValidatorTest {
     }
 
     @Test
-    void shouldStartWithResendApiMailWithoutSmtpSettings() {
+    void shouldStartWithBrevoApiMailWithoutSmtpSettings() {
         contextRunner
                 .withPropertyValues(
                         "spring.profiles.active=prod",
                         "jwt.secret=0123456789abcdef0123456789abcdef",
-                        "spring.datasource.url=jdbc:h2:mem:prod-resend-test;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE",
+                        "spring.datasource.url=jdbc:h2:mem:prod-brevo-test;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE",
                         "spring.datasource.username=test-user",
                         "spring.datasource.password=test-password",
                         "app.frontend.url=https://portal.example",
                         "cors.allowed-origins=https://portal.example",
                         "file.upload.directory=./target/test-uploads",
                         "app.mail.enabled=true",
-                        "app.mail.provider=resend",
-                        "app.mail.api-key=re_test_api_key_value",
+                        "app.mail.provider=brevo",
+                        "app.mail.api-key=test-brevo-api-key-value",
                         "app.mail.from-email=portal@verified.example",
                         "app.finance.webhook.secret=0123456789abcdef0123456789abcdef",
                         "app.security.cookie-secure=true",
@@ -216,20 +216,20 @@ class ProductionConfigurationValidatorTest {
     }
 
     @Test
-    void shouldRejectPlaceholderResendApiKey() {
+    void shouldRejectPlaceholderBrevoApiKey() {
         contextRunner
                 .withPropertyValues(
                         "spring.profiles.active=prod",
                         "jwt.secret=0123456789abcdef0123456789abcdef",
-                        "spring.datasource.url=jdbc:h2:mem:prod-resend-placeholder-test;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE",
+                        "spring.datasource.url=jdbc:h2:mem:prod-brevo-placeholder-test;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE",
                         "spring.datasource.username=test-user",
                         "spring.datasource.password=test-password",
                         "app.frontend.url=https://portal.example",
                         "cors.allowed-origins=https://portal.example",
                         "file.upload.directory=./target/test-uploads",
                         "app.mail.enabled=true",
-                        "app.mail.provider=resend",
-                        "app.mail.api-key=REPLACE_WITH_NEW_RESEND_API_KEY",
+                        "app.mail.provider=brevo",
+                        "app.mail.api-key=REPLACE_WITH_BREVO_API_KEY",
                         "app.mail.from-email=portal@verified.example",
                         "app.finance.webhook.secret=0123456789abcdef0123456789abcdef",
                         "app.security.cookie-secure=true",
@@ -238,7 +238,37 @@ class ProductionConfigurationValidatorTest {
                 .run(context -> {
                     assertThat(context).hasFailed();
                     assertThat(context.getStartupFailure())
-                            .hasStackTraceContaining("MAIL_API_KEY must not use a placeholder value");
+                            .hasStackTraceContaining("BREVO_API_KEY must not use a placeholder value");
                 });
     }
+
+    @Test
+    void shouldStartWithGmailSmtpAndAppPasswordConfiguration() {
+        contextRunner
+                .withPropertyValues(
+                        "spring.profiles.active=prod",
+                        "jwt.secret=0123456789abcdef0123456789abcdef",
+                        "spring.datasource.url=jdbc:h2:mem:prod-gmail-smtp-test;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE",
+                        "spring.datasource.username=test-user",
+                        "spring.datasource.password=test-password",
+                        "app.frontend.url=https://portal.example",
+                        "cors.allowed-origins=https://portal.example",
+                        "file.upload.directory=./target/test-uploads",
+                        "app.mail.enabled=true",
+                        "app.mail.provider=smtp",
+                        "spring.mail.host=smtp.gmail.com",
+                        "spring.mail.port=587",
+                        "spring.mail.username=sender@gmail.example",
+                        "spring.mail.password=test-app-password",
+                        "app.mail.from-email=sender@gmail.example",
+                        "app.finance.webhook.secret=0123456789abcdef0123456789abcdef",
+                        "app.security.cookie-secure=true",
+                        "app.security.cookie-same-site=Strict"
+                )
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).hasSingleBean(ProductionConfigurationValidator.class);
+                });
+    }
+
 }

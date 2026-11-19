@@ -1,6 +1,6 @@
 package com.sis.dto;
 
-import javax.validation.constraints.Size;
+import jakarta.validation.constraints.Size;
 
 public class HostelApplicationRequest {
     @Size(max = 2000)

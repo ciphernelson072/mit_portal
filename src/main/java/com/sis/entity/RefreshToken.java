@@ -1,7 +1,7 @@
 package com.sis.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
@@ -25,13 +25,21 @@ public class RefreshToken {
     @Column(nullable = false)
     private boolean revoked = false;
 
+    @Column(name = "mfa_verified", nullable = false)
+    private boolean mfaVerified;
+
     public RefreshToken() {
     }
 
     public RefreshToken(String tokenHash, User user, LocalDateTime expiryDate) {
+        this(tokenHash, user, expiryDate, false);
+    }
+
+    public RefreshToken(String tokenHash, User user, LocalDateTime expiryDate, boolean mfaVerified) {
         this.tokenHash = tokenHash;
         this.user = user;
         this.expiryDate = expiryDate;
+        this.mfaVerified = mfaVerified;
     }
 
     public Long getId() {
@@ -69,6 +77,14 @@ public class RefreshToken {
 
     public void setRevoked(boolean revoked) {
         this.revoked = revoked;
+    }
+
+    public boolean isMfaVerified() {
+        return mfaVerified;
+    }
+
+    public void setMfaVerified(boolean mfaVerified) {
+        this.mfaVerified = mfaVerified;
     }
 
     public boolean isValid() {

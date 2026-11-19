@@ -44,7 +44,7 @@ Do not open only the parent `student_portal` folder as the Maven project.
 
 Use:
 
-- Project SDK: Java 17 or newer
+- Project SDK: JDK 25 (the Maven compiler targets Java 25)
 - Maven wrapper: `mvnw.cmd`
 - Main class: `com.sis.SisApplication`
 - Active profile: `dev`

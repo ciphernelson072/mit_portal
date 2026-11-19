@@ -3,7 +3,6 @@ name: CI
 on:
   push:
   pull_request:
-  workflow_dispatch:
 
 jobs:
   verify:
@@ -16,14 +15,14 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '25'
           cache: maven
 
       - name: Run backend tests
         run: ./mvnw -q test
 
       - name: Validate Flyway migrations against MySQL
-        run: ./mvnw -q -Dapi.version=1.40 -Pmysql-integration -Dtest=MySqlSchemaIntegrationTest test
+        run: ./mvnw -q -Pmysql-integration -Dtest=MySqlSchemaIntegrationTest test
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -40,7 +39,7 @@ jobs:
       - name: Parse frontend JavaScript
         shell: bash
         run: |
-          find src/main/resources/static/js -name '*.js' -print0 | xargs -0 -n1 node --check
+          npm run build
 
       - name: Build isolated E2E server
         run: ./mvnw -q -DskipTests package
@@ -96,18 +95,18 @@ jobs:
         run: docker build --tag mit-student-portal:${{ github.sha }} .
 
       - name: Set up Docker Buildx
-        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/fix/admin-login-offline-styles')
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/fix/admin-login-offline-styles')
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to Docker Hub
-        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/fix/admin-login-offline-styles')
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/fix/admin-login-offline-styles')
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Publish verified Render image
-        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/fix/admin-login-offline-styles')
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/fix/admin-login-offline-styles')
         uses: docker/build-push-action@v6
         with:
           context: .

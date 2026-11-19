@@ -4,6 +4,7 @@ import com.sis.dto.AttendanceDto;
 import com.sis.dto.FeeDto;
 import com.sis.dto.GradeDto;
 import com.sis.dto.StudentStatusDto;
+import com.sis.dto.StudentGradeStatusDto;
 import com.sis.entity.Attendance;
 import com.sis.entity.Course;
 import com.sis.entity.Grade;
@@ -169,6 +170,16 @@ public class AcademicRecordService {
     public List<Grade> getGradesForStudent(Long studentId) {
         return studentId == null ? Collections.emptyList()
                 : gradeRepository.findByStudentIdAndStatusOrderByApprovedAtDescIdDesc(studentId, GradeStatus.APPROVED);
+    }
+
+    public List<StudentGradeStatusDto> getGradeStatusesForStudent(Long studentId) {
+        if (studentId == null) return Collections.emptyList();
+        return gradeRepository.findByStudentIdWithCourse(studentId).stream()
+                .map(grade -> new StudentGradeStatusDto(
+                        grade.getCourse() == null ? null : grade.getCourse().getCourseCode(),
+                        grade.getCourse() == null ? "Unknown Course" : grade.getCourse().getName(),
+                        grade.getStatus() == null ? GradeStatus.PENDING.name() : grade.getStatus().name()))
+                .collect(Collectors.toList());
     }
 
     public List<Attendance> getAttendanceForStudent(Long studentId) {

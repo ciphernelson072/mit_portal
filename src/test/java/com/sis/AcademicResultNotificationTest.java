@@ -49,8 +49,8 @@ class AcademicResultNotificationTest {
         ResponseEntity<ExamResult> first = controller.publishExamResult(8L);
         ResponseEntity<ExamResult> repeated = controller.publishExamResult(8L);
 
-        assertEquals(200, first.getStatusCodeValue());
-        assertEquals(200, repeated.getStatusCodeValue());
+        assertEquals(200, first.getStatusCode().value());
+        assertEquals(200, repeated.getStatusCode().value());
         verify(notifications).create(42L, "Exam result available",
                 "Your exam result is now available.", NotificationCategory.GRADE);
         verify(results, times(1)).save(result);

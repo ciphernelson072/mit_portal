@@ -1,7 +1,7 @@
 package com.sis.dto;
 
 import com.sis.entity.LeaveRequestStatus;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 
 public class ReviewLeaveRequest {
     @NotNull private LeaveRequestStatus status;

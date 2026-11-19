@@ -71,7 +71,7 @@ class AcademicTimetableConflictTest {
 
         var response = controller.createTimetable(request(10L, 3L, "10:00", "11:00"));
 
-        assertThat(response.getStatusCodeValue()).isEqualTo(201);
+        assertThat(response.getStatusCode().value()).isEqualTo(201);
         assertThat(response.getBody().getAcademicTermId()).isEqualTo(3L);
         assertThat(response.getBody().getDayOfWeek()).isEqualTo("MONDAY");
         verify(timetable).save(any(TimetableEntry.class));

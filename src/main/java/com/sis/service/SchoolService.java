@@ -563,6 +563,10 @@ public class SchoolService {
         return academicRecordService.getGradeDtosForStudent(studentId);
     }
 
+    public List<StudentGradeStatusDto> getGradeStatusesForStudent(Long studentId) {
+        return academicRecordService.getGradeStatusesForStudent(studentId);
+    }
+
     public List<AdminGradeDto> getAllGradeDtos() {
         return gradeRepository.findAllWithStudentUserAndCourse().stream()
                 .map(grade -> new AdminGradeDto(
@@ -605,6 +609,11 @@ public class SchoolService {
 
     public AnnouncementDto createAnnouncement(String title, String content, User author) {
         return messagingService.createAnnouncement(title, content, author);
+    }
+
+    public AnnouncementDto createAnnouncement(String title, String content, User author,
+                                              com.sis.entity.AnnouncementAudience audience) {
+        return messagingService.createAnnouncement(title, content, author, audience);
     }
 
     public List<Map<String, Object>> getPublicAnnouncements() {

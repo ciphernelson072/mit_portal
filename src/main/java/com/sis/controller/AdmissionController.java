@@ -13,8 +13,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.context.SecurityContextHolder;
 
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.logging.Logger;
 import java.util.Set;
@@ -65,7 +66,8 @@ public class AdmissionController {
             result.recordEmailDelivery(false, "Email is not configured; share the temporary password privately.");
         } else {
             try {
-                emailService.sendAdmissionCredentialsEmail(request.getEmail(), request.getFullName(),
+                String accountEmail = request.getEmail().trim().toLowerCase(Locale.ROOT);
+                emailService.sendAdmissionCredentialsEmail(accountEmail, request.getFullName(),
                         result.getUsername(), result.getTemporaryPassword());
                 result.recordEmailDelivery(true, "One-time sign-in details sent to the applicant's email.");
             } catch (IllegalStateException ex) {

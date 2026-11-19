@@ -27,7 +27,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -199,7 +199,7 @@ public class InstitutionAdminController {
     @GetMapping("/academic-terms")
     public List<Map<String, Object>> academicTerms(@RequestParam Long academicYearId) {
         return academicTerms.findByAcademicYearIdOrderByStartDateAsc(academicYearId).stream()
-                .map(this::academicTermResponse)
+                .map(item -> academicTermResponse(item, item.getAcademicYear()))
                 .toList();
     }
 
@@ -228,17 +228,18 @@ public class InstitutionAdminController {
         term.setEndDate(request.getEndDate());
         term.setRegistrationOpen(request.getRegistrationOpen());
         AcademicTerm saved = academicTerms.save(term);
-        return ResponseEntity.status(HttpStatus.CREATED).body(academicTermResponse(saved));
+        return ResponseEntity.status(HttpStatus.CREATED).body(academicTermResponse(saved, year));
     }
 
     @PatchMapping("/academic-terms/{id}/registration-window")
     public Map<String, Object> updateAcademicTermRegistrationWindow(
             @PathVariable Long id,
             @Valid @RequestBody UpdateAcademicTermRegistrationWindowRequest request) {
-        AcademicTerm term = academicTerms.findById(id)
+        AcademicTerm term = academicTerms.findWithAcademicYearById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Academic term not found: " + id));
+        AcademicYear year = term.getAcademicYear();
         term.setRegistrationOpen(request.getRegistrationOpen());
-        return academicTermResponse(academicTerms.save(term));
+        return academicTermResponse(academicTerms.save(term), year);
     }
 
     private AcademicYear activateAcademicYear(AcademicYear selectedYear) {
@@ -292,10 +293,10 @@ public class InstitutionAdminController {
                 "startDate", item.getStartDate(), "endDate", item.getEndDate(), "active", item.getActive());
     }
 
-    private Map<String, Object> academicTermResponse(AcademicTerm item) {
+    private Map<String, Object> academicTermResponse(AcademicTerm item, AcademicYear year) {
         return map("id", item.getId(), "code", item.getCode(), "name", item.getName(),
-                "academicYearId", item.getAcademicYear().getId(),
-                "academicYearCode", item.getAcademicYear().getCode(),
+                "academicYearId", year.getId(),
+                "academicYearCode", year.getCode(),
                 "startDate", item.getStartDate(), "endDate", item.getEndDate(),
                 "registrationOpen", item.getRegistrationOpen());
     }

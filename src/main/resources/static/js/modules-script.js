@@ -154,14 +154,16 @@ function renderChatHistory(messages) {
 
 async function loadAcademicsData() {
   try {
-    const [courses, grades, profile, assignments, exams, studentStatus, appeals] = await Promise.all([
+    const [courses, grades, profile, assignments, exams, studentStatus, corrections, appeals, gradeStatuses] = await Promise.all([
       apiGet('/student/courses'),
       apiGet('/student/grades'),
       apiGet('/student/profile'),
       apiGet('/portal/student/assignments'),
       apiGet('/portal/student/exams'),
       apiGet('/student/my-status'),
+      apiGet('/student/corrections'),
       apiGet('/student/grade-appeals'),
+      apiGet('/student/grade-status'),
     ]);
     const timetable = await apiGet('/academic/student/timetable');
     const examResults = await apiGet('/academic/student/exam-results');
@@ -175,7 +177,8 @@ async function loadAcademicsData() {
       ? `Current Courses (${semesters.join(', ')})`
       : 'Current Courses';
     renderCourseCards(courses, grades);
-    renderGradesTable(grades, profile, resultStatus, studentStatus, appeals);
+    renderGradesTable(grades, profile, resultStatus, studentStatus, appeals, gradeStatuses);
+    renderStudentCorrections(corrections);
     renderStudentGradeAppeals(appeals);
     window._assignments = assignments;
     window._exams = exams;
@@ -187,25 +190,38 @@ async function loadAcademicsData() {
   } catch (err) {
     console.error('Failed to load academics data', err);
   }
-}
 
-function renderStudentGradeAppeals(appeals) {
-  const container = document.getElementById('studentGradeAppealList');
-  if (!container) return;
-  if (!Array.isArray(appeals) || appeals.length === 0) {
-    container.innerHTML = '<p>No grade appeals have been submitted.</p>';
-    return;
+  function renderStudentCorrections(corrections) {
+    const container = document.getElementById('studentCorrectionList');
+    if (!container) return;
+    if (!Array.isArray(corrections) || !corrections.length) {
+      container.innerHTML = '<p>No grade corrections are currently recorded.</p>';
+      return;
+    }
+    container.innerHTML = `
+      <table class="table"><thead><tr><th>Grade</th><th>Status</th><th>Reason</th><th>Authorized</th></tr></thead>
+        <tbody>${corrections.map(item => `<tr><td>#${escapeHtml(item.gradeId)}</td><td>${escapeHtml(item.status)}</td><td>${escapeHtml(item.reason)}</td><td>${escapeHtml(item.authorizedAt || '—')}</td></tr>`).join('')}</tbody>
+      </table>`;
   }
-  container.innerHTML = `
-    <table class="table"><thead><tr><th>Course</th><th>Status</th><th>Reason</th><th>Teacher response</th><th>Decision</th></tr></thead>
-      <tbody>${appeals.map(item => `<tr>
-        <td>${escapeHtml(item.courseCode)} · ${escapeHtml(item.courseName)}</td>
-        <td>${escapeHtml(item.status)}</td>
-        <td>${escapeHtml(item.reason)}</td>
-        <td>${escapeHtml(item.teacherResponse || (item.teacherConsultedAt ? 'Consulted; no written response' : 'Not yet consulted'))}</td>
-        <td>${escapeHtml(item.decisionNote || 'Pending')}</td>
-      </tr>`).join('')}</tbody>
-    </table>`;
+
+  function renderStudentGradeAppeals(appeals) {
+    const container = document.getElementById('studentGradeAppealList');
+    if (!container) return;
+    if (!Array.isArray(appeals) || appeals.length === 0) {
+      container.innerHTML = '<p>No grade appeals have been submitted.</p>';
+      return;
+    }
+    container.innerHTML = `
+      <table class="table"><thead><tr><th>Course</th><th>Status</th><th>Reason</th><th>Teacher response</th><th>Decision</th></tr></thead>
+        <tbody>${appeals.map(item => `<tr>
+          <td>${escapeHtml(item.courseCode)} · ${escapeHtml(item.courseName)}</td>
+          <td>${escapeHtml(item.status)}</td>
+          <td>${escapeHtml(item.reason)}</td>
+          <td>${escapeHtml(item.teacherResponse || (item.teacherConsultedAt ? 'Consulted; no written response' : 'Not yet consulted'))}</td>
+          <td>${escapeHtml(item.decisionNote || 'Pending')}</td>
+        </tr>`).join('')}</tbody>
+      </table>`;
+  }
 }
 
 async function loadCourseRegistrationPanel() {
@@ -431,6 +447,36 @@ async function requestExamPermit(examId) {
   }
 }
 
+function renderStudentGradeStatuses(statuses, finalized) {
+  const section = document.getElementById('provisionalGradeStatuses');
+  const container = document.getElementById('provisionalGradeStatusList');
+  if (!section || !container) return;
+
+  section.hidden = finalized;
+  if (finalized) {
+    container.replaceChildren();
+    return;
+  }
+  if (!Array.isArray(statuses) || statuses.length === 0) {
+    container.innerHTML = '<p>No grade submissions are currently recorded.</p>';
+    return;
+  }
+
+  const statusLabels = {
+    PENDING: 'Awaiting review',
+    APPROVED: 'Approved; awaiting official publication',
+    REJECTED: 'Returned for revision',
+  };
+  container.innerHTML = `
+    <table class="table"><thead><tr><th>Course Code</th><th>Course</th><th>Status</th></tr></thead>
+      <tbody>${statuses.map(item => `<tr>
+        <td>${escapeHtml(item.courseCode || '—')}</td>
+        <td>${escapeHtml(item.courseName || '—')}</td>
+        <td>${escapeHtml(statusLabels[item.status] || 'Status unavailable')}</td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+}
+
 function renderCourseCards(courses, grades) {
   const grid = document.querySelector('.courses-grid');
   if (!grid) return;
@@ -477,9 +523,10 @@ function renderCourseCards(courses, grades) {
   // here rather than faked - neither is tracked anywhere in the backend.
 }
 
-function renderGradesTable(grades, profile, resultStatus = null, studentStatus = null, appeals = []) {
+function renderGradesTable(grades, profile, resultStatus = null, studentStatus = null, appeals = [], gradeStatuses = []) {
   const gpaCards = document.querySelectorAll('.gpa-card .gpa-value');
   const finalized = resultStatus?.published === true;
+  renderStudentGradeStatuses(gradeStatuses, finalized);
   const publicationStatus = document.getElementById('gradePublicationStatus');
   if (publicationStatus) {
     publicationStatus.className = finalized ? 'status-badge success'
@@ -620,6 +667,7 @@ async function loadAttendanceData() {
     renderAttendanceOverview(records);
     renderAttendanceRecords(records);
     renderAttendanceTrend(records);
+    await loadStudentAttendanceDisputes();
     if (status) status.textContent = records.length
       ? 'Attendance records loaded.'
       : 'No attendance records are available yet.';
@@ -741,9 +789,41 @@ function renderAttendanceRecords(records) {
       <td>${escapeHtml(r.courseName)}</td>
       <td>${escapeHtml(time)}</td>
       <td><span class="status-badge ${r.present || r.late ? 'present-status' : 'absent-status'}">${status}</span></td>
-      <td>${escapeHtml(r.remarks || '—')}</td>
+      <td>${escapeHtml(r.remarks || '—')}<br><button class="btn-secondary" type="button" onclick="submitAttendanceDispute(${Number(r.id)})">Dispute</button></td>
     </tr>`;
   }).join('');
+}
+
+async function submitAttendanceDispute(attendanceId) {
+  const reason = prompt('Explain why this attendance record is incorrect:');
+  if (!reason) return;
+  const requestedPresent = confirm('Request that the record be changed to PRESENT? Choose Cancel for ABSENT/LATE correction.');
+  try {
+    await apiFetch('/attendance/disputes', {
+      method: 'POST',
+      body: JSON.stringify({ attendanceId, reason, requestedPresent }),
+    });
+    alert('Attendance dispute submitted.');
+    await loadStudentAttendanceDisputes();
+  } catch (err) {
+    alert(err.message || 'Attendance dispute could not be submitted.');
+  }
+}
+
+async function loadStudentAttendanceDisputes() {
+    const container = document.getElementById('attendanceDisputeStatus');
+    if (!container) return;
+    try {
+      const disputes = await apiGet('/attendance/disputes');
+      container.innerHTML = disputes.length ? disputes.map(dispute => `
+        <article>
+          <strong>${escapeHtml(dispute.courseName)} - ${escapeHtml(dispute.attendanceDate)}</strong>
+          <span>Status: ${escapeHtml(dispute.status)}</span>
+          ${dispute.resolution ? `<p>${escapeHtml(dispute.resolution)}</p>` : ''}
+        </article>`).join('') : '<p>No attendance disputes submitted.</p>';
+    } catch (err) {
+      container.textContent = 'Attendance disputes could not be loaded.';
+  }
 }
 
 async function loadFinanceData() {
@@ -974,7 +1054,7 @@ async function loadProfileData() {
     applyPreferenceCheckboxes(
       '#notificationPreferences input[type="checkbox"]',
       portalPreferenceSettings.notifications,
-      [true, true, false, true]
+      [true, true, false, true, true, true]
     );
     applyPreferenceCheckboxes(
       '#quickLinkPreferences input[type="checkbox"]',
@@ -994,7 +1074,7 @@ async function loadProfileData() {
       profileUpdated.textContent = formatProfileDate(profile.updatedAt || profile.lastUpdated || new Date().toISOString());
     }
     // Personal Info tab: "Basic Details" form. Fields in DOM order are
-    // First Name, Last Name, Email, Phone, Date of Birth, Gender, Address, City,
+    // First Name, Last Name, Contact Email, Phone, Date of Birth, Gender, Address, City,
     // Country - only Email, Phone, and Address have a backend equivalent (Date of
     // Birth and Gender aren't tracked anywhere in the Student entity at all, so
     // those two inputs are left with their original placeholder values).
@@ -1002,7 +1082,7 @@ async function loadProfileData() {
     const [firstName, lastName] = splitName(profile.fullName);
     if (basicInputs[0]) basicInputs[0].value = firstName;
     if (basicInputs[1]) basicInputs[1].value = lastName;
-    if (basicInputs[2]) basicInputs[2].value = profile.username.includes('@') ? profile.username : (profile.email || '');
+    if (basicInputs[2]) basicInputs[2].value = profile.email || '';
     if (basicInputs[3]) basicInputs[3].value = profile.phone || '';
     if (basicInputs[4]) basicInputs[4].value = profile.alternativePhone || '';
     if (basicInputs[5]) basicInputs[5].value = profile.dateOfBirth || '';

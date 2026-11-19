@@ -7,7 +7,7 @@ import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.time.LocalDate;
@@ -50,6 +50,11 @@ public class JwtService {
     }
 
     public String generateToken(String username, String role, int credentialVersion) {
+        return generateToken(username, role, credentialVersion, false, false);
+    }
+
+    public String generateToken(String username, String role, int credentialVersion,
+                                boolean mfaRequired, boolean mfaVerified) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expirationMs);
 
@@ -57,8 +62,25 @@ public class JwtService {
                 .setSubject(username)
                 .claim("role", role)
                 .claim("credentialVersion", credentialVersion)
+                .claim("mfaRequired", mfaRequired)
+                .claim("mfaVerified", mfaVerified)
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
+                .signWith(signingKey, SignatureAlgorithm.HS256)
+                .compact();
+    }
+
+    public String generateMfaEnrollmentToken(String username, String role, int credentialVersion) {
+        Date now = new Date();
+        return Jwts.builder()
+                .setSubject(username)
+                .claim("role", role)
+                .claim("credentialVersion", credentialVersion)
+                .claim("mfaRequired", true)
+                .claim("mfaVerified", false)
+                .claim("mfaEnrollment", true)
+                .setIssuedAt(now)
+                .setExpiration(new Date(now.getTime() + 10 * 60 * 1000L))
                 .signWith(signingKey, SignatureAlgorithm.HS256)
                 .compact();
     }
@@ -81,7 +103,30 @@ public class JwtService {
     }
 
     public Integer getCredentialVersion(String token) {
-        return parseClaims(token).get("credentialVersion", Integer.class);
+        Object value = parseClaims(token).get("credentialVersion");
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        if (value instanceof String text) {
+            try {
+                return Integer.parseInt(text);
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    public boolean isMfaRequired(String token) {
+        return Boolean.TRUE.equals(parseClaims(token).get("mfaRequired", Boolean.class));
+    }
+
+    public boolean isMfaVerified(String token) {
+        return Boolean.TRUE.equals(parseClaims(token).get("mfaVerified", Boolean.class));
+    }
+
+    public boolean isMfaEnrollmentToken(String token) {
+        return Boolean.TRUE.equals(parseClaims(token).get("mfaEnrollment", Boolean.class));
     }
 
     private Claims parseClaims(String token) {

@@ -41,6 +41,7 @@ import com.sis.entity.AccreditationStatus;
 import com.sis.entity.PasswordResetToken;
 import com.sis.entity.EmailVerificationToken;
 import com.sis.entity.RefreshToken;
+import com.sis.exception.EmailDeliveryException;
 import com.sis.repository.AccreditationRecordRepository;
 import com.sis.repository.AuditLogRepository;
 import com.sis.repository.CampusRepository;
@@ -60,6 +61,7 @@ import com.sis.repository.PermissionRepository;
 import com.sis.repository.ProgramRepository;
 import com.sis.repository.RolePermissionRepository;
 import com.sis.repository.ServiceRequestRepository;
+import com.sis.repository.ServiceRequestEventRepository;
 import com.sis.repository.StaffRepository;
 import com.sis.repository.StudentRepository;
 import com.sis.repository.TeacherRepository;
@@ -72,13 +74,18 @@ import com.sis.service.AuthenticationService;
 import com.sis.service.CustomUserDetailsService;
 import com.sis.service.EmailService;
 import com.sis.service.MfaSecretCipher;
+import com.sis.service.RefreshTokenService;
+import com.sis.service.JwtService;
+import com.sis.repository.RefreshTokenRepository;
 import com.sis.security.OriginValidationFilter;
+import com.sis.security.JwtAuthenticationFilter;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.boot.test.mock.mockito.SpyBean;
+import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate;
+import org.springframework.boot.resttestclient.TestRestTemplate;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -88,6 +95,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.web.FilterChainProxy;
@@ -108,7 +116,9 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.mockito.ArgumentCaptor;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 
 /**
@@ -122,13 +132,26 @@ import static org.mockito.Mockito.verify;
  * accounts SampleDataLoader seeds - see README.md's Demo Credentials section.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@AutoConfigureTestRestTemplate
 class SecurityIntegrationTest {
 
     @Autowired
     private AuthController authController;
 
     @Autowired
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @Autowired
     private MfaSecretCipher mfaSecretCipher;
+
+    @Autowired
+    private RefreshTokenService refreshTokenService;
+
+    @Autowired
+    private JwtService jwtService;
+
+    @Autowired
+    private RefreshTokenRepository refreshTokenRepository;
 
     @Autowired
     private TestRestTemplate restTemplate;
@@ -191,6 +214,9 @@ class SecurityIntegrationTest {
     private ServiceRequestRepository serviceRequestRepository;
 
     @Autowired
+    private ServiceRequestEventRepository serviceRequestEventRepository;
+
+    @Autowired
     private LeaveRequestRepository leaveRequestRepository;
 
     @Autowired
@@ -208,7 +234,7 @@ class SecurityIntegrationTest {
     @Autowired
     private AdminService adminService;
 
-    @Autowired
+    @MockitoSpyBean
     private AuthenticationService authenticationService;
 
     @Autowired
@@ -223,7 +249,7 @@ class SecurityIntegrationTest {
     @Autowired
     private EmailVerificationTokenRepository emailVerificationTokenRepository;
 
-    @SpyBean
+    @MockitoSpyBean
     private EmailService emailService;
 
     @Autowired
@@ -250,6 +276,155 @@ class SecurityIntegrationTest {
         ResponseEntity<String> adminCourses = restTemplate.getForEntity("/api/admin/courses", String.class);
         assertTrue(adminCourses.getStatusCode() == HttpStatus.UNAUTHORIZED
                 || adminCourses.getStatusCode() == HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    void privilegedLoginIsRestrictedToMfaEnrollmentUntilVerification() {
+        User user = userRepository.findByUsername("admin").orElseThrow();
+        boolean originalMfaEnabled = Boolean.TRUE.equals(user.getMfaEnabled());
+        String originalMfaSecret = user.getMfaSecret();
+        int originalCredentialVersion = user.getCredentialVersion();
+        boolean originalPasswordChangeRequired = user.isPasswordChangeRequired();
+        boolean originalControllerMfaEnabled = (boolean) ReflectionTestUtils.getField(authController, "mfaEnabled");
+        boolean originalControllerMfaRequired =
+                (boolean) ReflectionTestUtils.getField(authController, "mfaRequiredForPrivileged");
+        boolean originalFilterMfaRequired =
+                (boolean) ReflectionTestUtils.getField(jwtAuthenticationFilter, "mfaRequiredForPrivileged");
+        String originalEncryptionKey = (String) ReflectionTestUtils.getField(mfaSecretCipher, "encodedKey");
+
+        ReflectionTestUtils.setField(authController, "mfaEnabled", true);
+        ReflectionTestUtils.setField(authController, "mfaRequiredForPrivileged", true);
+        ReflectionTestUtils.setField(jwtAuthenticationFilter, "mfaRequiredForPrivileged", true);
+        ReflectionTestUtils.setField(mfaSecretCipher, "encodedKey",
+                java.util.Base64.getEncoder().encodeToString(new byte[32]));
+        user.setMfaEnabled(false);
+        user.setMfaSecret(null);
+        user.setPasswordChangeRequired(false);
+        userRepository.saveAndFlush(user);
+
+        try {
+            HttpHeaders loginHeaders = new HttpHeaders();
+            loginHeaders.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<Map<String, String>> loginRequest =
+                    new HttpEntity<>(Map.of("username", "admin", "password", "admin123"), loginHeaders);
+            ResponseEntity<Map> pendingLogin =
+                    restTemplate.postForEntity("/api/auth/login", loginRequest, Map.class);
+
+            assertEquals(HttpStatus.FORBIDDEN, pendingLogin.getStatusCode());
+            assertTrue(Boolean.TRUE.equals(pendingLogin.getBody().get("mfaEnrollmentRequired")));
+            assertTrue(pendingLogin.getHeaders().getOrEmpty(HttpHeaders.SET_COOKIE).stream()
+                    .anyMatch(cookie -> cookie.startsWith("refresh_token=") && cookie.contains("Max-Age=0")));
+            String pendingAccessToken = accessTokenCookie(pendingLogin);
+            HttpHeaders pendingHeaders = new HttpHeaders();
+            pendingHeaders.set(HttpHeaders.COOKIE, "access_token=" + pendingAccessToken);
+
+            ResponseEntity<Boolean> mfaStatus = restTemplate.exchange(
+                    "/api/auth/mfa/status", HttpMethod.GET, new HttpEntity<>(pendingHeaders), Boolean.class);
+            assertEquals(HttpStatus.OK, mfaStatus.getStatusCode());
+            assertFalse(Boolean.TRUE.equals(mfaStatus.getBody()));
+
+            ResponseEntity<String> deniedPortalApi = restTemplate.exchange(
+                    "/api/auth/authorities", HttpMethod.GET, new HttpEntity<>(pendingHeaders), String.class);
+            assertEquals(HttpStatus.FORBIDDEN, deniedPortalApi.getStatusCode());
+
+            ResponseEntity<String> securityPage = restTemplate.exchange(
+                    "/account-security.html", HttpMethod.GET, new HttpEntity<>(pendingHeaders), String.class);
+            assertEquals(HttpStatus.OK, securityPage.getStatusCode());
+            assertTrue(securityPage.getBody().contains("Authenticator two-factor authentication"));
+
+            MfaSetupRequest setupRequest = new MfaSetupRequest();
+            setupRequest.setCurrentPassword("admin123");
+            ResponseEntity<MfaSetupResponse> setupResponse = restTemplate.exchange(
+                    "/api/auth/mfa/setup", HttpMethod.POST,
+                    new HttpEntity<>(setupRequest, pendingHeaders), MfaSetupResponse.class);
+            assertEquals(HttpStatus.OK, setupResponse.getStatusCode());
+            String secret = setupResponse.getBody().getSecret();
+
+            String otp = ReflectionTestUtils.invokeMethod(authController, "generateTotp",
+                    secret, java.time.Instant.now().getEpochSecond() / 30L);
+            MfaVerifyRequest verifyRequest = new MfaVerifyRequest();
+            verifyRequest.setCurrentPassword("admin123");
+            verifyRequest.setOtp(otp);
+            ResponseEntity<Void> verifyResponse = restTemplate.exchange(
+                    "/api/auth/mfa/verify", HttpMethod.POST,
+                    new HttpEntity<>(verifyRequest, pendingHeaders), Void.class);
+            assertEquals(HttpStatus.OK, verifyResponse.getStatusCode());
+
+            ResponseEntity<String> staleEnrollmentApi = restTemplate.exchange(
+                    "/api/auth/authorities", HttpMethod.GET, new HttpEntity<>(pendingHeaders), String.class);
+            assertEquals(HttpStatus.FORBIDDEN, staleEnrollmentApi.getStatusCode());
+
+            otp = ReflectionTestUtils.invokeMethod(authController, "generateTotp",
+                    secret, java.time.Instant.now().getEpochSecond() / 30L);
+            HttpEntity<Map<String, String>> verifiedLoginRequest = new HttpEntity<>(
+                    Map.of("username", "admin", "password", "admin123", "otp", otp), loginHeaders);
+            ResponseEntity<Map> verifiedLogin =
+                    restTemplate.postForEntity("/api/auth/login", verifiedLoginRequest, Map.class);
+            assertEquals(HttpStatus.OK, verifiedLogin.getStatusCode());
+            HttpHeaders verifiedHeaders = new HttpHeaders();
+            verifiedHeaders.set(HttpHeaders.COOKIE, "access_token=" + accessTokenCookie(verifiedLogin));
+
+            ResponseEntity<String> privilegedApi = restTemplate.exchange(
+                    "/api/auth/authorities", HttpMethod.GET, new HttpEntity<>(verifiedHeaders), String.class);
+            assertEquals(HttpStatus.OK, privilegedApi.getStatusCode());
+            assertTrue(privilegedApi.getBody().contains("ADMIN"));
+
+            HttpHeaders refreshHeaders = new HttpHeaders();
+            refreshHeaders.set(HttpHeaders.COOKIE,
+                    "refresh_token=" + cookieValue(verifiedLogin, "refresh_token"));
+            ResponseEntity<Map> refreshed = restTemplate.exchange(
+                    "/api/auth/refresh", HttpMethod.POST, new HttpEntity<>(refreshHeaders), Map.class);
+            assertEquals(HttpStatus.OK, refreshed.getStatusCode());
+            HttpHeaders refreshedAccessHeaders = new HttpHeaders();
+            refreshedAccessHeaders.set(HttpHeaders.COOKIE,
+                    "access_token=" + accessTokenCookie(refreshed));
+            ResponseEntity<String> refreshedPrivilegedApi = restTemplate.exchange(
+                    "/api/auth/authorities", HttpMethod.GET,
+                    new HttpEntity<>(refreshedAccessHeaders), String.class);
+            assertEquals(HttpStatus.OK, refreshedPrivilegedApi.getStatusCode());
+
+            String unverifiedRefreshToken =
+                    refreshTokenService.startSingleSession(user.getId(), false).getRefreshToken();
+            HttpHeaders unverifiedRefreshHeaders = new HttpHeaders();
+            unverifiedRefreshHeaders.set(HttpHeaders.COOKIE,
+                    "refresh_token=" + unverifiedRefreshToken);
+            ResponseEntity<String> unverifiedRefresh = restTemplate.exchange(
+                    "/api/auth/refresh", HttpMethod.POST,
+                    new HttpEntity<>(unverifiedRefreshHeaders), String.class);
+            assertEquals(HttpStatus.UNAUTHORIZED, unverifiedRefresh.getStatusCode());
+
+            MfaDisableRequest disableRequest = new MfaDisableRequest();
+            disableRequest.setCurrentPassword("admin123");
+            disableRequest.setOtp(otp);
+            ResponseEntity<Void> disableResponse = restTemplate.exchange(
+                    "/api/auth/mfa/disable", HttpMethod.POST,
+                    new HttpEntity<>(disableRequest, refreshedAccessHeaders), Void.class);
+            assertEquals(HttpStatus.FORBIDDEN, disableResponse.getStatusCode());
+        } finally {
+            refreshTokenService.revokeAllForUser(user.getId());
+            user.setMfaEnabled(originalMfaEnabled);
+            user.setMfaSecret(originalMfaSecret);
+            user.setCredentialVersion(originalCredentialVersion);
+            user.setPasswordChangeRequired(originalPasswordChangeRequired);
+            userRepository.saveAndFlush(user);
+            ReflectionTestUtils.setField(authController, "mfaEnabled", originalControllerMfaEnabled);
+            ReflectionTestUtils.setField(authController, "mfaRequiredForPrivileged", originalControllerMfaRequired);
+            ReflectionTestUtils.setField(jwtAuthenticationFilter, "mfaRequiredForPrivileged",
+                    originalFilterMfaRequired);
+            ReflectionTestUtils.setField(mfaSecretCipher, "encodedKey", originalEncryptionKey);
+        }
+    }
+
+    private String accessTokenCookie(ResponseEntity<?> response) {
+        return cookieValue(response, "access_token");
+    }
+
+    private String cookieValue(ResponseEntity<?> response, String name) {
+        return response.getHeaders().getOrEmpty(HttpHeaders.SET_COOKIE).stream()
+                .filter(cookie -> cookie.startsWith(name + "="))
+                .map(cookie -> cookie.substring(name.length() + 1, cookie.indexOf(';')))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Response did not set a " + name + " cookie"));
     }
 
     @Test
@@ -519,17 +694,16 @@ class SecurityIntegrationTest {
         ResponseEntity<String> publicHome = restTemplate.getForEntity("/", String.class);
         assertEquals(HttpStatus.OK, publicHome.getStatusCode());
         assertNotNull(publicHome.getBody());
-        assertTrue(publicHome.getBody().contains("Welcome to MIT"));
-        assertTrue(publicHome.getBody().contains("href=\"/public/index.html\""));
+        assertTrue(publicHome.getBody().contains("Choose how to continue"));
         ResponseEntity<String> sitemap = restTemplate.getForEntity("/sitemap.xml", String.class);
         assertEquals(HttpStatus.OK, sitemap.getStatusCode());
         assertNotNull(sitemap.getBody());
         assertTrue(sitemap.getBody().contains("<loc>http://localhost:8080/public/index.html</loc>"));
         assertTrue(sitemap.getBody().contains("<loc>http://localhost:8080/public/programmes.html</loc>"));
+        assertFalse(sitemap.getBody().contains("<loc>http://localhost:8080/</loc>"));
         ResponseEntity<String> robots = restTemplate.getForEntity("/robots.txt", String.class);
         assertEquals(HttpStatus.OK, robots.getStatusCode());
         assertNotNull(robots.getBody());
-        assertTrue(robots.getBody().contains("Disallow: /portal-gateway.html"));
         assertTrue(robots.getBody().contains("Disallow: /api/"));
         assertTrue(robots.getBody().contains("Sitemap: http://localhost:8080/sitemap.xml"));
         ResponseEntity<String> portalLogin = restTemplate.getForEntity("/index.html", String.class);
@@ -537,7 +711,7 @@ class SecurityIntegrationTest {
         assertNotNull(portalLogin.getBody());
         assertTrue(portalLogin.getBody().contains("Student Portal"));
         for (String page : new String[]{
-                "/portal-gateway.html", "/public/index.html", "/public/about.html", "/public/programmes.html",
+                "/public/index.html", "/public/about.html", "/public/programmes.html",
                 "/public/admissions.html", "/public/contact.html",
                 "/public/css/site.css", "/public/js/site.js"}) {
             ResponseEntity<String> response = restTemplate.getForEntity(page, String.class);
@@ -834,6 +1008,50 @@ class SecurityIntegrationTest {
     }
 
     @Test
+    void recoveryEmailProviderFailuresKeepGenericPublicResponses() {
+        String recoveryEmail = "recovery-" + java.util.UUID.randomUUID() + "@example.test";
+        User recoveryUser = new User("recovery-" + java.util.UUID.randomUUID(), "encoded", Role.STUDENT);
+        recoveryUser.setEmail(recoveryEmail);
+        recoveryUser = userRepository.saveAndFlush(recoveryUser);
+
+        doThrow(new EmailDeliveryException("provider unavailable"))
+                .when(emailService).sendPasswordReset(eq(recoveryEmail), anyString(), eq(recoveryUser.getUsername()));
+        doThrow(new EmailDeliveryException("provider unavailable"))
+                .when(emailService).sendEmailVerification(eq(recoveryEmail), anyString(), eq(recoveryUser.getUsername()));
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<String> body = new HttpEntity<>("{\"email\":\"" + recoveryEmail + "\"}", headers);
+
+        try {
+            ResponseEntity<String> forgot = restTemplate.postForEntity(
+                    "/api/auth/forgot-password", body, String.class);
+            ResponseEntity<String> resetResend = restTemplate.postForEntity(
+                    "/api/auth/resend-password-reset", body, String.class);
+            ResponseEntity<String> verificationResend = restTemplate.postForEntity(
+                    "/api/auth/resend-email-verification", body, String.class);
+
+            assertEquals(HttpStatus.OK, forgot.getStatusCode());
+            assertEquals(HttpStatus.OK, resetResend.getStatusCode());
+            assertEquals(HttpStatus.OK, verificationResend.getStatusCode());
+            assertEquals("If the email is registered, password reset instructions will be sent.", forgot.getBody());
+            assertEquals(forgot.getBody(), resetResend.getBody());
+            assertEquals("If the account exists, a verification email has been sent.",
+                    verificationResend.getBody());
+            assertFalse(passwordResetTokenRepository.findByUser(recoveryUser).isPresent());
+            assertFalse(emailVerificationTokenRepository.findByEmailIgnoreCase(recoveryEmail).isPresent());
+            verify(emailService, org.mockito.Mockito.times(2))
+                    .sendPasswordReset(eq(recoveryEmail), anyString(), eq(recoveryUser.getUsername()));
+            verify(emailService)
+                    .sendEmailVerification(eq(recoveryEmail), anyString(), eq(recoveryUser.getUsername()));
+        } finally {
+            passwordResetTokenRepository.deleteByUser(recoveryUser);
+            emailVerificationTokenRepository.deleteByUser(recoveryUser);
+            userRepository.delete(recoveryUser);
+        }
+    }
+
+    @Test
     void emailVerificationTokenUsesPostBodiesInsteadOfUrlQueries() {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -979,21 +1197,21 @@ class SecurityIntegrationTest {
         CountDownLatch start = new CountDownLatch(1);
         ExecutorService executor = Executors.newFixedThreadPool(2);
         try {
-            Future<HttpStatus> first = executor.submit(() -> refreshAfterStart(refreshCookie, ready, start));
-            Future<HttpStatus> second = executor.submit(() -> refreshAfterStart(refreshCookie, ready, start));
+            Future<HttpStatusCode> first = executor.submit(() -> refreshAfterStart(refreshCookie, ready, start));
+            Future<HttpStatusCode> second = executor.submit(() -> refreshAfterStart(refreshCookie, ready, start));
             assertTrue(ready.await(5, TimeUnit.SECONDS), "Both refresh requests should be ready");
             start.countDown();
 
-            List<HttpStatus> statuses = List.of(first.get(10, TimeUnit.SECONDS), second.get(10, TimeUnit.SECONDS));
-            assertEquals(1, statuses.stream().filter(HttpStatus.OK::equals).count());
-            assertEquals(1, statuses.stream().filter(HttpStatus.UNAUTHORIZED::equals).count());
+            List<HttpStatusCode> statuses = List.of(first.get(10, TimeUnit.SECONDS), second.get(10, TimeUnit.SECONDS));
+            assertEquals(1, statuses.stream().filter(status -> status.value() == HttpStatus.OK.value()).count());
+            assertEquals(1, statuses.stream().filter(status -> status.value() == HttpStatus.UNAUTHORIZED.value()).count());
         } finally {
             start.countDown();
             executor.shutdownNow();
         }
     }
 
-    private HttpStatus refreshAfterStart(String refreshCookie, CountDownLatch ready, CountDownLatch start)
+    private HttpStatusCode refreshAfterStart(String refreshCookie, CountDownLatch ready, CountDownLatch start)
             throws InterruptedException {
         ready.countDown();
         if (!start.await(5, TimeUnit.SECONDS)) {
@@ -1019,7 +1237,13 @@ class SecurityIntegrationTest {
             exchangeAs("student1", "student123", "/api/student/requests/admin", HttpMethod.GET, null)
                 .getStatusCode());
         assertEquals(HttpStatus.FORBIDDEN,
+            exchangeAs("student1", "student123", "/api/student/requests/admin/assignees", HttpMethod.GET, null)
+                .getStatusCode());
+        assertEquals(HttpStatus.FORBIDDEN,
             exchangeAs("teacher1", "teacher123", "/api/student/requests/admin", HttpMethod.GET, null)
+                .getStatusCode());
+        assertEquals(HttpStatus.FORBIDDEN,
+            exchangeAs("teacher1", "teacher123", "/api/student/requests/admin/assignees", HttpMethod.GET, null)
                 .getStatusCode());
         assertEquals(HttpStatus.OK,
             exchangeAs("student1", "student123", "/api/student/requests", HttpMethod.GET, null)
@@ -1088,6 +1312,12 @@ class SecurityIntegrationTest {
         assertEquals(HttpStatus.FORBIDDEN,
             restTemplate.exchange("/api/admin/grades/999999/reject", HttpMethod.POST, teacherRequest, String.class)
                 .getStatusCode());
+        assertEquals(HttpStatus.FORBIDDEN,
+            exchangeAs("teacher1", "teacher123", "/api/admin/grades/import",
+                HttpMethod.POST, "{}").getStatusCode());
+        assertEquals(HttpStatus.FORBIDDEN,
+            exchangeAs("student1", "student123", "/api/admin/grades/import",
+                HttpMethod.POST, "{}").getStatusCode());
     }
 
     @Test
@@ -1233,6 +1463,24 @@ class SecurityIntegrationTest {
         long studentId = profile.path("id").asLong();
         assertTrue(studentId > 0);
         assertTrue(profile.path("cgpa").isNull());
+
+        ResponseEntity<String> gradeStatusesResponse = exchangeAs(
+            "student1", "student123", "/api/student/grade-status", HttpMethod.GET, null);
+        assertEquals(HttpStatus.OK, gradeStatusesResponse.getStatusCode());
+        JsonNode gradeStatuses = objectMapper.readTree(gradeStatusesResponse.getBody());
+        assertTrue(gradeStatuses.isArray());
+        gradeStatuses.forEach(status -> {
+            assertTrue(status.has("courseCode"));
+            assertTrue(status.has("courseName"));
+            assertTrue(status.has("status"));
+            assertTrue(!status.has("gradeId"));
+            assertTrue(!status.has("gradeValue"));
+            assertTrue(!status.has("gpaScore"));
+            assertTrue(!status.has("rejectionReason"));
+        });
+        assertEquals(HttpStatus.FORBIDDEN,
+            exchangeAs("teacher1", "teacher123", "/api/student/grade-status", HttpMethod.GET, null)
+                .getStatusCode());
 
         ResponseEntity<String> reportResponse = exchangeAs("student1", "student123",
             "/api/reports/academic/" + studentId, HttpMethod.GET, null);
@@ -1725,6 +1973,45 @@ class SecurityIntegrationTest {
             .findFirst()
             .orElseThrow();
         org.junit.jupiter.api.Assertions.assertTrue(audit.getDetails().contains("OPEN to IN_PROGRESS"));
+        assertTrue(request.getUpdatedAt() != null);
+        assertTrue(serviceRequestEventRepository.findForRequestInOrder(request.getId()).stream()
+                .anyMatch(event -> "STATUS_CHANGED".equals(event.getEventType())
+                        && "OPEN".equals(event.getFromStatus())
+                        && "IN_PROGRESS".equals(event.getToStatus())
+                        && "admin".equals(event.getActorUsername())));
+    }
+
+    @Test
+    void adminCanAssignServiceRequestAndReadItsTimestampedHistory() throws Exception {
+        Student student = studentRepository.findByUserUsername("student1").orElseThrow();
+        User requester = userRepository.findByUsername("student1").orElseThrow();
+        Long requestId = serviceRequestService.create(
+                student, requester, "SUPPORT_TICKET", "Assignment test", "Assign to admin").getId();
+        Long adminId = userRepository.findByUsername("admin").orElseThrow().getId();
+
+        try {
+            ResponseEntity<String> assignmentResponse = exchangeAs(
+                    "admin", "admin123", "/api/student/requests/admin/" + requestId + "/assignee",
+                    HttpMethod.PATCH, "{\"assigneeId\":" + adminId + "}");
+            assertEquals(HttpStatus.OK, assignmentResponse.getStatusCode());
+            assertTrue(objectMapper.readTree(assignmentResponse.getBody()).path("assigneeId").asLong() == adminId);
+
+            ResponseEntity<String> historyResponse = exchangeAs(
+                    "admin", "admin123", "/api/student/requests/admin/" + requestId + "/history",
+                    HttpMethod.GET, null);
+            assertEquals(HttpStatus.OK, historyResponse.getStatusCode());
+            JsonNode history = objectMapper.readTree(historyResponse.getBody());
+            assertTrue(history.size() >= 2);
+            assertTrue(java.util.stream.StreamSupport.stream(history.spliterator(), false)
+                    .anyMatch(event -> "CREATED".equals(event.path("eventType").asText())
+                            && event.path("createdAt").isTextual()));
+            assertTrue(java.util.stream.StreamSupport.stream(history.spliterator(), false)
+                    .anyMatch(event -> "ASSIGNED".equals(event.path("eventType").asText())
+                            && "admin".equals(event.path("toAssigneeUsername").asText())
+                            && "admin".equals(event.path("actorUsername").asText())));
+        } finally {
+            serviceRequestRepository.deleteById(requestId);
+        }
     }
 
     @Test
@@ -2327,6 +2614,92 @@ class SecurityIntegrationTest {
         boolean hasHttpOnlyAccessToken = setCookieHeaders.stream()
                 .anyMatch(c -> c.contains("access_token=") && c.toLowerCase().contains("httponly"));
         assertTrue(hasHttpOnlyAccessToken, "access_token cookie missing or not HttpOnly");
+    }
+
+    @Test
+    void aNewLoginReplacesThePreviousSessionAndInvalidatesItsAccessAndRefreshTokens() throws Exception {
+        ResponseEntity<String> firstLogin = loginStudent();
+        assertEquals(HttpStatus.OK, firstLogin.getStatusCode());
+
+        String oldAccessToken = accessTokenCookie(firstLogin);
+        String oldRefreshToken = cookieValue(firstLogin, "refresh_token");
+        ResponseEntity<String> secondLogin = loginStudent();
+        assertEquals(HttpStatus.OK, secondLogin.getStatusCode());
+
+        HttpHeaders oldAccessHeaders = new HttpHeaders();
+        oldAccessHeaders.set(HttpHeaders.COOKIE, "access_token=" + oldAccessToken);
+        assertFalse(restTemplate.exchange("/api/auth/authorities", HttpMethod.GET,
+                new HttpEntity<>(oldAccessHeaders), String.class).getStatusCode().is2xxSuccessful());
+
+        HttpHeaders oldRefreshHeaders = new HttpHeaders();
+        oldRefreshHeaders.set(HttpHeaders.COOKIE, "refresh_token=" + oldRefreshToken);
+        assertEquals(HttpStatus.UNAUTHORIZED,
+                restTemplate.exchange("/api/auth/refresh", HttpMethod.POST,
+                        new HttpEntity<>(oldRefreshHeaders), String.class).getStatusCode());
+
+        HttpHeaders currentHeaders = new HttpHeaders();
+        currentHeaders.set(HttpHeaders.COOKIE,
+                "access_token=" + accessTokenCookie(secondLogin));
+        ResponseEntity<String> currentSession =
+                restTemplate.exchange("/api/auth/sessions", HttpMethod.GET,
+                        new HttpEntity<>(currentHeaders), String.class);
+        assertEquals(HttpStatus.OK, currentSession.getStatusCode());
+        assertEquals(1, objectMapper.readTree(currentSession.getBody()).size());
+        assertEquals(HttpStatus.OK,
+                restTemplate.exchange("/api/auth/authorities", HttpMethod.GET,
+                        new HttpEntity<>(currentHeaders), String.class).getStatusCode());
+    }
+
+    @Test
+    void concurrentLoginsLeaveExactlyOneValidSession() throws Exception {
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            Future<ResponseEntity<String>> first = executor.submit(() -> loginStudentWhenReleased(ready, start));
+            Future<ResponseEntity<String>> second = executor.submit(() -> loginStudentWhenReleased(ready, start));
+            assertTrue(ready.await(5, TimeUnit.SECONDS), "Both login attempts should be ready");
+            start.countDown();
+
+            List<ResponseEntity<String>> logins =
+                    List.of(first.get(15, TimeUnit.SECONDS), second.get(15, TimeUnit.SECONDS));
+            assertTrue(logins.stream().allMatch(login -> login.getStatusCode() == HttpStatus.OK));
+
+            int currentCredentialVersion = userRepository.findByUsername("student1")
+                    .orElseThrow().getCredentialVersion();
+            long currentAccessTokens = logins.stream()
+                    .map(this::accessTokenCookie)
+                    .map(jwtService::getCredentialVersion)
+                    .filter(version -> version == currentCredentialVersion)
+                    .count();
+            assertEquals(1, currentAccessTokens);
+            List<RefreshToken> userTokens = refreshTokenRepository.findByUserIdOrderByExpiryDateDesc(
+                    userRepository.findByUsername("student1").orElseThrow().getId());
+            long activeRefreshTokens = userTokens.stream().filter(RefreshToken::isValid).count();
+            assertEquals(1, activeRefreshTokens,
+                    userTokens.stream().map(token -> token.getId() + ":revoked=" + token.isRevoked())
+                            .toList().toString());
+        } finally {
+            start.countDown();
+            executor.shutdownNow();
+        }
+    }
+
+    private ResponseEntity<String> loginStudent() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        return restTemplate.postForEntity("/api/auth/login",
+                new HttpEntity<>("{\"username\":\"student1\",\"password\":\"student123\"}", headers),
+                String.class);
+    }
+
+    private ResponseEntity<String> loginStudentWhenReleased(CountDownLatch ready, CountDownLatch start)
+            throws InterruptedException {
+        ready.countDown();
+        if (!start.await(5, TimeUnit.SECONDS)) {
+            throw new IllegalStateException("Timed out waiting to start concurrent login");
+        }
+        return loginStudent();
     }
 
     @Test

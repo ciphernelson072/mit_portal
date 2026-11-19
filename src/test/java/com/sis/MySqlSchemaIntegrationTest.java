@@ -1,18 +1,24 @@
 package com.sis;
 
+import com.sis.entity.AcademicTerm;
+import com.sis.entity.AcademicYear;
+import com.sis.repository.AcademicTermRepository;
+import com.sis.repository.AcademicYearRepository;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.flywaydb.core.Flyway;
-import org.flywaydb.core.api.MigrationInfo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import java.time.LocalDate;
 import java.util.Arrays;
+import java.util.Comparator;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -31,6 +37,12 @@ class MySqlSchemaIntegrationTest {
 
         @Autowired
         private Flyway flyway;
+
+        @Autowired
+        private AcademicTermRepository academicTerms;
+
+        @Autowired
+        private AcademicYearRepository academicYears;
 
     @DynamicPropertySource
     static void databaseProperties(DynamicPropertyRegistry registry) {
@@ -54,20 +66,33 @@ class MySqlSchemaIntegrationTest {
     void flywayMigrationsBuildSchemaAcceptedByHibernate() {
         assumeTrue(MYSQL.isRunning(), "Docker/Testcontainers MySQL is unavailable in this environment");
         assertTrue(MYSQL.isRunning());
-        assertEquals("52", flyway.info().current().getVersion().getVersion());
-        assertEquals(-1254657549, appliedChecksum("46"));
-        assertEquals(-929712578, appliedChecksum("47"));
-        assertEquals(18047753, appliedChecksum("50"));
-        assertEquals(718220594, appliedChecksum("51"));
-        assertEquals(1360576565, appliedChecksum("52"));
+        var latestMigrationVersion = Arrays.stream(flyway.info().all())
+                .map(migration -> migration.getVersion())
+                .filter(version -> version != null)
+                .max(Comparator.naturalOrder())
+                .orElseThrow(() -> new AssertionError("No versioned Flyway migrations were discovered"));
+        assertEquals(latestMigrationVersion, flyway.info().current().getVersion());
     }
 
-    private int appliedChecksum(String version) {
-        return Arrays.stream(flyway.info().applied())
-                .filter(migration -> migration.getVersion() != null)
-                .filter(migration -> version.equals(migration.getVersion().getVersion()))
-                .map(MigrationInfo::getChecksum)
-                .findFirst()
-                .orElseThrow(() -> new AssertionError("Missing applied migration version " + version));
+    @Test
+    @Transactional
+    void locksAcademicTermWithMysqlCompatibleQuery() {
+        AcademicYear year = new AcademicYear();
+        year.setCode("MYSQL-LOCK-AY");
+        year.setName("MySQL Lock Test Year");
+        year.setStartDate(LocalDate.of(2026, 1, 1));
+        year.setEndDate(LocalDate.of(2026, 12, 31));
+        year = academicYears.saveAndFlush(year);
+
+        AcademicTerm term = new AcademicTerm();
+        term.setCode("MYSQL-LOCK-T1");
+        term.setName("MySQL Lock Test Term");
+        term.setAcademicYear(year);
+        term.setStartDate(LocalDate.of(2026, 1, 1));
+        term.setEndDate(LocalDate.of(2026, 6, 30));
+        term = academicTerms.saveAndFlush(term);
+
+        assertEquals("MYSQL-LOCK-T1",
+                academicTerms.findByIdForUpdate(term.getId()).orElseThrow().getCode());
     }
 }

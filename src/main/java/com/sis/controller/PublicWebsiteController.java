@@ -8,6 +8,6 @@ public class PublicWebsiteController {
 
     @GetMapping("/")
     public String home() {
-        return "forward:/portal-gateway.html";
+        return "forward:/home.html";
     }
 }

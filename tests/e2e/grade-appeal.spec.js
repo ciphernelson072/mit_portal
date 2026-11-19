@@ -39,7 +39,7 @@ async function serveStaticApp(page, handleApi) {
   });
 }
 
-test('student can appeal a published grade and track the appeal status', async ({ page }) => {
+test('student can submit one appeal for a published grade and track its status', async ({ page }) => {
   let appeals = [];
   await page.addInitScript(() => {
     localStorage.setItem('mitRole', 'STUDENT');
@@ -58,6 +58,9 @@ test('student can appeal a published grade and track the appeal status', async (
         status: 'APPROVED',
         assessmentComponents: [],
       }] };
+    }
+    if (url.pathname === '/api/student/grade-status') {
+      return { payload: [{ courseCode: 'CSC201', courseName: 'Data Structures', status: 'APPROVED' }] };
     }
     if (url.pathname === '/api/student/profile') {
       return { payload: { id: 7, fullName: 'Appeal Student', cgpa: 4.5 } };
@@ -82,8 +85,8 @@ test('student can appeal a published grade and track the appeal status', async (
     if (url.pathname === '/api/student/my-status') return { payload: { missingResultCourses: [] } };
     return { payload: [] };
   });
-
   await page.goto('/academics.html#grades');
+  await expect(page.locator('#provisionalGradeStatuses')).toBeHidden();
   await page.getByRole('button', { name: 'Request review' }).click();
   await page.getByLabel('Explain why you are requesting a review').fill('Please verify the assessment total.');
   await page.getByRole('button', { name: 'Submit appeal' }).click();
@@ -94,7 +97,86 @@ test('student can appeal a published grade and track the appeal status', async (
   await expect(page.locator('.grades-table tbody button', { hasText: 'Request review' })).toHaveCount(0);
 });
 
-test('teacher can send a consultation response without rendering unsafe content', async ({ page }) => {
+test('student sees only course and workflow status before official publication', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('mitRole', 'STUDENT');
+    localStorage.setItem('mitUsername', 'appeal-student');
+  });
+  await serveStaticApp(page, async (_route, url) => {
+    if (url.pathname === '/api/student/profile') {
+      return { payload: { id: 7, fullName: 'Appeal Student', cgpa: null } };
+    }
+    if (url.pathname === '/api/student/grade-status') {
+      return { payload: [
+        { courseCode: 'CSC201', courseName: 'Data Structures', status: 'PENDING' },
+        { courseCode: 'DBS401', courseName: 'Database Systems', status: 'APPROVED' },
+        { courseCode: 'MAT201', courseName: '<img src=x onerror=alert(1)>', status: 'REJECTED' },
+      ] };
+    }
+    if (url.pathname === '/api/reports/academic/7/status') {
+      return { payload: { published: false, approved: false, publicationStatus: 'PENDING' } };
+    }
+    if (url.pathname === '/api/student/my-status') return { payload: { missingResultCourses: [] } };
+    return { payload: [] };
+  });
+
+  await page.goto('/academics.html#grades');
+  const statuses = page.locator('#provisionalGradeStatuses');
+  await expect(statuses).toBeVisible();
+  await expect(statuses).toContainText('Data Structures');
+  await expect(statuses).toContainText('Awaiting review');
+  await expect(statuses).toContainText('Approved; awaiting official publication');
+  await expect(statuses).toContainText('Returned for revision');
+  await expect(statuses).toContainText('<img src=x onerror=alert(1)>');
+  await expect(statuses.locator('img')).toHaveCount(0);
+  await expect(statuses).not.toContainText('gradeValue');
+  await expect(statuses).not.toContainText('rejection reason');
+  await expect(statuses).not.toContainText('79.5');
+  await expect(statuses).not.toContainText('B+');
+});
+
+test('student can track grade correction status without rendering unsafe content', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('mitRole', 'STUDENT');
+    localStorage.setItem('mitUsername', 'appeal-student');
+  });
+  await serveStaticApp(page, async (_route, url) => {
+    if (url.pathname === '/api/student/profile') {
+      return { payload: { id: 7, fullName: 'Appeal Student', cgpa: null } };
+    }
+    if (url.pathname === '/api/student/corrections') {
+      return { payload: [
+        {
+          gradeId: 41,
+          status: 'AUTHORIZED',
+          reason: '<img src=x onerror=alert(1)>',
+          authorizedAt: '2026-11-10T12:00:00',
+        },
+        {
+          gradeId: 42,
+          status: 'SUBMITTED',
+          reason: 'Corrected component marks are awaiting review.',
+          authorizedAt: '2026-11-10T12:30:00',
+        },
+      ] };
+    }
+    if (url.pathname === '/api/reports/academic/7/status') {
+      return { payload: { published: false, approved: false, publicationStatus: 'PENDING' } };
+    }
+    if (url.pathname === '/api/student/my-status') return { payload: { missingResultCourses: [] } };
+    return { payload: [] };
+  });
+
+  await page.goto('/academics.html#grades');
+  const corrections = page.locator('#studentCorrectionList');
+  await expect(corrections).toContainText('AUTHORIZED');
+  await expect(corrections).toContainText('SUBMITTED');
+  await expect(corrections).toContainText('<img src=x onerror=alert(1)>');
+  await expect(corrections.locator('img')).toHaveCount(0);
+  await expect(corrections).toContainText('Corrected component marks are awaiting review.');
+});
+
+test('teacher can send an optional written consultation response safely', async ({ page }) => {
   const appeal = {
     id: 3,
     courseCode: '<img src=x onerror=alert(1)>',
@@ -139,7 +221,7 @@ test('teacher can send a consultation response without rendering unsafe content'
   expect(appeal.teacherResponse).toBe('Assessment records were checked.');
 });
 
-test('administrator consults the teacher and records a decision safely', async ({ page }) => {
+test('administrator consults the teacher, records the decision, and keeps content escaped', async ({ page }) => {
   const appeal = {
     id: 3,
     studentName: '<img src=x onerror=alert(1)>',
@@ -169,24 +251,23 @@ test('administrator consults the teacher and records a decision safely', async (
       return { payload: appeal };
     }
     if (url.pathname === '/api/admin/grade-appeals') return { payload: [appeal] };
-    if (url.pathname === '/api/admin/grades') return { payload: [] };
     return { payload: [] };
   });
 
   await page.goto('/admin-dashboard.html');
   await page.locator('[data-module="grades"]').click();
-  const appealList = page.locator('#adminGradeAppealList');
-  await expect(appealList).toContainText('OPEN');
-  await expect(appealList.locator('img, script')).toHaveCount(0);
-  await expect(appealList).toContainText('<img src=x onerror=alert(1)>');
-  await expect(appealList).toContainText('<script>alert(1)</script>');
+  await expect(page.locator('#gradesModule #adminGradeAppealList')).toHaveCount(1);
+  await expect(page.locator('#adminGradeAppealList')).toContainText('OPEN');
+  await expect(page.locator('#adminGradeAppealList img, #adminGradeAppealList script')).toHaveCount(0);
+  await expect(page.locator('#adminGradeAppealList')).toContainText('<img src=x onerror=alert(1)>');
+  await expect(page.locator('#adminGradeAppealList')).toContainText('<script>alert(1)</script>');
   await page.getByRole('button', { name: 'Request teacher consultation' }).click();
   await page.once('dialog', dialog => dialog.accept());
   await page.getByRole('button', { name: 'Confirm consulted; no written response' }).click();
-  await expect(appealList).toContainText('READY_FOR_DECISION');
+  await expect(page.locator('#adminGradeAppealList')).toContainText('READY_FOR_DECISION');
   await page.once('dialog', dialog => dialog.accept('Separate correction authorization required.'));
   await page.getByRole('button', { name: 'Approve appeal' }).click();
   await expect(page.locator('#gradeAppealAdminStatus')).toContainText('separate authorization');
-  await expect(appealList).toContainText('APPROVED');
+  await expect(page.locator('#adminGradeAppealList')).toContainText('APPROVED');
   expect(appeal.decisionNote).toBe('Separate correction authorization required.');
 });

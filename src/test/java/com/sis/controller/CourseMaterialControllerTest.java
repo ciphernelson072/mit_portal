@@ -52,7 +52,7 @@ class CourseMaterialControllerTest {
         var response = controller.createMaterial(7L, "Guide", "Description",
                 new MockMultipartFile("file", "guide.pdf", "application/pdf", new byte[]{1}));
 
-        assertThat(response.getStatusCodeValue()).isEqualTo(201);
+        assertThat(response.getStatusCode().value()).isEqualTo(201);
         assertThat(response.getBody()).isSameAs(created);
         verify(schoolService, never()).teacherOwnsCourse("admin", course);
     }
@@ -73,7 +73,7 @@ class CourseMaterialControllerTest {
         var response = controller.createMaterial(8L, "Guide", "",
                 new MockMultipartFile("file", "guide.pdf", "application/pdf", new byte[]{1}));
 
-        assertThat(response.getStatusCodeValue()).isEqualTo(201);
+        assertThat(response.getStatusCode().value()).isEqualTo(201);
     }
 
     @Test
@@ -88,7 +88,7 @@ class CourseMaterialControllerTest {
         var response = controller.createMaterial(9L, "Guide", "",
                 new MockMultipartFile("file", "guide.pdf", "application/pdf", new byte[]{1}));
 
-        assertThat(response.getStatusCodeValue()).isEqualTo(403);
+        assertThat(response.getStatusCode().value()).isEqualTo(403);
         verify(fileUploadService, never()).uploadCourseMaterial(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
     }
 

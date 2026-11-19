@@ -1,5 +1,7 @@
 package com.sis.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 public class AdminTeacherDto {
     private Long id;
     private String fullName;
@@ -13,6 +15,8 @@ public class AdminTeacherDto {
     private String departmentName;
     private String profileImagePath;
     private boolean active;
+    private Boolean emailSent;
+    private String emailDeliveryMessage;
 
     public AdminTeacherDto() {
     }
@@ -126,5 +130,23 @@ public class AdminTeacherDto {
 
     public void setActive(boolean active) {
         this.active = active;
+    }
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public Boolean getEmailSent() {
+        return emailSent;
+    }
+
+    public void setEmailSent(Boolean emailSent) {
+        this.emailSent = emailSent;
+    }
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public String getEmailDeliveryMessage() {
+        return emailDeliveryMessage;
+    }
+
+    public void setEmailDeliveryMessage(String emailDeliveryMessage) {
+        this.emailDeliveryMessage = emailDeliveryMessage;
     }
 }

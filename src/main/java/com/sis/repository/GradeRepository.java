@@ -9,7 +9,7 @@ import java.util.List;
 import java.math.BigDecimal;
 import com.sis.entity.GradeStatus;
 import org.springframework.data.jpa.repository.Lock;
-import javax.persistence.LockModeType;
+import jakarta.persistence.LockModeType;
 
 public interface GradeRepository extends JpaRepository<Grade, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -23,6 +23,7 @@ public interface GradeRepository extends JpaRepository<Grade, Long> {
 
     List<Grade> findByStudentIdAndStatus(Long studentId, GradeStatus status);
     List<Grade> findByStudentIdAndCourseIdOrderByAttemptNumberAsc(Long studentId, Long courseId);
+    boolean existsByStudentIdAndCourseId(Long studentId, Long courseId);
     List<Grade> findByStudentIdAndStatusOrderByApprovedAtDescIdDesc(Long studentId, GradeStatus status);
     List<Grade> findTop5ByStudentIdAndStatusOrderByApprovedAtDescIdDesc(Long studentId, GradeStatus status);
         boolean existsByStudentIdAndCourseIdAndStatusAndGpaScoreGreaterThanEqual(

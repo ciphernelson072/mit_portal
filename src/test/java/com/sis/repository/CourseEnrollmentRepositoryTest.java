@@ -14,7 +14,7 @@ import com.sis.entity.Teacher;
 import com.sis.entity.User;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -92,10 +92,19 @@ class CourseEnrollmentRepositoryTest {
         registrations.saveAndFlush(registration);
 
         assertThat(courses.existsEnrolledStudent(course.getId(), student.getId())).isTrue();
+        assertThat(students.findByCourseIdIncludingRegistrations(course.getId()))
+                .extracting(Student::getId).containsExactly(student.getId());
+        assertThat(courses.countDistinctStudentsByCourseIds(List.of(course.getId()))).isEqualTo(1);
+        assertThat(courses.countStudentsWithoutAttendanceByCourseIdsAndDate(
+                List.of(course.getId()), LocalDate.of(2026, 3, 1))).isEqualTo(1);
 
         registration.setStatus(RegistrationStatus.DROPPED);
         registrations.saveAndFlush(registration);
         assertThat(courses.existsEnrolledStudent(course.getId(), student.getId())).isFalse();
+        assertThat(students.findByCourseIdIncludingRegistrations(course.getId())).isEmpty();
+        assertThat(courses.countDistinctStudentsByCourseIds(List.of(course.getId()))).isZero();
+        assertThat(courses.countStudentsWithoutAttendanceByCourseIdsAndDate(
+                List.of(course.getId()), LocalDate.of(2026, 3, 1))).isZero();
     }
 
     @Test

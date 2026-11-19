@@ -2,6 +2,7 @@ package com.sis;
 
 import com.sis.dto.GradeDto;
 import com.sis.dto.FeeDto;
+import com.sis.dto.StudentGradeStatusDto;
 import com.sis.entity.Attendance;
 import com.sis.entity.Course;
 import com.sis.entity.Grade;
@@ -18,10 +19,14 @@ import com.sis.service.AcademicRecordService;
 import com.sis.service.FeeService;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.time.LocalDate;
 import java.time.LocalTime;
 
@@ -61,6 +66,49 @@ class AcademicRecordServiceTest {
     }
 
     @Test
+    void gradeStatusViewContainsOnlyCourseAndWorkflowStatusForUnpublishedGrades() throws Exception {
+        GradeRepository gradeRepository = Mockito.mock(GradeRepository.class);
+        AttendanceRepository attendanceRepository = Mockito.mock(AttendanceRepository.class);
+        FeeService feeService = Mockito.mock(FeeService.class);
+        AcademicRecordService service = new AcademicRecordService(gradeRepository, attendanceRepository, feeService);
+        Course course = new Course();
+        course.setCourseCode("DBS401");
+        course.setName("Database Systems");
+
+        Grade pending = gradeWithStatus(course, GradeStatus.PENDING);
+        Grade approved = gradeWithStatus(course, GradeStatus.APPROVED);
+        Grade rejected = gradeWithStatus(course, GradeStatus.REJECTED);
+        when(gradeRepository.findByStudentIdWithCourse(42L)).thenReturn(List.of(pending, approved, rejected));
+
+        List<StudentGradeStatusDto> statuses = service.getGradeStatusesForStudent(42L);
+
+        assertEquals(List.of("PENDING", "APPROVED", "REJECTED"),
+                statuses.stream().map(StudentGradeStatusDto::getStatus).toList());
+        assertEquals("DBS401", statuses.get(0).getCourseCode());
+        assertEquals("Database Systems", statuses.get(0).getCourseName());
+        ObjectMapper mapper = new ObjectMapper();
+        Set<String> allowedFields = Set.of("courseCode", "courseName", "status");
+        for (StudentGradeStatusDto status : statuses) {
+            JsonNode json = mapper.valueToTree(status);
+            Set<String> fields = new HashSet<>();
+            json.fieldNames().forEachRemaining(fields::add);
+            assertEquals(allowedFields, fields);
+        }
+        verify(gradeRepository).findByStudentIdWithCourse(42L);
+    }
+
+    private Grade gradeWithStatus(Course course, GradeStatus status) {
+        Grade grade = new Grade();
+        grade.setId((long) status.ordinal() + 1);
+        grade.setCourse(course);
+        grade.setStatus(status);
+        grade.setGradeValue("A");
+        grade.setGpaScore(BigDecimal.valueOf(5));
+        grade.setRejectionReason("Do not expose this reason");
+        return grade;
+    }
+
+    @Test
     void savingGradeReloadsCourseAndStudentForResponseMapping() {
         GradeRepository gradeRepository = Mockito.mock(GradeRepository.class);
         AttendanceRepository attendanceRepository = Mockito.mock(AttendanceRepository.class);
@@ -79,6 +127,10 @@ class AcademicRecordServiceTest {
         Grade result = service.saveGrade(student, course, "A", null, "teacher");
 
         assertEquals(saved, result);
+        org.mockito.ArgumentCaptor<Grade> submitted = org.mockito.ArgumentCaptor.forClass(Grade.class);
+        verify(gradeRepository).save(submitted.capture());
+        assertEquals(GradeStatus.PENDING, submitted.getValue().getStatus());
+        assertEquals("teacher", submitted.getValue().getSubmittedBy());
         verify(gradeRepository).findByIdWithStudentUserAndCourse(8L);
     }
 

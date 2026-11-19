@@ -14,6 +14,10 @@ Push-Location $projectRoot
 try {
     $runtimeVariables = @(
         'MAIL_ENABLED',
+        'MAIL_PROVIDER',
+        'BREVO_API_KEY',
+        'MAIL_FROM_EMAIL',
+        'MAIL_FROM_NAME',
         'MAIL_HOST',
         'MAIL_PORT',
         'MAIL_USERNAME',
@@ -25,6 +29,7 @@ try {
         'BACKUP_STATUS_FILE',
         'UPLOAD_BACKUP_STATUS_FILE',
         'MFA_ENABLED',
+        'MFA_REQUIRED_FOR_PRIVILEGED',
         'MFA_ENCRYPTION_KEY'
     )
     $envFile = Join-Path $projectRoot '.env'
@@ -113,13 +118,20 @@ try {
 
     if ($ValidateMailConfiguration) {
         $mailEnabled = $env:MAIL_ENABLED -eq 'true'
-        $missing = @('MAIL_HOST', 'MAIL_USERNAME', 'MAIL_PASSWORD') |
+        $mailProvider = if ([string]::IsNullOrWhiteSpace($env:MAIL_PROVIDER)) { 'smtp' } else { $env:MAIL_PROVIDER.Trim().ToLowerInvariant() }
+        $requiredMailSettings = switch ($mailProvider) {
+            'smtp' { @('MAIL_HOST', 'MAIL_USERNAME', 'MAIL_PASSWORD'); break }
+            'brevo' { @('BREVO_API_KEY', 'MAIL_FROM_EMAIL'); break }
+            default { throw 'MAIL_PROVIDER must be either smtp or brevo.' }
+        }
+        $missing = $requiredMailSettings |
             Where-Object { [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($_, 'Process')) }
 
         Write-Output ('MAIL_ENABLED=' + $mailEnabled)
-        Write-Output ('SMTP credentials complete=' + ($missing.Count -eq 0))
+        Write-Output ('MAIL_PROVIDER=' + $mailProvider)
+        Write-Output ('Mail credentials complete=' + ($missing.Count -eq 0))
         if ($mailEnabled -and $missing.Count -gt 0) {
-            throw ('Mail is enabled but required SMTP settings are missing: ' + ($missing -join ', '))
+            throw ('Mail is enabled but required ' + $mailProvider + ' settings are missing: ' + ($missing -join ', '))
         }
         return
     }

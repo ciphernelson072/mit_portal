@@ -32,7 +32,7 @@ class FlutterwavePaymentServiceTest {
     @Test
     void duplicateCompletedWebhookIsIgnoredWithoutAnotherProviderConfirmation() throws Exception {
         PaymentAttemptService attempts = mock(PaymentAttemptService.class);
-        RestTemplate restTemplate = new RestTemplate();
+        RestTemplate restTemplate = FlutterwavePaymentService.createRestTemplate();
         MockRestServiceServer.bindTo(restTemplate).build();
         FlutterwavePaymentService service = configuredService(attempts, restTemplate);
         PaymentAttempt completed = pendingAttempt();
@@ -52,7 +52,7 @@ class FlutterwavePaymentServiceTest {
     @Test
     void createsHostedCheckoutUsingServerAmountAndExpectedUgandaMethods() {
         PaymentAttemptService attempts = mock(PaymentAttemptService.class);
-        RestTemplate restTemplate = new RestTemplate();
+        RestTemplate restTemplate = FlutterwavePaymentService.createRestTemplate();
         MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
         FlutterwavePaymentService service = configuredService(attempts, restTemplate);
         FlutterwaveCheckoutDetails details = details();
@@ -89,7 +89,7 @@ class FlutterwavePaymentServiceTest {
     @Test
     void verifiesTransactionAgainstReferenceExactAmountAndCurrencyBeforeConfirming() {
         PaymentAttemptService attempts = mock(PaymentAttemptService.class);
-        RestTemplate restTemplate = new RestTemplate();
+        RestTemplate restTemplate = FlutterwavePaymentService.createRestTemplate();
         MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
         FlutterwavePaymentService service = configuredService(attempts, restTemplate);
         PaymentAttempt attempt = pendingAttempt();
@@ -114,7 +114,7 @@ class FlutterwavePaymentServiceTest {
     @Test
     void refusesToConfirmWhenVerifiedAmountDoesNotMatchTheAttempt() {
         PaymentAttemptService attempts = mock(PaymentAttemptService.class);
-        RestTemplate restTemplate = new RestTemplate();
+        RestTemplate restTemplate = FlutterwavePaymentService.createRestTemplate();
         MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
         FlutterwavePaymentService service = configuredService(attempts, restTemplate);
         when(attempts.findStudentFlutterwaveAttempt("MIT-FLW-test-reference", 14L))
@@ -134,7 +134,7 @@ class FlutterwavePaymentServiceTest {
     @Test
     void reusesAnExistingUnexpiredHostedCheckout() {
         PaymentAttemptService attempts = mock(PaymentAttemptService.class);
-        RestTemplate restTemplate = new RestTemplate();
+        RestTemplate restTemplate = FlutterwavePaymentService.createRestTemplate();
         MockRestServiceServer.bindTo(restTemplate).build();
         FlutterwavePaymentService service = configuredService(attempts, restTemplate);
         FlutterwaveCheckoutDetails existing = new FlutterwaveCheckoutDetails(91L, 25L,
@@ -152,7 +152,7 @@ class FlutterwavePaymentServiceTest {
     @Test
     void failedChargeDoesNotCloseTheHostedCheckoutRetrySession() {
         PaymentAttemptService attempts = mock(PaymentAttemptService.class);
-        RestTemplate restTemplate = new RestTemplate();
+        RestTemplate restTemplate = FlutterwavePaymentService.createRestTemplate();
         MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
         FlutterwavePaymentService service = configuredService(attempts, restTemplate);
         PaymentAttempt pending = pendingAttempt();

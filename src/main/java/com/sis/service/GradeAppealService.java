@@ -21,7 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
-import java.util.Locale;
 
 @Service
 @Transactional
@@ -149,7 +148,7 @@ public class GradeAppealService {
     public GradeAppealDto decide(Long appealId, String decision, String note, String actor) {
         GradeAppeal appeal = findForUpdate(appealId);
         requireStatus(appeal, GradeAppealStatus.READY_FOR_DECISION);
-        GradeAppealStatus nextStatus = switch (decision == null ? "" : decision.trim().toUpperCase(Locale.ROOT)) {
+        GradeAppealStatus nextStatus = switch (decision == null ? "" : decision.trim().toUpperCase()) {
             case "APPROVED" -> GradeAppealStatus.APPROVED;
             case "REJECTED" -> GradeAppealStatus.REJECTED;
             default -> throw new IllegalArgumentException("Appeal decision must be APPROVED or REJECTED.");

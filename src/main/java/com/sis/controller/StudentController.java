@@ -7,6 +7,7 @@ import com.sis.dto.CourseUnitDto;
 import com.sis.dto.GradeDto;
 import com.sis.dto.StudentProfileDto;
 import com.sis.dto.StudentStatusDto;
+import com.sis.dto.StudentGradeStatusDto;
 import com.sis.service.AttendanceService;
 import com.sis.service.SchoolService;
 import com.sis.service.AcademicReportService;
@@ -14,7 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 
 import java.util.List;
 
@@ -69,6 +70,16 @@ public class StudentController {
         return schoolService.getStudentByUsername(username)
                 .map(student -> ResponseEntity.ok(academicReportService.isOfficiallyPublished(student.getId())
                         ? schoolService.getGradeDtosForStudent(student.getId()) : List.<GradeDto>of()))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/grade-status")
+    public ResponseEntity<List<StudentGradeStatusDto>> gradeStatuses() {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        return schoolService.getStudentByUsername(username)
+                .map(student -> ResponseEntity.ok(academicReportService.isOfficiallyPublished(student.getId())
+                        ? List.<StudentGradeStatusDto>of()
+                        : schoolService.getGradeStatusesForStudent(student.getId())))
                 .orElse(ResponseEntity.notFound().build());
     }
 

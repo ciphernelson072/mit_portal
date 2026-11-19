@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$EnvironmentFile = '.env.cloudflare-tidb',
+    [string]$BackupDirectory = (Join-Path $env:LOCALAPPDATA 'MITPortal\backups'),
     [ValidateRange(1, 3650)]
     [int]$RetentionDays = 30,
     [switch]$UploadOnly
@@ -62,7 +63,7 @@ if (-not $UploadOnly) {
     }
 }
 
-$backupDirectory = Join-Path $env:LOCALAPPDATA 'MITPortal\backups'
+$backupDirectory = $BackupDirectory
 New-Item -ItemType Directory -Path $backupDirectory -Force | Out-Null
 $backupDirectory = (Resolve-Path -LiteralPath $backupDirectory).Path
 $identity = [Security.Principal.WindowsIdentity]::GetCurrent().Name

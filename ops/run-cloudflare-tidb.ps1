@@ -46,10 +46,11 @@ $allowedVariables = @(
     'MAIL_STARTTLS_ENABLE',
     'MAIL_STARTTLS_REQUIRED',
     'MAIL_SMTP_SSL_ENABLE',
-    'MAIL_API_KEY',
+    'BREVO_API_KEY',
     'MAIL_FROM_EMAIL',
     'MAIL_FROM_NAME',
     'MFA_ENABLED',
+    'MFA_REQUIRED_FOR_PRIVILEGED',
     'MFA_ENCRYPTION_KEY',
     'INITIAL_ADMIN_BOOTSTRAP_ENABLED',
     'INITIAL_ADMIN_USERNAME',
@@ -130,6 +131,9 @@ if ($values.MFA_ENABLED -eq 'true') {
         throw 'MFA_ENCRYPTION_KEY must decode to exactly 32 bytes when MFA_ENABLED=true.'
     }
 }
+if ($values.MFA_REQUIRED_FOR_PRIVILEGED -eq 'true' -and $values.MFA_ENABLED -ne 'true') {
+    throw 'MFA_REQUIRED_FOR_PRIVILEGED=true requires MFA_ENABLED=true.'
+}
 
 if ($values.DB_URL -notmatch '^jdbc:mysql://(?<host>[^/:?]+):4000/(?<database>[A-Za-z0-9_]+)\?(?<query>[^#]+)$') {
     throw 'DB_URL must be a TiDB Cloud JDBC URL using port 4000 and a database name.'
@@ -162,10 +166,10 @@ if ($values.CORS_ALLOWED_ORIGINS -ne $values.FRONTEND_URL) {
 
 $mailEnabled = $values.MAIL_ENABLED -eq 'true'
 if ($mailEnabled) {
-    if ($values.MAIL_PROVIDER -eq 'resend') {
-        foreach ($name in @('MAIL_API_KEY', 'MAIL_FROM_EMAIL')) {
+    if ($values.MAIL_PROVIDER -eq 'brevo') {
+        foreach ($name in @('BREVO_API_KEY', 'MAIL_FROM_EMAIL')) {
             if ([string]::IsNullOrWhiteSpace($values[$name]) -or $values[$name] -match '(?i)replace-with|YOUR_') {
-                throw "$name is required when Resend email is enabled."
+                throw "$name is required when Brevo email is enabled."
             }
         }
     } elseif ($values.MAIL_PROVIDER -eq 'smtp') {
@@ -175,7 +179,7 @@ if ($mailEnabled) {
             }
         }
     } else {
-        throw 'MAIL_PROVIDER must be smtp or resend when email is enabled.'
+        throw 'MAIL_PROVIDER must be smtp or brevo when email is enabled.'
     }
 }
 

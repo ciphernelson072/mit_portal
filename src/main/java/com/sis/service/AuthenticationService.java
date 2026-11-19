@@ -116,7 +116,8 @@ public class AuthenticationService {
             throw new ResourceNotFoundException("Invalid or expired password reset token");
         }
 
-        User user = resetToken.getUser();
+        User user = userRepository.findByIdForUpdate(resetToken.getUser().getId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found for password reset"));
 
         // Update password
         user.setPassword(passwordEncoder.encode(newPassword));
@@ -140,7 +141,10 @@ public class AuthenticationService {
             return false;
         }
 
-        User user = userOpt.get();
+        User user = userRepository.findByIdForUpdate(userOpt.get().getId()).orElse(null);
+        if (user == null || !passwordEncoder.matches(currentPassword, user.getPassword())) {
+            return false;
+        }
         if (passwordEncoder.matches(newPassword, user.getPassword())) {
             throw new IllegalArgumentException("New password must be different from the current password");
         }

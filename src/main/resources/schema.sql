@@ -592,6 +592,7 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
   user_id BIGINT NOT NULL COMMENT 'Foreign key to users table',
   expiry_date TIMESTAMP NOT NULL COMMENT 'Refresh token expiration time (7 days)',
   revoked TINYINT(1) DEFAULT 0 COMMENT '1=revoked (logout/password change/deactivation), 0=active',
+  mfa_verified TINYINT(1) NOT NULL DEFAULT 0 COMMENT '1=the session completed MFA, 0=not verified',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_refresh_token_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   INDEX idx_user (user_id),

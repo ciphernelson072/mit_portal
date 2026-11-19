@@ -3,6 +3,7 @@
 
 let currentTeachers = []; // cached for the "assign teacher" dropdown on Create Course
 let pendingAdminInputResolver = null;
+let adminToastTimer;
 
 // ===== INITIALIZATION =====
 document.addEventListener('DOMContentLoaded', function() {
@@ -17,6 +18,25 @@ document.addEventListener('DOMContentLoaded', function() {
   loadAdminAttendance();
   loadAdminNotifications();
 });
+
+function showAdminToast(message, type = 'info') {
+  const toast = document.getElementById('adminToast');
+  if (!toast) {
+    throw new Error('The admin notification region is unavailable.');
+  }
+
+  clearTimeout(adminToastTimer);
+  toast.textContent = message;
+  toast.dataset.type = type;
+  toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
+  toast.setAttribute('aria-live', type === 'error' ? 'assertive' : 'polite');
+  toast.hidden = false;
+  toast.classList.add('visible');
+  adminToastTimer = window.setTimeout(() => {
+    toast.classList.remove('visible');
+    toast.hidden = true;
+  }, 6000);
+}
 
 function setupHeaderDropdowns() {
   document.getElementById('notificationBtn')?.addEventListener('click', function() {
@@ -123,6 +143,38 @@ async function loadAdminAttendance() {
   } catch (err) {
     tbody.innerHTML = `<tr><td colspan="6">${escapeHtml(err.message || 'Unable to load attendance records.')}</td></tr>`;
   }
+  await loadAdminAttendanceDisputes();
+}
+
+async function loadAdminAttendanceDisputes() {
+  const container = document.getElementById('adminAttendanceDisputeList');
+  if (!container) return;
+  container.textContent = 'Loading attendance disputes…';
+  try {
+    const disputes = await apiGet('/attendance/disputes/admin');
+    container.innerHTML = disputes.length ? disputes.map(dispute => `
+      <article>
+        <strong>${escapeHtml(dispute.studentName)} - ${escapeHtml(dispute.courseName)}</strong>
+        <p>${escapeHtml(dispute.attendanceDate)}: ${dispute.requestedPresent ? 'Request present' : 'Request absent'} - ${escapeHtml(dispute.status)}</p>
+        <p>${escapeHtml(dispute.reason)}</p>
+        ${['OPEN', 'ESCALATED'].includes(dispute.status) ? `
+          <button class="btn-secondary" type="button" onclick="reviewAdminAttendanceDispute(${Number(dispute.id)}, 'APPROVED')">Approve</button>
+          <button class="btn-secondary" type="button" onclick="reviewAdminAttendanceDispute(${Number(dispute.id)}, 'REJECTED')">Reject</button>
+        ` : ''}
+      </article>`).join('') : '<p>No attendance disputes found.</p>';
+  } catch (err) {
+    container.textContent = err.message || 'Attendance disputes could not be loaded.';
+  }
+}
+
+async function reviewAdminAttendanceDispute(disputeId, status) {
+  const resolution = prompt('Resolution note:');
+  if (!resolution) return;
+  await apiFetch(`/attendance/disputes/${disputeId}/review`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status, resolution }),
+  });
+  await loadAdminAttendanceDisputes();
 }
 
 function setupAdminFilters() {
@@ -682,7 +734,7 @@ async function loadUsers() {
 function openUserForm(user = null) {
   const roleOptions = ['STUDENT', 'TEACHER', 'ADMIN'].map(role =>
     `<option value="${role}" ${user?.role === role ? 'selected' : ''}>${role}</option>`).join('');
-  openModal(`<span class="modal-close" onclick="closeModal()">&times;</span><h2>${user ? 'Edit' : 'Add Administrator'}</h2><form id="userForm"><div class="modal-field"><label>Username</label><input name="username" value="${escapeHtml(user?.username || '')}" required ${user ? 'readonly' : ''}></div><div class="modal-field"><label>Password</label><input name="password" type="password" ${user ? '' : 'required'}></div><div class="modal-field"><label>Role</label><select name="role">${roleOptions}</select></div><div class="modal-field"><label>Email</label><input name="email" type="email" value="${escapeHtml(user?.email || '')}"></div><div class="modal-field"><label>Phone</label><input name="phone" value="${escapeHtml(user?.phone || '')}"></div><div class="modal-actions"><button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button><button class="btn-primary">Save</button></div></form>`);
+  openModal(`<span class="modal-close" onclick="closeModal()">&times;</span><h2>${user ? 'Edit' : 'Add Administrator'}</h2><form id="userForm"><div class="modal-field"><label>Username</label><input name="username" value="${escapeHtml(user?.username || '')}" required ${user ? 'readonly' : ''}></div><div class="modal-field"><label>Password</label><input name="password" type="password" ${user ? '' : 'required'}></div><div class="modal-field"><label>Role</label><select name="role">${roleOptions}</select></div><div class="modal-field"><label>Account Email</label><input name="email" type="email" value="${escapeHtml(user?.email || '')}"><small>Used for sign-in and password recovery. Student and teacher contact email is managed separately in their profiles.</small></div><div class="modal-field"><label>Phone</label><input name="phone" value="${escapeHtml(user?.phone || '')}"></div><div class="modal-actions"><button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button><button class="btn-primary">Save</button></div></form>`);
   document.getElementById('userForm').addEventListener('submit', async event => {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(event.target));
@@ -700,8 +752,18 @@ async function publishAnnouncement() {
   if (!title) return;
   const content = prompt('Announcement content:');
   if (!content) return;
+  const audience = prompt('Audience (ALL, ADMIN, TEACHER, or STUDENT):', 'ALL');
+  if (audience === null) return;
+  const normalizedAudience = audience.trim().toUpperCase();
+  if (!['ALL', 'ADMIN', 'TEACHER', 'STUDENT'].includes(normalizedAudience)) {
+    alert('Audience must be ALL, ADMIN, TEACHER, or STUDENT.');
+    return;
+  }
   try {
-    await apiFetch('/announcements', { method: 'POST', body: JSON.stringify({ title, content }) });
+    await apiFetch('/announcements', {
+      method: 'POST',
+      body: JSON.stringify({ title, content, audience: normalizedAudience }),
+    });
     alert('Announcement published.');
   } catch (err) { alert(err.message || 'Announcement could not be published.'); }
 }
@@ -909,7 +971,7 @@ async function importGrades() {
       const response = await apiFetch('/admin/grades/import-file', { method: 'POST', body: formData });
       const imported = await response.json();
       await loadAdminGrades();
-      alert(`${imported.length} grade record(s) imported. Imported grades remain pending until approved.`);
+      alert(`${imported.length} grade record(s) imported. They remain pending until assessment marks are complete and approval is granted.`);
     } catch (err) { alert(err.message || 'Grade import failed.'); }
   };
   input.click();
@@ -1062,9 +1124,12 @@ async function createAdminFee() {
 async function loadRequests() {
   const tbody = document.querySelector('#requestsModule table tbody');
   if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Loading requests…</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Loading requests…</td></tr>';
   try {
-    const requests = await apiGet('/student/requests/admin');
+    const [requests, assignees] = await Promise.all([
+      apiGet('/student/requests/admin'),
+      apiGet('/student/requests/admin/assignees'),
+    ]);
     const status = document.getElementById('requestStatusFilter')?.value || '';
     const filtered = status ? requests.filter(request => request.status === status) : requests;
     const openCount = requests.filter(request => request.status === 'OPEN').length;
@@ -1076,13 +1141,19 @@ async function loadRequests() {
         <td>${escapeHtml(request.studentName || '—')}<br>${escapeHtml(request.studentUsername || '')}</td>
         <td>${escapeHtml(request.type)}</td>
         <td>${escapeHtml((request.createdAt || '').slice(0, 10))}</td>
-        <td><select onchange="updateRequestStatus(${request.id}, this.value)">
+        <td><select aria-label="Administrator owner for request ${request.id}"
+          onchange="updateRequestAssignee(${request.id}, this.value)">
+          <option value="">Unassigned</option>
+          ${assignees.map(admin => `<option value="${admin.id}" ${admin.id === request.assigneeId ? 'selected' : ''}>${escapeHtml(admin.username)}</option>`).join('')}
+        </select></td>
+        <td><select aria-label="Status for request ${request.id}"
+          onchange="updateRequestStatus(${request.id}, this.value)">
           ${['OPEN','IN_PROGRESS','APPROVED','REJECTED','COMPLETED'].map(option => `<option value="${option}" ${option === request.status ? 'selected' : ''}>${option.replace('_', ' ')}</option>`).join('')}
         </select></td>
         <td><button class="btn-small" onclick="viewRequest(${request.id})">View</button></td>
-      </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;">No requests found.</td></tr>';
+      </tr>`).join('') : '<tr><td colspan="7" style="text-align:center;">No requests found.</td></tr>';
   } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--danger);">${escapeHtml(err.message)}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--danger);">${escapeHtml(err.message)}</td></tr>`;
   }
 }
 
@@ -1099,16 +1170,56 @@ async function updateRequestStatus(id, status) {
   }
 }
 
+async function updateRequestAssignee(id, assigneeId) {
+  try {
+    await apiFetch(`/student/requests/admin/${id}/assignee`, {
+      method: 'PATCH',
+      body: JSON.stringify({ assigneeId: assigneeId ? Number(assigneeId) : null }),
+    });
+    await loadRequests();
+  } catch (err) {
+    alert(err.message || 'Unable to update request owner.');
+    await loadRequests();
+  }
+}
+
 async function viewRequest(id) {
   try {
-    const request = await apiGet(`/student/requests/admin/${id}`);
+    const [request, history] = await Promise.all([
+      apiGet(`/student/requests/admin/${id}`),
+      apiGet(`/student/requests/admin/${id}/history`),
+    ]);
+    const historyDescription = event => {
+      const actor = event.actorUsername ? ` by ${escapeHtml(event.actorUsername)}` : '';
+      if (event.eventType === 'CREATED') {
+        return `Submitted with status ${escapeHtml(event.toStatus || 'OPEN')}${actor}`;
+      }
+      if (event.eventType === 'STATUS_CHANGED') {
+        return `Status changed from ${escapeHtml(event.fromStatus || '—')} to ${escapeHtml(event.toStatus || '—')}${actor}`;
+      }
+      if (event.eventType === 'ASSIGNED') {
+        return `Assigned to ${escapeHtml(event.toAssigneeUsername || 'administrator')}${actor}`;
+      }
+      if (event.eventType === 'REASSIGNED') {
+        return `Reassigned from ${escapeHtml(event.fromAssigneeUsername || 'administrator')} to ${escapeHtml(event.toAssigneeUsername || 'administrator')}${actor}`;
+      }
+      if (event.eventType === 'UNASSIGNED') {
+        return `Unassigned from ${escapeHtml(event.fromAssigneeUsername || 'administrator')}${actor}`;
+      }
+      return `Request activity recorded${actor}`;
+    };
     openModal(`<span class="modal-close" onclick="closeModal()">&times;</span>
       <h2>Request #${request.id}</h2>
       <p><strong>Student:</strong> ${escapeHtml(request.studentName)} (${escapeHtml(request.studentUsername)})</p>
       <p><strong>Type:</strong> ${escapeHtml(request.type)}</p>
       <p><strong>Subject:</strong> ${escapeHtml(request.subject)}</p>
       <p><strong>Details:</strong><br>${escapeHtml(request.details || 'No details provided.')}</p>
-      <p><strong>Status:</strong> ${escapeHtml(request.status)}</p>`);
+      <p><strong>Status:</strong> ${escapeHtml(request.status)}</p>
+      <p><strong>Administrator owner:</strong> ${escapeHtml(request.assigneeUsername || 'Unassigned')}</p>
+      <p><strong>Submitted:</strong> ${escapeHtml(request.createdAt || '—')}</p>
+      <p><strong>Last updated:</strong> ${escapeHtml(request.updatedAt || 'Not tracked before this workflow update')}</p>
+      <h3>Request history</h3>
+      <ol>${history.map(event => `<li>${historyDescription(event)}<br><time>${escapeHtml(event.createdAt || 'Time unavailable')}</time></li>`).join('') || '<li>No recorded activity.</li>'}</ol>`);
   } catch (err) { alert(err.message); }
 }
 
@@ -1366,14 +1477,14 @@ async function enrollAcceptedApplication(applicationId) {
 
 function openAdmissionEnrollmentModal(applicationId, candidates) {
   const options = candidates.map(student => {
-    const details = `${student.fullName} · ${student.username}${student.registrationNumber ? ` · ${student.registrationNumber}` : ''}${student.enrolled ? ' · Already enrolled' : ''}`;
+    const details = `${student.fullName} · ${student.username}${student.email ? ` · Contact email: ${student.email}` : ''}${student.registrationNumber ? ` · ${student.registrationNumber}` : ''}${student.enrolled ? ' · Already enrolled' : ''}`;
     return `<option value="${student.id}" ${student.enrolled ? 'disabled' : ''}>${escapeHtml(details)}</option>`;
   }).join('');
   const available = candidates.some(student => !student.enrolled);
   openModal(`
     <span class="modal-close" onclick="closeModal()">&times;</span>
     <h2>Enroll accepted applicant</h2>
-    <p>Only active student accounts with an email matching the application are shown.</p>
+    <p>Only active student accounts whose profile contact email matches the applicant email are shown.</p>
     <form id="admissionEnrollmentForm">
       <div class="modal-field">
         <label for="admissionStudentId">Student account</label>
@@ -1425,7 +1536,8 @@ function renderSystemStatus(id, component) {
   element.title = component?.detail || 'System status could not be retrieved.';
   element.classList.remove('online', 'warning', 'error');
   if (status === 'online' || status === 'configured') element.classList.add('online');
-  else if (status === 'disabled' || status === 'incomplete' || status === 'not_configured') {
+  else if (status === 'disabled' || status === 'incomplete'
+    || status === 'not_configured' || status === 'untested') {
     element.classList.add('warning');
   } else element.classList.add('error');
 }
@@ -1524,7 +1636,7 @@ function openStudentForm(prefill = {}, onCreated = null) {
         ? '<p class="muted">A secure temporary password will be generated. If email delivery is configured, it will be sent to the student; otherwise, it will be shown once for private handoff. The student must change it before accessing student services.</p>'
         : '<div class="modal-field"><label>Password *</label><input name="password" type="password" required minlength="6"></div>'}
       <div class="modal-row">
-        <div class="modal-field"><label>Email *</label><input name="email" type="email" value="${escapeHtml(prefill.email || '')}" required></div>
+        <div class="modal-field"><label>Account Email *</label><input name="email" type="email" value="${escapeHtml(prefill.email || '')}" required><small>Used for sign-in and password recovery; it also initializes the profile contact email. These can be updated separately later.</small></div>
         <div class="modal-field"><label>Phone</label><input name="phone" value="${escapeHtml(prefill.phone || '')}"></div>
       </div>
       <div class="modal-field"><label>Class / Program</label><input name="className" value="${escapeHtml(prefill.className || '')}" placeholder="e.g. B.IT Year 2"></div>
@@ -1605,8 +1717,9 @@ function openEditStudentModal(id) {
     <form id="editStudentForm">
       <div class="modal-field"><label>Full Name *</label><input name="fullName" value="${escapeHtml(student.fullName)}" required></div>
       <div class="modal-field"><label>Class / Program</label><input name="className" value="${escapeHtml(student.className || '')}"></div>
+      <p class="muted">Contact email is separate from the account email used for sign-in and password recovery.</p>
       <div class="modal-row">
-        <div class="modal-field"><label>Email</label><input name="email" type="email" value="${escapeHtml(student.email || '')}"></div>
+        <div class="modal-field"><label>Contact Email</label><input name="email" type="email" value="${escapeHtml(student.email || '')}"></div>
         <div class="modal-field"><label>Phone</label><input name="phone" value="${escapeHtml(student.phone || '')}"></div>
       </div>
       <div class="modal-field"><label>Address</label><textarea name="address" rows="2">${escapeHtml(student.address || '')}</textarea></div>
@@ -2374,7 +2487,7 @@ async function loadHrManagement() {
     const accountSelect = document.getElementById('hrStaffUser');
     if (accountSelect) {
       accountSelect.innerHTML = '<option value="">Select an active admin/teacher account</option>'
-        + eligibleUsers.map(user => `<option value="${Number(user.id)}">${escapeHtml(user.username)} · ${escapeHtml(user.role)} · ${escapeHtml(user.email || 'no email')}</option>`).join('');
+        + eligibleUsers.map(user => `<option value="${Number(user.id)}">${escapeHtml(user.username)} · ${escapeHtml(user.role)} · Account email: ${escapeHtml(user.email || 'none')}</option>`).join('');
     }
 
     staffBody.innerHTML = staff.length ? staff.map(item => `
@@ -2499,7 +2612,7 @@ async function openStaffForm() {
       <div class="modal-field"><label>Subject Specialization</label><input name="department" maxlength="255"></div>
       <div class="modal-field"><label>Qualification</label><textarea name="qualification" rows="2"></textarea></div>
       <div class="modal-row">
-        <div class="modal-field"><label>Email</label><input name="email" type="email"></div>
+        <div class="modal-field"><label>Account Email</label><input name="email" type="email"><small>Used for sign-in and password recovery; it also initializes the profile contact email. These can be updated separately later.</small></div>
         <div class="modal-field"><label>Phone</label><input name="phone"></div>
       </div>
       <div class="modal-actions">
@@ -2512,7 +2625,7 @@ async function openStaffForm() {
     e.preventDefault();
     const fd = new FormData(e.target);
     try {
-      await apiFetch('/admin/teachers/hire', {
+      const hiredTeacherResponse = await apiFetch('/admin/teachers/hire', {
         method: 'POST',
         body: JSON.stringify({
           fullName: fd.get('fullName'), username: fd.get('username'), password: fd.get('password'),
@@ -2522,8 +2635,18 @@ async function openStaffForm() {
           email: fd.get('email'), phone: fd.get('phone'),
         }),
       });
+      const hiredTeacher = await hiredTeacherResponse.json();
       closeModal();
       loadStaff();
+      const emailSent = hiredTeacher?.emailSent === true;
+      setAdminStatus(
+        'staffStatus',
+        hiredTeacher?.emailDeliveryMessage
+          || (emailSent
+            ? 'Teacher account created and sign-in details emailed.'
+            : 'Teacher account created, but email delivery was not confirmed. Arrange sign-in details using the approved secure handoff.'),
+        emailSent ? 'success' : 'error',
+      );
     } catch (err) { alert(err.message); }
   });
 }
@@ -2560,7 +2683,7 @@ async function openEditStaffModal(id) {
       <div class="modal-field"><label>Subject Specialization</label><input name="department" maxlength="255" value="${escapeHtml(teacher.department || '')}"></div>
       <div class="modal-field"><label>Qualification</label><textarea name="qualification" rows="2">${escapeHtml(teacher.qualification || '')}</textarea></div>
       <div class="modal-row">
-        <div class="modal-field"><label>Email</label><input name="email" type="email" value="${escapeHtml(teacher.email || '')}"></div>
+        <div class="modal-field"><label>Contact Email</label><input name="email" type="email" value="${escapeHtml(teacher.email || '')}"></div>
         <div class="modal-field"><label>Phone</label><input name="phone" value="${escapeHtml(teacher.phone || '')}"></div>
       </div>
       <div class="modal-actions">
@@ -2862,8 +2985,23 @@ async function testEmail() {
   if (!recipient) return;
   try {
     await apiFetch('/admin/email/test', { method: 'POST', body: JSON.stringify({ recipient }) });
-    alert('The email provider accepted the test message. Check the recipient inbox and spam folder to confirm delivery.');
-  } catch (err) { alert(err.message || 'Test email failed.'); }
+    showAdminToast(
+      'The provider accepted the test message. Check the recipient inbox and spam folder to confirm delivery.',
+      'success',
+    );
+  } catch (err) {
+    const message = String(err.message || '');
+    const status = message.match(/\bHTTP\s+(\d{3})\b/i)?.[1];
+    if (status === '401') {
+      showAdminToast('Resend rejected the API key. Update the private Render MAIL_API_KEY setting and try again.', 'error');
+    } else if (status === '403') {
+      showAdminToast('Resend rejected the sender. Verify the sender domain in Resend and match it to MAIL_FROM_EMAIL.', 'error');
+    } else if (status === '422') {
+      showAdminToast('Resend rejected the message. Check the sender and recipient addresses, then try again.', 'error');
+    } else {
+      showAdminToast('The test email was not accepted. Check the Resend send log and private Render mail settings, then try again.', 'error');
+    }
+  }
 }
 function viewTask() { switchModule('requests'); }
 

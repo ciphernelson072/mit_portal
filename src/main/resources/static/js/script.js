@@ -55,6 +55,21 @@ async function handleLogin(event) {
 
     if (!res.ok) {
       const errorBody = await res.clone().json().catch(() => ({}));
+      if (errorBody.mfaEnrollmentRequired) {
+        if (errorBody.role !== 'STUDENT') {
+          await logout('index.html');
+          showAlert('This is the student portal. Staff should sign in at the admin portal.', 'Wrong Portal');
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = 'SIGN IN <span class="arrow">›</span>';
+          return;
+        }
+        setSession(errorBody.role, errorBody.username, errorBody.passwordChangeRequired);
+        setMfaEnrollmentRequired(true);
+        window.location.href = errorBody.passwordChangeRequired
+          ? 'force-password-change.html'
+          : 'account-security.html';
+        return;
+      }
       if (errorBody.mfaRequired) {
         const otpGroup = document.getElementById('otpGroup');
         otpGroup.hidden = false;
@@ -146,12 +161,5 @@ async function requestPasswordReset(event) {
 
 // ===== INITIALIZATION =====
 document.addEventListener('DOMContentLoaded', function () {
-  // Already signed in? Skip straight to the dashboard. This is a UX shortcut
-  // only (see auth.js) - if the underlying cookie is actually gone or expired,
-  // the dashboard's own apiFetch calls will redirect back here regardless.
-  if (getRole() === 'STUDENT') {
-    window.location.href = 'dashboard.html';
-    return;
-  }
   document.getElementById('username').focus();
 });

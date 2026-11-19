@@ -8,10 +8,14 @@ import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchyImpl;
 import org.springframework.security.access.expression.method.DefaultMethodSecurityExpressionHandler;
 import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
+import org.springframework.security.authorization.AuthorizationDecision;
+import org.springframework.security.authorization.AuthorizationManager;
+import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.Arrays;
 import java.util.Set;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -54,12 +58,10 @@ public class SecurityConfig {
 
     @Bean
     public RoleHierarchy roleHierarchy() {
-        RoleHierarchyImpl hierarchy = new RoleHierarchyImpl();
-        hierarchy.setHierarchy(
+        return RoleHierarchyImpl.fromHierarchy(
                 "ADMIN > TEACHER\n" +
                 "ADMIN > STUDENT"
         );
-        return hierarchy;
     }
 
         @Bean
@@ -67,6 +69,15 @@ public class SecurityConfig {
                 DefaultMethodSecurityExpressionHandler handler = new DefaultMethodSecurityExpressionHandler();
                 handler.setRoleHierarchy(roleHierarchy);
                 return handler;
+        }
+
+        private static AuthorizationManager<RequestAuthorizationContext> hasExactAuthority(String authority) {
+            return (authentication, context) -> {
+                Authentication current = authentication.get();
+                return new AuthorizationDecision(current != null && current.isAuthenticated()
+                        && current.getAuthorities().stream()
+                                .anyMatch(granted -> authority.equals(granted.getAuthority())));
+            };
         }
 
     @Bean
@@ -103,14 +114,14 @@ public class SecurityConfig {
                         // globally open, so the server enforces the role gate before the UI
                         // renders. The actual role override model is established by the
                         // role hierarchy: ADMIN can supervise TEACHER and STUDENT access.
-                        .antMatchers(
+                        .requestMatchers(
                                 "/api/auth/**",
                                 "/api/public/**",
+                                "/error",
                                 "/api/v1/health",
                                 "/api/v1/openapi",
                                 "/actuator/health", "/actuator/health/**",
-                                "/", "/portal-gateway.html", "/index.html", "/admissions.html",
-                                "/portal-login.html",
+                                "/", "/home.html", "/index.html", "/portal-login.html", "/admissions.html",
                                 "/admin-login.html", "/course-catalog.html",
                                 "/force-password-change.html",
                                 "/terms.html", "/privacy.html", "/support.html",
@@ -123,41 +134,42 @@ public class SecurityConfig {
                         ).permitAll()
                         // Coarse role gates, kept in sync with (not a replacement for) each
                         // controller's own @PreAuthorize.
-                        .antMatchers("/api/admin/exam-permits/**")
+                        .requestMatchers("/api/admin/exam-permits/**")
                         .hasAnyAuthority("ADMIN", "PERM_EXAM_PERMIT_MANAGE")
-                        .antMatchers("/api/admin/grades/**")
+                        .requestMatchers("/api/admin/grades/**")
                         .hasAuthority("ADMIN")
-                        .antMatchers("/api/admin/email/**")
+                        .requestMatchers("/api/admin/email/**")
                         .hasAnyAuthority("ADMIN", "PERM_EMAIL_CAMPAIGN_MANAGE")
-                        .antMatchers("/api/admin/fees")
+                        .requestMatchers("/api/admin/fees")
                         .hasAnyAuthority("ADMIN", "PERM_FINANCE_FEE_MANAGE")
-                        .antMatchers("/api/admin/institution/**")
+                        .requestMatchers("/api/admin/institution/**")
                         .hasAnyAuthority("ADMIN", "PERM_ACADEMIC_OPS_MANAGE", "PERM_REGISTRATION_MANAGE")
-                        .antMatchers("/api/admin/system/**")
+                        .requestMatchers("/api/admin/system/**")
                         .hasAnyAuthority("ADMIN", "PERM_PORTAL_SETTINGS_MANAGE")
-                        .antMatchers("/api/admin/**").hasAuthority("ADMIN")
-                        .antMatchers("/api/teacher/**")
+                        .requestMatchers("/api/admin/**").hasAuthority("ADMIN")
+                        .requestMatchers("/api/teacher/**")
                         .hasAnyAuthority("ADMIN", "TEACHER", "PERM_ACADEMIC_OPS_MANAGE")
-                        .antMatchers("/api/student/requests/admin/**")
+                        .requestMatchers("/api/student/requests/admin/**")
                         .hasAnyAuthority("ADMIN", "PERM_SERVICE_REQUEST_MANAGE")
-                        .antMatchers("/api/student/requests/**").hasAnyAuthority("ADMIN", "STUDENT", "TEACHER")
-                        .antMatchers("/api/student/**").hasAnyAuthority("ADMIN", "STUDENT")
-                        .antMatchers("/api/files/admin/list", "/api/files/delete")
+                        .requestMatchers("/api/student/requests/**").hasAnyAuthority("ADMIN", "STUDENT", "TEACHER")
+                        .requestMatchers("/api/student/**").hasAnyAuthority("ADMIN", "STUDENT")
+                        .requestMatchers("/api/files/admin/list", "/api/files/delete")
                         .hasAnyAuthority("ADMIN", "PERM_PORTAL_SETTINGS_MANAGE")
-                        .antMatchers("/api/files/**").hasAnyAuthority("ADMIN", "STUDENT", "TEACHER", "PERM_PORTAL_SETTINGS_MANAGE")
-                        .antMatchers("/account-security.html").hasAnyAuthority("ADMIN", "TEACHER", "STUDENT")
-                        .antMatchers("/dashboard.html").hasAuthority("STUDENT")
-                        .antMatchers("/academics.html", "/attendance.html", "/finance.html", "/campus-support.html", "/profile.html")
-                        .hasAuthority("STUDENT")
-                        .antMatchers(
+                        .requestMatchers("/api/files/**").hasAnyAuthority("ADMIN", "STUDENT", "TEACHER", "PERM_PORTAL_SETTINGS_MANAGE")
+                        .requestMatchers("/account-security.html").hasAnyAuthority(
+                                "ADMIN", "TEACHER", "STUDENT", "MFA_ENROLLMENT", "PASSWORD_CHANGE_REQUIRED")
+                        .requestMatchers("/dashboard.html").access(hasExactAuthority("STUDENT"))
+                        .requestMatchers("/academics.html", "/attendance.html", "/finance.html", "/campus-support.html", "/profile.html")
+                        .access(hasExactAuthority("STUDENT"))
+                        .requestMatchers(
                                 "/announcements.html", "/documents.html", "/hostel.html", "/library.html",
                                 "/notifications.html", "/research.html", "/scholarships.html",
                                 "/support-tickets.html")
-                        .hasAuthority("STUDENT")
-                        .antMatchers("/admin-dashboard.html").hasAuthority("ADMIN")
-                        .antMatchers("/teacher-dashboard.html").hasAnyAuthority("ADMIN", "TEACHER")
-                        .antMatchers("/operations.html").hasAnyAuthority("ADMIN", "TEACHER", "STUDENT")
-                        .antMatchers("/file-management.html").hasAnyAuthority("ADMIN", "PERM_PORTAL_SETTINGS_MANAGE")
+                        .access(hasExactAuthority("STUDENT"))
+                        .requestMatchers("/admin-dashboard.html").hasAuthority("ADMIN")
+                        .requestMatchers("/teacher-dashboard.html").hasAnyAuthority("ADMIN", "TEACHER")
+                        .requestMatchers("/operations.html").hasAnyAuthority("ADMIN", "TEACHER", "STUDENT")
+                        .requestMatchers("/file-management.html").hasAnyAuthority("ADMIN", "PERM_PORTAL_SETTINGS_MANAGE")
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex
@@ -190,10 +202,10 @@ public class SecurityConfig {
 
     @Bean
     public AuthenticationManager authenticationManager(HttpSecurity http) throws Exception {
-        return http.getSharedObject(AuthenticationManagerBuilder.class)
-                .userDetailsService(userDetailsService)
-                .passwordEncoder(passwordEncoder())
-                .and()
-                .build();
+        AuthenticationManagerBuilder authenticationManagerBuilder =
+                http.getSharedObject(AuthenticationManagerBuilder.class);
+        authenticationManagerBuilder.userDetailsService(userDetailsService)
+                .passwordEncoder(passwordEncoder());
+        return authenticationManagerBuilder.build();
     }
 }

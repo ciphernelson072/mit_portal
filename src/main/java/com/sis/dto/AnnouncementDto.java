@@ -8,16 +8,23 @@ public class AnnouncementDto {
     private String content;
     private LocalDateTime createdAt;
     private String authorName;
+    private String audience;
 
     public AnnouncementDto() {
     }
 
     public AnnouncementDto(Long id, String title, String content, LocalDateTime createdAt, String authorName) {
+        this(id, title, content, createdAt, authorName, "ALL");
+    }
+
+    public AnnouncementDto(Long id, String title, String content, LocalDateTime createdAt, String authorName,
+                           String audience) {
         this.id = id;
         this.title = title;
         this.content = content;
         this.createdAt = createdAt;
         this.authorName = authorName;
+        this.audience = audience == null ? "ALL" : audience;
     }
 
     public Long getId() {
@@ -58,5 +65,13 @@ public class AnnouncementDto {
 
     public void setAuthorName(String authorName) {
         this.authorName = authorName;
+    }
+
+    public String getAudience() {
+        return audience;
+    }
+
+    public void setAudience(String audience) {
+        this.audience = audience;
     }
 }

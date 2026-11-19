@@ -1,7 +1,7 @@
 package com.sis.dto;
 
 import com.sis.entity.ProcurementRequestStatus;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 
 public class ReviewProcurementRequest {
     @NotNull private ProcurementRequestStatus status;

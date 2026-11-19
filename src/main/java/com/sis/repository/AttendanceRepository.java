@@ -1,7 +1,6 @@
 package com.sis.repository;
 
 import com.sis.entity.Attendance;
-import com.sis.entity.Student;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

@@ -7,6 +7,7 @@ import com.sis.entity.Grade;
 import com.sis.entity.Student;
 import com.sis.exception.ResourceNotFoundException;
 import com.sis.repository.AuditLogRepository;
+import com.sis.repository.GradeRepository;
 import com.sis.repository.UserRepository;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -22,27 +23,27 @@ import java.io.InputStream;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 public class GradeImportService {
 
     private final SchoolService schoolService;
     private final AuditLogRepository auditLogRepository;
+    private final GradeRepository gradeRepository;
     private final UserRepository userRepository;
 
     public GradeImportService(SchoolService schoolService, AuditLogRepository auditLogRepository,
+                              GradeRepository gradeRepository,
                               UserRepository userRepository) {
         this.schoolService = schoolService;
         this.auditLogRepository = auditLogRepository;
+        this.gradeRepository = gradeRepository;
         this.userRepository = userRepository;
     }
 
     @Transactional
     public List<AdminGradeDto> importGrades(MultipartFile file, String importedBy) {
-        Long actorId = userRepository.findByUsernameNormalized(importedBy)
-                .orElseThrow(() -> new IllegalStateException("Authenticated user not found: " + importedBy))
-                .getId();
+        Long actorId = actorId(importedBy);
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("Grade import file is required.");
         }
@@ -69,51 +70,89 @@ public class GradeImportService {
             }
         }
 
+        List<PreparedImport> preparedRows = rows.stream().map(this::prepare).toList();
         List<AdminGradeDto> output = new ArrayList<>();
-        for (AdminGradeImportRequest row : rows) {
-            Student student = schoolService.getStudentById(row.getStudentId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Student not found: " + row.getStudentId()));
-            Course course = schoolService.getCourseById(row.getCourseId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Course not found: " + row.getCourseId()));
-            if (!schoolService.studentEnrolledInCourse(student.getId(), course.getId())) {
-                throw new IllegalArgumentException("Student " + student.getId()
-                        + " is not enrolled in course " + course.getId() + ".");
-            }
-
-            Grade grade = schoolService.saveGrade(student, course, row.getGradeValue(), row.getRemarks());
-            if (row.getGpaScore() != null) {
-                if (row.getGpaScore().compareTo(grade.getGpaScore()) != 0) {
-                    throw new IllegalArgumentException("Imported GPA score does not match the configured grade mapping.");
-                }
-            }
-
-            auditLogRepository.save(new com.sis.entity.AuditLog(actorId, "GRADE_IMPORTED_FILE",
-                    "Grade " + grade.getId() + " imported for student " + student.getId()
-                            + " in course " + course.getId()));
-            output.add(new AdminGradeDto(
-                    grade.getId(),
-                    student.getId(),
-                    student.getFullName(),
-                    student.getUser().getUsername(),
-                    course.getId(),
-                    course.getName(),
-                    grade.getGradeValue(),
-                    grade.getGpaScore(),
-                    grade.getRemarks(),
-                    grade.getStatus() != null ? grade.getStatus().name() : "PENDING",
-                    grade.getSubmittedBy(),
-                    grade.getApprovedBy(),
-                    grade.getRejectedBy(),
-                    grade.getRejectionReason(),
-                    grade.getTotalMark(),
-                    grade.getRetakeRequired(),
-                    grade.getGradingPolicyVersion()
-            ));
+        for (PreparedImport prepared : preparedRows) {
+            Grade grade = saveImportedGrade(prepared, importedBy);
+            auditImport(actorId, "GRADE_IMPORTED_FILE", grade, prepared.student(), prepared.course());
+            output.add(toDto(grade, prepared.student(), prepared.course()));
         }
         return output;
     }
 
+    @Transactional
+    public AdminGradeDto importGrade(AdminGradeImportRequest row, String importedBy) {
+        Long actorId = actorId(importedBy);
+        validate(row);
+        PreparedImport prepared = prepare(row);
+        Grade grade = saveImportedGrade(prepared, importedBy);
+        auditImport(actorId, "GRADE_IMPORTED", grade, prepared.student(), prepared.course());
+        return toDto(grade, prepared.student(), prepared.course());
+    }
+
+    private Long actorId(String importedBy) {
+        return userRepository.findByUsernameNormalized(importedBy)
+                .orElseThrow(() -> new IllegalStateException("Authenticated user not found: " + importedBy))
+                .getId();
+    }
+
+    private PreparedImport prepare(AdminGradeImportRequest row) {
+        BigDecimal calculatedGpa = GradeCalculationService.gradeToGpa(row.getGradeValue());
+        if (row.getGpaScore() != null && row.getGpaScore().compareTo(calculatedGpa) != 0) {
+            throw new IllegalArgumentException("Imported GPA score does not match the configured grade mapping.");
+        }
+        Student student = schoolService.getStudentById(row.getStudentId())
+                .orElseThrow(() -> new ResourceNotFoundException("Student not found: " + row.getStudentId()));
+        Course course = schoolService.getCourseById(row.getCourseId())
+                .orElseThrow(() -> new ResourceNotFoundException("Course not found: " + row.getCourseId()));
+        if (!schoolService.studentEnrolledInCourse(student.getId(), course.getId())) {
+            throw new IllegalArgumentException("Student " + student.getId()
+                    + " is not enrolled in course " + course.getId() + ".");
+        }
+        if (gradeRepository.existsByStudentIdAndCourseId(student.getId(), course.getId())) {
+            throw new IllegalArgumentException("A grade attempt already exists for student " + student.getId()
+                    + " and course " + course.getId() + ". Use the correction or retake workflow instead.");
+        }
+        row.setGradeValue(row.getGradeValue().trim().toUpperCase(Locale.ROOT));
+        return new PreparedImport(row, student, course);
+    }
+
+    private Grade saveImportedGrade(PreparedImport prepared, String importedBy) {
+        return schoolService.saveGrade(prepared.student(), prepared.course(),
+                prepared.row().getGradeValue(), prepared.row().getRemarks(), importedBy);
+    }
+
+    private void auditImport(Long actorId, String action, Grade grade, Student student, Course course) {
+        auditLogRepository.save(new com.sis.entity.AuditLog(actorId, action,
+                "Grade " + grade.getId() + " imported for student " + student.getId()
+                        + " in course " + course.getId()));
+    }
+
+    private AdminGradeDto toDto(Grade grade, Student student, Course course) {
+        return new AdminGradeDto(
+                grade.getId(),
+                student.getId(),
+                student.getFullName(),
+                student.getUser().getUsername(),
+                course.getId(),
+                course.getName(),
+                grade.getGradeValue(),
+                grade.getGpaScore(),
+                grade.getRemarks(),
+                grade.getStatus() != null ? grade.getStatus().name() : "PENDING",
+                grade.getSubmittedBy(),
+                grade.getApprovedBy(),
+                grade.getRejectedBy(),
+                grade.getRejectionReason(),
+                grade.getTotalMark(),
+                grade.getRetakeRequired(),
+                grade.getGradingPolicyVersion());
+    }
+
     private void validate(AdminGradeImportRequest row) {
+        if (row == null) {
+            throw new IllegalArgumentException("Grade import row is required.");
+        }
         if (row.getStudentId() == null) {
             throw new IllegalArgumentException("studentId is required in each grade import row.");
         }
@@ -123,6 +162,9 @@ public class GradeImportService {
         if (row.getGradeValue() == null || row.getGradeValue().isBlank()) {
             throw new IllegalArgumentException("gradeValue is required in each grade import row.");
         }
+    }
+
+    private record PreparedImport(AdminGradeImportRequest row, Student student, Course course) {
     }
 
     private List<AdminGradeImportRequest> parseCsv(MultipartFile file) {

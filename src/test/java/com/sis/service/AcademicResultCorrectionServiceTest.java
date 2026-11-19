@@ -5,6 +5,7 @@ import com.sis.entity.*;
 import com.sis.repository.*;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -92,6 +93,33 @@ class AcademicResultCorrectionServiceTest {
         assertThrows(IllegalStateException.class,
                 () -> service.authorize(15L, "Another correction", "admin"));
         verify(corrections, never()).save(any());
+    }
+
+    @Test
+    void correctionResubmissionNotifiesActiveAdministrators() {
+        Grade grade = approvedGrade(16L);
+        GradeCorrectionRequest correction = new GradeCorrectionRequest(
+                grade, "Approved correction reason", "{}", "admin", java.time.LocalDateTime.now());
+        ReflectionTestUtils.setField(correction, "id", 26L);
+        User actor = new User("teacher", "encoded", Role.TEACHER);
+        actor.setId(5L);
+        User administrator = new User("admin", "encoded", Role.ADMIN);
+        administrator.setId(7L);
+        NotificationService notifications = mock(NotificationService.class);
+        ReflectionTestUtils.setField(service, "notifications", notifications);
+        when(corrections.findTopByGradeIdAndStatusInOrderByIdDesc(
+                eq(16L), argThat(statuses -> statuses.contains(GradeCorrectionStatus.IN_PROGRESS))))
+                .thenReturn(Optional.of(correction));
+        when(users.findByUsernameNormalized("teacher")).thenReturn(Optional.of(actor));
+        when(users.findByRoleAndIsActiveTrue(Role.ADMIN)).thenReturn(List.of(administrator));
+
+        service.markSubmitted(16L, "teacher");
+
+        assertEquals(GradeCorrectionStatus.SUBMITTED, correction.getStatus());
+        verify(notifications).create(7L, "Grade correction submitted for review",
+                "Correction #26 for grade #16 is ready for administrator review.",
+                NotificationCategory.GRADE);
+        verify(audits).save(argThat(log -> "GRADE_CORRECTION_SUBMITTED".equals(log.getAction())));
     }
 
     private Grade approvedGrade(Long id) {

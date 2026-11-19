@@ -166,12 +166,8 @@ function getUsername() { return localStorage.getItem(USERNAME_KEY); }
 function getPasswordChangeRequired() {
   return localStorage.getItem(PASSWORD_CHANGE_KEY) === 'true';
 }
-function setMfaEnrollmentRequired(required) {
-  if (required) {
-    localStorage.setItem(MFA_ENROLLMENT_KEY, 'true');
-  } else {
-    localStorage.removeItem(MFA_ENROLLMENT_KEY);
-  }
+function isMfaEnrollmentRequired() {
+  return localStorage.getItem(MFA_ENROLLMENT_KEY) === 'true';
 }
 
 async function getResponseErrorMessage(response, fallback) {
@@ -212,6 +208,14 @@ function setSession(role, username, passwordChangeRequired = false) {
   localStorage.setItem(USERNAME_KEY, username);
   localStorage.setItem(PASSWORD_CHANGE_KEY, String(Boolean(passwordChangeRequired)));
   localStorage.removeItem(MFA_ENROLLMENT_KEY);
+}
+
+function setMfaEnrollmentRequired(required) {
+  if (required) {
+    localStorage.setItem(MFA_ENROLLMENT_KEY, 'true');
+  } else {
+    localStorage.removeItem(MFA_ENROLLMENT_KEY);
+  }
 }
 
 function clearSession() {

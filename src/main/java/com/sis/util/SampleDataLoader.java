@@ -8,6 +8,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.math.BigDecimal;
 import java.util.logging.Logger;
@@ -44,6 +45,9 @@ public class SampleDataLoader implements CommandLineRunner {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Value("${sis.sample-data.users.enabled:true}")
+    private boolean sampleUsersEnabled;
+
     @Override
     @Transactional
     public void run(String... args) throws Exception {
@@ -67,6 +71,11 @@ public class SampleDataLoader implements CommandLineRunner {
         admin.setIsActive(true);
         userRepository.save(admin);
         logger.info("Admin user created");
+
+        if (!sampleUsersEnabled) {
+            logger.info("Sample users disabled; only the administrator demo account was created.");
+            return;
+        }
 
         // Create Teacher Users
         User teacher1User = new User();

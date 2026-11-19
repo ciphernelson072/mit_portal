@@ -7,21 +7,27 @@ import com.sis.entity.UserPreference;
 import com.sis.repository.UserPreferenceRepository;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @Service
 public class PreferencePolicyService {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final Logger LOGGER = Logger.getLogger(PreferencePolicyService.class.getName());
     private static final List<NotificationCategory> CATEGORY_ORDER = List.of(
             NotificationCategory.ASSIGNMENT,
             NotificationCategory.GRADE,
             NotificationCategory.SYSTEM,
-            NotificationCategory.PAYMENT
+            NotificationCategory.PAYMENT,
+            NotificationCategory.ATTENDANCE,
+            NotificationCategory.ANNOUNCEMENT
     );
-    private static final List<Boolean> DEFAULT_NOTIFICATION_VISIBILITY = List.of(true, true, false, true);
+    private static final List<Boolean> DEFAULT_NOTIFICATION_VISIBILITY =
+            List.of(true, true, false, true, true, true);
 
     private final UserPreferenceRepository preferences;
 
@@ -42,6 +48,31 @@ public class PreferencePolicyService {
             return true;
         }
         return Boolean.TRUE.equals(visibility.get(index));
+    }
+
+    public boolean emailNotificationsEnabled(Long userId) {
+        if (userId == null) {
+            return false;
+        }
+        UserPreference preference = preferences.findByUserId(userId).orElse(null);
+        if (preference == null || preference.getSettingsJson() == null || preference.getSettingsJson().isBlank()) {
+            return false;
+        }
+
+        try {
+            Map<String, Object> settings = OBJECT_MAPPER.readValue(
+                    preference.getSettingsJson(), new TypeReference<Map<String, Object>>() {});
+            Object privacy = settings.get("privacy");
+            if (privacy instanceof List<?> list && list.size() > 2 && list.get(2) instanceof Boolean enabled) {
+                return enabled;
+            }
+            return false;
+        } catch (com.fasterxml.jackson.core.JsonProcessingException exception) {
+            LOGGER.log(Level.WARNING,
+                    "Saved email notification preference is invalid for user " + userId + "; optional email is disabled.",
+                    exception);
+            return false;
+        }
     }
 
     public List<Boolean> notificationVisibility(Long userId) {

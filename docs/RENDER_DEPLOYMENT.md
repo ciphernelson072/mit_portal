@@ -1,15 +1,84 @@
 # Render deployment for testing
 
-The repository includes a root-level `render.yaml` Blueprint for a single
-Docker web service. In Render, create a Blueprint from this repository and
-provide the prompted `sync: false` environment variables. Do not deploy the
-production profile until the database and public URLs are configured.
-The local Git repository is configured with `origin` pointing to
-`ciphernelson072/mit_portal`, but the prepared branch has not been pushed because
-GitHub authentication is required. That existing repository is public. Publish
-the `ready-project-2026-10-21` branch and review it through a pull request;
-the existing remote `main` has unrelated history, so do not force-push. Connect
-the reviewed repository to Render before creating the Blueprint.
+## Current test deployment
+
+The Render Free test service was verified after deployment of commit `9c212d4`
+on 10 November 2026. GitHub Actions passed the backend, MySQL migration,
+frontend, browser, and Docker image gates; Render readiness returned `UP`, and
+the gateway, student sign-in, employee sign-in, and public pages returned
+HTTP 200. The public service is
+[`https://makerere-institute-of-technology.onrender.com/`](https://makerere-institute-of-technology.onrender.com/).
+This is a test deployment, not production approval.
+
+The active Free service uses `UPLOAD_DIR=/tmp/uploads`; uploads are ephemeral
+and may be lost on restart or redeploy. The Free Blueprint now uses the same
+path. Verify the service is connected to an isolated test database before
+creating accounts or entering data. Never use real student records in this
+environment. Documentation and sitemap changes made after commit `9c212d4`
+are not part of that deployed release unless separately built and deployed.
+
+The root `render.yaml` Blueprint is for a paid Starter service with a persistent
+uploads disk. For public student testing on Render Free, select
+[`render.free.yaml`](../render.free.yaml) as the Blueprint file instead. This
+free service has no persistent disk, may sleep when idle, and must use a
+separate, empty MySQL-compatible test database/schema with its own least-privilege
+account. Never point it at the shared/live TiDB database or load real student
+records. The free Blueprint keeps sample accounts and first-admin bootstrap
+disabled; create only the test accounts you need after deployment.
+Because the database starts empty, provision one named test administrator for
+the initial deployment by temporarily setting `INITIAL_ADMIN_BOOTSTRAP_ENABLED`
+to `true` and providing unique `INITIAL_ADMIN_USERNAME`,
+`INITIAL_ADMIN_EMAIL`, and `INITIAL_ADMIN_PASSWORD` values in Render's private
+environment settings. The password must be at least 12 characters. After the
+first healthy startup, set the bootstrap flag to `false` and remove the three
+bootstrap values. Use that administrator account to create the student test
+accounts yourself; do not turn on `SAMPLE_DATA_ENABLED`.
+
+For a newly created service from `render.free.yaml`, the Blueprint uses
+Brevo's HTTPS transactional email API, avoiding Render Free's blocked outbound
+SMTP ports. Configure `BREVO_API_KEY` and a sender address verified in Brevo
+in Render's private environment. This describes the template; verify the active
+image-based service's environment in the Render dashboard. Configure the exact
+service HTTPS origin in both `FRONTEND_URL` and `CORS_ALLOWED_ORIGINS`. The
+Blueprint requests automatic deployment after connected GitHub checks pass.
+Connect the intended branch to GitHub Actions CI before enabling student access.
+
+## Image-based Render service and release flow
+
+The Render service consumes a prebuilt Docker Hub image rather than building
+the Git branch directly. The GitHub Actions workflow publishes
+`docker.io/ciphernelson/mit-portal:latest` and a commit-specific tag on pushes
+to `main` and `fix/admin-login-offline-styles`, after the CI gates pass. The
+10 November 2026 release confirmed the `latest` image flow and automatic Render
+deployment. A Git push alone is not deployment evidence: confirm the workflow,
+the deployed release, and service health for each release.
+
+The GitHub Actions repository secrets `DOCKERHUB_USERNAME` and
+`DOCKERHUB_TOKEN` must be configured; never put registry tokens in workflow
+files or chat. Confirm in Render that the image source is set to
+`docker.io/ciphernelson/mit-portal:latest` and image updates are set to deploy
+automatically. Verify the deployed image digest and application health after
+each release; do not claim that a Git push updated the service until those
+checks pass.
+
+The CI workflow runs backend, MySQL migration, frontend, and browser tests and
+builds the same Docker image used by Render. For local release verification,
+run `.\scripts\render-release.ps1` from PowerShell with Node.js and Docker
+Desktop available. The Docker build supplies Java 25 and runs Maven verification,
+so a local Java installation is not needed. To trigger a deployment after
+pushing a clean, verified commit, set `RENDER_DEPLOY_HOOK_URL` and
+`RENDER_SERVICE_URL` in the PowerShell environment and add `-Deploy`; the script
+waits for the service health endpoint. The script does not create external
+databases or generate Render/Brevo credentials.
+
+Render builds the commit on the branch configured for the service, not
+uncommitted local files. Confirm the reviewed commit is pushed to that connected
+branch and its GitHub Actions checks pass before deployment. Do not assume the
+branch name in an older deployment record is still configured for Render;
+verify the current setting in the Render service.
+After a frontend authentication or service-worker change, verify the deployed
+release commit and public login flows. The service worker uses a versioned cache;
+increment `CACHE_NAME` when a release must invalidate previously cached assets.
 For a copyable environment-variable starting point, use the root
 `.env.render.example` with Render's **Add from .env** control. Replace every
 `REPLACE_WITH_...` value with deployment-specific values before applying it;
@@ -18,14 +87,12 @@ and generated secrets in Render's secret environment fields. The example uses
 the Blueprint's persistent upload disk at `/var/data/uploads`. Do not change
 this to an ephemeral path if uploaded files must survive restarts or deploys.
 
-Email stays disabled until an approved provider is configured. For Render Free,
-the application supports Resend over HTTPS: configure `MAIL_PROVIDER=resend`,
-`MAIL_API_KEY`, and `MAIL_FROM_EMAIL` as Render environment values, and verify
-the sender domain first. The application uses Resend for verification, password
-reset, notification, and admin test emails when configured; it sends plain-text
-message bodies. The SMTP-specific Actuator mail health check is disabled for
-this API mode, while the admin system status reports provider configuration and
-the time of its latest accepted test email.
+The Free Blueprint uses Brevo over HTTPS for verification, password reset,
+notifications, and admin test emails. Set `MAIL_PROVIDER=brevo`,
+`MAIL_ENABLED=true`, `BREVO_API_KEY`, and `MAIL_FROM_EMAIL` to a sender address
+verified in Brevo. Store the API key only in Render's secret environment. The
+admin system status reports provider configuration and the time of its latest
+accepted test email.
 For a phased list of all remaining work, post-deploy acceptance, and real-data
 gates, follow [REMAINING_WORK_AND_DEPLOYMENT.md](./REMAINING_WORK_AND_DEPLOYMENT.md).
 
@@ -62,24 +129,6 @@ Render generates `JWT_SECRET` and `PAYMENT_WEBHOOK_SECRET` through the
 Blueprint. Keep those values private and stable after deployment. The
 production profile rejects placeholder or short values, root database users,
 sample data, and Flyway auto-baselining.
-
-## Flyway migration history
-
-Treat every applied versioned migration as immutable. Do not reuse a version
-number for a different schema change, and do not run `flyway repair` merely to
-silence a checksum mismatch. Preserve the exact migration files used by an
-existing database, add new changes at unused higher versions, and rehearse the
-upgrade against a disposable database copy after taking a verified backup.
-
-The latest Render deployment attempt failed validation because the existing
-database records V50 checksum `18047753` and V51 checksum `718220594`. Those
-checksums correspond to the MFA refresh-token migration at V50 and grade
-appeals at V51. Preserve those definitions and add teacher result-status
-notifications at V52; the complete expected sequence also preserves V46
-(`-1254657549`) and V47 (`-929712578`). Do not deploy this repair or run
-`flyway repair` against the existing database until the full sequence passes
-against disposable MySQL and a verified backup and target migration history
-have been confirmed.
 
 ## First administrator on a new database
 
@@ -126,14 +175,12 @@ addresses. Other local bind addresses keep forwarded headers untrusted unless
 
 ## Email and backup status
 
-Email is disabled in the Blueprint until a provider is configured. For SMTP,
-set `MAIL_PROVIDER=smtp`, `MAIL_ENABLED=true`, `MAIL_HOST`, `MAIL_USERNAME`, and
-`MAIL_PASSWORD`; keep STARTTLS enabled and use a port allowed by your Render
-plan. Render Free blocks outbound SMTP ports 25, 465, and 587. For Render Free,
-the application also supports Resend over HTTPS: set `MAIL_PROVIDER=resend`,
-`MAIL_ENABLED=true`, `MAIL_API_KEY`, and `MAIL_FROM_EMAIL` to a verified Resend
-sender. Keep the API key in Render's secret environment values and never in
-`render.yaml`. Confirm delivery with an administrator test email.
+The Free Blueprint uses Brevo over HTTPS: set `MAIL_PROVIDER=brevo`,
+`MAIL_ENABLED=true`, `BREVO_API_KEY`, and `MAIL_FROM_EMAIL` to a verified
+Brevo sender. Store the API key only in Render's secret environment. Render
+Free blocks outbound SMTP ports 25, 465, and 587, so configure Brevo's API,
+not SMTP. Confirm delivery with an administrator test email; API acceptance
+does not guarantee inbox delivery.
 
 Database backup status will remain `Not configured` until an external,
 successful backup process writes a marker, SQL artifact, and matching SHA-256
@@ -152,7 +199,8 @@ Before using the deployment with real data:
 3. Confirm the system-status API reports database connectivity and perform an
    administrator login, student login, role-boundary checks, and one upload and
    download using test accounts/data.
-4. Configure SMTP and test a real message if outbound email is in scope.
+4. Configure the selected mail provider and send an administrator test email
+   if email delivery is in scope.
 5. Establish database and upload backup/restore procedures before importing
    real student, finance, or identity data.
 

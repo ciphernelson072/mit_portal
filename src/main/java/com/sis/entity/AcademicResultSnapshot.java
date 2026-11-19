@@ -1,6 +1,6 @@
 package com.sis.entity;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
@@ -23,7 +23,7 @@ public class AcademicResultSnapshot {
     private String resultsVersion;
 
     @Lob
-    @Column(name = "snapshot_payload", nullable = false)
+    @Column(name = "snapshot_payload", nullable = false, columnDefinition = "LONGTEXT")
     private String snapshotPayload;
 
     @Column(name = "approved_by", nullable = false, length = 255)

@@ -1,7 +1,9 @@
 package com.sis.controller;
 
+import com.sis.dto.StudentGradeStatusDto;
 import com.sis.dto.StudentProfileDto;
 import com.sis.dto.UpdateStudentRequest;
+import com.sis.entity.Student;
 import com.sis.service.AcademicReportService;
 import com.sis.service.AttendanceService;
 import com.sis.service.SchoolService;
@@ -11,6 +13,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -55,6 +58,39 @@ class StudentControllerTest {
         var response = controller.updateProfile(request);
 
         assertThat(response.getBody().getCgpa()).isEqualByComparingTo("3.50");
+    }
+
+    @Test
+    void gradeStatusesExposeOnlyTheAuthenticatedStudentsPrePublicationStatuses() {
+        authenticateStudent();
+        Student student = new Student();
+        student.setId(42L);
+        when(schoolService.getStudentByUsername("student")).thenReturn(Optional.of(student));
+        when(academicReports.isOfficiallyPublished(42L)).thenReturn(false);
+        List<StudentGradeStatusDto> statuses = List.of(
+                new StudentGradeStatusDto("DBS401", "Database Systems", "PENDING"));
+        when(schoolService.getGradeStatusesForStudent(42L)).thenReturn(statuses);
+
+        var response = controller.gradeStatuses();
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        assertThat(response.getBody()).containsExactlyElementsOf(statuses);
+    }
+
+    @Test
+    void gradeStatusesAreEmptyAfterPublication() {
+        authenticateStudent();
+        Student student = new Student();
+        student.setId(42L);
+        when(schoolService.getStudentByUsername("student")).thenReturn(Optional.of(student));
+        when(academicReports.isOfficiallyPublished(42L)).thenReturn(true);
+
+        var response = controller.gradeStatuses();
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        assertThat(response.getBody()).isEmpty();
+        org.mockito.Mockito.verify(schoolService, org.mockito.Mockito.never())
+                .getGradeStatusesForStudent(42L);
     }
 
     private void authenticateStudent() {

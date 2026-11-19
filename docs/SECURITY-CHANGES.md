@@ -125,13 +125,15 @@ their corresponding tabs. The former unsupported "Peer Forums" choice is now
 claim are rejected after deployment and users must authenticate again.
 
 Notification records now carry an explicit category (`ASSIGNMENT`, `GRADE`, `SYSTEM`,
-or `PAYMENT`). Existing records default to `SYSTEM`; profile notification selections
-filter the dashboard preview only and do not suppress notices from the full
-notifications page or change email delivery. Existing notification producers still
-create system notices for general events; approved grades and confirmed payments now
-also generate category-specific notifications. New assignments notify students enrolled
-in the associated course; repeated grade publication and payment confirmation do not
-create duplicate notices.
+`PAYMENT`, `ATTENDANCE`, or `ANNOUNCEMENT`). Existing records default to `SYSTEM`;
+profile notification selections filter the dashboard preview only and do not suppress
+notices from the full notifications page or change email delivery. Existing notification
+producers still create system notices for general events; approved grades and confirmed
+payments generate category-specific notifications. New assignments notify students
+enrolled in the associated course; repeated grade publication and payment confirmation
+do not create duplicate notices. Attendance exceptions and announcements use their own
+categories; optional announcement email remains separately governed by the explicit
+email preference.
 Flyway migration
 `V26__categorize_notifications.sql` adds the category field.
 
@@ -187,7 +189,9 @@ copied into access logs and URL history. New reset and verification emails link 
 the actual `.html` static pages and place their tokens in fragments.
 Password-reset and email-verification resend requests return the same response
 for known and unknown addresses, preventing account enumeration through those
-public endpoints.
+public endpoints. Provider delivery failures are logged server-side but do not
+change these generic public responses; the failed token-creation transaction is
+rolled back rather than leaving an unusable reset/verification token behind.
 
 The user's TOTP secret is excluded from JSON serialization, so returning a user
 entity from an API cannot disclose the authenticator seed.

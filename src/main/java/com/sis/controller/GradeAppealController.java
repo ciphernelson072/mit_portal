@@ -7,7 +7,7 @@ import com.sis.dto.GradeAppealTeacherResponse;
 import com.sis.exception.ResourceNotFoundException;
 import com.sis.service.GradeAppealService;
 import com.sis.service.SchoolService;
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -67,7 +67,7 @@ public class GradeAppealController {
     }
 
     @GetMapping("/api/teacher/grade-appeals")
-    @PreAuthorize("hasAuthority('TEACHER')")
+    @PreAuthorize("hasAuthority('TEACHER') or hasAuthority('ADMIN')")
     public ResponseEntity<List<GradeAppealDto>> teacherAppeals() {
         String username = username();
         var teacher = school.getTeacherByUsername(username)

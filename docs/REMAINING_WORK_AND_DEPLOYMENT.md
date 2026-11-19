@@ -1,20 +1,187 @@
 # Remaining Work and Render Deployment Runbook
 
-Last reviewed: 16 November 2026
+Last reviewed: 11 November 2026
 
-This document consolidates the remaining release work and the steps for a
-controlled Render test deployment. It is not evidence that Render, an external
-database, email, or production operations have been provisioned. Use it with
+This document records current release status and remaining production-readiness
+work. Use it with
 the [Render deployment details](./RENDER_DEPLOYMENT.md), the
 [release checklist](./RELEASE_CHECKLIST.md), and the
 [integration inventory](./INTEGRATION_GAPS.md).
+The role-by-role cross-workflow findings are recorded in
+[ROLE_WORKFLOW_GAPS.md](./ROLE_WORKFLOW_GAPS.md).
+
+## Verification update (11 November 2026)
+
+Docker Desktop is responsive (29.8.2). The isolated MySQL 8.0 Testcontainers
+check passed: Flyway applied all 53 migrations through V53 and the Spring
+application context passed Hibernate schema validation (1 test, 0 failures).
+
+An isolated TiDB v8.5.0 container was also started on loopback only, using a
+disposable schema. All 53 migrations applied, Hibernate schema validation
+passed, the portal started and `/actuator/health` returned `UP`. Four public
+site Playwright checks passed against this TiDB-backed application, and four
+source-backed grade-appeal/correction browser checks passed. The full isolated
+H2/sample-data browser suite passed 106 tests; the service-request test also
+verified owner assignment and status changes using accessible controls. The
+full Maven suite passed 417 tests (0 failures, errors, or skips), and the
+separate MySQL Testcontainers migration test passed (1 test); frontend
+validation passed for 31 JavaScript files and all 12 unit tests passed.
+
+These are local disposable-database results, not evidence that migrations
+have been applied to the configured TiDB pilot or any Render/institutional
+database. No existing or production-like database was accessed or changed.
+Deployment remains paused pending a reviewed backup and data-preserving-copy
+check against the intended database, provider and institutional acceptance,
+and the remaining production operations gates below.
+
+## Current release status (10 November 2026)
+
+The portal gateway release is live on the Render Free test service at
+[`https://makerere-institute-of-technology.onrender.com/`](https://makerere-institute-of-technology.onrender.com/).
+Commit `9c212d4` passed GitHub Actions backend, MySQL migration, frontend,
+browser, and Docker image gates, and Render deployed the published `latest`
+image. Readiness returned `UP`; `/`, `/index.html`, `/admin-login.html`,
+`/public/index.html`, `/home.html`, and `/css/home.css` returned HTTP 200.
+Student and employee login forms remain at their existing paths.
+
+The Free service uses ephemeral `UPLOAD_DIR=/tmp/uploads`; uploaded files can
+be lost on restart or redeploy. Confirm the configured database is isolated
+from live/institutional data before any further testing. This release is not
+production approval. Remaining production gates include institution-approved
+privacy/contact/admissions content; privileged-account MFA and recovery
+readiness; durable upload storage; tested, off-site database and upload backups
+with a restore rehearsal; verified mail and payment-provider behavior; and
+authenticated end-to-end acceptance against the intended database topology.
+See the [Render deployment details](./RENDER_DEPLOYMENT.md), [release
+checklist](./RELEASE_CHECKLIST.md), and
+[privacy, retention, and recovery gates](./PRIVACY_RETENTION_AND_RECOVERY.md).
+
+The documentation and sitemap corrections now in the working tree are newer
+than deployed commit `9c212d4`; they are not live until a later verified release.
+
+## Additional source work (10 November 2026)
+
+Academic result publication now sends an in-app grade notification to each
+current teacher assigned to a course in the published student snapshot.
+Notifications are grouped by teacher, include course codes but no marks, and
+are emitted only on the first publication of a result version. The focused
+`AcademicReportApprovalPersistenceTest` passes (2 tests, 0 failures). The
+teacher status feed is covered by that test and 5 `TeacherControllerFetchTest`
+tests, and a source-backed Playwright test verifies escaped output and status-
+only columns. Frontend validation passed for 31 JavaScript files, with 12 unit
+tests passing. The full Maven suite passed 403 tests with 0 failures, errors,
+or skips. This source change is local and is not included in deployed commit
+`9c212d4`.
+
+The teacher dashboard now has a status-only feed for pending, blocked,
+awaiting-publication, published, and invalidated result states. Blocked and
+invalidated states now create deduplicated teacher notifications. The local source
+now includes a student grade-appeal lifecycle with teacher consultation,
+administrator decisions, an independent correction-authorization boundary,
+and student/teacher/admin interfaces. Its backend, frontend, and source-backed
+browser checks pass; the update is not deployed.
+
+The earlier 10 November note that Docker and V52 validation were unavailable
+is superseded by the 11 November verification update above. The local
+disposable MySQL and TiDB databases both accepted all 53 migrations, including
+V51-V53, and passed Hibernate schema validation. Data-preserving-copy checks
+against the intended database and deployment remain open. Deployment is
+intentionally waiting until the remaining updates and release checks are
+complete. Provisional result visibility is now
+status-only before publication: students see course and workflow status, but
+not marks, grade values, or return reasons; the status endpoint returns no
+rows after publication. Grade import policy is confirmed as controlled
+administrator batch/exception entry while assessment-component grading remains
+canonical for routine work; see [role workflow gaps](./ROLE_WORKFLOW_GAPS.md)
+and [academic results workflow](./ACADEMIC_RESULTS_WORKFLOW.md).
+
+Legacy administrator grade imports now validate current-policy grades, supplied
+GPA values, enrollment, and existing student-course attempts before writing.
+They record the administrator as the submitting actor and keep imported records
+in the existing pending assessment/approval flow. The new policy keeps imports
+available for authorized batch or exceptional operations, not routine teacher
+marking; assigned teachers must record and submit component marks before normal
+review and approval. The old teacher direct
+create/update endpoints now return HTTP 410; the dashboard already uses the
+assessment-component APIs. The 22 focused import/admin/teacher controller tests
+and full Maven suite (403 tests, 0 failures, 0 errors, or skips) passed after
+this retirement. Follow-up focused coverage verifies the pending state,
+provenance, admin-only endpoint access, and the admin UI policy guidance; see
+[integration gaps](./INTEGRATION_GAPS.md).
+
+Student grade appeals now use Flyway V51 and allow one active appeal per
+published grade. Staff records teacher consultation (with or without a written
+response) before an authorized administrator decides. An approved appeal does
+not alter a grade or replace the separate correction workflow. Local focused
+backend tests, all 403 Maven tests, frontend validation/unit tests, and four
+source-backed Playwright role-flow tests pass. MySQL 8.0 migration validation
+passed; target TiDB validation, data-preserving-copy verification, and
+deployment remain open; see the
+[academic results workflow](./ACADEMIC_RESULTS_WORKFLOW.md) and
+[release checklist](./RELEASE_CHECKLIST.md).
+
+Student pre-publication grade status is implemented locally through a
+student-scoped status-only API and a separate Academics panel. Detailed grade
+results remain hidden until publication. Targeted backend, frontend, and
+isolated browser checks pass; target-database validation and deployment remain
+pending; see the [release checklist](./RELEASE_CHECKLIST.md).
+
+Teacher status notifications now cover blocked and invalidated results with
+deduplication per teacher, student, state, and result version. Focused backend
+tests, the complete Maven suite (406 tests, 0 failures), frontend build/unit
+tests (12 passing), and the focused teacher-status browser test passed. V52
+target-database validation, full CI, and deployment remain pending; deployment
+stays paused until the other release gates are complete.
+
+Students now receive configurable in-app attendance alerts when newly marked
+absent or late or when attendance transitions into those states. Teacher
+attendance remains authoritative without an added administrator approval
+step; the existing student dispute workflow is unchanged. Focused attendance
+and preference tests pass, as does frontend validation. Target-environment
+acceptance and deployment remain pending.
+
+## Historical release status (8 November 2026)
+
+The notes below record the state at that review and are superseded by the
+10 November release status above.
+
+## Current status update (3 November 2026)
+
+The Maven compiler, Docker build/runtime images, and GitHub Actions target Java
+25. The current local environment has Java 21 only, so the Maven test run fails
+when Java 21 tries to load Java 25 test classes; it must be rerun with JDK 25.
+Standard npm automation exposes `npm run build` and `npm test`. On 3 November
+2026, syntax validation passed for 30 static JavaScript files and all 10
+frontend unit tests passed.
+
+The npm and Docker tool checks also exposed environment restrictions in this
+workspace: PowerShell script execution initially blocked npm until commands
+were run through `cmd.exe`, and Docker reported that its daemon/configuration
+was inaccessible. These checks require a restored Maven cache/network and an
+accessible Docker daemon before deployment evidence can be completed.
+
+The last recorded commit is
+`9889867` (`Harden admission email response assertions`) from 31 October 2026.
+The current worktree contains numerous modified files and untracked source,
+tests, and migrations. It is not a clean release snapshot; review and include
+the intended changes before publishing or deploying, and do not assume
+untracked files are present in a built artifact.
+
+The previously recorded 384-test Maven result remains valid only for the
+verified 31 October source state. On 3 November, `mvnw.cmd -q test` ran but
+failed because the available Java 21 runtime cannot load Java 25 test classes.
+The current source therefore still needs a complete Maven test run under JDK
+25. The browser review was also blocked: the browser runner has no installed
+Chromium executable, and the integrated browser policy blocks localhost access.
+No new Render deployment, external database provisioning, provider sandbox,
+email delivery, payment, backup, restore, or campus-user acceptance evidence
+was established on 3 November 2026.
 
 ## Source and documentation update (31 October 2026)
 
-At that review, this source tree contained Flyway migrations V1-V45. The
-corrected V37-V42 sequence has now been applied successfully to the TiDB pilot
-after a verified database backup. A separate disposable MySQL 8.0 database
-applied V1-V43, and
+This source tree contains Flyway migrations V1-V49. The corrected V37-V42
+sequence has now been applied successfully to the TiDB pilot after a verified
+database backup. A separate disposable MySQL 8.0 database applied V1-V43, and
 the application passed Hibernate schema validation. The 31 October full Maven suite passed 384 tests with zero failures, errors,
 or skips (`.\mvnw.cmd test`). This source-level run does not replace provider
 sandbox testing or establish production-environment acceptance.
@@ -34,21 +201,6 @@ standing, and degree/diploma award classification. V44 and V45 were validated
 on disposable MySQL 8.0 and applied to the TiDB pilot. Retake replacement,
 retake credit treatment, and CGPA rounding remain unspecified and are not
 guessed. See the [academic results workflow](./ACADEMIC_RESULTS_WORKFLOW.md).
-
-## Render migration drift repair status (16 November 2026)
-
-The follow-up release restores the V50 MFA refresh-token migration whose
-checksum (`18047753`) is recorded by the existing Render database, keeps grade
-appeals at V51 (`718220594`), and places teacher result-status notifications at
-V52 (`1360576565`). The previously restored V46 and V47 checksums remain
-`-1254657549` and `-929712578`.
-
-The published image was manually deployed to Render, but startup validation
-failed on the V50/V51 checksum conflicts; the previous live instance remained
-available. No database repair was run. Local MySQL/Testcontainers validation
-has not yet passed because the Docker engine is unavailable. Before another
-deployment, validate the full sequence against disposable MySQL, confirm the
-target database's migration history, and take a verified backup.
 
 Flutterwave hosted-checkout and server-side verification code is present.
 Live-provider readiness is not established until sandbox flows, webhook
@@ -134,12 +286,22 @@ The source includes V43 for administrator-authorized correction records and
 prior-result snapshots, V44 for the five-point policy, and V45 for assessment
 review acknowledgment. V1-V43 were applied successfully to a
 disposable MySQL 8.0 database, followed by Hibernate schema validation. On 31
-October 2026 the complete V1-V45 sequence was also applied successfully to a
+October 2026 the complete V1-V45 sequence was applied successfully to a
 fresh disposable MySQL 8.0 container, with all migration records successful and
-Hibernate schema validation passing. On 31 October 2026, a fresh verified
+Hibernate schema validation passing. Migrations V46-V49 were added after that
+validation and still require fresh-database execution verification. On 31
+October 2026, a fresh verified
 TiDB backup was completed and migrations V43-V45 were applied and verified
 on the pilot. Live correction-to-republication acceptance and institutional
 policy sign-off remain separate gates.
+
+**Validation refresh (7 November 2026):** The current source passed all 394
+Java tests, 12 frontend unit tests, JavaScript syntax validation for 30 files,
+and 88 isolated Playwright tests. Fresh disposable MySQL 8.0 and local TiDB
+v8.5.0 schemas each applied Flyway V1-V49 and passed Hibernate schema
+validation. See the [validation results](./VALIDATION_RESULTS_2026-11-07.md).
+The TiDB check used single-node in-memory UniStore; it does not replace
+distributed-cluster or production-topology acceptance.
 
 This is still a **temporary test pilot, not a production service**. The Quick
 Tunnel has no uptime guarantee or stable institution-controlled hostname.
@@ -325,8 +487,10 @@ demo is **not** an acceptable substitute for a campus-user pilot over HTTPS.
    invalidate active sessions or disrupt signed payment callbacks.
 5. Keep the production safety settings enabled:
    `COOKIE_SECURE=true`, `SAMPLE_DATA_ENABLED=false`,
-   `FLYWAY_BASELINE_ON_MIGRATE=false`, and `MFA_ENABLED=false` unless MFA has
-   a separately approved, tested rollout and recovery plan. Preserve the
+   `FLYWAY_BASELINE_ON_MIGRATE=false`, and leave MFA disabled until its key
+   custody and recovery process are verified. During staged enrollment keep
+   `MFA_REQUIRED_FOR_PRIVILEGED=false`; enable it only after the documented
+   enrollment and recovery gates pass. Preserve the
    Blueprint's proxy setting only behind Render's trusted ingress; do not
    copy forwarded-header trust to a directly reachable server.
 6. For a new empty database only, perform the one-time administrator setup:
@@ -345,7 +509,7 @@ demo is **not** an acceptable substitute for a campus-user pilot over HTTPS.
    securely and rotate it according to institutional policy.
 
 The initial deployment applies all bundled Flyway migrations (currently
-V1-V51) to an empty database. Validate the complete migration set against the
+V1-V49) to an empty database. Validate the complete migration set against the
 selected database engine before deployment. Do not enable bootstrap against a
 populated database or treat it as an account recovery mechanism.
 
@@ -421,12 +585,9 @@ completed and approved.
 - [ ] Test rollback/roll-forward. A previous application image is not a safe
   rollback if it cannot operate with the already-migrated schema. Prefer a
   tested forward fix unless a compatible restore plan is approved.
-- [ ] Run the MySQL/Testcontainers migration test through V51 when the Docker
-  engine is available. The regular backend suite does not verify Flyway
-  migration execution or Hibernate schema validation against MySQL.
-- [ ] For an existing Render database, confirm the recorded V46/V47 checksums
-  before deployment; never use `flyway repair` as a substitute for restoring
-  the matching migration definitions.
+- [ ] Re-run the MySQL/Testcontainers migration test through V36 when the
+  Windows Testcontainers endpoint issue is resolved. A prior run of the
+  broader suite does not verify this migration through Testcontainers.
 - [ ] Confirm the GitHub Actions Playwright job passes. Its H2/sample-data
   workflows complement, but do not replace, the production-profile MySQL
   smoke test or real-deployment acceptance.
@@ -458,13 +619,13 @@ The following items are not made operational merely by deploying the app:
 
 | Area | Current state | Required before enabling |
 |---|---|---|
-| Email transport | SMTP and Resend transports are implemented; local SMTP has been configured and tested, but institutional production approval/delivery monitoring remains. | Confirm approved sender/domain, SPF/DKIM/DMARC, delivery/bounce monitoring, and end-to-end tests in the production environment. |
+| Email transport | SMTP and Brevo HTTPS API transports are implemented; local SMTP has been configured and tested, but institutional production approval/delivery monitoring remains. | Confirm an approved Brevo sender, domain authentication where available, delivery/bounce monitoring, and end-to-end tests in the production environment. |
 | Admissions/hiring email | Application receipts, post-enrollment student credentials, and hiring onboarding email are implemented. Student and teacher provisioned accounts require password change. Unrelated grade/announcement notifications and bounce/retry monitoring remain unwired. | Verify production email delivery and forced first-login password change; implement approved bounce/retry monitoring and event-triggered notifications with tests. Never email permanent passwords. |
 | Grade/CGPA/announcement email | Notification methods have no verified application event callers. | Choose notifications, add user preferences/consent and event triggers, and test retries/duplicates. |
 | Online payments | Generic payment records/callback path exist; provider-specific checkout and signature integration are not established. | Provider sandbox, documented signature validation, amount/currency/reference binding, replay/idempotency controls, refunds and reconciliation tests. Keep unavailable until then. |
 | Bank transfers | Manual reference/reconciliation path exists. | Document an authorized reconciliation operating procedure or integrate a bank statement source with audit and discrepancy handling. |
 | Prometheus | Spring-managed registry and authenticated `/actuator/prometheus` endpoint are implemented and browser-verified; external monitoring is not configured. | Configure approved-network scraping, dashboards, access controls, and exercised alert delivery. |
-| MFA | Application TOTP flow exists; disabled by default. | Policy decision, secure 32-byte Base64 encryption key, recovery/support process, and full enrollment/login/revocation tests. |
+| MFA | TOTP enrollment and privileged enrollment-only enforcement are implemented; enforcement remains off by default. | Configure and back up the production encryption key, enroll privileged accounts, verify recovery, then explicitly enable `MFA_REQUIRED_FOR_PRIVILEGED`. |
 | Logs/errors | No central export or error-tracking integration is verified. | Select a provider, redact secrets/PII, apply access/retention controls, and test alerting. |
 | Backups | Local backup scripts exist; Render/external production schedule and restore are not set up. | Encrypted off-host database and upload backups, monitoring, retention, and restore rehearsal. |
 | File storage | Configured filesystem storage; no object/shared-storage adapter found. | Persistent disk for one instance or implement/test shared object storage before scaling. |

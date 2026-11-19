@@ -12,7 +12,9 @@ import com.sis.dto.ResetPasswordRequest;
 import com.sis.dto.ResetTokenRequest;
 import com.sis.entity.Role;
 import com.sis.entity.User;
+import com.sis.exception.EmailDeliveryException;
 import com.sis.security.JwtAuthenticationFilter;
+import com.sis.security.MfaPolicy;
 import com.sis.service.JwtService;
 import com.sis.service.MfaSecretCipher;
 import com.sis.service.RefreshTokenService;
@@ -32,15 +34,17 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.sis.dto.SessionDto;
 import com.sis.entity.RefreshToken;
 import com.sis.repository.RefreshTokenRepository;
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 
 import java.util.List;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -66,12 +70,14 @@ import java.util.Map;
 public class AuthController {
 
     private static final String REFRESH_TOKEN_COOKIE = "refresh_token";
+    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
     private final SchoolService schoolService;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final MfaPolicy mfaPolicy;
 
     @Value("${app.security.cookie-secure}")
     private boolean cookieSecure;
@@ -81,6 +87,9 @@ public class AuthController {
 
     @Value("${app.security.mfa.enabled:false}")
     private boolean mfaEnabled;
+
+    @Value("${app.security.mfa.required-for-privileged:false}")
+    private boolean mfaRequiredForPrivileged;
 
     @Value("${app.security.mfa.issuer:MIT Portal}")
     private String mfaIssuer;
@@ -97,17 +106,22 @@ public class AuthController {
             throw new IllegalStateException(
                     "COOKIE_SAME_SITE must remain Strict while cookie-authenticated requests use Origin validation");
         }
+        if (mfaRequiredForPrivileged && !mfaEnabled) {
+            throw new IllegalStateException(
+                    "MFA_REQUIRED_FOR_PRIVILEGED=true requires MFA_ENABLED=true");
+        }
         cookieSameSite = "Strict";
     }
 
     public AuthController(AuthenticationManager authenticationManager, JwtService jwtService,
                            RefreshTokenService refreshTokenService, SchoolService schoolService,
-                           RefreshTokenRepository refreshTokenRepository) {
+                           RefreshTokenRepository refreshTokenRepository, MfaPolicy mfaPolicy) {
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
         this.refreshTokenService = refreshTokenService;
         this.schoolService = schoolService;
         this.refreshTokenRepository = refreshTokenRepository;
+        this.mfaPolicy = mfaPolicy;
     }
 
     /**
@@ -124,6 +138,28 @@ public class AuthController {
             User user = schoolService.getUserByUsername(request.getUsername())
                     .orElseThrow(() -> new IllegalStateException("Authenticated user vanished mid-login"));
             String role = user.getRole().name();
+            boolean privilegedMfaRequired = mfaRequiredForPrivileged && mfaPolicy.isPrivileged(user);
+            if (privilegedMfaRequired && !Boolean.TRUE.equals(user.getMfaEnabled())) {
+                int credentialVersion = refreshTokenService.revokeAllSessions(user.getId());
+                String enrollmentToken = jwtService.generateMfaEnrollmentToken(
+                        user.getUsername(), role, credentialVersion);
+                HttpHeaders headers = new HttpHeaders();
+                headers.add(HttpHeaders.SET_COOKIE, buildAccessCookie(enrollmentToken).toString());
+                headers.add(HttpHeaders.SET_COOKIE,
+                        expireCookie(REFRESH_TOKEN_COOKIE, "/api/auth").toString());
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).headers(headers).body(Map.of(
+                        "message", "MFA enrollment is required before accessing the portal",
+                        "mfaEnrollmentRequired", true,
+                        "role", role,
+                        "username", user.getUsername(),
+                        "passwordChangeRequired", user.isPasswordChangeRequired()));
+            }
+
+            boolean mfaVerified = false;
+            if (Boolean.TRUE.equals(user.getMfaEnabled()) && !mfaEnabled) {
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                        .body(Map.of("message", "MFA is unavailable; contact support before signing in"));
+            }
             if (mfaEnabled && Boolean.TRUE.equals(user.getMfaEnabled())) {
                 if (request.getOtp() == null || request.getOtp().isBlank()) {
                     return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -136,14 +172,17 @@ public class AuthController {
                             .body(Map.of("message", "Invalid MFA code", "mfaRequired", true));
                 }
                 encryptLegacyMfaSecret(user, storedSecret, secret);
+                mfaVerified = true;
             }
+            RefreshTokenService.IssuedSession session =
+                    refreshTokenService.startSingleSession(user.getId(), mfaVerified);
             String accessToken = jwtService.generateToken(
-                    request.getUsername(), role, user.getCredentialVersion());
-            String refreshToken = refreshTokenService.issue(user);
+                    request.getUsername(), role, session.getCredentialVersion(),
+                    privilegedMfaRequired, mfaVerified);
 
             HttpHeaders headers = new HttpHeaders();
             headers.add(HttpHeaders.SET_COOKIE, buildAccessCookie(accessToken).toString());
-            headers.add(HttpHeaders.SET_COOKIE, buildRefreshCookie(refreshToken).toString());
+            headers.add(HttpHeaders.SET_COOKIE, buildRefreshCookie(session.getRefreshToken()).toString());
 
             return ResponseEntity.ok().headers(headers).body(new AuthResponse(
                     role, request.getUsername(), user.isPasswordChangeRequired()));
@@ -162,13 +201,21 @@ public class AuthController {
         String rawRefreshToken = extractCookie(request, REFRESH_TOKEN_COOKIE);
         Optional<RefreshTokenService.Rotation> rotationOpt = refreshTokenService.rotate(rawRefreshToken);
         if (rotationOpt.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            return unauthorizedRefresh();
         }
 
         RefreshTokenService.Rotation rotation = rotationOpt.get();
         User user = rotation.getUser();
+        boolean privilegedMfaRequired = mfaRequiredForPrivileged && mfaPolicy.isPrivileged(user);
+        boolean userMfaRequired = privilegedMfaRequired || Boolean.TRUE.equals(user.getMfaEnabled());
+        if (userMfaRequired && (!Boolean.TRUE.equals(user.getMfaEnabled())
+                || !rotation.isMfaVerified())) {
+            refreshTokenService.revokeAllForUser(user.getId());
+            return unauthorizedRefresh();
+        }
         String accessToken = jwtService.generateToken(
-                user.getUsername(), user.getRole().name(), user.getCredentialVersion());
+                user.getUsername(), user.getRole().name(), user.getCredentialVersion(),
+                privilegedMfaRequired, rotation.isMfaVerified());
 
         HttpHeaders headers = new HttpHeaders();
         headers.add(HttpHeaders.SET_COOKIE, buildAccessCookie(accessToken).toString());
@@ -277,6 +324,9 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
         return schoolService.getUserByUsername(username).map(user -> {
+            if (mfaRequiredForPrivileged && mfaPolicy.isPrivileged(user)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).<Void>build();
+            }
             if (Boolean.TRUE.equals(user.getMfaEnabled())
                     && !verifyTotp(mfaSecretCipher.decrypt(user.getMfaSecret()), request.getOtp())) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).<Void>build();
@@ -294,9 +344,7 @@ public class AuthController {
     public ResponseEntity<Void> revokeAllSessions() {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         return schoolService.getUserByUsername(username).map(user -> {
-            refreshTokenService.revokeAllForUser(user.getId());
-            user.setCredentialVersion(user.getCredentialVersion() + 1);
-            schoolService.saveUser(user);
+            refreshTokenService.revokeAllSessions(user.getId());
             return ResponseEntity.ok().<Void>build();
         }).orElse(ResponseEntity.notFound().build());
     }
@@ -319,12 +367,11 @@ public class AuthController {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         return schoolService.getUserByUsername(username)
                 .flatMap(user -> refreshTokenRepository.findById(sessionId)
-                        .filter(token -> token.getUser().getId().equals(user.getId())))
-                .map(token -> {
-                    token.setRevoked(true);
-                    refreshTokenRepository.save(token);
-                    return ResponseEntity.ok().<Void>build();
-                })
+                        .filter(token -> token.getUser().getId().equals(user.getId()))
+                        .map(token -> {
+                            refreshTokenService.revokeSession(user.getId(), token.getId());
+                            return ResponseEntity.ok().<Void>build();
+                        }))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -358,6 +405,14 @@ public class AuthController {
                 .path(path)
                 .maxAge(0)
                 .build();
+    }
+
+    private ResponseEntity<AuthResponse> unauthorizedRefresh() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.add(HttpHeaders.SET_COOKIE,
+                expireCookie(JwtAuthenticationFilter.ACCESS_TOKEN_COOKIE, "/").toString());
+        headers.add(HttpHeaders.SET_COOKIE, expireCookie(REFRESH_TOKEN_COOKIE, "/api/auth").toString());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).headers(headers).build();
     }
 
     private String extractCookie(HttpServletRequest request, String name) {
@@ -450,8 +505,7 @@ public class AuthController {
     }
 
     private void revokeSessionsAfterMfaChange(User user) {
-        refreshTokenService.revokeAllForUser(user.getId());
-        user.setCredentialVersion(user.getCredentialVersion() + 1);
+        user.setCredentialVersion(refreshTokenService.revokeAllSessions(user.getId()));
     }
 
     private String buildOtpauthUri(String username, String secret) {
@@ -525,7 +579,8 @@ public class AuthController {
 
     @PostMapping("/forgot-password")
     public ResponseEntity<String> requestPasswordReset(@Valid @RequestBody EmailRequest request) {
-        authenticationService.requestPasswordReset(request.getEmail());
+        attemptRecoveryEmail(() -> authenticationService.requestPasswordReset(request.getEmail()),
+                "password reset");
         return ResponseEntity.ok("If the email is registered, password reset instructions will be sent.");
     }
 
@@ -555,13 +610,24 @@ public class AuthController {
 
     @PostMapping("/resend-password-reset")
     public ResponseEntity<String> resendPasswordReset(@Valid @RequestBody EmailRequest request) {
-        authenticationService.resendPasswordResetEmail(request.getEmail());
+        attemptRecoveryEmail(() -> authenticationService.resendPasswordResetEmail(request.getEmail()),
+                "password reset resend");
         return ResponseEntity.ok("If the email is registered, password reset instructions will be sent.");
     }
 
     @PostMapping("/resend-email-verification")
     public ResponseEntity<String> resendEmailVerification(@Valid @RequestBody EmailRequest request) {
-        authenticationService.resendEmailVerification(request.getEmail());
+        attemptRecoveryEmail(() -> authenticationService.resendEmailVerification(request.getEmail()),
+                "email verification resend");
         return ResponseEntity.ok("If the account exists, a verification email has been sent.");
+    }
+
+    private void attemptRecoveryEmail(Runnable request, String operation) {
+        try {
+            request.run();
+        } catch (EmailDeliveryException ignored) {
+            // A provider failure must not make registered accounts distinguishable.
+            logger.warn("{} email delivery failed; returning the generic recovery response", operation);
+        }
     }
 }

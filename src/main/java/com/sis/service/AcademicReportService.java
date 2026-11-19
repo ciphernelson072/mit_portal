@@ -42,8 +42,8 @@ import com.sis.repository.CourseRepository;
 import com.sis.repository.GradeRepository;
 import com.sis.repository.StudentRepository;
 import com.sis.repository.StudentProgramRepository;
-import com.sis.repository.TeacherResultStatusNotificationEventRepository;
 import com.sis.repository.TeacherRepository;
+import com.sis.repository.TeacherResultStatusNotificationEventRepository;
 import com.sis.repository.UserRepository;
 import com.sis.entity.AuditLog;
 
@@ -63,9 +63,6 @@ public class AcademicReportService {
 
     @Autowired
     private GradeRepository gradeRepository;
-
-    @Autowired
-    private CourseRepository courseRepository;
 
     @Autowired
     private AcademicReportApprovalRepository approvalRepository;
@@ -89,10 +86,13 @@ public class AcademicReportService {
     private TeacherRepository teacherRepository;
 
     @Autowired
-    private TeacherResultStatusNotificationEventRepository statusNotificationEvents;
+    private CourseRepository courseRepository;
 
     @Autowired
     private StudentProgramRepository studentPrograms;
+
+    @Autowired
+    private TeacherResultStatusNotificationEventRepository statusNotificationEvents;
 
     /**
      * Generate comprehensive academic report for student
@@ -341,6 +341,50 @@ public class AcademicReportService {
                         com.sis.entity.NotificationCategory.GRADE));
     }
 
+    public boolean isOfficiallyApproved(Long studentId) {
+        return currentApprovedSnapshot(studentId).isPresent();
+    }
+
+    public boolean isOfficiallyPublished(Long studentId) {
+        return currentApprovedSnapshot(studentId)
+                .map(snapshot -> snapshot.getPublishedAt() != null)
+                .orElse(false);
+    }
+
+    public AcademicReportDto getPublishedAcademicReport(Long studentId) {
+        AcademicResultSnapshot snapshot = currentApprovedSnapshot(studentId)
+                .filter(item -> item.getPublishedAt() != null)
+                .orElseThrow(() -> new IllegalStateException("Final academic results have not been published."));
+        return reportFromSnapshot(snapshot);
+    }
+
+    public AcademicReportDto getStudentVisibleReport(Long studentId) {
+        if (isOfficiallyPublished(studentId)) {
+            return getPublishedAcademicReport(studentId);
+        }
+        AcademicReportDto report = generateAcademicReport(studentId);
+        report.setCgpa(null);
+        report.setAwardClassification(null);
+        report.setCreditsEarned(null);
+        report.setLatestSemester(null);
+        report.setSemesterGpa(null);
+        report.setAcademicStandingStatus("NOT_FINALIZED");
+        report.setAverageGrade(null);
+        report.setCourseGrades(List.of());
+        report.setTotalCourses(null);
+        report.setPerformanceSummary("Final results are not yet available. They will be shown after administrative approval and publication.");
+        report.setPublished(Boolean.FALSE);
+        report.setPublishedBy(null);
+        report.setPublishedAt(null);
+        report.setPublicationStatus(Boolean.TRUE.equals(report.getApproved())
+                ? "AWAITING_PUBLICATION" : report.getPublicationStatus());
+        return report;
+    }
+
+    public AcademicReportDto getApprovalStatus(Long studentId) {
+        return generateAcademicReport(studentId);
+    }
+
     public TeacherResultPublicationStatusDto getTeacherPublicationStatus(
             Long studentId, String studentName, List<String> courseCodes, Long teacherUserId) {
         List<Grade> grades = gradeRepository.findByStudentIdWithCourse(studentId);
@@ -429,50 +473,6 @@ public class AcademicReportService {
         } catch (NoSuchAlgorithmException ex) {
             throw new IllegalStateException("SHA-256 is unavailable for result notification deduplication.", ex);
         }
-    }
-
-    public boolean isOfficiallyApproved(Long studentId) {
-        return currentApprovedSnapshot(studentId).isPresent();
-    }
-
-    public boolean isOfficiallyPublished(Long studentId) {
-        return currentApprovedSnapshot(studentId)
-                .map(snapshot -> snapshot.getPublishedAt() != null)
-                .orElse(false);
-    }
-
-    public AcademicReportDto getPublishedAcademicReport(Long studentId) {
-        AcademicResultSnapshot snapshot = currentApprovedSnapshot(studentId)
-                .filter(item -> item.getPublishedAt() != null)
-                .orElseThrow(() -> new IllegalStateException("Final academic results have not been published."));
-        return reportFromSnapshot(snapshot);
-    }
-
-    public AcademicReportDto getStudentVisibleReport(Long studentId) {
-        if (isOfficiallyPublished(studentId)) {
-            return getPublishedAcademicReport(studentId);
-        }
-        AcademicReportDto report = generateAcademicReport(studentId);
-        report.setCgpa(null);
-        report.setAwardClassification(null);
-        report.setCreditsEarned(null);
-        report.setLatestSemester(null);
-        report.setSemesterGpa(null);
-        report.setAcademicStandingStatus("NOT_FINALIZED");
-        report.setAverageGrade(null);
-        report.setCourseGrades(List.of());
-        report.setTotalCourses(null);
-        report.setPerformanceSummary("Final results are not yet available. They will be shown after administrative approval and publication.");
-        report.setPublished(Boolean.FALSE);
-        report.setPublishedBy(null);
-        report.setPublishedAt(null);
-        report.setPublicationStatus(Boolean.TRUE.equals(report.getApproved())
-                ? "AWAITING_PUBLICATION" : report.getPublicationStatus());
-        return report;
-    }
-
-    public AcademicReportDto getApprovalStatus(Long studentId) {
-        return generateAcademicReport(studentId);
     }
 
     private Optional<AcademicResultSnapshot> currentApprovedSnapshot(Long studentId) {

@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import javax.persistence.LockModeType;
+import jakarta.persistence.LockModeType;
 
 import java.util.List;
 import java.util.Optional;
@@ -62,12 +62,27 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
     List<Course> findByStudentIdWithTeacherAndCategoryIncludingRegistrations(
             @Param("studentId") Long studentId);
 
-    @Query("SELECT COUNT(DISTINCT student.id) FROM Course c JOIN c.students student WHERE c.id IN :courseIds")
+    @Query("SELECT COUNT(DISTINCT student.id) FROM Student student "
+            + "WHERE EXISTS (SELECT course.id FROM Course course JOIN course.students enrolled "
+            + "WHERE course.id IN :courseIds AND enrolled.id = student.id) "
+            + "OR EXISTS (SELECT registration.id FROM CourseRegistration registration "
+            + "WHERE registration.section.course.id IN :courseIds "
+            + "AND registration.student.id = student.id "
+            + "AND registration.status = com.sis.entity.RegistrationStatus.REGISTERED)")
     long countDistinctStudentsByCourseIds(@Param("courseIds") List<Long> courseIds);
 
-    @Query("SELECT COUNT(student.id) FROM Course c JOIN c.students student WHERE c.id IN :courseIds "
-            + "AND NOT EXISTS (SELECT a.id FROM Attendance a WHERE a.course.id = c.id "
-            + "AND a.student.id = student.id AND a.date = :date)")
+    @Query(value = "SELECT COUNT(*) FROM ("
+            + "SELECT course_id, student_id FROM course_students "
+            + "WHERE course_id IN (:courseIds) "
+            + "UNION "
+            + "SELECT section.course_id, registration.student_id "
+            + "FROM course_registrations registration "
+            + "JOIN course_sections section ON section.id = registration.section_id "
+            + "WHERE section.course_id IN (:courseIds) AND registration.status = 'REGISTERED'"
+            + ") roster "
+            + "LEFT JOIN attendance recorded ON recorded.course_id = roster.course_id "
+            + "AND recorded.student_id = roster.student_id AND recorded.date = :date "
+            + "WHERE recorded.id IS NULL", nativeQuery = true)
     long countStudentsWithoutAttendanceByCourseIdsAndDate(@Param("courseIds") List<Long> courseIds,
                                                           @Param("date") LocalDate date);
 }

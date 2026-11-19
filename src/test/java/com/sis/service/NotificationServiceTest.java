@@ -33,7 +33,9 @@ class NotificationServiceTest {
         Notification grade = new Notification(7L, "Grade", "Result released", NotificationCategory.GRADE);
         Notification system = new Notification(7L, "System", "Maintenance", NotificationCategory.SYSTEM);
         Notification payment = new Notification(7L, "Payment", "Received", NotificationCategory.PAYMENT);
-        when(repository.findByUserIdOrderByCreatedAtDesc(7L)).thenReturn(List.of(assignment, grade, system, payment));
+        Notification announcement = new Notification(7L, "Announcement", "Update", NotificationCategory.ANNOUNCEMENT);
+        when(repository.findByUserIdOrderByCreatedAtDesc(7L))
+                .thenReturn(List.of(assignment, grade, system, payment, announcement));
 
         List<Notification> visible = service.listVisibleForUser(7L);
 
@@ -42,8 +44,11 @@ class NotificationServiceTest {
             categories.add(notification.getCategory());
         }
 
-        assertEquals(2, visible.size());
-        assertEquals(List.of(NotificationCategory.ASSIGNMENT, NotificationCategory.SYSTEM), categories);
+        assertEquals(3, visible.size());
+        assertEquals(List.of(
+                NotificationCategory.ASSIGNMENT,
+                NotificationCategory.SYSTEM,
+                NotificationCategory.ANNOUNCEMENT), categories);
         verify(preferences, times(1)).findByUserId(7L);
     }
 }

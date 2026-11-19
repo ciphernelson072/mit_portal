@@ -302,8 +302,23 @@ public class GradeApprovalService {
         if (resultCorrections != null) resultCorrections.markRejected(saved.getId(), rejectedBy);
         studentService.calculateCGPA(saved.getStudent().getId());
         audit(rejectedBy, "GRADE_REJECTED", "Grade #" + saved.getId() + " rejected");
+        notifySubmittingTeacher(saved, reason);
         notifyStudent(saved, false, reason);
         return reloadGradeForResponse(saved);
+    }
+
+    private void notifySubmittingTeacher(Grade grade, String reason) {
+        if (notifications == null || grade.getSubmittedBy() == null || grade.getSubmittedBy().isBlank()) {
+            return;
+        }
+        users.findByUsernameNormalized(grade.getSubmittedBy()).ifPresent(user -> {
+            if (user.getId() != null) {
+                notifications.create(user.getId(), "Grade needs revision",
+                        "Grade #" + grade.getId() + " for "
+                                + grade.getCourse().getName() + " was rejected: " + reason,
+                        NotificationCategory.GRADE);
+            }
+        });
     }
 
     private void notifyStudent(Grade grade, boolean approved, String reason) {
@@ -319,19 +334,22 @@ public class GradeApprovalService {
                     : "Your grade submission for " + grade.getCourse().getName() + " was rejected: " + reason;
             notifications.create(userId, title, message, NotificationCategory.GRADE);
         }
-        if (emailService == null || grade.getStudent().getEmail() == null) {
+        String contactEmail = grade.getStudent().getEmail();
+        if (emailService == null || notifications == null || userId == null
+                || !notifications.emailNotificationsEnabled(userId)
+                || !ProfileContactEmailService.isValidEmail(contactEmail)) {
             return;
         }
         try {
             if (approved) {
                 emailService.sendGradeNotification(
-                        grade.getStudent().getEmail(),
+                        contactEmail,
                         grade.getStudent().getFullName(),
                         grade.getCourse().getName(),
                         grade.getGradeValue());
                 if (grade.getStudent().getCgpa() != null) {
                     emailService.sendCGPAUpdateNotification(
-                            grade.getStudent().getEmail(),
+                            contactEmail,
                             grade.getStudent().getFullName(),
                             grade.getStudent().getCgpa().toPlainString());
                 }

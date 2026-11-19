@@ -1,10 +1,13 @@
 .env
 .env.*
+.cve/
+.m2-local/
 .gitattributes
 .gitkeep
 .htaccess
 node_modules/
 target/
+bin/
 test-results/
 playwright-report/
 tests/

@@ -43,6 +43,7 @@ class AdmissionControllerEmailTest {
         verify(emailService).sendAdmissionCredentialsEmail(
                 "applicant@example.test", "Applicant Name", "applicant", "temporary");
         assertThat(response.getHeaders().getCacheControl()).contains("no-store");
+        assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().isEmailSent()).isTrue();
         assertThat(response.getBody().getEmailDeliveryMessage()).contains("One-time sign-in details sent");
         assertThat(response.getBody().getTemporaryPassword()).isNull();
@@ -59,6 +60,7 @@ class AdmissionControllerEmailTest {
         var response = controller.createStudentAndEnroll(12L, request());
 
         verify(emailService, never()).sendAdmissionCredentialsEmail(any(), any(), any(), any());
+        assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().isEmailSent()).isFalse();
         assertThat(response.getBody().getTemporaryPassword()).isEqualTo("temporary");
     }
@@ -75,6 +77,7 @@ class AdmissionControllerEmailTest {
 
         var response = controller.createStudentAndEnroll(12L, request());
 
+        assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().isEmailSent()).isFalse();
         assertThat(response.getBody().getEmailDeliveryMessage()).contains("Email delivery failed");
         assertThat(response.getBody().getTemporaryPassword()).isEqualTo("temporary");
@@ -87,7 +90,7 @@ class AdmissionControllerEmailTest {
 
     private CreateAdmittedStudentRequest request() {
         CreateAdmittedStudentRequest request = new CreateAdmittedStudentRequest();
-        request.setEmail("applicant@example.test");
+        request.setEmail(" Applicant@Example.Test ");
         request.setFullName("Applicant Name");
         return request;
     }

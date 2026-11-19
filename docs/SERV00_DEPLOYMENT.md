@@ -93,7 +93,7 @@ temporary TiDB test deployment. Set:
   test mode and follow [PAYMENT_CONFIGURATION.md](./PAYMENT_CONFIGURATION.md).
 
 Keep `SAMPLE_DATA_ENABLED=false`, `FLYWAY_BASELINE_ON_MIGRATE=false`,
-`MAIL_ENABLED=false`, `MFA_ENABLED=false`, and
+`MAIL_ENABLED=false`, `MFA_ENABLED=false`, `MFA_REQUIRED_FOR_PRIVILEGED=false`, and
 `INITIAL_ADMIN_BOOTSTRAP_ENABLED=false` except during the one-time first-admin
 setup described below. Never copy test/demo account records into this database.
 

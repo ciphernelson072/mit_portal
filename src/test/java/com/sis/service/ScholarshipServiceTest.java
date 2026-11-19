@@ -39,7 +39,7 @@ class ScholarshipServiceTest {
 
         ResponseStatusException error = assertThrows(ResponseStatusException.class, () -> service.apply(4L, 9L));
 
-        assertEquals(HttpStatus.CONFLICT, error.getStatus());
+        assertEquals(HttpStatus.CONFLICT, HttpStatus.valueOf(error.getStatusCode().value()));
         verify(applications, never()).save(any(ScholarshipApplication.class));
     }
 
@@ -82,7 +82,7 @@ class ScholarshipServiceTest {
         application.setStatus("REJECTED");
         assertEquals(HttpStatus.CONFLICT,
                 assertThrows(ResponseStatusException.class, () -> service.reviewApplication(12L, "APPROVED"))
-                        .getStatus());
+                        .getStatusCode());
     }
 
     private static Scholarship scholarship(boolean open) {

@@ -10,6 +10,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -80,7 +81,9 @@ class InitialAdminBootstrapTest {
         InitialAdminBootstrap bootstrap = bootstrap(mock(UserRepository.class), mock(PasswordEncoder.class),
                 jdbcTemplate, "first-admin", "admin@example.edu", "short");
 
-        assertThrows(IllegalStateException.class, () -> bootstrap.run(mock(ApplicationArguments.class)));
+        IllegalStateException error = assertThrows(IllegalStateException.class,
+                () -> bootstrap.run(mock(ApplicationArguments.class)));
+        assertTrue(error.getMessage().contains("password"));
         verify(jdbcTemplate, never()).update(anyString(), anyString());
     }
 

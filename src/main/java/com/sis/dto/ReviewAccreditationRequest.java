@@ -1,7 +1,7 @@
 package com.sis.dto;
 
 import com.sis.entity.AccreditationStatus;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 
 public class ReviewAccreditationRequest {
     @NotNull private AccreditationStatus status;

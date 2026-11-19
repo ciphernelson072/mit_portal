@@ -2,7 +2,6 @@ package com.sis.service;
 
 import com.sis.entity.Course;
 import com.sis.entity.Teacher;
-import com.sis.entity.User;
 import com.sis.repository.CourseRepository;
 import com.sis.repository.TeacherRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -137,13 +136,11 @@ public class TeacherService {
      * @return count of students
      */
     public Long getStudentCountForTeacher(Long teacherId) {
-        Optional<Teacher> teacher = teacherRepository.findById(teacherId);
-        if (teacher.isPresent()) {
-            return teacher.get().getCourses().stream()
-                    .flatMap(course -> course.getStudents().stream())
-                    .distinct()
-                    .count();
-        }
-        throw new RuntimeException("Teacher not found with id: " + teacherId);
+        List<Long> courseIds = teacherRepository.findById(teacherId)
+                .orElseThrow(() -> new RuntimeException("Teacher not found with id: " + teacherId))
+                .getCourses().stream()
+                .map(Course::getId)
+                .toList();
+        return courseIds.isEmpty() ? 0L : courseRepository.countDistinctStudentsByCourseIds(courseIds);
     }
 }

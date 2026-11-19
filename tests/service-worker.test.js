@@ -55,6 +55,25 @@ test('service worker prefers fresh same-origin content and refreshes its offline
   assert.equal(cacheWrites[0].body, 'fresh');
 });
 
+test('service worker does not cache an authenticated dashboard on its first visit', async () => {
+  const { handler, cacheWrites } = createFetchHandler({
+    fetchResponse: new Response('dashboard shell'),
+  });
+  let responsePromise;
+  handler({
+    request: {
+      method: 'GET',
+      mode: 'navigate',
+      url: 'https://portal.example/teacher-dashboard.html',
+    },
+    respondWith: promise => { responsePromise = promise; },
+  });
+
+  const response = await responsePromise;
+  assert.equal(await response.text(), 'dashboard shell');
+  assert.equal(cacheWrites.length, 0);
+});
+
 test('service worker uses the cached page when the network is unavailable', async () => {
   const { handler } = createFetchHandler({
     cachedResponse: new Response('offline page'),
@@ -90,6 +109,7 @@ test('service worker bypasses POST, cross-origin, API, and actuator requests', (
 test('PWA manifest declares installed app icons at their real supported sizes', () => {
   const staticRoot = path.join(__dirname, '../src/main/resources/static');
   const manifest = JSON.parse(fs.readFileSync(path.join(staticRoot, 'manifest.json'), 'utf8'));
+  assert.equal(manifest.start_url, '/', 'installed app should open the portal gateway');
 
   for (const size of [192, 512]) {
     const icon = manifest.icons.find(candidate => candidate.sizes === `${size}x${size}`);
@@ -121,25 +141,26 @@ test('service worker precaches public pages but not authenticated dashboard page
   const coreAssets = [...assetsMatch[1].matchAll(/'([^']+)'/g)].map(match => match[1]);
 
   for (const asset of [
-    './', './portal-gateway.html', './index.html', './admissions.html', './course-catalog.html',
-    './admin-login.html', './css/auth.css', './css/portal-gateway.css', './icons/campus-login.png',
+    './', './home.html', './index.html', './admissions.html', './course-catalog.html',
+    './admin-login.html', './css/auth.css', './icons/campus-login.png', './icons/campus-login.svg',
+    './css/home.css',
     './css/course-catalog.css', './js/course-catalog.js', './js/theme.js',
-    './portal-login.html', './public/css/portal-login.css', './js/portal-login.js',
-    './public/index.html', './public/js/site.js',
-    './public/images/campus-gathering.jpg', './public/images/academic-community.jpg',
-    './public/images/campus-activity.jpg',
+    './portal-login.html', './js/portal-login.js', './public/css/portal-login.css',
+    './public/index.html', './public/js/site.js', './public/images/campus-gathering.jpg',
+    './public/images/academic-community.jpg', './public/images/campus-activity.jpg',
   ]) {
     assert.ok(coreAssets.includes(asset), `${asset} should be available for offline startup`);
   }
   for (const asset of ['./dashboard.html', './admin-dashboard.html', './teacher-dashboard.html']) {
     assert.ok(!coreAssets.includes(asset), `${asset} requires authentication and must not be precached for anonymous users`);
   }
-  assert.match(serviceWorkerSource, /mit-portal-cache-v\d+/);
+  assert.match(serviceWorkerSource, /const CACHE_NAME = 'mit-portal-cache-v30';/);
 });
 
 test('admin login loads shared assets from the site root and keeps its initial alert hidden', () => {
   const staticRoot = path.join(__dirname, '../src/main/resources/static');
   const loginPage = fs.readFileSync(path.join(staticRoot, 'admin-login.html'), 'utf8');
+  const studentLoginScript = fs.readFileSync(path.join(staticRoot, 'js/script.js'), 'utf8');
 
   assert.match(loginPage, /href="\/css\/auth\.css"/);
   assert.match(loginPage, /src="\/js\/deployment-config\.js"/);
@@ -147,4 +168,7 @@ test('admin login loads shared assets from the site root and keeps its initial a
   assert.match(loginPage, /id="alert"[^>]*\shidden(?:\s|>)/);
   assert.match(loginPage, /alert\.hidden = false/);
   assert.match(loginPage, /alert\.hidden = true/);
+  assert.match(loginPage, /Do not redirect based only on the localStorage role hint/);
+  assert.doesNotMatch(loginPage, /if\s*\(\s*getRole\(\)\s*===\s*'(?:ADMIN|TEACHER)'\s*\)/);
+  assert.doesNotMatch(studentLoginScript, /if\s*\(\s*getRole\(\)\s*===\s*'STUDENT'\s*\)/);
 });

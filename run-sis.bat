@@ -12,7 +12,7 @@ setlocal enabledelayedexpansion
 REM Project configuration
 set "PROJECT_DIR=%~dp0"
 cd /d "%PROJECT_DIR%"
-set JAVA_VERSION=17 or newer
+set JAVA_VERSION=25
 set MAVEN_VERSION=3.8.1
 set PORT=8080
 if not "%SIS_PORT%"=="" set "PORT=%SIS_PORT%"

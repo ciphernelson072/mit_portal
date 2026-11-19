@@ -4,7 +4,7 @@ import com.sis.entity.Permission;
 import com.sis.repository.PermissionRepository;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 import java.util.Map;
 
 @Component

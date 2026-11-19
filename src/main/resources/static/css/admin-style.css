@@ -287,6 +287,60 @@ body {
   min-height: 100vh;
 }
 
+.admin-toast {
+  position: fixed;
+  top: 1.25rem;
+  right: 1.25rem;
+  z-index: 5000;
+  width: min(440px, calc(100vw - 2.5rem));
+  padding: 1rem 1.125rem;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--color-info, #1769aa);
+  border-radius: 12px;
+  color: var(--text-dark);
+  background: var(--bg-light);
+  box-shadow: var(--shadow-lg);
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: opacity .18s ease, transform .18s ease;
+}
+
+.admin-toast[hidden] {
+  display: none;
+}
+
+.admin-toast.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.admin-toast[data-type="success"] {
+  border-left-color: var(--success, #15803d);
+}
+
+.admin-toast[data-type="warning"],
+.admin-toast[data-type="untested"] {
+  border-left-color: var(--warning, #a16207);
+}
+
+.admin-toast[data-type="error"] {
+  border-left-color: var(--danger, #b42318);
+}
+
+@media (max-width: 600px) {
+  .admin-toast {
+    top: .75rem;
+    right: .75rem;
+    width: calc(100vw - 1.5rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-toast {
+    transition: none;
+  }
+}
+
 /* ===== SIDEBAR ===== */
 .sidebar {
   width: 260px;
@@ -1633,6 +1687,8 @@ body {
 .teacher-card { min-width: 0; padding: 22px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-light); box-shadow: var(--shadow-sm); }
 .teacher-card h2 { margin-bottom: 6px; font-size: 20px; }
 .teacher-card > p { margin-bottom: 18px; color: var(--text-secondary); font-size: 13px; }
+#teacherPublicationStatusList .status-badge.pending { background: rgba(245, 158, 11, 0.12); color: #92400e; }
+body.dark-mode #teacherPublicationStatusList .status-badge.pending { background: rgba(245, 158, 11, 0.16); color: #fbbf24; }
 .teacher-field { display: grid; grid-template-columns: minmax(110px, .35fr) minmax(0, 1fr); align-items: center; gap: 10px; margin-bottom: 12px; }
 .teacher-field label { color: var(--text-secondary); font-size: 13px; font-weight: 700; }
 .teacher-field input,
