@@ -578,7 +578,9 @@ test('public admissions form uses the full desktop width and fits mobile', async
     const pathname = new URL(route.request().url()).pathname;
     const body = pathname.endsWith('/programs')
       ? [{ id: 7, code: 'BSC', name: 'Bachelor of Science in Computing' }]
-      : { id: 2, name: '2027/2028 Academic Year' };
+      : pathname.endsWith('/document-requirements')
+        ? []
+        : { id: 2, name: '2027/2028 Academic Year' };
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
   });
 
