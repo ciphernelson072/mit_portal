@@ -1566,7 +1566,7 @@ test('public applicant receives the administrator approval and enrollment steps'
     } else if (pathname.endsWith('/document-requirements')) {
       await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
     } else if (pathname.endsWith('/applications') && request.method() === 'POST') {
-      submittedApplication = request.postDataJSON();
+      submittedApplication = request.postData();
       await route.fulfill({
         status: 201,
         contentType: 'application/json',
@@ -1588,12 +1588,22 @@ test('public applicant receives the administrator approval and enrollment steps'
 
   await expect(page.locator('#admissionStatus')).toContainText('APP-2027-0001');
   await expect(page.locator('#admissionStatus')).toContainText('after acceptance and enrollment');
-  expect(submittedApplication).toEqual({
+  const submittedField = name => {
+    const match = submittedApplication.match(new RegExp(`name="${name}"\\r?\\n\\r?\\n([^\\r\\n]*)`));
+    return match ? match[1] : null;
+  };
+  expect({
+    applicantName: submittedField('applicantName'),
+    email: submittedField('email'),
+    phone: submittedField('phone'),
+    programId: submittedField('programId'),
+    academicYearId: submittedField('academicYearId'),
+  }).toEqual({
     applicantName: 'Test Applicant',
     email: 'applicant@example.test',
     phone: '+256700000001',
-    programId: 4,
-    academicYearId: 7,
+    programId: '4',
+    academicYearId: '7',
   });
 });
 
