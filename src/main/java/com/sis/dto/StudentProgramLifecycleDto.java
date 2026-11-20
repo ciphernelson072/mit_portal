@@ -9,11 +9,12 @@ public class StudentProgramLifecycleDto {
     private final Long academicYearId;
     private final String academicYearName;
     private final String status;
+    private final Integer currentSemester;
     private final LocalDate startDate;
     private final LocalDate endDate;
 
     public StudentProgramLifecycleDto(Long id, Long programId, String programName, Long academicYearId,
-                                      String academicYearName, String status, LocalDate startDate,
+                                      String academicYearName, String status, Integer currentSemester, LocalDate startDate,
                                       LocalDate endDate) {
         this.id = id;
         this.programId = programId;
@@ -21,6 +22,7 @@ public class StudentProgramLifecycleDto {
         this.academicYearId = academicYearId;
         this.academicYearName = academicYearName;
         this.status = status;
+        this.currentSemester = currentSemester;
         this.startDate = startDate;
         this.endDate = endDate;
     }
@@ -31,6 +33,7 @@ public class StudentProgramLifecycleDto {
     public Long getAcademicYearId() { return academicYearId; }
     public String getAcademicYearName() { return academicYearName; }
     public String getStatus() { return status; }
+    public Integer getCurrentSemester() { return currentSemester; }
     public LocalDate getStartDate() { return startDate; }
     public LocalDate getEndDate() { return endDate; }
 }

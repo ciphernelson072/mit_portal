@@ -9,6 +9,8 @@ import com.sis.repository.AcademicYearRepository;
 import com.sis.repository.ProgramRepository;
 import com.sis.service.AdmissionService;
 import com.sis.service.EmailService;
+import com.sis.service.AdmissionDocumentService;
+import com.sis.service.PublicAdmissionSubmissionService;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 
@@ -24,8 +26,11 @@ class PublicAdmissionsControllerEmailTest {
     private final ProgramRepository programs = mock(ProgramRepository.class);
     private final AcademicYearRepository academicYears = mock(AcademicYearRepository.class);
     private final EmailService emailService = mock(EmailService.class);
+    private final AdmissionDocumentService admissionDocuments = mock(AdmissionDocumentService.class);
+    private final PublicAdmissionSubmissionService submissions = mock(PublicAdmissionSubmissionService.class);
     private final PublicAdmissionsController controller =
-            new PublicAdmissionsController(admissionService, programs, academicYears, emailService);
+            new PublicAdmissionsController(
+                    admissionService, programs, academicYears, emailService, admissionDocuments, submissions);
 
     @Test
     void sendsReceiptAfterApplicationIsSavedAndReportsEmailSuccess() {
@@ -66,6 +71,15 @@ class PublicAdmissionsControllerEmailTest {
         assertThat(response.getBody()).containsEntry("emailSent", false);
         assertThat(response.getBody().get("applicationNumber")).isEqualTo("APP-123");
         assertThat(response.getBody().get("emailMessage")).asString().contains("not configured");
+    }
+
+    @Test
+    void requiresMultipartSubmissionWhenActiveRequiredDocumentsExist() {
+        when(admissionDocuments.hasActiveRequiredDocuments()).thenReturn(true);
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> controller.submit(request()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Upload the required admission documents");
     }
 
     private AdmissionApplicationRequest request() {

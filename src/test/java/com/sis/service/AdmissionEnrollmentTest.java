@@ -42,8 +42,11 @@ class AdmissionEnrollmentTest {
     private final StudentProgramRepository studentPrograms = mock(StudentProgramRepository.class);
     private final StudentStatusHistoryRepository statusHistory = mock(StudentStatusHistoryRepository.class);
     private final AdminService adminService = mock(AdminService.class);
+    private final AutomaticCourseAssignmentService automaticCourseAssignments =
+            mock(AutomaticCourseAssignmentService.class);
     private final AdmissionService service = new AdmissionService(
-            applications, programs, academicYears, students, studentPrograms, statusHistory, adminService);
+            applications, programs, academicYears, students, studentPrograms, statusHistory,
+            adminService, automaticCourseAssignments);
 
     @Test
     void onlyEnrollsAnActiveStudentWhoseEmailMatchesTheAcceptedApplication() {
@@ -69,6 +72,9 @@ class AdmissionEnrollmentTest {
         Student student = student("applicant@example.com");
         StudentProgram existing = new StudentProgram();
         existing.setId(33L);
+        existing.setStudent(student);
+        existing.setProgram(application.getProgram());
+        existing.setAcademicYear(application.getAcademicYear());
         when(applications.findByIdWithProgramAndAcademicYear(8L)).thenReturn(Optional.of(application));
         when(programs.existsActiveInDirectory(5L)).thenReturn(true);
         when(students.findById(19L)).thenReturn(Optional.of(student));
@@ -77,9 +83,12 @@ class AdmissionEnrollmentTest {
         EnrollAdmissionRequest request = new EnrollAdmissionRequest();
         request.setStudentId(19L);
 
-        StudentProgram result = service.enroll(8L, request, "registrar");
+        when(automaticCourseAssignments.assignStudentForOpenTerms(19L, 5L, 2L))
+                .thenReturn(new com.sis.dto.AutomaticCourseAssignmentSummary(1, 0, 0, 0, List.of()));
 
-        assertThat(result).isSameAs(existing);
+        var result = service.enroll(8L, request, "registrar");
+
+        assertThat(result.enrollment()).isSameAs(existing);
         verify(studentPrograms, never()).save(any(StudentProgram.class));
         verify(statusHistory, never()).save(any());
     }
@@ -122,6 +131,8 @@ class AdmissionEnrollmentTest {
             saved.setId(77L);
             return saved;
         });
+        when(automaticCourseAssignments.assignStudentForOpenTerms(19L, 5L, 2L))
+                .thenReturn(new com.sis.dto.AutomaticCourseAssignmentSummary(1, 2, 0, 0, List.of()));
 
         AdmissionEnrollmentCredentialsResponse result =
                 service.createStudentAndEnroll(8L, request, "registrar");
@@ -131,6 +142,7 @@ class AdmissionEnrollmentTest {
         assertThat(result.getProgramId()).isEqualTo(5L);
         assertThat(result.getAcademicYearId()).isEqualTo(2L);
         assertThat(result.getStatus()).isEqualTo("ACTIVE");
+        assertThat(result.getAutomaticAssignments().registrationsCreated()).isEqualTo(2);
         assertThat(result.getUsername()).isEqualTo("applicant");
         assertThat(result.getTemporaryPassword())
                 .matches("[A-Za-z0-9_-]{32}")

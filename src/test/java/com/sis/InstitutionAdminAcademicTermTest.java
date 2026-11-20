@@ -11,6 +11,7 @@ import com.sis.repository.CampusRepository;
 import com.sis.repository.DepartmentRepository;
 import com.sis.repository.FacultyRepository;
 import com.sis.repository.ProgramRepository;
+import com.sis.service.AutomaticCourseAssignmentService;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 
@@ -28,16 +29,24 @@ import static org.mockito.Mockito.when;
 class InstitutionAdminAcademicTermTest {
     private final AcademicYearRepository years = mock(AcademicYearRepository.class);
     private final AcademicTermRepository terms = mock(AcademicTermRepository.class);
+    private final AutomaticCourseAssignmentService automaticCourseAssignments =
+            mock(AutomaticCourseAssignmentService.class);
     private final InstitutionAdminController controller = new InstitutionAdminController(
             mock(CampusRepository.class), mock(FacultyRepository.class), mock(DepartmentRepository.class),
-            mock(ProgramRepository.class), years, terms);
+            mock(ProgramRepository.class), years, terms, automaticCourseAssignments);
 
     @Test
     void createsTermWithTrimmedValuesInsideAcademicYear() {
         AcademicYear year = academicYear();
         when(years.findById(5L)).thenReturn(Optional.of(year));
         when(terms.existsByCodeIgnoreCase("2026-T1")).thenReturn(false);
-        when(terms.save(any(AcademicTerm.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(terms.save(any(AcademicTerm.class))).thenAnswer(invocation -> {
+            AcademicTerm saved = invocation.getArgument(0);
+            saved.setId(12L);
+            return saved;
+        });
+        when(automaticCourseAssignments.assignActiveStudentsForTerm(12L))
+                .thenReturn(new com.sis.dto.AutomaticCourseAssignmentSummary(0, 0, 0, 0, java.util.List.of()));
 
         var response = controller.createAcademicTerm(request());
 
@@ -47,8 +56,10 @@ class InstitutionAdminAcademicTermTest {
                 .containsEntry("name", "Semester One")
                 .containsEntry("academicYearId", 5L)
                 .containsEntry("academicYearCode", "2026")
-                .containsEntry("registrationOpen", true);
+                .containsEntry("registrationOpen", true)
+                .containsKey("automaticAssignments");
         verify(terms).save(any(AcademicTerm.class));
+        verify(automaticCourseAssignments).assignActiveStudentsForTerm(12L);
     }
 
     @Test

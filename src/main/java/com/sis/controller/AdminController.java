@@ -59,6 +59,12 @@ public class AdminController {
     @Autowired
     private GradeImportService gradeImportService;
 
+    @Autowired
+    private AutomaticCourseAssignmentService automaticCourseAssignments;
+
+    @Autowired
+    private AcademicProgressionService academicProgressionService;
+
     // ===== USER MANAGEMENT ENDPOINTS =====
 
     @GetMapping("/users")
@@ -162,6 +168,31 @@ public class AdminController {
     public ResponseEntity<List<com.sis.dto.StudentProgramLifecycleDto>> getStudentProgramLifecycles(
             @PathVariable Long id) {
         return ResponseEntity.ok(adminService.getStudentProgramLifecycles(id));
+    }
+
+    @GetMapping("/students/{studentId}/programs/{programEnrollmentId}/progression-recommendation")
+    public ResponseEntity<ProgressionRecommendationDto> getProgressionRecommendation(
+            @PathVariable Long studentId,
+            @PathVariable Long programEnrollmentId) {
+        return ResponseEntity.ok(
+                academicProgressionService.recommendation(studentId, programEnrollmentId));
+    }
+
+    @PatchMapping("/students/{studentId}/programs/{programEnrollmentId}/semester")
+    public ResponseEntity<java.util.Map<String, Object>> updateStudentProgramSemester(
+            @PathVariable Long studentId,
+            @PathVariable Long programEnrollmentId,
+            @Valid @RequestBody UpdateStudentProgramSemesterRequest request) {
+        StudentProgramLifecycleDto enrollment = adminService.updateStudentProgramSemester(
+                studentId, programEnrollmentId, request.getCurrentSemester());
+        AutomaticCourseAssignmentSummary assignments = automaticCourseAssignments.assignStudentForOpenTerms(
+                studentId, enrollment.getProgramId(), enrollment.getAcademicYearId());
+        auditLogRepository.save(new AuditLog(currentAdminId(), "STUDENT_PROGRAM_SEMESTER_UPDATED",
+                "Updated programme enrollment #" + programEnrollmentId + " to semester "
+                        + enrollment.getCurrentSemester()));
+        return ResponseEntity.ok(java.util.Map.of(
+                "enrollment", enrollment,
+                "automaticAssignments", assignments));
     }
 
     @GetMapping("/students/{id}/status-history")
@@ -339,6 +370,13 @@ public class AdminController {
     @PreAuthorize("@permissionSecurity.canManageStudentFees()")
     public ResponseEntity<List<AdminFeeDto>> getFees() {
         return ResponseEntity.ok(schoolService.getAllFees());
+    }
+
+    @PostMapping("/fees/{feeId}/approve")
+    @PreAuthorize("@permissionSecurity.canManageStudentFees()")
+    public ResponseEntity<Void> approveDraftFee(@PathVariable Long feeId) {
+        schoolService.approveDraftFee(feeId);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/grades")

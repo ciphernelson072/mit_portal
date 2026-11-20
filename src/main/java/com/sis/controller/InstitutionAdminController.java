@@ -21,6 +21,7 @@ import com.sis.repository.CampusRepository;
 import com.sis.repository.DepartmentRepository;
 import com.sis.repository.FacultyRepository;
 import com.sis.repository.ProgramRepository;
+import com.sis.service.AutomaticCourseAssignmentService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -42,16 +43,19 @@ public class InstitutionAdminController {
     private final ProgramRepository programs;
     private final AcademicYearRepository academicYears;
     private final AcademicTermRepository academicTerms;
+    private final AutomaticCourseAssignmentService automaticCourseAssignments;
 
     public InstitutionAdminController(CampusRepository campuses, FacultyRepository faculties,
                                       DepartmentRepository departments, ProgramRepository programs,
-                                      AcademicYearRepository academicYears, AcademicTermRepository academicTerms) {
+                                      AcademicYearRepository academicYears, AcademicTermRepository academicTerms,
+                                      AutomaticCourseAssignmentService automaticCourseAssignments) {
         this.campuses = campuses;
         this.faculties = faculties;
         this.departments = departments;
         this.programs = programs;
         this.academicYears = academicYears;
         this.academicTerms = academicTerms;
+        this.automaticCourseAssignments = automaticCourseAssignments;
     }
 
     @GetMapping("/campuses")
@@ -227,8 +231,18 @@ public class InstitutionAdminController {
         term.setStartDate(request.getStartDate());
         term.setEndDate(request.getEndDate());
         term.setRegistrationOpen(request.getRegistrationOpen());
+        if (request.getGradeSubmissionDeadline() != null
+                && request.getGradeSubmissionDeadline().isBefore(request.getStartDate())) {
+            throw new IllegalArgumentException("Grade submission deadline must be on or after the term start date.");
+        }
+        term.setGradeSubmissionDeadline(request.getGradeSubmissionDeadline());
         AcademicTerm saved = academicTerms.save(term);
-        return ResponseEntity.status(HttpStatus.CREATED).body(academicTermResponse(saved, year));
+        Map<String, Object> response = academicTermResponse(saved, year);
+        if (Boolean.TRUE.equals(saved.getRegistrationOpen())) {
+            response.put("automaticAssignments",
+                    automaticCourseAssignments.assignActiveStudentsForTerm(saved.getId()));
+        }
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PatchMapping("/academic-terms/{id}/registration-window")
@@ -239,7 +253,13 @@ public class InstitutionAdminController {
                 .orElseThrow(() -> new ResourceNotFoundException("Academic term not found: " + id));
         AcademicYear year = term.getAcademicYear();
         term.setRegistrationOpen(request.getRegistrationOpen());
-        return academicTermResponse(academicTerms.save(term), year);
+        AcademicTerm saved = academicTerms.save(term);
+        Map<String, Object> response = academicTermResponse(saved, year);
+        if (Boolean.TRUE.equals(saved.getRegistrationOpen())) {
+            response.put("automaticAssignments",
+                    automaticCourseAssignments.assignActiveStudentsForTerm(saved.getId()));
+        }
+        return response;
     }
 
     private AcademicYear activateAcademicYear(AcademicYear selectedYear) {
@@ -298,7 +318,8 @@ public class InstitutionAdminController {
                 "academicYearId", year.getId(),
                 "academicYearCode", year.getCode(),
                 "startDate", item.getStartDate(), "endDate", item.getEndDate(),
-                "registrationOpen", item.getRegistrationOpen());
+                "registrationOpen", item.getRegistrationOpen(),
+                "gradeSubmissionDeadline", item.getGradeSubmissionDeadline());
     }
 
     private Map<String, Object> map(Object... values) {

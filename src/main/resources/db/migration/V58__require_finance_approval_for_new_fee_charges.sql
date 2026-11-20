@@ -1,0 +1,5 @@
+ALTER TABLE fees
+    ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE';
+
+ALTER TABLE fees
+    ADD CONSTRAINT chk_fee_status CHECK (status IN ('DRAFT', 'ACTIVE'));

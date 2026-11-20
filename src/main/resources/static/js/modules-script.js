@@ -167,7 +167,10 @@ async function loadAcademicsData() {
     ]);
     const timetable = await apiGet('/academic/student/timetable');
     const examResults = await apiGet('/academic/student/exam-results');
-    const permits = await apiGet('/student/exam-permits');
+    const [permits, examReadiness] = await Promise.all([
+      apiGet('/student/exam-permits'),
+      apiGet('/student/exam-readiness'),
+    ]);
     const resultStatus = await apiGet(`/reports/academic/${profile.id}/status`);
     loadAcademicRecords(profile.id);
     loadCourseRegistrationPanel();
@@ -183,7 +186,7 @@ async function loadAcademicsData() {
     window._assignments = assignments;
     window._exams = exams;
     renderAssignments(assignments);
-    renderExams(exams, permits);
+    renderExams(exams, permits, examReadiness);
     renderTimetable(timetable, courses);
     renderExamResults(examResults, exams);
     renderAnalytics(grades, await apiGet('/student/attendance'), profile);
@@ -238,13 +241,14 @@ async function loadCourseRegistrationPanel() {
     ]);
     const openTermIds = new Set(openTerms.map(term => Number(term.id)));
     registrationsContainer.innerHTML = registrations.length
-      ? `<div class="roster-wrap"><table class="table"><thead><tr><th>Course</th><th>Term</th><th>Section</th><th>Status</th><th>Action</th></tr></thead><tbody>${
+      ? `<div class="roster-wrap"><table class="table"><thead><tr><th>Course</th><th>Term</th><th>Section</th><th>Instructor</th><th>Status</th><th>Action</th></tr></thead><tbody>${
         registrations.map(registration => {
           const canDrop = openTermIds.has(Number(registration.termId));
           return `<tr>
             <td>${escapeHtml(registration.courseCode)} · ${escapeHtml(registration.courseName)}</td>
             <td>${escapeHtml(registration.termName || `Term ${registration.termId}`)}</td>
             <td>${escapeHtml(registration.sectionCode || '—')}</td>
+            <td>${escapeHtml(registration.teacherName || 'Not assigned')}</td>
             <td>${escapeHtml(registration.status)}</td>
             <td><button type="button" class="btn-secondary" data-drop-registration="${registration.id}" ${canDrop ? '' : 'disabled'}>
               ${canDrop ? 'Drop course' : 'Drop closed'}
@@ -265,19 +269,21 @@ async function loadCourseRegistrationPanel() {
     const sections = sectionsByTerm.flatMap(({ term, sections: termSections }) =>
       termSections.map(section => ({ ...section, termName: term.name })));
     sectionsContainer.innerHTML = sections.length
-      ? `<div class="roster-wrap"><table class="table"><thead><tr><th>Course</th><th>Term</th><th>Section</th><th>Credits</th><th>Seats available</th><th>Action</th></tr></thead><tbody>${
+      ? `<div class="roster-wrap"><table class="table"><thead><tr><th>Course</th><th>Term</th><th>Section</th><th>Instructor</th><th>Credits</th><th>Seats available</th><th>Action</th></tr></thead><tbody>${
         sections.map(section => {
           const alreadyRegistered = registrations.some(item =>
             Number(item.termId) === Number(section.termId) && Number(item.courseId) === Number(section.courseId));
           const isFull = Number(section.seatsAvailable) <= 0;
+          const instructorUnavailable = section.instructorAssigned !== true;
           return `<tr>
             <td>${escapeHtml(section.courseCode)} · ${escapeHtml(section.courseName)}</td>
             <td>${escapeHtml(section.termName)}</td>
             <td>${escapeHtml(section.sectionCode)}</td>
+            <td>${escapeHtml(section.teacherName || 'Not assigned')}</td>
             <td>${escapeHtml(section.credits ?? '—')}</td>
             <td>${escapeHtml(`${section.seatsAvailable} / ${section.capacity}`)}</td>
-            <td><button type="button" class="btn-primary" data-register-section="${section.id}" ${alreadyRegistered || isFull ? 'disabled' : ''}>
-              ${alreadyRegistered ? 'Registered' : isFull ? 'Full' : 'Register'}
+            <td><button type="button" class="btn-primary" data-register-section="${section.id}" ${alreadyRegistered || isFull || instructorUnavailable ? 'disabled' : ''}>
+              ${alreadyRegistered ? 'Registered' : isFull ? 'Full' : instructorUnavailable ? 'Instructor unavailable' : 'Register'}
             </button></td>
           </tr>`;
         }).join('')
@@ -420,17 +426,22 @@ function renderAssignments(assignments) {
   list.innerHTML = assignments.length ? assignments.map(assignment => `<article class="assignment-card"><div class="assignment-header"><h3>${escapeHtml(assignment.title)}</h3><span class="assignment-course">Course #${assignment.courseId}</span></div><div class="assignment-body"><p>${escapeHtml(assignment.description || 'No description')}</p><p class="due-date">Due: ${escapeHtml(assignment.dueAt)}</p></div><div class="assignment-actions"><button class="btn-secondary" onclick="viewAssignment(${assignment.id})">View Details</button><button class="btn-primary" onclick="submitAssignment(${assignment.id})">Submit</button></div></article>`).join('') : '<p>No assignments are currently published.</p>';
 }
 
-function renderExams(exams, permits = []) {
+function renderExams(exams, permits = [], examReadiness = []) {
   const container = document.querySelector('.exams-container');
   if (!container) return;
   const permitByExam = Object.fromEntries(permits.map(permit => [permit.examId, permit]));
+  const readinessByExam = Object.fromEntries(examReadiness.map(item => [item.examId, item.readiness]));
   container.innerHTML = exams.length ? `<div class="exam-card"><div class="exam-header"><h3>Published Examinations</h3></div><div class="exam-list">${exams.map(exam => {
     const permit = permitByExam[exam.id];
     const status = permit?.status || 'NOT_REQUESTED';
+    const readiness = readinessByExam[exam.id] || permit?.readiness;
     const action = status === 'NOT_REQUESTED'
       ? `<button class="btn-secondary" type="button" onclick="requestExamPermit(${exam.id})">Request permit</button>`
       : `<span class="status-badge">Permit: ${escapeHtml(status)}</span>`;
-    return `<div class="exam-item"><div class="exam-info"><p class="exam-course"><strong>${escapeHtml(exam.title)}</strong> (Course #${exam.courseId})</p><p class="exam-date">Exam: ${escapeHtml(exam.startsAt)}</p><p class="exam-location">Venue: ${escapeHtml(exam.venue)}</p>${action}</div></div>`;
+    const readinessMessage = readiness?.warnings?.length
+      ? `<p class="exam-readiness" role="status"><strong>Readiness review:</strong> ${readiness.warnings.map(escapeHtml).join(' ')}</p>`
+      : '';
+    return `<div class="exam-item"><div class="exam-info"><p class="exam-course"><strong>${escapeHtml(exam.title)}</strong> (Course #${exam.courseId})</p><p class="exam-date">Exam: ${escapeHtml(exam.startsAt)}</p><p class="exam-location">Venue: ${escapeHtml(exam.venue)}</p>${action}${readinessMessage}</div></div>`;
   }).join('')}</div><button class="btn-secondary" onclick="downloadHallTicket()">Download Hall Tickets</button></div>` : '<p>No examinations are currently scheduled.</p>';
 }
 
@@ -440,8 +451,12 @@ async function requestExamPermit(examId) {
       method: 'POST',
       body: JSON.stringify({ examId }),
     });
-    const [exams, permits] = await Promise.all([apiGet('/portal/student/exams'), apiGet('/student/exam-permits')]);
-    renderExams(exams, permits);
+    const [exams, permits, readiness] = await Promise.all([
+      apiGet('/portal/student/exams'),
+      apiGet('/student/exam-permits'),
+      apiGet('/student/exam-readiness'),
+    ]);
+    renderExams(exams, permits, readiness);
   } catch (err) {
     alert(err.message || 'Exam permit request failed.');
   }

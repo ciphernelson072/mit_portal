@@ -2,6 +2,7 @@ package com.sis.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sis.service.EmailService;
+import com.sis.repository.EmailNotificationDeliveryRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -96,7 +97,8 @@ class AdminSystemStatusControllerTest {
         when(emailService.getLastSuccessfulTestEmailAt()).thenReturn(sentAt);
         when(emailService.isDeliveryConfigured()).thenReturn(true);
         AdminSystemStatusController controller = new AdminSystemStatusController(
-                healthyJdbcTemplate(), new ObjectMapper(), true, emailService, "", "", 36);
+                healthyJdbcTemplate(), mock(EmailNotificationDeliveryRepository.class),
+                new ObjectMapper(), true, emailService, "", "", 36);
 
         Map<?, ?> email = (Map<?, ?>) controller.status().get("email");
 
@@ -111,7 +113,8 @@ class AdminSystemStatusControllerTest {
         EmailService emailService = mock(EmailService.class);
         when(emailService.isDeliveryConfigured()).thenReturn(true);
         AdminSystemStatusController controller = new AdminSystemStatusController(
-                healthyJdbcTemplate(), new ObjectMapper(), true, emailService, "", "", 36);
+                healthyJdbcTemplate(), mock(EmailNotificationDeliveryRepository.class),
+                new ObjectMapper(), true, emailService, "", "", 36);
 
         Map<?, ?> email = (Map<?, ?>) controller.status().get("email");
 
@@ -122,7 +125,8 @@ class AdminSystemStatusControllerTest {
     @Test
     void reportsIncompleteEmailProviderWhenDeliveryIsNotConfigured() {
         AdminSystemStatusController controller = new AdminSystemStatusController(
-                healthyJdbcTemplate(), new ObjectMapper(), true, mock(EmailService.class), "", "", 36);
+                healthyJdbcTemplate(), mock(EmailNotificationDeliveryRepository.class),
+                new ObjectMapper(), true, mock(EmailService.class), "", "", 36);
 
         Map<?, ?> email = (Map<?, ?>) controller.status().get("email");
 
@@ -134,7 +138,8 @@ class AdminSystemStatusControllerTest {
         EmailService emailService = mock(EmailService.class);
         when(emailService.isDeliveryConfigured()).thenReturn(true);
         AdminSystemStatusController controller = new AdminSystemStatusController(
-                healthyJdbcTemplate(), new ObjectMapper(), true, emailService, "", "", 36);
+                healthyJdbcTemplate(), mock(EmailNotificationDeliveryRepository.class),
+                new ObjectMapper(), true, emailService, "", "", 36);
 
         Map<?, ?> email = (Map<?, ?>) controller.status().get("email");
 
@@ -147,7 +152,8 @@ class AdminSystemStatusControllerTest {
     }
 
     private AdminSystemStatusController controller(String statusFile, String uploadStatusFile, long maxAgeHours) {
-        return new AdminSystemStatusController(healthyJdbcTemplate(), new ObjectMapper(), false,
+        return new AdminSystemStatusController(healthyJdbcTemplate(),
+                mock(EmailNotificationDeliveryRepository.class), new ObjectMapper(), false,
                 mock(EmailService.class), statusFile, uploadStatusFile, maxAgeHours);
     }
 

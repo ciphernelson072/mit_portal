@@ -12,6 +12,14 @@ public interface CurriculumCourseRepository extends JpaRepository<CurriculumCour
     @EntityGraph(attributePaths = {"program", "course"})
     List<CurriculumCourse> findByProgramIdOrderBySemesterNumberAscCourseCourseCodeAsc(Long programId);
 
+    @EntityGraph(attributePaths = {"program", "course", "course.teacher", "course.teacher.user"})
+    List<CurriculumCourse> findByProgramIdAndSemesterNumberAndRequiredTrueOrderByCourseCourseCodeAsc(
+            Long programId, Integer semesterNumber);
+
+    @Query("select max(curriculumCourse.semesterNumber) from CurriculumCourse curriculumCourse "
+            + "where curriculumCourse.program.id = :programId")
+    Integer findMaximumSemesterNumberByProgramId(@Param("programId") Long programId);
+
     @EntityGraph(attributePaths = {"program", "course"})
     @Query("select curriculumCourse from CurriculumCourse curriculumCourse where curriculumCourse.id = :id")
     Optional<CurriculumCourse> findByIdWithProgramAndCourse(@Param("id") Long id);

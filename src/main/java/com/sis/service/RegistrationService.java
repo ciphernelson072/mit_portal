@@ -3,10 +3,13 @@ package com.sis.service;
 import com.sis.dto.CreateCourseSectionRequest;
 import com.sis.entity.*;
 import com.sis.repository.*;
+import com.sis.dto.AutomaticCourseAssignmentSummary;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -21,6 +24,7 @@ public class RegistrationService {
     private final AcademicTermRepository terms;
     private final StudentRepository students;
     private final StudentProgramRepository studentPrograms;
+    private final CurriculumCourseRepository curriculumCourses;
     private final CoursePrerequisiteRepository prerequisites;
     private final GradeRepository grades;
     private final FinancialHoldService financialHolds;
@@ -29,6 +33,7 @@ public class RegistrationService {
     public RegistrationService(CourseSectionRepository sections, CourseRegistrationRepository registrations,
                                CourseRepository courses, AcademicTermRepository terms,
                                StudentRepository students, StudentProgramRepository studentPrograms,
+                               CurriculumCourseRepository curriculumCourses,
                                CoursePrerequisiteRepository prerequisites, GradeRepository grades,
                                FinancialHoldService financialHolds,
                                TimetableEntryRepository timetableEntries) {
@@ -38,6 +43,7 @@ public class RegistrationService {
         this.terms = terms;
         this.students = students;
         this.studentPrograms = studentPrograms;
+        this.curriculumCourses = curriculumCourses;
         this.prerequisites = prerequisites;
         this.grades = grades;
         this.financialHolds = financialHolds;
@@ -92,6 +98,85 @@ public class RegistrationService {
         return registrations.findByStudentIdAndStatusOrderByRegisteredAtDesc(student.getId(), RegistrationStatus.REGISTERED);
     }
 
+    public AutomaticCourseAssignmentSummary autoAssignRequiredCourses(
+            String username, Long termId, Long programId, Integer semesterNumber) {
+        Student student = students.findByUserUsernameForUpdate(username)
+                .orElseThrow(() -> new IllegalArgumentException("Student profile not found"));
+        List<CurriculumCourse> requiredCourses =
+                curriculumCourses.findByProgramIdAndSemesterNumberAndRequiredTrueOrderByCourseCourseCodeAsc(
+                        programId, semesterNumber);
+        if (requiredCourses.isEmpty()) {
+            return new AutomaticCourseAssignmentSummary(1, 0, 0, 0, List.of());
+        }
+
+        List<CourseSection> eligibleSections = sections.findRequiredEligibleByTermStudentProgramAndSemester(
+                termId, student.getId(), programId, semesterNumber, StudentLifecycleStatus.ACTIVE);
+        Map<Long, Long> registeredCounts = registeredCounts(eligibleSections);
+        List<AutomaticCourseAssignmentSummary.Issue> issues = new ArrayList<>();
+        int created = 0;
+        int alreadyRegistered = 0;
+
+        for (CurriculumCourse curriculumCourse : requiredCourses) {
+            Course course = curriculumCourse.getCourse();
+            if (registrations.existsByStudentIdAndSectionAcademicTermIdAndSectionCourseIdAndStatus(
+                    student.getId(), termId, course.getId(), RegistrationStatus.REGISTERED)) {
+                alreadyRegistered++;
+                continue;
+            }
+            if (registrations.existsByStudentIdAndSectionAcademicTermIdAndSectionCourseIdAndStatusIn(
+                    student.getId(), termId, course.getId(), List.of(RegistrationStatus.DROPPED))) {
+                issues.add(issue(student, programId, course, "Previously dropped by the student; registrar review is required."));
+                continue;
+            }
+
+            Teacher teacher = course.getTeacher();
+            if (teacher == null || teacher.getUser() == null
+                    || !Boolean.TRUE.equals(teacher.getUser().getIsActive())) {
+                issues.add(issue(student, programId, course, "No active instructor is assigned."));
+                continue;
+            }
+
+            List<CourseSection> candidates = eligibleSections.stream()
+                    .filter(section -> section.getCourse().getId().equals(course.getId()))
+                    .sorted(Comparator
+                            .comparingLong((CourseSection section) ->
+                                    registeredCounts.getOrDefault(section.getId(), 0L))
+                            .thenComparing(CourseSection::getSectionCode))
+                    .toList();
+            if (candidates.isEmpty()) {
+                issues.add(issue(student, programId, course, "No active section is available for this semester."));
+                continue;
+            }
+
+            boolean resolved = false;
+            for (CourseSection candidate : candidates) {
+                try {
+                    register(username, candidate.getId());
+                    created++;
+                    resolved = true;
+                    break;
+                } catch (RegistrationRuleViolation violation) {
+                    if (violation.getRule() == RegistrationRuleViolation.Rule.SECTION_FULL) {
+                        continue;
+                    }
+                    if (violation.getRule() == RegistrationRuleViolation.Rule.ALREADY_REGISTERED) {
+                        alreadyRegistered++;
+                        resolved = true;
+                    } else {
+                        issues.add(issue(student, programId, course, violation.getMessage()));
+                        resolved = true;
+                    }
+                    break;
+                }
+            }
+            if (!resolved) {
+                issues.add(issue(student, programId, course, "All active sections are full."));
+            }
+        }
+
+        return new AutomaticCourseAssignmentSummary(1, created, alreadyRegistered, issues.size(), issues);
+    }
+
     public CourseRegistration register(String username, Long sectionId) {
         Student student = students.findByUserUsernameForUpdate(username)
                 .orElseThrow(() -> new IllegalArgumentException("Student profile not found"));
@@ -99,34 +184,52 @@ public class RegistrationService {
                 .orElseThrow(() -> new IllegalArgumentException("Active course section not found"));
         AcademicTerm term = section.getAcademicTerm();
         if (!Boolean.TRUE.equals(term.getRegistrationOpen())) {
-            throw new IllegalStateException("Registration is closed for this academic term");
+            throw new RegistrationRuleViolation(RegistrationRuleViolation.Rule.REGISTRATION_CLOSED,
+                    "Registration is closed for this academic term");
         }
         if (!studentPrograms.existsByStudentIdAndAcademicYearIdAndStatus(
                 student.getId(), term.getAcademicYear().getId(), StudentLifecycleStatus.ACTIVE)) {
-            throw new IllegalStateException("Student has no active program for this academic year");
+            throw new RegistrationRuleViolation(RegistrationRuleViolation.Rule.NO_ACTIVE_PROGRAM,
+                    "Student has no active program for this academic year");
         }
         if (!studentPrograms.existsActiveProgramCourse(
                 student.getId(), term.getAcademicYear().getId(), StudentLifecycleStatus.ACTIVE,
                 section.getCourse().getId())) {
-            throw new IllegalStateException("Course is not part of the student's active program curriculum");
+            throw new RegistrationRuleViolation(RegistrationRuleViolation.Rule.COURSE_NOT_IN_CURRICULUM,
+                    "Course is not part of the student's active program curriculum");
         }
         if (financialHolds.hasActiveHold(student.getId())) {
-            throw new IllegalStateException("Registration is blocked by an active financial hold");
+            throw new RegistrationRuleViolation(RegistrationRuleViolation.Rule.FINANCIAL_HOLD,
+                    "Registration is blocked by an active financial hold");
+        }
+        Teacher teacher = section.getCourse().getTeacher();
+        if (teacher == null || teacher.getUser() == null || !Boolean.TRUE.equals(teacher.getUser().getIsActive())) {
+            throw new RegistrationRuleViolation(RegistrationRuleViolation.Rule.INSTRUCTOR_UNAVAILABLE,
+                    "The course does not have an active instructor assigned");
         }
         if (registrations.existsByStudentIdAndSectionAcademicTermIdAndSectionCourseIdAndStatus(
                 student.getId(), term.getId(), section.getCourse().getId(), RegistrationStatus.REGISTERED)) {
-            throw new IllegalStateException("Student is already registered for this course in the term");
+            throw new RegistrationRuleViolation(RegistrationRuleViolation.Rule.ALREADY_REGISTERED,
+                    "Student is already registered for this course in the term");
         }
-        ensureNoTimetableConflict(student.getId(), term.getId(), section.getCourse().getId());
+        try {
+            ensureNoTimetableConflict(student.getId(), term.getId(), section.getCourse().getId());
+        } catch (IllegalStateException conflict) {
+            throw new RegistrationRuleViolation(RegistrationRuleViolation.Rule.TIMETABLE_CONFLICT,
+                    conflict.getMessage());
+        }
         prerequisites.findByCourseId(section.getCourse().getId()).forEach(item -> {
             if (!grades.existsByStudentIdAndCourseIdAndStatusAndGpaScoreGreaterThanEqual(
                     student.getId(), item.getPrerequisiteCourse().getId(), GradeStatus.APPROVED,
                     UgandanTertiaryGradingPolicy.PASS_GRADE_POINT)) {
-                throw new IllegalStateException("Prerequisite not completed: " + item.getPrerequisiteCourse().getCourseCode());
+                throw new RegistrationRuleViolation(
+                        RegistrationRuleViolation.Rule.PREREQUISITE_NOT_COMPLETED,
+                        "Prerequisite not completed: " + item.getPrerequisiteCourse().getCourseCode());
             }
         });
         if (registrations.countBySectionIdAndStatus(sectionId, RegistrationStatus.REGISTERED) >= section.getCapacity()) {
-            throw new IllegalStateException("Course section is full");
+            throw new RegistrationRuleViolation(RegistrationRuleViolation.Rule.SECTION_FULL,
+                    "Course section is full");
         }
         CourseRegistration registration = registrations.findByStudentIdAndSectionId(student.getId(), sectionId)
                 .orElseGet(CourseRegistration::new);
@@ -138,6 +241,12 @@ public class RegistrationService {
         CourseRegistration saved = registrations.save(registration);
         return registrations.findByIdWithSectionCourseAndTerm(saved.getId())
                 .orElseThrow(() -> new IllegalStateException("Saved course registration could not be reloaded"));
+    }
+
+    private AutomaticCourseAssignmentSummary.Issue issue(
+            Student student, Long programId, Course course, String reason) {
+        return new AutomaticCourseAssignmentSummary.Issue(
+                student.getId(), programId, course.getId(), course.getCourseCode(), reason);
     }
 
     public void drop(String username, Long registrationId) {

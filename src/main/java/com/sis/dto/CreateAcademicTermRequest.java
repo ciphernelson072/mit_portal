@@ -26,6 +26,8 @@ public class CreateAcademicTermRequest {
     @NotNull
     private Boolean registrationOpen;
 
+    private LocalDate gradeSubmissionDeadline;
+
     public String getCode() { return code; }
     public void setCode(String code) { this.code = code; }
     public String getName() { return name; }
@@ -38,4 +40,8 @@ public class CreateAcademicTermRequest {
     public void setEndDate(LocalDate endDate) { this.endDate = endDate; }
     public Boolean getRegistrationOpen() { return registrationOpen; }
     public void setRegistrationOpen(Boolean registrationOpen) { this.registrationOpen = registrationOpen; }
+    public LocalDate getGradeSubmissionDeadline() { return gradeSubmissionDeadline; }
+    public void setGradeSubmissionDeadline(LocalDate gradeSubmissionDeadline) {
+        this.gradeSubmissionDeadline = gradeSubmissionDeadline;
+    }
 }

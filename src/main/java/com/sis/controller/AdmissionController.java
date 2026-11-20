@@ -3,12 +3,19 @@ package com.sis.controller;
 import com.sis.dto.AdmissionDecisionRequest;
 import com.sis.dto.AdmissionEnrollmentCredentialsResponse;
 import com.sis.dto.CreateAdmittedStudentRequest;
+import com.sis.dto.AdmissionDocumentRequirementRequest;
 import com.sis.dto.EnrollAdmissionRequest;
 import com.sis.entity.AdmissionApplicationStatus;
 import com.sis.service.AdmissionService;
+import com.sis.service.AdmissionDocumentService;
 import com.sis.service.EmailService;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.ContentDisposition;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -19,6 +26,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.logging.Logger;
 import java.util.Set;
+import java.nio.charset.StandardCharsets;
 
 @RestController
 @RequestMapping("/api/admissions")
@@ -28,10 +36,49 @@ public class AdmissionController {
 
     private final AdmissionService admissionService;
     private final EmailService emailService;
+    private final AdmissionDocumentService admissionDocuments;
 
-    public AdmissionController(AdmissionService admissionService, EmailService emailService) {
+    public AdmissionController(
+            AdmissionService admissionService, EmailService emailService,
+            AdmissionDocumentService admissionDocuments) {
         this.admissionService = admissionService;
         this.emailService = emailService;
+        this.admissionDocuments = admissionDocuments;
+    }
+
+    @GetMapping("/document-requirements")
+    public List<com.sis.dto.AdmissionDocumentRequirementDto> documentRequirements() {
+        return admissionDocuments.listRequirements(true);
+    }
+
+    @PostMapping("/document-requirements")
+    public ResponseEntity<com.sis.dto.AdmissionDocumentRequirementDto> createDocumentRequirement(
+            @Valid @RequestBody AdmissionDocumentRequirementRequest request) {
+        return ResponseEntity.status(201).body(admissionDocuments.createRequirement(request));
+    }
+
+    @PatchMapping("/document-requirements/{id}/active")
+    public ResponseEntity<com.sis.dto.AdmissionDocumentRequirementDto> setDocumentRequirementActive(
+            @PathVariable Long id, @RequestParam boolean active) {
+        return ResponseEntity.ok(admissionDocuments.setRequirementActive(id, active));
+    }
+
+    @GetMapping("/applications/{id}/documents")
+    public List<com.sis.dto.AdmissionApplicationDocumentDto> applicationDocuments(@PathVariable Long id) {
+        return admissionDocuments.listApplicationDocuments(id);
+    }
+
+    @GetMapping("/applications/{id}/documents/{documentId}/download")
+    public ResponseEntity<Resource> downloadApplicationDocument(
+            @PathVariable Long id, @PathVariable Long documentId) throws java.io.IOException {
+        AdmissionDocumentService.AdmissionDocumentDownload document =
+                admissionDocuments.download(id, documentId);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment()
+                                .filename(document.name(), StandardCharsets.UTF_8).build().toString())
+                .body(new ByteArrayResource(document.content()));
     }
 
     @GetMapping("/applications")
@@ -52,8 +99,8 @@ public class AdmissionController {
     public ResponseEntity<Map<String, Object>> enroll(@PathVariable Long id,
                                                        @Valid @RequestBody EnrollAdmissionRequest request) {
         String changedBy = SecurityContextHolder.getContext().getAuthentication().getName();
-        com.sis.entity.StudentProgram enrollment = admissionService.enroll(id, request, changedBy);
-        return enrollmentResponse(enrollment);
+        com.sis.service.AdmissionEnrollmentResult result = admissionService.enroll(id, request, changedBy);
+        return enrollmentResponse(result);
     }
 
     @PostMapping("/applications/{id}/enroll-new")
@@ -81,13 +128,17 @@ public class AdmissionController {
                 .body(result);
     }
 
-    private ResponseEntity<Map<String, Object>> enrollmentResponse(com.sis.entity.StudentProgram enrollment) {
+    private ResponseEntity<Map<String, Object>> enrollmentResponse(
+            com.sis.service.AdmissionEnrollmentResult result) {
+        com.sis.entity.StudentProgram enrollment = result.enrollment();
         return ResponseEntity.status(201).body(Map.of(
                 "id", enrollment.getId(),
                 "studentId", enrollment.getStudent().getId(),
                 "programId", enrollment.getProgram().getId(),
                 "academicYearId", enrollment.getAcademicYear().getId(),
-                "status", enrollment.getStatus()
+                "status", enrollment.getStatus(),
+                "currentSemester", enrollment.getCurrentSemester(),
+                "automaticAssignments", result.automaticAssignments()
         ));
     }
 

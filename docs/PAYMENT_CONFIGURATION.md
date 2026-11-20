@@ -8,6 +8,8 @@ Refunds are recorded as `PENDING` requests; creating one does not represent a co
 
 Fee responses include the original `amount`, net cash `amountPaid`, and outstanding `balance`. Net cash paid includes confirmed allocations and legacy completed transactions not yet linked to a payment attempt, minus completed refunds. Active fee waivers reduce the balance but are not counted as cash revenue. The legacy `paid` flag is not used to calculate financial totals.
 
+New fee charges are saved as `DRAFT` and are not visible to students until a finance-authorized administrator approves them in the Finance module. Approval changes the fee to `ACTIVE`; only active fees contribute to student balances, reminders, and payment workflows. Existing fee rows are migrated as active. Apply `V58__require_finance_approval_for_new_fee_charges.sql` before enabling this workflow.
+
 The admin Finance module lists pending refunds. The API also exposes `GET /api/finance/refunds`, `POST /api/finance/refunds/{id}/complete` with `{"refundReference":"..."}`, and `POST /api/finance/refunds/{id}/reject` with `{"reason":"..."}`. The requester cannot approve their own refund.
 
 Only an `ADMIN` may create, assign, or revoke role permissions. Do not delegate permission administration to users with only portal-settings access: permission assignment can grant finance and account-management capabilities.
@@ -38,11 +40,10 @@ Recommended Flutterwave setup sequence:
 
 1. Create a Flutterwave merchant account and obtain test credentials from its API settings.
 2. Configure `FLUTTERWAVE_SECRET_KEY` and a private random `FLUTTERWAVE_WEBHOOK_SECRET_HASH` on the server; do not commit these values.
-3. Run the database migrations through the latest source version, including
-   `V37__add_flutterwave_checkout_metadata.sql` and any later pending migrations.
-   The source currently includes migrations through V43; follow the release
-   checklist to validate all pending migrations against the target database
-   before production use.
+3. Run all pending database migrations, including
+   `V37__add_flutterwave_checkout_metadata.sql` and migrations through the
+   latest source version. Validate each pending migration against the target
+   database before production use.
 4. Register the HTTPS webhook URL and matching secret hash in the Flutterwave dashboard; enable webhook retries.
 5. Use a test student with a valid profile email, create a small UGX fee, and exercise success, failure, cancellation, duplicate webhook, and delayed webhook cases.
 6. Confirm the student sees a receipt only after server verification. Reconcile Flutterwave settlement reports against portal allocations before switching to live mode.

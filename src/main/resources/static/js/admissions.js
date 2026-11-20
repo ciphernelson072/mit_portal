@@ -1,9 +1,11 @@
 const admissionsApi = '/api/public/admissions';
 
 async function admissionsRequest(path, options = {}) {
+  const headers = { ...(options.headers || {}) };
+  if (!(options.body instanceof FormData)) headers['Content-Type'] = 'application/json';
   const response = await fetch(`${admissionsApi}${path}`, {
     credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+    headers,
     ...options,
   });
   const body = await response.json().catch(() => ({}));
@@ -43,10 +45,12 @@ if (copyApplicationNumberButton && confirmation) {
 
 async function loadAdmissionOptions() {
   try {
-    const [programs, year] = await Promise.all([
+    const [programs, year, documentRequirements] = await Promise.all([
       admissionsRequest('/programs'),
       admissionsRequest('/academic-year'),
+      admissionsRequest('/document-requirements'),
     ]);
+    renderAdmissionDocumentRequirements(documentRequirements);
     const programSelect = document.getElementById('programId');
     programSelect.replaceChildren(new Option('Choose a programme', ''));
     programs.forEach(program => programSelect.add(new Option(`${program.code} - ${program.name}`, program.id)));
@@ -72,23 +76,53 @@ async function loadAdmissionOptions() {
   }
 }
 
+function renderAdmissionDocumentRequirements(requirements) {
+  const container = document.getElementById('admissionDocumentChecklist');
+  if (!container) return;
+  if (!Array.isArray(requirements)) throw new Error('Admission document requirements are unavailable.');
+  if (!requirements.length) {
+    container.textContent = 'No additional documents are currently required.';
+    return;
+  }
+  container.innerHTML = requirements.map(requirement => `
+    <label class="admission-document-item">
+      <span>${escapeAdmissionText(requirement.name)}${requirement.required ? ' (required)' : ' (optional)'}</span>
+      ${requirement.description ? `<small>${escapeAdmissionText(requirement.description)}</small>` : ''}
+      <input type="file" id="admissionDocument_${Number(requirement.id)}"
+        name="document_${Number(requirement.id)}"
+        accept="application/pdf,image/png,image/jpeg,image/gif" ${requirement.required ? 'required' : ''}>
+    </label>`).join('');
+}
+
+function escapeAdmissionText(value) {
+  return String(value || '').replace(/[&<>"']/g, character => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  })[character]);
+}
+
 document.getElementById('admissionForm').addEventListener('submit', async event => {
   event.preventDefault();
   const form = event.currentTarget;
   const submitButton = document.getElementById('submitAdmissionButton');
   submitButton.disabled = true;
   try {
+    const formData = new FormData();
+    formData.append('applicantName', document.getElementById('applicantName').value.trim());
+    formData.append('email', document.getElementById('email').value.trim());
+    formData.append('phone', document.getElementById('phone').value.trim());
+    formData.append('programId', document.getElementById('programId').value);
+    formData.append('academicYearId', document.getElementById('academicYearId').value);
+    document.querySelectorAll('#admissionDocumentChecklist input[type="file"]').forEach(input => {
+      if (input.files?.[0]) {
+        formData.append(input.name, input.files[0]);
+      }
+    });
     const result = await admissionsRequest('/applications', {
       method: 'POST',
-      body: JSON.stringify({
-        applicantName: document.getElementById('applicantName').value.trim(),
-        email: document.getElementById('email').value.trim(),
-        phone: document.getElementById('phone').value.trim(),
-        programId: Number(document.getElementById('programId').value),
-        academicYearId: Number(document.getElementById('academicYearId').value),
-      }),
+      body: formData,
     });
     form.reset();
+    await loadAdmissionOptions();
     submittedApplicationNumber = result.applicationNumber;
     document.getElementById('submittedApplicationNumber').textContent = submittedApplicationNumber;
     confirmation.hidden = false;

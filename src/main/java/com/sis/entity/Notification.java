@@ -1,5 +1,6 @@
 package com.sis.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -15,6 +16,9 @@ public class Notification {
     private NotificationCategory category = NotificationCategory.SYSTEM;
     @Column(name = "read_status", nullable = false) private boolean read = false;
     @Column(nullable = false) private LocalDateTime createdAt = LocalDateTime.now();
+    @JsonIgnore
+    @Column(name = "automation_key", unique = true, length = 255)
+    private String automationKey;
     public Notification() {}
     public Notification(Long userId, String title, String message) {
         this(userId, title, message, NotificationCategory.SYSTEM);
@@ -33,4 +37,6 @@ public class Notification {
     public boolean isRead() { return read; }
     public void setRead(boolean value) { read = value; }
     public LocalDateTime getCreatedAt() { return createdAt; }
+    public String getAutomationKey() { return automationKey; }
+    public void setAutomationKey(String automationKey) { this.automationKey = automationKey; }
 }

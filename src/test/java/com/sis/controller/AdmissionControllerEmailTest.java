@@ -4,6 +4,7 @@ import com.sis.dto.AdmissionEnrollmentCredentialsResponse;
 import com.sis.dto.CreateAdmittedStudentRequest;
 import com.sis.service.AdmissionService;
 import com.sis.service.EmailService;
+import com.sis.service.AdmissionDocumentService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -22,8 +23,9 @@ class AdmissionControllerEmailTest {
 
     private final AdmissionService admissionService = mock(AdmissionService.class);
     private final EmailService emailService = mock(EmailService.class);
+    private final AdmissionDocumentService admissionDocuments = mock(AdmissionDocumentService.class);
     private final AdmissionController controller =
-            new AdmissionController(admissionService, emailService);
+            new AdmissionController(admissionService, emailService, admissionDocuments);
 
     @AfterEach
     void clearSecurityContext() {

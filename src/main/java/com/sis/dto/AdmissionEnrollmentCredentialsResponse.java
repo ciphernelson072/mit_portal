@@ -10,6 +10,7 @@ public class AdmissionEnrollmentCredentialsResponse {
     private String temporaryPassword;
     private boolean emailSent;
     private String emailDeliveryMessage;
+    private AutomaticCourseAssignmentSummary automaticAssignments;
 
     public AdmissionEnrollmentCredentialsResponse(Long id, Long studentId, Long programId,
             Long academicYearId, String status, String username, String temporaryPassword) {
@@ -60,6 +61,14 @@ public class AdmissionEnrollmentCredentialsResponse {
 
     public String getEmailDeliveryMessage() {
         return emailDeliveryMessage;
+    }
+
+    public AutomaticCourseAssignmentSummary getAutomaticAssignments() {
+        return automaticAssignments;
+    }
+
+    public void setAutomaticAssignments(AutomaticCourseAssignmentSummary automaticAssignments) {
+        this.automaticAssignments = automaticAssignments;
     }
 
     public void recordEmailDelivery(boolean sent, String message) {

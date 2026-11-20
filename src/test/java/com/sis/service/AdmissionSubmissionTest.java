@@ -33,7 +33,8 @@ class AdmissionSubmissionTest {
             mock(StudentRepository.class),
             mock(StudentProgramRepository.class),
             mock(StudentStatusHistoryRepository.class),
-            mock(AdminService.class));
+            mock(AdminService.class),
+            mock(AutomaticCourseAssignmentService.class));
 
     @Test
     void storesTrimmedLowercaseEmailAndChecksCanonicalValue() {

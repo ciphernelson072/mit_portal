@@ -669,6 +669,10 @@ public class SchoolService {
         return feeService.createFee(student, description, amount, dueDate);
     }
 
+    public void approveDraftFee(Long feeId) {
+        feeService.approveDraftFee(feeId);
+    }
+
     public void markFeePaid(Long feeId) {
         feeService.markFeePaid(feeId);
     }

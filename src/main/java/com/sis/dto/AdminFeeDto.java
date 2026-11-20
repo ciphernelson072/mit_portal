@@ -13,6 +13,7 @@ public class AdminFeeDto {
     private BigDecimal amountPaid;
     private BigDecimal balance;
     private boolean paid;
+    private String status;
     private LocalDate dueDate;
     private LocalDate paidDate;
 
@@ -41,6 +42,7 @@ public class AdminFeeDto {
     public BigDecimal getAmountPaid() { return amountPaid; }
     public BigDecimal getBalance() { return balance; }
     public boolean isPaid() { return paid; }
+    public String getStatus() { return status; }
     public LocalDate getDueDate() { return dueDate; }
     public LocalDate getPaidDate() { return paidDate; }
 
@@ -48,4 +50,6 @@ public class AdminFeeDto {
         this.amountPaid = amountPaid;
         this.balance = balance;
     }
+
+    public void setStatus(String status) { this.status = status; }
 }

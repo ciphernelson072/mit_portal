@@ -27,6 +27,10 @@ public class Fee {
     @Column(nullable = false)
     private boolean paid;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private FeeStatus status = FeeStatus.DRAFT;
+
     @Column
     private LocalDate dueDate;
 
@@ -82,6 +86,14 @@ public class Fee {
 
     public void setPaid(boolean paid) {
         this.paid = paid;
+    }
+
+    public FeeStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(FeeStatus status) {
+        this.status = status;
     }
 
     public LocalDate getDueDate() {

@@ -56,7 +56,8 @@ class AdminStudentProvisioningTest {
     private final RefreshTokenService refreshTokens = mock(RefreshTokenService.class);
     private final AdminService service = new AdminService(
             users, students, teachers, courses, departments, grades, passwordEncoder, refreshTokens,
-            studentPrograms, statusHistory, programs, academicYears, academicRecords);
+            studentPrograms, statusHistory, programs, academicYears, academicRecords,
+            mock(com.sis.repository.CurriculumCourseRepository.class));
 
     @Test
     void newAdminProvisionedStudentRequiresPasswordChange() {

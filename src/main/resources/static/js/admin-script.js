@@ -367,10 +367,15 @@ function setupAcademicForms() {
         academicYearId: Number(yearId),
         startDate: document.getElementById('academicTermStart').value,
         endDate: document.getElementById('academicTermEnd').value,
+        gradeSubmissionDeadline: document.getElementById('academicTermGradeDeadline').value || null,
         registrationOpen: document.getElementById('academicTermRegistrationOpen').checked,
       }) });
       const term = await response.json();
-      setAdminStatus('academicTermStatus', 'Academic term created.', 'success');
+      setAdminStatus(
+        'academicTermStatus',
+        `Academic term created.${automaticAssignmentStatus(term.automaticAssignments)}`,
+        term.automaticAssignments?.skipped > 0 ? 'warning' : 'success',
+      );
       event.target.reset();
       document.getElementById('academicTermYearId').value = String(term.academicYearId);
       await loadAcademicTerms(yearId, term.id);
@@ -655,17 +660,34 @@ async function loadAcademicTerms(academicYearId, selectedTermId = '') {
   }
 }
 
+function automaticAssignmentStatus(summary) {
+  if (!summary) return '';
+  const examples = Array.isArray(summary.issues)
+    ? summary.issues.slice(0, 3)
+      .map(issue => `${issue.courseCode || `Course #${issue.courseId}`}: ${issue.reason}`)
+      .join('; ')
+    : '';
+  return ` ${summary.registrationsCreated || 0} required course sections assigned; `
+    + `${summary.alreadyRegistered || 0} already registered; ${summary.skipped || 0} need review.`
+    + (examples ? ` Examples: ${examples}.` : '');
+}
+
 async function setAcademicTermRegistration(termId, registrationOpen) {
   const yearId = document.getElementById('academicTermYearId')?.value;
   if (!yearId) return;
   const action = registrationOpen ? 'open' : 'close';
   if (!confirm(`Are you sure you want to ${action} registration for this academic term?`)) return;
   try {
-    await apiFetch(`/admin/institution/academic-terms/${termId}/registration-window`, {
+    const response = await apiFetch(`/admin/institution/academic-terms/${termId}/registration-window`, {
       method: 'PATCH',
       body: JSON.stringify({ registrationOpen }),
     });
-    setAdminStatus('academicTermStatus', `Registration window ${registrationOpen ? 'opened' : 'closed'}.`, 'success');
+    const result = await response.json();
+    setAdminStatus(
+      'academicTermStatus',
+      `Registration window ${registrationOpen ? 'opened' : 'closed'}.${automaticAssignmentStatus(result.automaticAssignments)}`,
+      result.automaticAssignments?.skipped > 0 ? 'warning' : 'success',
+    );
     await loadAcademicTerms(yearId, termId);
   } catch (err) {
     setAdminStatus('academicTermStatus', err.message || 'Unable to update registration window.', 'error');
@@ -992,9 +1014,10 @@ async function loadAdminFinance() {
     const [fees, attempts] = await Promise.all([
       apiGet('/admin/fees'), apiGet('/finance/payments/attempts/pending'),
     ]);
-    const total = fees.reduce((sum, fee) => sum + Number(fee.amount || 0), 0);
-    const paid = fees.reduce((sum, fee) => sum + Number(fee.amountPaid || (fee.paid ? fee.amount : 0)), 0);
-    const pending = fees.reduce((sum, fee) => sum + Number(fee.balance ?? (fee.paid ? 0 : fee.amount)), 0);
+    const activeFees = fees.filter(fee => fee.status !== 'DRAFT');
+    const total = activeFees.reduce((sum, fee) => sum + Number(fee.amount || 0), 0);
+    const paid = activeFees.reduce((sum, fee) => sum + Number(fee.amountPaid || (fee.paid ? fee.amount : 0)), 0);
+    const pending = activeFees.reduce((sum, fee) => sum + Number(fee.balance ?? (fee.paid ? 0 : fee.amount)), 0);
     const cards = document.querySelectorAll('#financeModule .finance-card .value');
     if (cards[0]) cards[0].textContent = `UGX ${paid.toLocaleString()}`;
     if (cards[1]) cards[1].textContent = `UGX ${pending.toLocaleString()}`;
@@ -1005,7 +1028,10 @@ async function loadAdminFinance() {
       const amountPaid = Number(fee.amountPaid ?? (fee.paid ? fee.amount : 0));
       const balance = Number(fee.balance ?? (fee.paid ? 0 : fee.amount));
       const settled = balance <= 0;
-      return `<tr><td>${escapeHtml(fee.studentName)} (${escapeHtml(fee.studentUsername)})</td><td>UGX ${Number(fee.amount).toLocaleString()}</td><td>UGX ${amountPaid.toLocaleString()}</td><td>UGX ${balance.toLocaleString()}</td><td>${escapeHtml(fee.dueDate || 'Not set')}</td><td><span class="badge ${settled ? 'success' : 'pending'}">${settled ? 'Settled' : amountPaid > 0 ? 'Partially paid' : 'Pending'}</span></td></tr>`;
+      const approval = fee.status === 'DRAFT'
+        ? `<button class="btn-small" onclick="approveDraftFee(${Number(fee.id)})">Approve</button>`
+        : '<span class="badge success">Approved</span>';
+      return `<tr><td>${escapeHtml(fee.studentName)} (${escapeHtml(fee.studentUsername)})</td><td>UGX ${Number(fee.amount).toLocaleString()}</td><td>UGX ${amountPaid.toLocaleString()}</td><td>UGX ${balance.toLocaleString()}</td><td>${escapeHtml(fee.dueDate || 'Not set')}</td><td><span class="badge ${settled ? 'success' : 'pending'}">${settled ? 'Settled' : amountPaid > 0 ? 'Partially paid' : 'Pending'}</span></td><td>${approval}</td></tr>`;
     }).join('') : '<tr><td colspan="6">No fee records found.</td></tr>';
     renderAdminPaymentAttempts(attempts);
     window._adminFees = fees;
@@ -1117,8 +1143,15 @@ async function createAdminFee() {
   const amount = prompt('Amount:');
   const dueDate = prompt('Due date (YYYY-MM-DD):');
   if (!studentId || !description || !amount || !dueDate) return;
-  try { await apiFetch('/fees', { method: 'POST', body: JSON.stringify({ studentId, description, amount: Number(amount), dueDate }) }); loadAdminFinance(); }
+  try { await apiFetch('/fees', { method: 'POST', body: JSON.stringify({ studentId, description, amount: Number(amount), dueDate }) }); await loadAdminFinance(); alert('Fee saved as a draft. Finance approval is required before it appears to the student.'); }
   catch (err) { alert(err.message || 'Fee creation failed.'); }
+}
+
+async function approveDraftFee(feeId) {
+  try {
+    await apiFetch(`/admin/fees/${feeId}/approve`, { method: 'POST' });
+    await loadAdminFinance();
+  } catch (err) { alert(err.message || 'Fee approval failed.'); }
 }
 
 async function loadRequests() {
@@ -1276,17 +1309,23 @@ function cancelAdminInput() {
 // ===== DASHBOARD =====
 async function loadDashboard() {
   try {
-    const [statsResult, healthResult, overviewResult, systemStatusResult] = await Promise.allSettled([
+    const [statsResult, healthResult, overviewResult, systemStatusResult, emailDeliveryResult] = await Promise.allSettled([
       apiGet('/admin/statistics'),
       apiGet('/v1/health'),
       apiGet('/admin/dashboard'),
       apiGet('/admin/system/status'),
+      apiGet('/admin/system/email-deliveries'),
     ]);
 
     const stats = statsResult.status === 'fulfilled' ? statsResult.value : {};
     const health = healthResult.status === 'fulfilled' ? healthResult.value : { status: 'unknown' };
     const overview = overviewResult.status === 'fulfilled' ? overviewResult.value : {};
     const systemStatus = systemStatusResult.status === 'fulfilled' ? systemStatusResult.value : {};
+    renderEmailDeliveryActivity(
+      emailDeliveryResult.status === 'fulfilled'
+        ? emailDeliveryResult.value
+        : null,
+    );
 
     const healthStatus = document.getElementById('apiHealthStatus');
     if (healthStatus) {
@@ -1378,7 +1417,8 @@ async function loadAdmissionApplications() {
   const tbody = document.querySelector('#admissionsTable tbody');
   const status = document.getElementById('admissionQueueStatus');
   if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="9">Loading applications…</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="10">Loading applications…</td></tr>';
+  await loadAdmissionDocumentRequirements();
   setAdminStatus('admissionQueueStatus', 'Loading applications…', 'info');
   const selectedStatus = document.getElementById('admissionStatusFilter')?.value || '';
   const query = selectedStatus ? `?status=${encodeURIComponent(selectedStatus)}` : '';
@@ -1397,14 +1437,105 @@ async function loadAdmissionApplications() {
           : application.status === 'ACCEPTED'
             ? `<button class="btn-small" type="button" onclick="enrollAcceptedApplication(${application.id})">Enroll student</button>`
           : `<span class="muted">${escapeHtml(application.status)}</span>`;
-      return `<tr><td>${escapeHtml(application.applicationNumber)}</td><td>${escapeHtml(application.applicantName)}</td><td>${escapeHtml(application.email)}${application.phone ? `<br>${escapeHtml(application.phone)}` : ''}</td><td>${escapeHtml(application.programName)}</td><td>${escapeHtml(application.academicYearName || application.academicYearId)}</td><td>${escapeHtml(String(application.submittedAt || '').slice(0, 10) || '—')}</td><td><span class="badge ${application.status === 'ACCEPTED' ? 'success' : application.status === 'REJECTED' ? 'danger' : 'pending'}">${escapeHtml(application.status)}</span></td><td>${escapeHtml(application.reviewerNotes || '—')}</td><td>${actions}</td></tr>`;
-    }).join('') : '<tr><td colspan="9">No applications found for this status.</td></tr>';
+      return `<tr><td>${escapeHtml(application.applicationNumber)}</td><td>${escapeHtml(application.applicantName)}</td><td>${escapeHtml(application.email)}${application.phone ? `<br>${escapeHtml(application.phone)}` : ''}</td><td>${escapeHtml(application.programName)}</td><td>${escapeHtml(application.academicYearName || application.academicYearId)}</td><td>${escapeHtml(String(application.submittedAt || '').slice(0, 10) || '—')}</td><td><span class="badge ${application.status === 'ACCEPTED' ? 'success' : application.status === 'REJECTED' ? 'danger' : 'pending'}">${escapeHtml(application.status)}</span></td><td>${escapeHtml(application.reviewerNotes || '—')}</td><td><button class="btn-small" type="button" onclick="viewAdmissionDocuments(${application.id})">View files</button></td><td>${actions}</td></tr>`;
+    }).join('') : '<tr><td colspan="10">No applications found for this status.</td></tr>';
     setAdminStatus('admissionQueueStatus', `${applications.length} application${applications.length === 1 ? '' : 's'} loaded; ${reviewable.length} awaiting decision.`, 'success');
   } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="9">${escapeHtml(err.message || 'Unable to load applications.')}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10">${escapeHtml(err.message || 'Unable to load applications.')}</td></tr>`;
     if (status) setAdminStatus('admissionQueueStatus', err.message || 'Unable to load applications.', 'error');
     const admissionsBadge = document.getElementById('admissionsNavCount');
     if (admissionsBadge) admissionsBadge.textContent = '!';
+  }
+}
+
+async function loadAdmissionDocumentRequirements() {
+  const tbody = document.querySelector('#admissionDocumentRequirementsTable tbody');
+  if (!tbody) return;
+  try {
+    const requirements = await apiGet('/admissions/document-requirements');
+    tbody.innerHTML = requirements.length ? requirements.map(requirement => `
+      <tr>
+        <td>${escapeHtml(requirement.name)}</td>
+        <td>${escapeHtml(requirement.description || '—')}</td>
+        <td>${requirement.required ? 'Required' : 'Optional'}</td>
+        <td>${requirement.active ? 'Active' : 'Inactive'}</td>
+        <td><button class="btn-small" type="button"
+          onclick="setAdmissionDocumentRequirementActive(${requirement.id}, ${!requirement.active})">
+          ${requirement.active ? 'Deactivate' : 'Activate'}
+        </button></td>
+      </tr>`).join('') : '<tr><td colspan="5">No document requirements configured.</td></tr>';
+  } catch (error) {
+    tbody.innerHTML = `<tr><td colspan="5">${escapeHtml(error.message || 'Unable to load document requirements.')}</td></tr>`;
+  }
+}
+
+document.getElementById('admissionDocumentRequirementForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const data = new FormData(form);
+  try {
+    await apiFetch('/admissions/document-requirements', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: String(data.get('name') || '').trim(),
+        description: String(data.get('description') || '').trim(),
+        required: data.has('required'),
+        sortOrder: Number(data.get('sortOrder') || 0),
+      }),
+    });
+    form.reset();
+    form.elements.sortOrder.value = '0';
+    form.elements.required.checked = true;
+    await loadAdmissionDocumentRequirements();
+  } catch (error) {
+    alert(error.message || 'Unable to add this document requirement.');
+  }
+});
+
+async function setAdmissionDocumentRequirementActive(id, active) {
+  try {
+    await apiFetch(`/admissions/document-requirements/${id}/active?active=${active}`, { method: 'PATCH' });
+    await loadAdmissionDocumentRequirements();
+  } catch (error) {
+    alert(error.message || 'Unable to update the document requirement.');
+  }
+}
+
+async function viewAdmissionDocuments(applicationId) {
+  try {
+    const documents = await apiGet(`/admissions/applications/${applicationId}/documents`);
+    const rows = documents.length ? documents.map(document => `
+      <tr><td>${escapeHtml(document.requirementName)}</td>
+        <td>${document.required ? 'Required' : 'Optional'}</td>
+        <td>${escapeHtml(document.uploadedAt || '')}</td>
+        <td><button class="btn-small" type="button"
+        onclick="downloadAdmissionDocument(${applicationId}, ${document.id})">
+          Download</button></td></tr>`).join('')
+      : '<tr><td colspan="4">No documents have been uploaded.</td></tr>';
+    openModal(`<button type="button" class="modal-close" onclick="closeModal()" aria-label="Close">&times;</button>
+      <h2>Application documents</h2>
+      <p>Document completeness is for reviewer consideration and does not automatically decide the application.</p>
+      <div class="roster-wrap"><table class="table admin-table">
+        <thead><tr><th>Requirement</th><th>Type</th><th>Uploaded</th><th>File</th></tr></thead>
+        <tbody>${rows}</tbody></table></div>`);
+  } catch (error) {
+    alert(error.message || 'Unable to load application documents.');
+  }
+}
+
+async function downloadAdmissionDocument(applicationId, documentId) {
+  try {
+    const response = await apiFetch(`/admissions/applications/${applicationId}/documents/${documentId}/download`);
+    const url = URL.createObjectURL(await response.blob());
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `admission-document-${documentId}`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (error) {
+    alert(error.message || 'Unable to download this document.');
   }
 }
 
@@ -1464,7 +1595,11 @@ async function enrollAcceptedApplication(applicationId) {
         });
         const credentials = await response.json();
         await Promise.all([loadAdmissionApplications(), loadPendingActions()]);
-        setAdminStatus('admissionQueueStatus', 'Student account created and applicant enrolled successfully.', 'success');
+        setAdminStatus(
+          'admissionQueueStatus',
+          `Student account created and applicant enrolled successfully.${automaticAssignmentStatus(credentials.automaticAssignments)}`,
+          credentials.automaticAssignments?.skipped > 0 ? 'warning' : 'success',
+        );
         return credentials;
       });
       return;
@@ -1520,12 +1655,17 @@ function openAdmissionEnrollmentModal(applicationId, candidates) {
 }
 
 async function submitAdmissionEnrollment(applicationId, studentId) {
-  await apiFetch(`/admissions/applications/${applicationId}/enroll`, {
+  const response = await apiFetch(`/admissions/applications/${applicationId}/enroll`, {
     method: 'POST',
     body: JSON.stringify({ studentId }),
   });
+  const enrollment = await response.json();
   await Promise.all([loadAdmissionApplications(), loadPendingActions()]);
-  setAdminStatus('admissionQueueStatus', 'Accepted applicant enrolled successfully.', 'success');
+  setAdminStatus(
+    'admissionQueueStatus',
+    `Accepted applicant enrolled successfully.${automaticAssignmentStatus(enrollment.automaticAssignments)}`,
+    enrollment.automaticAssignments?.skipped > 0 ? 'warning' : 'success',
+  );
 }
 
 function renderSystemStatus(id, component) {
@@ -1540,6 +1680,28 @@ function renderSystemStatus(id, component) {
     || status === 'not_configured' || status === 'untested') {
     element.classList.add('warning');
   } else element.classList.add('error');
+}
+
+function renderEmailDeliveryActivity(deliveries) {
+  const container = document.getElementById('emailDeliveryActivity');
+  if (!container) return;
+  if (!Array.isArray(deliveries)) {
+    container.innerHTML = '<p class="teacher-status error">Unable to load email delivery activity.</p>';
+    return;
+  }
+  if (!deliveries.length) {
+    container.innerHTML = '<p>No notification emails have been queued yet.</p>';
+    return;
+  }
+  container.innerHTML = `<ul class="task-list">${deliveries.map(delivery => `
+    <li class="task-item">
+      <div class="task-info">
+        <p class="task-title">${escapeHtml(delivery.notificationTitle || 'Notification email')}</p>
+        <p>User #${Number(delivery.userId)} · ${escapeHtml(delivery.status)} · ${Number(delivery.attemptCount)} attempt(s)</p>
+        <p>${escapeHtml(delivery.sentAt || delivery.nextAttemptAt || delivery.createdAt || '')}</p>
+        ${delivery.lastError ? `<p class="teacher-status error">${escapeHtml(delivery.lastError)}</p>` : ''}
+      </div>
+    </li>`).join('')}</ul>`;
 }
 
 async function renderRecentStudents() {
@@ -1868,12 +2030,102 @@ async function openStudentLifecycleModal(studentId) {
           <button type="submit" class="btn-primary">Update Status</button>
         </div>
       </form>
+      <section class="lifecycle-audit-card">
+        <h3>Academic progression</h3>
+        <p>New admissions start in semester 1. Update a student’s current semester after reviewing academic progression; required courses are assigned when an open-term assignment runs.</p>
+        ${enrollments.some(enrollment => enrollment.status === 'ACTIVE') ? `
+          <form id="studentProgramSemesterForm">
+            <div class="modal-field">
+              <label for="semesterEnrollment">Active programme enrollment *</label>
+              <select id="semesterEnrollment" required>
+                ${enrollments.map((enrollment, index) => `
+                  <option value="${index}" ${enrollment.status !== 'ACTIVE' ? 'disabled' : ''}>
+                    ${escapeHtml(enrollment.programName)} — ${escapeHtml(enrollment.academicYearName)}
+                    (${escapeHtml(enrollment.status)}, semester ${escapeHtml(enrollment.currentSemester ?? 1)})
+                  </option>`).join('')}
+              </select>
+            </div>
+            <div class="modal-field">
+              <label for="currentSemester">Current semester *</label>
+              <input id="currentSemester" type="number" min="1" step="1" value="1" required>
+            </div>
+            <p id="studentProgramSemesterMessage" class="muted" role="status"></p>
+            <div class="modal-actions">
+              <button type="button" class="btn-secondary" id="checkProgressionRecommendation">Check progression eligibility</button>
+              <button type="submit" class="btn-primary">Save semester and assign courses</button>
+            </div>
+          </form>
+        ` : '<p>No active programme enrollment is available for semester assignment.</p>'}
+      </section>
       ${renderStudentStatusHistory(history)}
     `);
 
     const enrollmentSelect = document.getElementById('lifecycleEnrollment');
     const statusSelect = document.getElementById('lifecycleStatus');
     const message = document.getElementById('lifecycleMessage');
+    const semesterEnrollmentSelect = document.getElementById('semesterEnrollment');
+    const semesterInput = document.getElementById('currentSemester');
+    const semesterMessage = document.getElementById('studentProgramSemesterMessage');
+    const updateSemesterInput = () => {
+      if (!semesterEnrollmentSelect || !semesterInput) return;
+      const selected = enrollments[Number(semesterEnrollmentSelect.value)];
+      semesterInput.value = String(selected?.currentSemester || 1);
+    };
+    semesterEnrollmentSelect?.addEventListener('change', updateSemesterInput);
+    updateSemesterInput();
+
+    document.getElementById('checkProgressionRecommendation')?.addEventListener('click', async () => {
+      const selected = enrollments[Number(semesterEnrollmentSelect.value)];
+      if (!selected || selected.status !== 'ACTIVE') return;
+      const button = document.getElementById('checkProgressionRecommendation');
+      button.disabled = true;
+      try {
+        const recommendation = await apiGet(
+          `/admin/students/${studentId}/programs/${selected.id}/progression-recommendation`,
+        );
+        const nextStep = recommendation.eligible
+          ? ` Registrar approval is still required; set the semester above to ${recommendation.recommendedSemester} and save to approve.`
+          : '';
+        const missing = recommendation.incompleteRequiredCourses?.length
+          ? ` Incomplete required courses: ${recommendation.incompleteRequiredCourses.join(', ')}.`
+          : '';
+        semesterMessage.textContent = `${recommendation.message}${missing}${nextStep}`;
+        semesterMessage.className = recommendation.eligible
+          ? 'teacher-status success'
+          : 'teacher-status warning';
+      } catch (err) {
+        semesterMessage.textContent = err.message || 'Unable to check progression eligibility.';
+        semesterMessage.className = 'teacher-status error';
+        semesterMessage.setAttribute('role', 'alert');
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    document.getElementById('studentProgramSemesterForm')?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const selected = enrollments[Number(semesterEnrollmentSelect.value)];
+      if (!selected || selected.status !== 'ACTIVE') return;
+      try {
+        const response = await apiFetch(
+          `/admin/students/${studentId}/programs/${selected.id}/semester`,
+          {
+            method: 'PATCH',
+            body: JSON.stringify({ currentSemester: Number(semesterInput.value) }),
+          },
+        );
+        const result = await response.json();
+        const summary = result.automaticAssignments || {};
+        selected.currentSemester = result.enrollment?.currentSemester ?? Number(semesterInput.value);
+        semesterMessage.textContent = `Semester saved.${automaticAssignmentStatus(summary)}`;
+        semesterMessage.className = summary.skipped > 0 ? 'teacher-status warning' : 'teacher-status success';
+      } catch (err) {
+        semesterMessage.textContent = err.message || 'Unable to update the student’s current semester.';
+        semesterMessage.className = 'teacher-status error';
+        semesterMessage.setAttribute('role', 'alert');
+      }
+    });
+
     const updateAvailableStatuses = () => {
       const selected = enrollments[Number(enrollmentSelect.value)];
       const allowed = studentLifecycleTransitions[selected.status] || [];

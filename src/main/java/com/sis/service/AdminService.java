@@ -19,6 +19,7 @@ import com.sis.entity.User;
 import com.sis.exception.ResourceNotFoundException;
 import com.sis.service.AcademicRecordsService;
 import com.sis.repository.CourseRepository;
+import com.sis.repository.CurriculumCourseRepository;
 import com.sis.repository.AcademicYearRepository;
 import com.sis.repository.ProgramRepository;
 import com.sis.repository.StudentProgramRepository;
@@ -64,6 +65,7 @@ public class AdminService {
     private final ProgramRepository programRepository;
     private final AcademicYearRepository academicYearRepository;
     private final AcademicRecordsService academicRecordsService;
+    private final CurriculumCourseRepository curriculumCourseRepository;
 
     public AdminService(UserRepository userRepository, StudentRepository studentRepository,
                          TeacherRepository teacherRepository, CourseRepository courseRepository,
@@ -74,7 +76,8 @@ public class AdminService {
                          StudentStatusHistoryRepository studentStatusHistoryRepository,
                          ProgramRepository programRepository,
                          AcademicYearRepository academicYearRepository,
-                         AcademicRecordsService academicRecordsService) {
+                         AcademicRecordsService academicRecordsService,
+                         CurriculumCourseRepository curriculumCourseRepository) {
         this.userRepository = userRepository;
         this.studentRepository = studentRepository;
         this.teacherRepository = teacherRepository;
@@ -88,6 +91,7 @@ public class AdminService {
         this.programRepository = programRepository;
         this.academicYearRepository = academicYearRepository;
         this.academicRecordsService = academicRecordsService;
+        this.curriculumCourseRepository = curriculumCourseRepository;
     }
 
     // ===== MAPPING HELPERS =====
@@ -316,9 +320,47 @@ public class AdminService {
                         enrollment.getAcademicYear().getId(),
                         enrollment.getAcademicYear().getName(),
                         enrollment.getStatus().name(),
+                        enrollment.getCurrentSemester(),
                         enrollment.getStartDate(),
                         enrollment.getEndDate()))
                 .collect(Collectors.toList());
+    }
+
+    public StudentProgramLifecycleDto updateStudentProgramSemester(
+            Long studentId, Long enrollmentId, Integer currentSemester) {
+        if (currentSemester == null || currentSemester < 1) {
+            throw new IllegalArgumentException("Current semester must be at least 1.");
+        }
+        StudentProgram enrollment = studentProgramRepository.findByIdForUpdate(enrollmentId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Student programme enrollment not found with id: " + enrollmentId));
+        if (!enrollment.getStudent().getId().equals(studentId)) {
+            throw new IllegalArgumentException("Programme enrollment does not belong to this student.");
+        }
+        if (enrollment.getStatus() != StudentLifecycleStatus.ACTIVE) {
+            throw new IllegalStateException("Only an active programme enrollment can change semester.");
+        }
+        Integer maximumSemester = curriculumCourseRepository
+                .findMaximumSemesterNumberByProgramId(enrollment.getProgram().getId());
+        if (maximumSemester == null || maximumSemester < 1) {
+            throw new IllegalStateException("The programme curriculum has no semester numbers configured.");
+        }
+        if (currentSemester > maximumSemester) {
+            throw new IllegalArgumentException(
+                    "Current semester must be between 1 and " + maximumSemester + ".");
+        }
+        enrollment.setCurrentSemester(currentSemester);
+        StudentProgram saved = studentProgramRepository.save(enrollment);
+        return new StudentProgramLifecycleDto(
+                saved.getId(),
+                saved.getProgram().getId(),
+                saved.getProgram().getName(),
+                saved.getAcademicYear().getId(),
+                saved.getAcademicYear().getName(),
+                saved.getStatus().name(),
+                saved.getCurrentSemester(),
+                saved.getStartDate(),
+                saved.getEndDate());
     }
 
     public List<StudentStatusHistoryDto> getStudentStatusHistory(Long studentId) {

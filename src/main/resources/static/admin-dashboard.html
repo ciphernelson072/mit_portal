@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <link rel="icon" type="image/jpeg" href="/icons/logo.jpg">
+
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>MIT Admin Dashboard</title>
@@ -244,6 +246,13 @@
         </div>
       </div>
 
+      <div class="card">
+        <div class="card-header"><h3>Email Delivery Activity</h3></div>
+        <div class="card-body" id="emailDeliveryActivity" aria-live="polite">
+          <p>Loading recent email delivery activity…</p>
+        </div>
+      </div>
+
       <!-- Quick Actions -->
       <div class="card">
         <div class="card-header">
@@ -454,6 +463,23 @@
       <h2>Admissions Review</h2>
       <button class="btn-secondary" type="button" onclick="loadAdmissionApplications()">↻ Refresh</button>
     </div>
+    <div class="settings-card">
+      <h3>Application document requirements</h3>
+      <p>Active requirements are shown to applicants and required files must be uploaded with the application. Uploaded documents are available to reviewers. Document completeness does not automatically accept or reject an application.</p>
+      <form id="admissionDocumentRequirementForm" class="inline-form">
+        <label>Document name<input name="name" maxlength="100" required></label>
+        <label>Description<input name="description" maxlength="500"></label>
+        <label>Display order<input name="sortOrder" type="number" value="0"></label>
+        <label><input name="required" type="checkbox" checked> Required</label>
+        <button class="btn-primary" type="submit">Add requirement</button>
+      </form>
+      <div class="roster-wrap">
+        <table class="table admin-table" id="admissionDocumentRequirementsTable">
+          <thead><tr><th>Document</th><th>Description</th><th>Required</th><th>Status</th><th>Action</th></tr></thead>
+          <tbody><tr><td colspan="5">Loading document requirements…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
     <div class="filters">
       <label for="admissionStatusFilter">Application status</label>
       <select id="admissionStatusFilter" class="filter-select" onchange="loadAdmissionApplications()">
@@ -468,8 +494,8 @@
     </div>
     <div class="roster-wrap">
       <table class="table admin-table" id="admissionsTable">
-        <thead><tr><th>Application</th><th>Applicant</th><th>Applicant Email / Phone</th><th>Programme</th><th>Academic year</th><th>Submitted</th><th>Status</th><th>Reviewer notes</th><th>Decision</th></tr></thead>
-        <tbody><tr><td colspan="9">Select Admissions to load applications.</td></tr></tbody>
+        <thead><tr><th>Application</th><th>Applicant</th><th>Applicant Email / Phone</th><th>Programme</th><th>Academic year</th><th>Submitted</th><th>Status</th><th>Reviewer notes</th><th>Documents</th><th>Decision</th></tr></thead>
+        <tbody><tr><td colspan="10">Select Admissions to load applications.</td></tr></tbody>
       </table>
     </div>
   </section>
@@ -601,6 +627,7 @@
           <div class="setting-item"><label for="academicTermName">Term name</label><input id="academicTermName" maxlength="100" required></div>
           <div class="setting-item"><label for="academicTermStart">Start date</label><input id="academicTermStart" type="date" required></div>
           <div class="setting-item"><label for="academicTermEnd">End date</label><input id="academicTermEnd" type="date" required></div>
+          <div class="setting-item"><label for="academicTermGradeDeadline">Grade submission deadline</label><input id="academicTermGradeDeadline" type="date"><small>Optional; instructors receive reminders 7, 3, and 1 day before, then weekly while grades remain pending.</small></div>
           <div class="setting-item"><label for="academicTermRegistrationOpen">Registration window</label><label><input id="academicTermRegistrationOpen" type="checkbox"> Open registration immediately</label></div>
           <button id="createAcademicTermButton" class="btn-primary" type="submit" disabled>Add Academic Term</button>
         </form>
@@ -716,10 +743,11 @@
           <th>Balance</th>
           <th>Due Date</th>
           <th>Status</th>
+          <th>Approval</th>
         </tr>
       </thead>
       <tbody>
-        <tr><td colspan="6" style="text-align:center;">Select Finance to load live records.</td></tr>
+        <tr><td colspan="7" style="text-align:center;">Select Finance to load live records.</td></tr>
       </tbody>
     </table>
 

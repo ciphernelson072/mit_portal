@@ -5,13 +5,19 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
 public interface AcademicTermRepository extends JpaRepository<AcademicTerm, Long> {
     @EntityGraph(attributePaths = "academicYear")
     List<AcademicTerm> findByAcademicYearIdOrderByStartDateAsc(Long academicYearId);
+    @EntityGraph(attributePaths = "academicYear")
+    List<AcademicTerm> findByAcademicYearIdAndRegistrationOpenTrueOrderByStartDateAsc(Long academicYearId);
     List<AcademicTerm> findByRegistrationOpenTrueOrderByStartDateAsc();
+    @EntityGraph(attributePaths = "academicYear")
+    List<AcademicTerm> findByGradeSubmissionDeadlineIsNotNullAndGradeSubmissionDeadlineLessThanEqualOrderByGradeSubmissionDeadlineAsc(
+            LocalDate latestDeadline);
     boolean existsByCodeIgnoreCase(String code);
     @Query("select term from AcademicTerm term join fetch term.academicYear where term.id = :id")
     Optional<AcademicTerm> findWithAcademicYearById(@Param("id") Long id);

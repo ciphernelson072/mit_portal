@@ -3,6 +3,7 @@ package com.sis.controller;
 import com.sis.dto.CreateCourseSectionRequest;
 import com.sis.entity.CourseRegistration;
 import com.sis.entity.CourseSection;
+import com.sis.entity.Teacher;
 import com.sis.service.RegistrationService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -73,21 +74,30 @@ public class RegistrationController {
 
     private Map<String, Object> sectionResponse(CourseSection section, long registeredCount) {
         long capacity = section.getCapacity();
+        Teacher teacher = section.getCourse().getTeacher();
+        boolean instructorAssigned = teacher != null && teacher.getUser() != null
+                && Boolean.TRUE.equals(teacher.getUser().getIsActive());
         return map("id", section.getId(), "courseId", section.getCourse().getId(),
                 "courseCode", section.getCourse().getCourseCode(), "courseName", section.getCourse().getName(),
                 "credits", section.getCourse().getCredits(), "termId", section.getAcademicTerm().getId(),
                 "termName", section.getAcademicTerm().getName(),
                 "sectionCode", section.getSectionCode(), "capacity", capacity,
                 "registeredCount", registeredCount, "seatsAvailable", Math.max(0L, capacity - registeredCount),
-                "active", section.getActive());
+                "active", section.getActive(), "teacherName", instructorAssigned ? teacher.getFullName() : "",
+                "instructorAssigned", instructorAssigned);
     }
 
     private Map<String, Object> registrationResponse(CourseRegistration registration) {
+        Teacher teacher = registration.getSection().getCourse().getTeacher();
+        boolean instructorAssigned = teacher != null && teacher.getUser() != null
+                && Boolean.TRUE.equals(teacher.getUser().getIsActive());
         return map("id", registration.getId(), "sectionId", registration.getSection().getId(),
                 "sectionCode", registration.getSection().getSectionCode(),
                 "courseId", registration.getSection().getCourse().getId(),
                 "courseCode", registration.getSection().getCourse().getCourseCode(),
                 "courseName", registration.getSection().getCourse().getName(),
+                "teacherName", instructorAssigned ? teacher.getFullName() : "",
+                "instructorAssigned", instructorAssigned,
                 "termId", registration.getSection().getAcademicTerm().getId(),
                 "termName", registration.getSection().getAcademicTerm().getName(),
                 "status", registration.getStatus(), "registeredAt", registration.getRegisteredAt());

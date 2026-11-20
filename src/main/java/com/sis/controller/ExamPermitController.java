@@ -1,8 +1,11 @@
 package com.sis.controller;
 
 import com.sis.dto.CreateExamPermitRequest;
+import com.sis.dto.ExamReadinessDto;
+import com.sis.dto.ExamReadinessItemDto;
 import com.sis.dto.RejectionRequest;
 import com.sis.entity.ExamPermit;
+import com.sis.service.ExamReadinessService;
 import com.sis.service.ExamPermitService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -19,10 +22,14 @@ import java.util.Map;
 public class ExamPermitController {
 
     private final ExamPermitService examPermitService;
+    private final ExamReadinessService examReadinessService;
     private final com.sis.service.SchoolService schoolService;
 
-    public ExamPermitController(ExamPermitService examPermitService, com.sis.service.SchoolService schoolService) {
+    public ExamPermitController(ExamPermitService examPermitService,
+                                ExamReadinessService examReadinessService,
+                                com.sis.service.SchoolService schoolService) {
         this.examPermitService = examPermitService;
+        this.examReadinessService = examReadinessService;
         this.schoolService = schoolService;
     }
 
@@ -42,6 +49,12 @@ public class ExamPermitController {
         return ResponseEntity.ok(examPermitService.listForStudent(studentId).stream()
                 .map(this::permitResponse)
                 .toList());
+    }
+
+    @GetMapping("/student/exam-readiness")
+    @PreAuthorize("hasAuthority('STUDENT')")
+    public ResponseEntity<List<ExamReadinessItemDto>> myExamReadiness() {
+        return ResponseEntity.ok(examReadinessService.listForStudent(currentStudentId()));
     }
 
     @GetMapping("/admin/exam-permits/pending")
@@ -88,6 +101,8 @@ public class ExamPermitController {
         payload.put("rejectedAt", permit.getRejectedAt());
         payload.put("rejectedBy", permit.getRejectedBy());
         payload.put("reason", permit.getReason());
+        ExamReadinessDto readiness = examReadinessService.assess(permit.getStudentId(), permit.getExamId());
+        payload.put("readiness", readiness);
         return payload;
     }
 }

@@ -5,6 +5,7 @@ import com.sis.dto.AdmissionDecisionRequest;
 import com.sis.dto.AdmissionEnrollmentCredentialsResponse;
 import com.sis.dto.AdmissionStatusRequest;
 import com.sis.dto.AdminStudentDto;
+import com.sis.dto.AutomaticCourseAssignmentSummary;
 import com.sis.dto.CreateAdmittedStudentRequest;
 import com.sis.dto.CreateStudentRequest;
 import com.sis.dto.EnrollAdmissionRequest;
@@ -45,12 +46,13 @@ public class AdmissionService {
     private final StudentProgramRepository studentPrograms;
     private final StudentStatusHistoryRepository statusHistory;
     private final AdminService adminService;
+    private final AutomaticCourseAssignmentService automaticCourseAssignments;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public AdmissionService(AdmissionApplicationRepository applications, ProgramRepository programs,
                             AcademicYearRepository academicYears, StudentRepository students,
                             StudentProgramRepository studentPrograms, StudentStatusHistoryRepository statusHistory,
-                            AdminService adminService) {
+                            AdminService adminService, AutomaticCourseAssignmentService automaticCourseAssignments) {
         this.applications = applications;
         this.programs = programs;
         this.academicYears = academicYears;
@@ -58,6 +60,7 @@ public class AdmissionService {
         this.studentPrograms = studentPrograms;
         this.statusHistory = statusHistory;
         this.adminService = adminService;
+        this.automaticCourseAssignments = automaticCourseAssignments;
     }
 
     public AdmissionApplication submit(AdmissionApplicationRequest request) {
@@ -147,7 +150,7 @@ public class AdmissionService {
                 .toList();
     }
 
-    public StudentProgram enroll(Long applicationId, EnrollAdmissionRequest request, String changedBy) {
+    public AdmissionEnrollmentResult enroll(Long applicationId, EnrollAdmissionRequest request, String changedBy) {
         AdmissionApplication application = applications.findByIdWithProgramAndAcademicYear(applicationId)
                 .orElseThrow(() -> new IllegalArgumentException("Application not found"));
         if (application.getStatus() != AdmissionApplicationStatus.ACCEPTED) {
@@ -156,7 +159,10 @@ public class AdmissionService {
         requireActiveProgrammeDirectory(application.getProgram());
         Student student = students.findById(request.getStudentId())
                 .orElseThrow(() -> new IllegalArgumentException("Student not found"));
-        return enroll(application, student, changedBy);
+        StudentProgram enrollment = enroll(application, student, changedBy);
+        AutomaticCourseAssignmentSummary assignments = automaticCourseAssignments.assignStudentForOpenTerms(
+                student.getId(), enrollment.getProgram().getId(), enrollment.getAcademicYear().getId());
+        return new AdmissionEnrollmentResult(enrollment, assignments);
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -185,7 +191,9 @@ public class AdmissionService {
         Student student = students.findById(created.getId())
                 .orElseThrow(() -> new IllegalStateException("Created student account could not be loaded"));
         StudentProgram enrollment = enroll(application, student, changedBy);
-        return new AdmissionEnrollmentCredentialsResponse(
+        AutomaticCourseAssignmentSummary assignments = automaticCourseAssignments.assignStudentForOpenTerms(
+                student.getId(), enrollment.getProgram().getId(), enrollment.getAcademicYear().getId());
+        AdmissionEnrollmentCredentialsResponse response = new AdmissionEnrollmentCredentialsResponse(
                 enrollment.getId(),
                 student.getId(),
                 enrollment.getProgram().getId(),
@@ -193,6 +201,8 @@ public class AdmissionService {
                 enrollment.getStatus().name(),
                 created.getUsername(),
                 temporaryPassword);
+        response.setAutomaticAssignments(assignments);
+        return response;
     }
 
     private String generateTemporaryPassword() {

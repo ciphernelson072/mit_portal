@@ -57,3 +57,41 @@ authorized. Run a restore rehearsal that verifies:
 Production schedules must run off-host, use encrypted credentials, publish
 success/failure state, alert on missed or stale backups, and enforce retention.
 Do not treat a script present on the application host as an off-host backup.
+
+The admin dashboard verifies backup evidence only; it does not schedule or
+create backups. Configure `BACKUP_STATUS_FILE` and, when uploads are stored
+separately, `UPLOAD_BACKUP_STATUS_FILE` to point to provider-maintained status
+markers. Each marker must contain `completedAt`, `artifact`, and `sha256`; the
+artifact and its `.sha256` sidecar must be readable by the app process. Set
+`BACKUP_MAX_AGE_HOURS` to the institution's freshness target. A missing marker
+is reported as not configured, not as a successful backup.
+
+## Portal automations
+
+The daily fee and grade reminders run at 09:00 and attendance-risk alerts at
+09:30 in `APP_AUTOMATION_TIME_ZONE` (default `Africa/Nairobi`). The daily
+workers coordinate through the database lock table created by the latest
+Flyway migrations. Notification emails are queued for users who enabled email
+notifications and retry after 1, 5, and 30 minutes following initial failure.
+Review recent attempts and exhausted failures in the admin dashboard's Email
+Delivery Activity panel. Failed deliveries remain visible there for
+investigation.
+
+Attendance below 75% generates a student warning; it does not automatically
+block exam permits. Progression recommendations do not advance a student:
+registrar review and approval remain required. Grade reminders use the
+optional deadline configured on the academic term.
+
+Finance-created student charges start as drafts. Finance staff must approve a
+draft in the Finance module before it is visible to the student or included in
+reminders and balances. Existing fee records remain active after migration.
+
+## Admission document handling
+
+Reviewers manage the active document requirements in Admissions Review.
+Applicants must upload each active required file when submitting their
+application; optional files may also be supplied. PDF and common image files
+are accepted within the configured upload-size limit. Reviewers can download
+uploaded files from the application queue. Missing documents do not
+automatically accept or reject an application; the reviewer makes that
+decision.

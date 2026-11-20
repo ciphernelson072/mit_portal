@@ -3,6 +3,8 @@ package com.sis.controller;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sis.service.EmailService;
+import com.sis.dto.EmailDeliveryAdminDto;
+import com.sis.repository.EmailNotificationDeliveryRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -35,6 +37,7 @@ public class AdminSystemStatusController {
     private static final Logger logger = LoggerFactory.getLogger(AdminSystemStatusController.class);
 
     private final JdbcTemplate jdbcTemplate;
+    private final EmailNotificationDeliveryRepository emailDeliveries;
     private final ObjectMapper objectMapper;
     private final boolean mailEnabled;
     private final EmailService emailService;
@@ -43,6 +46,7 @@ public class AdminSystemStatusController {
     private final long backupMaxAgeHours;
 
     public AdminSystemStatusController(JdbcTemplate jdbcTemplate,
+                                       EmailNotificationDeliveryRepository emailDeliveries,
                                        ObjectMapper objectMapper,
                                        @Value("${app.mail.enabled:false}") boolean mailEnabled,
                                        EmailService emailService,
@@ -50,6 +54,7 @@ public class AdminSystemStatusController {
                                        @Value("${app.backup.upload-status-file:}") String uploadBackupStatusFile,
                                        @Value("${app.backup.max-age-hours:36}") long backupMaxAgeHours) {
         this.jdbcTemplate = jdbcTemplate;
+        this.emailDeliveries = emailDeliveries;
         this.objectMapper = objectMapper;
         this.mailEnabled = mailEnabled;
         this.emailService = emailService;
@@ -67,6 +72,22 @@ public class AdminSystemStatusController {
         result.put("uploadBackup", backupStatus(uploadBackupStatusFile, "Upload backup"));
         result.put("checkedAt", Instant.now().toString());
         return result;
+    }
+
+    @GetMapping("/email-deliveries")
+    public java.util.List<EmailDeliveryAdminDto> emailDeliveries() {
+        return emailDeliveries.findTop100ByOrderByCreatedAtDesc().stream()
+                .map(delivery -> new EmailDeliveryAdminDto(
+                        delivery.getId(),
+                        delivery.getUserId(),
+                        delivery.getNotification().getTitle(),
+                        delivery.getStatus(),
+                        delivery.getAttemptCount(),
+                        delivery.getNextAttemptAt(),
+                        delivery.getLastError(),
+                        delivery.getCreatedAt(),
+                        delivery.getSentAt()))
+                .toList();
     }
 
     private Map<String, Object> backupStatus() {

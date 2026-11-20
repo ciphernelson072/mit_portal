@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Optional;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -22,7 +23,8 @@ class NotificationServiceTest {
     void filtersNotificationsBySavedCategoryPreference() {
         NotificationRepository repository = mock(NotificationRepository.class);
         UserPreferenceRepository preferences = mock(UserPreferenceRepository.class);
-        NotificationService service = new NotificationService(repository, preferences);
+        NotificationService service = new NotificationService(
+                repository, new PreferencePolicyService(preferences), mock(EmailNotificationDeliveryService.class));
 
         UserPreference preference = new UserPreference();
         preference.setUserId(7L);
@@ -50,5 +52,27 @@ class NotificationServiceTest {
                 NotificationCategory.SYSTEM,
                 NotificationCategory.ANNOUNCEMENT), categories);
         verify(preferences, times(1)).findByUserId(7L);
+    }
+
+    @Test
+    void queuesEmailOnlyWhenTheUserHasEnabledEmailNotifications() {
+        NotificationRepository repository = mock(NotificationRepository.class);
+        UserPreferenceRepository preferences = mock(UserPreferenceRepository.class);
+        EmailNotificationDeliveryService emailDeliveries = mock(EmailNotificationDeliveryService.class);
+        NotificationService service = new NotificationService(
+                repository, new PreferencePolicyService(preferences), emailDeliveries);
+        UserPreference preference = new UserPreference();
+        preference.setSettingsJson("{\"privacy\":[false,false,true]}");
+        when(preferences.findByUserId(7L)).thenReturn(Optional.of(preference));
+        when(repository.save(any(Notification.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.create(7L, "Grade published", "Your result is available.", NotificationCategory.GRADE);
+
+        verify(emailDeliveries).enqueue(any(Notification.class));
+
+        preference.setSettingsJson("{\"privacy\":[false,false,false]}");
+        service.create(7L, "Another update", "In-app only.", NotificationCategory.SYSTEM);
+        verify(emailDeliveries, times(1)).enqueue(any(Notification.class));
     }
 }

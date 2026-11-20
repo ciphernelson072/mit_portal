@@ -26,6 +26,9 @@ public class StudentProgram {
     @Column(nullable = false, length = 30)
     private StudentLifecycleStatus status = StudentLifecycleStatus.ACTIVE;
 
+    @Column(name = "current_semester", nullable = false)
+    private Integer currentSemester = 1;
+
     @Column(name = "start_date", nullable = false)
     private LocalDate startDate = LocalDate.now();
 
@@ -42,6 +45,8 @@ public class StudentProgram {
     public void setAcademicYear(AcademicYear academicYear) { this.academicYear = academicYear; }
     public StudentLifecycleStatus getStatus() { return status; }
     public void setStatus(StudentLifecycleStatus status) { this.status = status; }
+    public Integer getCurrentSemester() { return currentSemester; }
+    public void setCurrentSemester(Integer currentSemester) { this.currentSemester = currentSemester; }
     public LocalDate getStartDate() { return startDate; }
     public void setStartDate(LocalDate startDate) { this.startDate = startDate; }
     public LocalDate getEndDate() { return endDate; }

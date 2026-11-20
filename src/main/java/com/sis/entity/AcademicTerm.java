@@ -28,6 +28,9 @@ public class AcademicTerm {
     @Column(nullable = false)
     private Boolean registrationOpen = false;
 
+    @Column(name = "grade_submission_deadline")
+    private java.time.LocalDate gradeSubmissionDeadline;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getCode() { return code; }
@@ -42,4 +45,8 @@ public class AcademicTerm {
     public void setEndDate(java.time.LocalDate endDate) { this.endDate = endDate; }
     public Boolean getRegistrationOpen() { return registrationOpen; }
     public void setRegistrationOpen(Boolean registrationOpen) { this.registrationOpen = registrationOpen; }
+    public java.time.LocalDate getGradeSubmissionDeadline() { return gradeSubmissionDeadline; }
+    public void setGradeSubmissionDeadline(java.time.LocalDate gradeSubmissionDeadline) {
+        this.gradeSubmissionDeadline = gradeSubmissionDeadline;
+    }
 }

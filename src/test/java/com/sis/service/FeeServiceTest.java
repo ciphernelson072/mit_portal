@@ -2,6 +2,7 @@ package com.sis.service;
 
 import com.sis.dto.FeeDto;
 import com.sis.entity.Fee;
+import com.sis.entity.FeeStatus;
 import com.sis.entity.FeeWaiver;
 import com.sis.entity.PaymentAllocation;
 import com.sis.entity.PaymentRefund;
@@ -20,6 +21,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class FeeServiceTest {
@@ -37,7 +39,7 @@ class FeeServiceTest {
         student.setId(12L);
         Fee fee = new Fee(student, "Tuition", new BigDecimal("100.00"), null);
         fee.setId(34L);
-        when(fees.findByStudentId(12L)).thenReturn(List.of(fee));
+        when(fees.findByStudentIdAndStatus(12L, FeeStatus.ACTIVE)).thenReturn(List.of(fee));
 
         PaymentAllocation allocation = new PaymentAllocation();
         allocation.setAmount(new BigDecimal("30.00"));
@@ -56,5 +58,44 @@ class FeeServiceTest {
 
         assertEquals(new BigDecimal("45.00"), result.getAmountPaid());
         assertEquals(new BigDecimal("45.00"), result.getBalance());
+    }
+
+    @Test
+    void newlyCreatedFeeRemainsDraftUntilFinanceApprovesIt() {
+        FeeRepository fees = mock(FeeRepository.class);
+        PaymentAllocationRepository allocations = mock(PaymentAllocationRepository.class);
+        PaymentRefundRepository refunds = mock(PaymentRefundRepository.class);
+        FeeWaiverRepository waivers = mock(FeeWaiverRepository.class);
+        PaymentTransactionRepository transactions = mock(PaymentTransactionRepository.class);
+        FeeService service = new FeeService(fees, transactions, allocations, refunds, waivers);
+        Student student = new Student();
+        student.setId(12L);
+
+        when(fees.save(org.mockito.ArgumentMatchers.any(Fee.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        service.createFee(student, "Tuition", new BigDecimal("100.00"), null);
+
+        org.mockito.ArgumentCaptor<Fee> savedFee = org.mockito.ArgumentCaptor.forClass(Fee.class);
+        verify(fees).save(savedFee.capture());
+        assertEquals(FeeStatus.DRAFT, savedFee.getValue().getStatus());
+    }
+
+    @Test
+    void draftFeeCanOnlyBeActivatedOnce() {
+        FeeRepository fees = mock(FeeRepository.class);
+        PaymentAllocationRepository allocations = mock(PaymentAllocationRepository.class);
+        PaymentRefundRepository refunds = mock(PaymentRefundRepository.class);
+        FeeWaiverRepository waivers = mock(FeeWaiverRepository.class);
+        PaymentTransactionRepository transactions = mock(PaymentTransactionRepository.class);
+        FeeService service = new FeeService(fees, transactions, allocations, refunds, waivers);
+        Fee fee = new Fee(new Student(), "Tuition", new BigDecimal("100.00"), null);
+        fee.setId(9L);
+        when(fees.findByIdForUpdate(9L)).thenReturn(java.util.Optional.of(fee));
+
+        service.approveDraftFee(9L);
+
+        assertEquals(FeeStatus.ACTIVE, fee.getStatus());
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalStateException.class, () -> service.approveDraftFee(9L));
     }
 }

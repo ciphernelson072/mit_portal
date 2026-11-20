@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en" class="public-admissions">
 <head>
+  <link rel="icon" type="image/jpeg" href="/icons/logo.jpg">
+
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Apply to Makerere Institute of Technology or check an existing application status.">
@@ -32,9 +34,14 @@
           <label>Phone (optional)<input id="phone" type="tel" autocomplete="tel"></label>
           <label>Programme<select id="programId" required disabled><option value="">Loading programmes...</option></select></label>
           <label>Academic year<select id="academicYearId" required disabled><option value="">Loading academic year...</option></select></label>
+          <fieldset class="admission-document-fieldset">
+            <legend>Required and supporting documents</legend>
+            <p>Upload PDF or image files. Each file may be up to 10 MB.</p>
+            <div id="admissionDocumentChecklist" aria-live="polite">Loading document requirements…</div>
+          </fieldset>
           <button class="button primary" id="submitAdmissionButton" type="submit" disabled>Submit application</button>
         </form>
-        <p class="applicant-privacy-note">The form collects your name and email, an optional phone number, and the programme and academic year you select. This information is used to process your application and let you check its status. <a href="/privacy.html#admissions-applicants">Read the applicant privacy notice</a>.</p>
+        <p class="applicant-privacy-note">The form collects your contact and programme details plus the documents you upload for admissions review. <a href="/privacy.html#admissions-applicants">Read the applicant privacy notice</a>.</p>
         <p id="admissionStatus" class="status" role="status"></p>
         <div id="applicationConfirmation" class="application-confirmation" role="region" aria-label="Application confirmation" aria-live="polite" hidden>
           <p>Your application number</p>

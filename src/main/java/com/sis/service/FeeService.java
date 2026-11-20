@@ -3,6 +3,7 @@ package com.sis.service;
 import com.sis.dto.AdminFeeDto;
 import com.sis.dto.FeeDto;
 import com.sis.entity.Fee;
+import com.sis.entity.FeeStatus;
 import com.sis.entity.Student;
 import com.sis.repository.FeeRepository;
 import com.sis.repository.PaymentAllocationRepository;
@@ -47,7 +48,7 @@ public class FeeService {
 
     public List<FeeDto> getFeesForStudent(Long studentId) {
         if (studentId == null) return Collections.emptyList();
-        return feeRepository.findByStudentId(studentId).stream()
+        return feeRepository.findByStudentIdAndStatus(studentId, FeeStatus.ACTIVE).stream()
                 .map(this::toStudentFeeDto)
                 .collect(Collectors.toList());
     }
@@ -55,6 +56,7 @@ public class FeeService {
     public Optional<FeeDto> getFeeForStudent(Long feeId, Long studentId) {
         if (feeId == null || studentId == null) return Optional.empty();
         return feeRepository.findById(feeId)
+                .filter(fee -> fee.getStatus() == FeeStatus.ACTIVE)
                 .filter(fee -> fee.getStudent().getId().equals(studentId))
                 .map(this::toStudentFeeDto);
     }
@@ -66,15 +68,39 @@ public class FeeService {
                             fee.getStudent().getFullName(), fee.getStudent().getUser().getUsername(),
                             fee.getDescription(), fee.getAmount(), fee.isPaid(),
                             fee.getDueDate(), fee.getPaidDate());
+                    dto.setStatus(fee.getStatus().name());
                     setSettlementAmounts(dto, fee);
                     return dto;
                 })
                 .collect(Collectors.toList());
     }
 
+    public List<FeeReminderCandidate> feeReminderCandidates(LocalDate latestDueDate) {
+        return feeRepository.findUnpaidWithDueDateOnOrBefore(latestDueDate).stream()
+                .map(fee -> new FeeReminderCandidate(
+                        fee.getId(),
+                        fee.getStudent().getId(),
+                        fee.getStudent().getUser().getId(),
+                        fee.getDescription(),
+                        fee.getDueDate(),
+                        feeSettlement(fee).balance))
+                .filter(candidate -> candidate.balance().signum() > 0)
+                .toList();
+    }
+
     public FeeDto createFee(Student student, String description, BigDecimal amount, LocalDate dueDate) {
         Fee saved = feeRepository.save(new Fee(student, description, amount, dueDate));
         return toStudentFeeDto(saved);
+    }
+
+    public void approveDraftFee(Long feeId) {
+        Fee fee = feeRepository.findByIdForUpdate(feeId)
+                .orElseThrow(() -> new IllegalArgumentException("Fee not found with id: " + feeId));
+        if (fee.getStatus() != FeeStatus.DRAFT) {
+            throw new IllegalStateException("Only a draft fee can be approved.");
+        }
+        fee.setStatus(FeeStatus.ACTIVE);
+        feeRepository.save(fee);
     }
 
     private void setSettlementAmounts(AdminFeeDto dto, Fee fee) {
@@ -121,6 +147,15 @@ public class FeeService {
             this.amountPaid = amountPaid;
             this.balance = balance;
         }
+    }
+
+    public record FeeReminderCandidate(
+            Long feeId,
+            Long studentId,
+            Long userId,
+            String description,
+            LocalDate dueDate,
+            BigDecimal balance) {
     }
 
 }

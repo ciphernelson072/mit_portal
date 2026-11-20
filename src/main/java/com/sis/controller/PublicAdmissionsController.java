@@ -2,14 +2,19 @@ package com.sis.controller;
 
 import com.sis.dto.AdmissionApplicationRequest;
 import com.sis.dto.AdmissionStatusRequest;
+import com.sis.dto.AdmissionDocumentRequirementDto;
 import com.sis.entity.AdmissionApplication;
 import com.sis.repository.AcademicYearRepository;
 import com.sis.repository.ProgramRepository;
+import com.sis.service.AdmissionDocumentService;
 import com.sis.service.AdmissionService;
 import com.sis.service.EmailService;
+import com.sis.service.PublicAdmissionSubmissionService;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartHttpServletRequest;
 
 import jakarta.validation.Valid;
 import java.util.LinkedHashMap;
@@ -26,13 +31,19 @@ public class PublicAdmissionsController {
     private final ProgramRepository programRepository;
     private final AcademicYearRepository academicYearRepository;
     private final EmailService emailService;
+    private final AdmissionDocumentService admissionDocuments;
+    private final PublicAdmissionSubmissionService submissions;
 
     public PublicAdmissionsController(AdmissionService admissionService, ProgramRepository programRepository,
-                                      AcademicYearRepository academicYearRepository, EmailService emailService) {
+                                      AcademicYearRepository academicYearRepository, EmailService emailService,
+                                      AdmissionDocumentService admissionDocuments,
+                                      PublicAdmissionSubmissionService submissions) {
         this.admissionService = admissionService;
         this.programRepository = programRepository;
         this.academicYearRepository = academicYearRepository;
         this.emailService = emailService;
+        this.admissionDocuments = admissionDocuments;
+        this.submissions = submissions;
     }
 
     @GetMapping("/programs")
@@ -63,9 +74,30 @@ public class PublicAdmissionsController {
                 .orElseGet(LinkedHashMap::new);
     }
 
+    @GetMapping("/document-requirements")
+    public List<AdmissionDocumentRequirementDto> documentRequirements() {
+        return admissionDocuments.listRequirements(false);
+    }
+
     @PostMapping("/applications")
     public ResponseEntity<Map<String, Object>> submit(@Valid @RequestBody AdmissionApplicationRequest request) {
+        if (admissionDocuments.hasActiveRequiredDocuments()) {
+            throw new IllegalStateException(
+                    "Upload the required admission documents using the application form.");
+        }
         AdmissionApplication application = admissionService.submit(request);
+        return applicationResponse(application);
+    }
+
+    @PostMapping(value = "/applications", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Map<String, Object>> submitWithDocuments(
+            @Valid @ModelAttribute AdmissionApplicationRequest request,
+            MultipartHttpServletRequest multipartRequest) {
+        AdmissionApplication application = submissions.submit(request, multipartRequest.getFileMap());
+        return applicationResponse(application);
+    }
+
+    private ResponseEntity<Map<String, Object>> applicationResponse(AdmissionApplication application) {
         boolean emailSent = false;
         String emailMessage;
         if (!emailService.isDeliveryConfigured()) {

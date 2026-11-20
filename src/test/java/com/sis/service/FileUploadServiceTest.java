@@ -50,6 +50,22 @@ class FileUploadServiceTest {
     }
 
     @Test
+    void admissionDocumentsRequireMatchingPdfContentAndUseApplicationScopedStorage() throws Exception {
+        FileUploadService service = service(1024);
+        MockMultipartFile valid = new MockMultipartFile(
+                "document_1", "transcript.pdf", "application/pdf", "%PDF-1.7 content".getBytes());
+        MockMultipartFile forged = new MockMultipartFile(
+                "document_1", "transcript.pdf", "application/pdf", "not a pdf".getBytes());
+
+        String path = service.uploadAdmissionDocument(valid, 42L);
+
+        assertTrue(path.matches("documents/admissions/42/[0-9a-f-]+\\.pdf"));
+        assertArrayEquals(valid.getBytes(), Files.readAllBytes(uploadRoot.resolve(path)));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.uploadAdmissionDocument(forged, 42L));
+    }
+
+    @Test
     void fileListingReturnsOnlyRegularFilesAsUploadRelativePaths() throws Exception {
         FileUploadService service = service(1024);
         Path file = uploadRoot.resolve("documents").resolve("17").resolve("test.pdf");

@@ -47,7 +47,8 @@ class AdminServiceAccountWorkflowTest {
             mock(StudentStatusHistoryRepository.class),
             mock(ProgramRepository.class),
             mock(AcademicYearRepository.class),
-            mock(AcademicRecordsService.class));
+            mock(AcademicRecordsService.class),
+            mock(com.sis.repository.CurriculumCourseRepository.class));
 
     @Test
     void managedRolesCannotBeCreatedThroughStandaloneAdminAccountCreation() {
