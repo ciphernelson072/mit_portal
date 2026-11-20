@@ -389,6 +389,9 @@ test('public admissions information reaches the existing application and status 
         body: JSON.stringify({ id: 2, name: '2026/2027 Academic Year' }),
       });
     }
+    if (pathname.endsWith('/document-requirements')) {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+    }
     if (pathname.endsWith('/applications/status')) {
       return route.fulfill({
         status: 200,
@@ -464,6 +467,8 @@ test('public application submission shows processing and success feedback', asyn
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
         id: 2, name: '2027 Academic Year',
       }) });
+    } else if (path.endsWith('/document-requirements')) {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
     } else if (path.endsWith('/applications') && route.request().method() === 'POST') {
       await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({
         applicationNumber: 'APP-2027-001',

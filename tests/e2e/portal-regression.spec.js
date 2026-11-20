@@ -1535,7 +1535,7 @@ test('admissions explains missing programme/year setup and blocks submission', a
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify(pathname.endsWith('/programs') ? [] : {}),
+      body: JSON.stringify(pathname.endsWith('/programs') || pathname.endsWith('/document-requirements') ? [] : {}),
     });
   });
 
@@ -1563,6 +1563,8 @@ test('public applicant receives the administrator approval and enrollment steps'
         contentType: 'application/json',
         body: JSON.stringify({ id: 7, name: '2027 Academic Year' }),
       });
+    } else if (pathname.endsWith('/document-requirements')) {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
     } else if (pathname.endsWith('/applications') && request.method() === 'POST') {
       submittedApplication = request.postDataJSON();
       await route.fulfill({
@@ -1604,6 +1606,8 @@ test('public admissions status lookup requires the application email without exp
       await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
     } else if (pathname.endsWith('/academic-year')) {
       await route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+    } else if (pathname.endsWith('/document-requirements')) {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
     } else if (pathname.endsWith('/applications/status') && request.method() === 'POST') {
       statusRequest = request.postDataJSON();
       await route.fulfill({
