@@ -40,6 +40,26 @@ class FlywayMigrationRecoveryConfigurationTest {
     }
 
     @Test
+    void repairsExpectedMissingFailedV57BeforeMigrating() {
+        Flyway flyway = mock(Flyway.class);
+        MigrationInfoService info = mock(MigrationInfoService.class);
+        MigrationInfo failedMigration = mock(MigrationInfo.class);
+        when(flyway.info()).thenReturn(info);
+        when(info.all()).thenReturn(new MigrationInfo[]{failedMigration});
+        when(failedMigration.getState()).thenReturn(MigrationState.MISSING_FAILED);
+        when(failedMigration.getVersion()).thenReturn(MigrationVersion.fromVersion("57"));
+        when(failedMigration.getDescription())
+                .thenReturn("configure grade deadlines and deduplicate automation notifications");
+
+        FlywayMigrationStrategy strategy = configuration.flywayMigrationStrategy();
+        strategy.migrate(flyway);
+
+        var order = inOrder(flyway);
+        order.verify(flyway).repair();
+        order.verify(flyway).migrate();
+    }
+
+    @Test
     void refusesToRepairAnyOtherFailedMigration() {
         Flyway flyway = mock(Flyway.class);
         MigrationInfoService info = mock(MigrationInfoService.class);

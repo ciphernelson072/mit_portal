@@ -26,7 +26,7 @@ public class FlywayMigrationRecoveryConfiguration {
     FlywayMigrationStrategy flywayMigrationStrategy() {
         return flyway -> {
             List<MigrationInfo> failedMigrations = Arrays.stream(flyway.info().all())
-                    .filter(migration -> migration.getState() == MigrationState.FAILED)
+                    .filter(migration -> isFailedState(migration.getState()))
                     .toList();
             if (!failedMigrations.isEmpty()) {
                 if (failedMigrations.size() != 1 || !isExpectedFailure(failedMigrations.get(0))) {
@@ -47,5 +47,9 @@ public class FlywayMigrationRecoveryConfiguration {
         return migration.getVersion() != null
                 && FAILED_VERSION.equals(migration.getVersion().toString())
                 && FAILED_DESCRIPTION.equals(migration.getDescription());
+    }
+
+    private static boolean isFailedState(MigrationState state) {
+        return state == MigrationState.FAILED || state == MigrationState.MISSING_FAILED;
     }
 }
