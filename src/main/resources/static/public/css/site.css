@@ -430,6 +430,14 @@ h3 { margin-bottom: 10px; font-size: 19px; }
   background: var(--mit-white);
 }
 .public-admissions .field-grid button { min-height: 46px; align-self: end; }
+.public-admissions .admission-turnstile { grid-column: 1 / -1; min-height: 0; }
+.public-admissions .admission-turnstile[hidden] { display: none; }
+.public-admissions .field-grid button:disabled {
+  cursor: not-allowed;
+  filter: grayscale(1);
+  opacity: .45;
+  box-shadow: none;
+}
 .public-admissions .button.primary { border: 0; border-radius: 4px; color: #142b3e; background: #d2b36f; font-weight: 800; }
 .public-admissions .button.secondary { border-radius: 4px; color: var(--mit-white); background: var(--brand-navy); font-weight: 800; }
 .public-admissions .status { border-left-color: var(--brand-teal); border-radius: 2px; color: var(--brand-ink); background: var(--brand-soft-blue); }

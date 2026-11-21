@@ -14,6 +14,9 @@ public class AdmissionStatusRequest {
     @Size(max = 254)
     private String email;
 
+    @Size(max = 2048)
+    private String turnstileToken;
+
     public String getApplicationNumber() {
         return applicationNumber;
     }
@@ -28,5 +31,13 @@ public class AdmissionStatusRequest {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public String getTurnstileToken() {
+        return turnstileToken;
+    }
+
+    public void setTurnstileToken(String turnstileToken) {
+        this.turnstileToken = turnstileToken;
     }
 }

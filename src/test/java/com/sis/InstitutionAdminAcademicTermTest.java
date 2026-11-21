@@ -109,6 +109,53 @@ class InstitutionAdminAcademicTermTest {
     }
 
     @Test
+    void rejectsOutOfRangeAndMalformedAcademicDatesBeforeSave() {
+        AcademicYear year = academicYear();
+        when(years.findById(5L)).thenReturn(Optional.of(year));
+
+        CreateAcademicTermRequest reversed = request();
+        reversed.setStartDate(LocalDate.of(2026, 8, 1));
+        reversed.setEndDate(LocalDate.of(2026, 7, 1));
+        assertThatThrownBy(() -> controller.createAcademicTerm(reversed))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("end date must be on or after");
+        verify(terms, never()).save(any(AcademicTerm.class));
+    }
+
+    @Test
+    void rejectsThirdSemesterOutsideItsAcademicYear() {
+        AcademicYear year = academicYear();
+        when(years.findById(5L)).thenReturn(Optional.of(year));
+        CreateAcademicTermRequest thirdSemester = request();
+        thirdSemester.setCode("2026-T3");
+        thirdSemester.setName("Semester III");
+        thirdSemester.setStartDate(LocalDate.of(2027, 8, 23));
+        thirdSemester.setEndDate(LocalDate.of(2027, 12, 17));
+
+        assertThatThrownBy(() -> controller.createAcademicTerm(thirdSemester))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("within the selected academic year");
+        verify(terms, never()).save(any(AcademicTerm.class));
+    }
+
+    @Test
+    void rejectsGradeDeadlineAfterThirdSemesterEnd() {
+        AcademicYear year = academicYear();
+        when(years.findById(5L)).thenReturn(Optional.of(year));
+        CreateAcademicTermRequest thirdSemester = request();
+        thirdSemester.setCode("2026-T3");
+        thirdSemester.setName("Semester III");
+        thirdSemester.setStartDate(LocalDate.of(2026, 8, 1));
+        thirdSemester.setEndDate(LocalDate.of(2026, 12, 17));
+        thirdSemester.setGradeSubmissionDeadline(LocalDate.of(2027, 1, 10));
+
+        assertThatThrownBy(() -> controller.createAcademicTerm(thirdSemester))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("on or before the term end date");
+        verify(terms, never()).save(any(AcademicTerm.class));
+    }
+
+    @Test
     void updatesTermRegistrationWindow() {
         AcademicTerm term = new AcademicTerm();
         term.setId(12L);

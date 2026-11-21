@@ -59,6 +59,34 @@ function createAdminScriptContext({ coursesByPage, teachers = [], categories = [
   return { context, modal, handlers, requests };
 }
 
+test('teacher summary uses the same four-card shell as the admin dashboard', () => {
+  const html = fs.readFileSync(
+    path.join(__dirname, '../src/main/resources/static/teacher-dashboard.html'),
+    'utf8',
+  );
+  assert.equal((html.match(/class="stat-card"/g) || []).length, 4);
+  const css = fs.readFileSync(
+    path.join(__dirname, '../src/main/resources/static/css/admin-style.css'),
+    'utf8',
+  );
+  assert.match(css, /\.teacher-content \.stats-grid \{/);
+  assert.match(css, /repeat\(4, minmax\(0, 1fr\)\)/);
+});
+
+test('pending actions and system status fail with retryable evidence', () => {
+  assert.match(adminScript, /Retry pending actions/);
+  assert.match(adminScript, /System status could not be retrieved/);
+  assert.match(adminScript, /Unable to load \$\{escapeHtml\(failedQueues\.join\(' and '\)\)\} queue/);
+});
+
+test('academic term date controls derive bounds from the selected academic year', () => {
+  assert.match(adminScript, /function syncAcademicTermDateBounds\(yearId\)/);
+  assert.match(adminScript, /start\.min = year\.startDate/);
+  assert.match(adminScript, /end\.max = year\.endDate/);
+  assert.match(adminScript, /deadline\.min = start\.value \|\| year\.startDate/);
+  assert.match(adminScript, /deadline\.max = end\.value \|\| year\.endDate/);
+});
+
 test('course-unit setup guides administrators to create a course instead of an empty required selector', async () => {
   const state = createAdminScriptContext({
     coursesByPage: [[]],

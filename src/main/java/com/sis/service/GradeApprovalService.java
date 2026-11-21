@@ -332,7 +332,11 @@ public class GradeApprovalService {
             String message = approved
                     ? "Your grade for " + grade.getCourse().getName() + " has been approved."
                     : "Your grade submission for " + grade.getCourse().getName() + " was rejected: " + reason;
-            notifications.create(userId, title, message, NotificationCategory.GRADE);
+            if (approved) {
+                notifications.createInAppOnly(userId, title, message, NotificationCategory.GRADE);
+            } else {
+                notifications.create(userId, title, message, NotificationCategory.GRADE);
+            }
         }
         String contactEmail = grade.getStudent().getEmail();
         if (emailService == null || notifications == null || userId == null

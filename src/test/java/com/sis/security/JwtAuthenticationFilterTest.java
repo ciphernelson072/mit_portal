@@ -11,6 +11,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -84,6 +85,36 @@ class JwtAuthenticationFilterTest {
         assertTrue(response.getHeaders(HttpHeaders.SET_COOKIE).stream()
                 .anyMatch(cookie -> cookie.startsWith("refresh_token=")
                         && cookie.contains("Path=/api/auth") && cookie.contains("Max-Age=0")));
+    }
+
+    @Test
+    void universalMfaPolicyRejectsUnverifiedStudentToken() throws ServletException, IOException {
+        ReflectionTestUtils.setField(filter, "mfaRequiredForAll", true);
+        ReflectionTestUtils.setField(filter, "mfaRequiredForPrivileged", false);
+        when(jwtService.validateToken("student-mfa-token")).thenReturn(true);
+        when(jwtService.getUsername("student-mfa-token")).thenReturn("student1");
+        when(jwtService.getCredentialVersion("student-mfa-token")).thenReturn(0);
+        when(jwtService.isMfaEnrollmentToken("student-mfa-token")).thenReturn(false);
+        when(jwtService.isMfaRequired("student-mfa-token")).thenReturn(false);
+        when(jwtService.isMfaVerified("student-mfa-token")).thenReturn(false);
+        when(userDetailsService.loadUserByUsername("student1"))
+                .thenReturn(User.withUsername("student1")
+                        .password("encoded")
+                        .authorities("STUDENT")
+                        .build());
+        when(userDetailsService.getCredentialVersion("student1")).thenReturn(Optional.of(0));
+
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/student/profile");
+        request.setRequestURI("/api/student/profile");
+        request.setCookies(new Cookie(JwtAuthenticationFilter.ACCESS_TOKEN_COOKIE, "student-mfa-token"));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        filter.doFilter(request, response, chain);
+
+        assertEquals(request, chain.getRequest());
+        assertTrue(response.getHeaders(HttpHeaders.SET_COOKIE).stream()
+                .anyMatch(cookie -> cookie.startsWith("access_token=") && cookie.contains("Max-Age=0")));
     }
 
     private void configureRestrictedUser() {

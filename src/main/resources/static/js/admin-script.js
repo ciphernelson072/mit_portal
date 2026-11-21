@@ -341,6 +341,16 @@ function setupAcademicForms() {
   document.getElementById('academicYearForm')?.addEventListener('submit', async event => {
     event.preventDefault();
     try {
+      const start = document.getElementById('academicYearStart').value;
+      const end = document.getElementById('academicYearEnd').value;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end)) {
+        setAdminStatus('academicYearStatus', 'Academic year dates must use a valid YYYY-MM-DD format.', 'error');
+        return;
+      }
+      if (start < '1900-01-01' || end > '2100-12-31' || end < start) {
+        setAdminStatus('academicYearStatus', 'Academic year end date must be valid and on or after its start date, within 1900-2100.', 'error');
+        return;
+      }
       const response = await apiFetch('/admin/institution/academic-years', { method: 'POST', body: JSON.stringify({
         code: document.getElementById('academicYearCode').value.trim(),
         name: document.getElementById('academicYearName').value.trim(),
@@ -355,12 +365,51 @@ function setupAcademicForms() {
     } catch (err) { setAdminStatus('academicYearStatus', err.message, 'error'); }
   });
   document.getElementById('academicTermYearId')?.addEventListener('change', event => {
+    syncAcademicTermDateBounds(event.target.value);
     loadAcademicTerms(event.target.value).catch(err => setAdminStatus('academicTermStatus', err.message, 'error'));
+  });
+  document.getElementById('academicTermStart')?.addEventListener('change', event => {
+    const deadline = document.getElementById('academicTermGradeDeadline');
+    if (deadline) deadline.min = event.target.value || deadline.min;
+  });
+  document.getElementById('academicTermEnd')?.addEventListener('change', event => {
+    const deadline = document.getElementById('academicTermGradeDeadline');
+    if (deadline) deadline.max = event.target.value || deadline.max;
   });
   document.getElementById('academicTermForm')?.addEventListener('submit', async event => {
     event.preventDefault();
     const yearId = document.getElementById('academicTermYearId').value;
     try {
+      const start = document.getElementById('academicTermStart').value;
+      const end = document.getElementById('academicTermEnd').value;
+      const deadline = document.getElementById('academicTermGradeDeadline').value;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(start)
+          || !/^\d{4}-\d{2}-\d{2}$/.test(end)
+          || (deadline && !/^\d{4}-\d{2}-\d{2}$/.test(deadline))) {
+        setAdminStatus('academicTermStatus', 'Academic term dates must use a valid YYYY-MM-DD format.', 'error');
+        return;
+      }
+      if (start < '1900-01-01' || end > '2100-12-31' || end < start) {
+        setAdminStatus('academicTermStatus', 'Academic term end date must be valid and on or after its start date, within 1900-2100.', 'error');
+        return;
+      }
+      if (deadline && deadline < start) {
+        setAdminStatus('academicTermStatus', 'Grade submission deadline must be on or after the term start date.', 'error');
+        return;
+      }
+      if (deadline && deadline > end) {
+        setAdminStatus('academicTermStatus', 'Grade submission deadline must be on or before the term end date.', 'error');
+        return;
+      }
+      const selectedYear = (window._adminAcademicYears || []).find(year => String(year.id) === String(yearId));
+      if (selectedYear && (start < selectedYear.startDate || end > selectedYear.endDate)) {
+        setAdminStatus(
+          'academicTermStatus',
+          `Academic term dates must be within the selected academic year (${selectedYear.startDate} to ${selectedYear.endDate}).`,
+          'error',
+        );
+        return;
+      }
       const response = await apiFetch('/admin/institution/academic-terms', { method: 'POST', body: JSON.stringify({
         code: document.getElementById('academicTermCode').value.trim(),
         name: document.getElementById('academicTermName').value.trim(),
@@ -584,11 +633,36 @@ async function loadSetupPrograms(departmentId) {
   }
 }
 
+function syncAcademicTermDateBounds(yearId) {
+  const year = (window._adminAcademicYears || [])
+    .find(item => String(item.id) === String(yearId));
+  const start = document.getElementById('academicTermStart');
+  const end = document.getElementById('academicTermEnd');
+  const deadline = document.getElementById('academicTermGradeDeadline');
+  if (!start || !end || !deadline) return;
+  if (!year) {
+    start.min = '1900-01-01';
+    start.max = '2100-12-31';
+    end.min = '1900-01-01';
+    end.max = '2100-12-31';
+    deadline.min = '1900-01-01';
+    deadline.max = '2100-12-31';
+    return;
+  }
+  start.min = year.startDate;
+  start.max = year.endDate;
+  end.min = year.startDate;
+  end.max = year.endDate;
+  deadline.min = start.value || year.startDate;
+  deadline.max = end.value || year.endDate;
+}
+
 async function loadAdminAcademicYears() {
   const list = document.getElementById('academicYearList');
   if (!list) return;
   try {
     const years = await apiGet('/admin/institution/academic-years');
+    window._adminAcademicYears = years;
     list.innerHTML = years.length
       ? `<ul>${years.map(year => `<li><strong>${escapeHtml(year.name)} (${escapeHtml(year.code)})</strong> · ${escapeHtml(year.startDate)} to ${escapeHtml(year.endDate)} · ${year.active ? '<span class="badge success">Active</span>' : `<button class="btn-small" type="button" onclick="activateAcademicYear(${year.id})">Make active</button>`}</li>`).join('')}</ul>`
       : '<p>No academic years configured yet.</p>';
@@ -601,6 +675,7 @@ async function loadAdminAcademicYears() {
       yearSelect.disabled = years.length === 0;
       yearSelect.value = selectedYear ? String(selectedYear.id) : '';
       document.getElementById('createAcademicTermButton').disabled = !yearSelect.value;
+      syncAcademicTermDateBounds(yearSelect.value);
       if (yearSelect.value) await loadAcademicTerms(yearSelect.value);
     }
   } catch (err) {
@@ -781,12 +856,36 @@ async function publishAnnouncement() {
     alert('Audience must be ALL, ADMIN, TEACHER, or STUDENT.');
     return;
   }
+  const programText = normalizedAudience === 'STUDENT'
+    ? prompt('Optional programme IDs (comma-separated), or leave blank:', '')
+    : '';
+  if (programText === null) return;
+  const courseText = normalizedAudience === 'STUDENT'
+    ? prompt('Optional course IDs (comma-separated), or leave blank:', '')
+    : '';
+  if (courseText === null) return;
+  const parseIds = text => String(text || '')
+    .split(',')
+    .map(value => value.trim())
+    .filter(Boolean)
+    .map(value => Number(value))
+    .filter(value => Number.isInteger(value) && value > 0);
+  const programIds = [...new Set(parseIds(programText))];
+  const courseIds = [...new Set(parseIds(courseText))];
   try {
-    await apiFetch('/announcements', {
+    const result = await apiFetch('/announcements', {
       method: 'POST',
-      body: JSON.stringify({ title, content, audience: normalizedAudience }),
-    });
-    alert('Announcement published.');
+      body: JSON.stringify({
+        title,
+        content,
+        audience: normalizedAudience,
+        programIds,
+        courseIds,
+      }),
+    }).then(response => response.json());
+    alert(`Announcement published. In-app recipients: ${result.inAppRecipientCount || 0}. ` +
+      `Email: ${result.emailSuccessCount || 0} sent, ${result.emailFailureCount || 0} failed, ` +
+      `${result.emailSkippedCount || 0} skipped.`);
   } catch (err) { alert(err.message || 'Announcement could not be published.'); }
 }
 
@@ -1011,8 +1110,10 @@ async function loadDeletedUsers() {
 
 async function loadAdminFinance() {
   try {
-    const [fees, attempts] = await Promise.all([
-      apiGet('/admin/fees'), apiGet('/finance/payments/attempts/pending'),
+    const [fees, attempts, reconciliations] = await Promise.all([
+      apiGet('/admin/fees'),
+      apiGet('/finance/payments/attempts/pending'),
+      apiGet('/finance/payments/attempts/reconciliation'),
     ]);
     const activeFees = fees.filter(fee => fee.status !== 'DRAFT');
     const total = activeFees.reduce((sum, fee) => sum + Number(fee.amount || 0), 0);
@@ -1034,6 +1135,7 @@ async function loadAdminFinance() {
       return `<tr><td>${escapeHtml(fee.studentName)} (${escapeHtml(fee.studentUsername)})</td><td>UGX ${Number(fee.amount).toLocaleString()}</td><td>UGX ${amountPaid.toLocaleString()}</td><td>UGX ${balance.toLocaleString()}</td><td>${escapeHtml(fee.dueDate || 'Not set')}</td><td><span class="badge ${settled ? 'success' : 'pending'}">${settled ? 'Settled' : amountPaid > 0 ? 'Partially paid' : 'Pending'}</span></td><td>${approval}</td></tr>`;
     }).join('') : '<tr><td colspan="6">No fee records found.</td></tr>';
     renderAdminPaymentAttempts(attempts);
+    renderAdminFlutterwaveReconciliations(reconciliations);
     window._adminFees = fees;
     await loadAdminRefunds();
   } catch (err) { console.error('Failed to load finance data', err); }
@@ -1041,9 +1143,14 @@ async function loadAdminFinance() {
 
 async function loadAdminPaymentAttempts() {
   try {
-    renderAdminPaymentAttempts(await apiGet('/finance/payments/attempts/pending'));
+    const [attempts, reconciliations] = await Promise.all([
+      apiGet('/finance/payments/attempts/pending'),
+      apiGet('/finance/payments/attempts/reconciliation'),
+    ]);
+    renderAdminPaymentAttempts(attempts);
+    renderAdminFlutterwaveReconciliations(reconciliations);
   } catch (err) {
-    alert(err.message || 'Unable to load pending payment attempts.');
+    alert(err.message || 'Unable to load payment review queues.');
   }
 }
 
@@ -1072,6 +1179,45 @@ function renderAdminPaymentAttempts(attempts) {
       <td>${reviewActions}</td>
     </tr>`;
   }).join('') : '<tr><td colspan="8">No pending payment attempts.</td></tr>';
+}
+
+async function loadAdminFlutterwaveReconciliations() {
+  const tbody = document.querySelector('#flutterwaveReconciliationTable tbody');
+  if (!tbody) return;
+  try {
+    renderAdminFlutterwaveReconciliations(
+      await apiGet('/finance/payments/attempts/reconciliation'),
+    );
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="8">${escapeHtml(err.message || 'Unable to load late Flutterwave payments.')}</td></tr>`;
+  }
+}
+
+function renderAdminFlutterwaveReconciliations(attempts) {
+  const tbody = document.querySelector('#flutterwaveReconciliationTable tbody');
+  if (!tbody) return;
+  tbody.innerHTML = attempts.length ? attempts.map(attempt => `
+    <tr>
+      <td>#${Number(attempt.id)}</td>
+      <td>Student #${Number(attempt.studentId)}</td>
+      <td>Fee #${Number(attempt.feeId)}</td>
+      <td>UGX ${Number(attempt.amount).toLocaleString()}</td>
+      <td>${escapeHtml(attempt.providerReference || '—')}</td>
+      <td>${escapeHtml(attempt.providerTransactionId || '—')}</td>
+      <td>${escapeHtml((attempt.createdAt || '').replace('T', ' ').slice(0, 16))}</td>
+      <td><span>${escapeHtml(attempt.reviewNote || 'Finance review required')}</span>
+          <button class="btn-small" onclick="reconcileLateFlutterwavePayment(${Number(attempt.id)})">Re-verify &amp; confirm</button></td>
+    </tr>`).join('') : '<tr><td colspan="8">No late Flutterwave payments need reconciliation.</td></tr>';
+}
+
+async function reconcileLateFlutterwavePayment(id) {
+  if (!confirm('Verify this transaction with Flutterwave again and confirm it only after matching the settlement record?')) return;
+  try {
+    await apiFetch(`/finance/payments/attempts/${id}/reconcile`, { method: 'POST' });
+    await loadAdminFinance();
+  } catch (err) {
+    alert(err.message || 'Unable to reconcile this Flutterwave payment.');
+  }
 }
 
 async function confirmAdminPaymentAttempt(id) {
@@ -1320,7 +1466,14 @@ async function loadDashboard() {
     const stats = statsResult.status === 'fulfilled' ? statsResult.value : {};
     const health = healthResult.status === 'fulfilled' ? healthResult.value : { status: 'unknown' };
     const overview = overviewResult.status === 'fulfilled' ? overviewResult.value : {};
-    const systemStatus = systemStatusResult.status === 'fulfilled' ? systemStatusResult.value : {};
+    const systemStatus = systemStatusResult.status === 'fulfilled'
+      ? systemStatusResult.value
+      : {
+          database: { status: 'unavailable', label: 'Unavailable', detail: 'System status could not be retrieved.' },
+          email: { status: 'unavailable', label: 'Unavailable', detail: 'System status could not be retrieved.' },
+          backup: { status: 'unavailable', label: 'Unavailable', detail: 'System status could not be retrieved.' },
+          uploadBackup: { status: 'unavailable', label: 'Unavailable', detail: 'System status could not be retrieved.' },
+        };
     renderEmailDeliveryActivity(
       emailDeliveryResult.status === 'fulfilled'
         ? emailDeliveryResult.value
@@ -1404,7 +1557,8 @@ async function loadPendingActions() {
     tasks.push(`<button type="button" class="task-item task-link" onclick="switchModule('admissions')"><span class="task-info"><span class="task-title">${pendingAdmissions.length} admission application${pendingAdmissions.length === 1 ? '' : 's'}</span><span>Review submitted applications.</span></span><span aria-hidden="true">→</span></button>`);
   }
   if (failedQueues.length) {
-    tasks.push(`<p class="teacher-status error" role="alert">Unable to load ${escapeHtml(failedQueues.join(' and '))} queue${failedQueues.length === 1 ? '' : 's'}.</p>`);
+    tasks.push(`<p class="teacher-status error" role="alert">Unable to load ${escapeHtml(failedQueues.join(' and '))} queue${failedQueues.length === 1 ? '' : 's'}.</p>
+      <button type="button" class="btn-secondary" onclick="loadPendingActions()">Retry pending actions</button>`);
   } else if (!taskCount) {
     tasks.push('<p>No pending actions.</p>');
   }
@@ -1672,8 +1826,11 @@ function renderSystemStatus(id, component) {
   const element = document.getElementById(id);
   if (!element) return;
   const status = component?.status || 'unknown';
-  element.textContent = component?.label || 'Status unavailable';
-  element.title = component?.detail || 'System status could not be retrieved.';
+  const unavailableFallback = 'Status unavailable';
+  element.textContent = component?.label || unavailableFallback;
+  element.title = component?.detail
+    ? component.detail
+    : 'System status could not be retrieved. Retry the dashboard or check application logs.';
   element.classList.remove('online', 'warning', 'error');
   if (status === 'online' || status === 'configured') element.classList.add('online');
   else if (status === 'disabled' || status === 'incomplete'
@@ -1700,8 +1857,21 @@ function renderEmailDeliveryActivity(deliveries) {
         <p>User #${Number(delivery.userId)} · ${escapeHtml(delivery.status)} · ${Number(delivery.attemptCount)} attempt(s)</p>
         <p>${escapeHtml(delivery.sentAt || delivery.nextAttemptAt || delivery.createdAt || '')}</p>
         ${delivery.lastError ? `<p class="teacher-status error">${escapeHtml(delivery.lastError)}</p>` : ''}
+        ${delivery.status === 'FAILED'
+          ? `<button class="btn-small" type="button" onclick="retryEmailDelivery(${Number(delivery.id)})">Retry now</button>`
+          : ''}
       </div>
     </li>`).join('')}</ul>`;
+}
+
+async function retryEmailDelivery(id) {
+  if (!confirm('Reset this exhausted notification email and queue it for another retry?')) return;
+  try {
+    await apiFetch(`/admin/system/email-deliveries/${id}/retry`, { method: 'POST' });
+    renderEmailDeliveryActivity(await apiGet('/admin/system/email-deliveries'));
+  } catch (err) {
+    alert(err.message || 'Unable to retry the email delivery.');
+  }
 }
 
 async function renderRecentStudents() {

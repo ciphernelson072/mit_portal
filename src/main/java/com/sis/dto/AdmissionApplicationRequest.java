@@ -11,6 +11,8 @@ public class AdmissionApplicationRequest {
     private String phone;
     @NotNull private Long programId;
     @NotNull private Long academicYearId;
+    @Size(max = 2048)
+    private String turnstileToken;
 
     public String getApplicantName() { return applicantName; }
     public void setApplicantName(String applicantName) { this.applicantName = applicantName; }
@@ -22,4 +24,6 @@ public class AdmissionApplicationRequest {
     public void setProgramId(Long programId) { this.programId = programId; }
     public Long getAcademicYearId() { return academicYearId; }
     public void setAcademicYearId(Long academicYearId) { this.academicYearId = academicYearId; }
+    public String getTurnstileToken() { return turnstileToken; }
+    public void setTurnstileToken(String turnstileToken) { this.turnstileToken = turnstileToken; }
 }

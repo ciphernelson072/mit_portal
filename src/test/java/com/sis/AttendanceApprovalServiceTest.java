@@ -294,6 +294,27 @@ class AttendanceApprovalServiceTest {
     }
 
     @Test
+    void changedAttendanceDisputeReviewNotifiesTheStudent() {
+        AttendanceDisputeRepository disputes = Mockito.mock(AttendanceDisputeRepository.class);
+        AttendanceRepository attendance = Mockito.mock(AttendanceRepository.class);
+        UserRepository users = Mockito.mock(UserRepository.class);
+        NotificationService notifications = Mockito.mock(NotificationService.class);
+        AttendanceDispute dispute = dispute("OPEN");
+        User reviewer = new User("admin", "encoded", Role.ADMIN);
+        reviewer.setId(50L);
+        when(disputes.findByIdForUpdate(70L)).thenReturn(Optional.of(dispute));
+        when(disputes.save(any(AttendanceDispute.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(users.findByUsernameNormalized("admin")).thenReturn(Optional.of(reviewer));
+        AttendanceService service = attendanceService(disputes, attendance, users, notifications);
+
+        var result = service.reviewDispute(70L, disputeReview("ESCALATED"), "admin");
+
+        assertEquals("ESCALATED", result.getStatus());
+        verify(notifications).create(
+                1021L, "Attendance dispute updated", "Dispute #70 is ESCALATED.");
+    }
+
+    @Test
     void repeatedEscalationDoesNotDuplicateReviewAuditOrNotification() {
         AttendanceDisputeRepository disputes = Mockito.mock(AttendanceDisputeRepository.class);
         AttendanceRepository attendance = Mockito.mock(AttendanceRepository.class);

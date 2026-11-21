@@ -206,7 +206,11 @@ test.describe('responsive portal surfaces', () => {
       { id: 81, feeId: 42, studentId: 7, amount: 50000, paymentChannel: 'BANK_TRANSFER', providerReference: 'bank-ref-confirm-81', createdAt: '2026-10-02T08:30:00', status: 'PENDING' },
       { id: 82, feeId: 43, studentId: 8, amount: 25000, paymentChannel: 'MTN_MOMO', providerReference: 'mtn-ref-reject-82', createdAt: '2026-10-02T09:00:00', status: 'PENDING' },
     ];
+    const lateFlutterwave = [
+      { id: 83, feeId: 44, studentId: 9, amount: 35000, paymentChannel: 'FLUTTERWAVE', providerReference: 'late-flw-ref-83', providerTransactionId: '123456', reviewNote: 'Verified successful Flutterwave payment arrived after attempt closure. Finance review required.', createdAt: '2026-10-02T09:30:00', status: 'FAILED' },
+    ];
     let rejectionPayload;
+    let reconciliationRequested = false;
     await page.route('**/api/**', async route => {
       const request = route.request();
       const url = new URL(request.url());
@@ -216,6 +220,12 @@ test.describe('responsive portal surfaces', () => {
         ]) });
       } else if (url.pathname === '/api/finance/payments/attempts/pending') {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(pending) });
+      } else if (url.pathname === '/api/finance/payments/attempts/reconciliation') {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(lateFlutterwave) });
+      } else if (url.pathname.endsWith('/83/reconcile') && request.method() === 'POST') {
+        reconciliationRequested = true;
+        lateFlutterwave.splice(0, lateFlutterwave.length);
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 83, status: 'COMPLETED' }) });
       } else if (url.pathname.endsWith('/81/confirm') && request.method() === 'POST') {
         pending.splice(pending.findIndex(attempt => attempt.id === 81), 1);
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 81, status: 'COMPLETED' }) });
@@ -231,6 +241,8 @@ test.describe('responsive portal surfaces', () => {
     await page.getByRole('link', { name: 'Finance' }).click();
     await expect(page.locator('#paymentAttemptTable')).toContainText('bank-ref-confirm-81');
     await expect(page.locator('#paymentAttemptTable')).toContainText('mtn-ref-reject-82');
+    await expect(page.locator('#flutterwaveReconciliationTable')).toContainText('late-flw-ref-83');
+    await expect(page.locator('#financeModule')).toContainText('No fee balance was changed automatically');
     await expect(page.getByRole('button', { name: 'Mark Paid' })).toHaveCount(0);
     page.once('dialog', dialog => dialog.accept());
     await page.getByRole('row').filter({ hasText: 'bank-ref-confirm-81' }).getByRole('button', { name: 'Confirm verified' }).click();
@@ -240,6 +252,11 @@ test.describe('responsive portal surfaces', () => {
     await page.getByRole('row').filter({ hasText: 'mtn-ref-reject-82' }).getByRole('button', { name: 'Reject' }).click();
     await expect(page.locator('#paymentAttemptTable')).toContainText('No pending payment attempts');
     expect(rejectionPayload).toEqual({ reason: 'Provider statement did not match' });
+
+    page.once('dialog', dialog => dialog.accept());
+    await page.getByRole('row').filter({ hasText: 'late-flw-ref-83' }).getByRole('button', { name: 'Re-verify & confirm' }).click();
+    await expect(page.locator('#flutterwaveReconciliationTable')).toContainText('No late Flutterwave payments need reconciliation');
+    expect(reconciliationRequested).toBe(true);
   });
 
   test('student notifications page renders real notification data', async ({ page }) => {
@@ -1551,7 +1568,13 @@ test('public applicant receives the administrator approval and enrollment steps'
   await page.route('**/api/public/admissions/**', async route => {
     const request = route.request();
     const pathname = new URL(request.url()).pathname;
-    if (pathname.endsWith('/programs')) {
+    if (pathname.endsWith('/security-config')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ turnstileEnabled: false, turnstileSiteKey: '' }),
+      });
+    } else if (pathname.endsWith('/programs')) {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -1612,7 +1635,13 @@ test('public admissions status lookup requires the application email without exp
   await page.route('**/api/public/admissions/**', async route => {
     const request = route.request();
     const pathname = new URL(request.url()).pathname;
-    if (pathname.endsWith('/programs')) {
+    if (pathname.endsWith('/security-config')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ turnstileEnabled: false, turnstileSiteKey: '' }),
+      });
+    } else if (pathname.endsWith('/programs')) {
       await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
     } else if (pathname.endsWith('/academic-year')) {
       await route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });

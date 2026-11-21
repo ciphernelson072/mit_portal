@@ -190,9 +190,9 @@ test('unified portal sign-in preserves MFA challenge and routes after verificati
   await page.getByLabel('Username or email').fill('admin1');
   await page.locator('#password').fill('test-password');
   await page.getByRole('button', { name: 'Sign in' }).click();
-  await expect(page.getByLabel('Authenticator code')).toBeVisible();
-  await expect(page.getByRole('status')).toContainText('authenticator app');
-  await page.getByLabel('Authenticator code').fill('123456');
+  await expect(page.getByLabel('Authenticator or recovery code')).toBeVisible();
+  await expect(page.getByRole('status')).toContainText('current authenticator code');
+  await page.getByLabel('Authenticator or recovery code').fill('123456');
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page).toHaveURL(/\/admin-dashboard\.html$/);
   expect(loginAttempts).toBe(2);
@@ -419,15 +419,21 @@ test('public admissions information reaches the existing application and status 
   await page.goto('/public/admissions.html');
   await page.getByRole('link', { name: 'Apply now' }).first().click();
   await expect(page).toHaveURL(/\/admissions\.html#admissionForm$/);
+  const submitApplication = page.getByRole('button', { name: 'Submit application' });
+  await expect(submitApplication).toBeDisabled();
   await page.getByLabel('Applicant name').fill('Test Applicant');
+  await expect(submitApplication).toBeDisabled();
   await page.getByLabel('Email', { exact: true }).fill('applicant@example.test');
+  await expect(submitApplication).toBeDisabled();
   await page.getByLabel('Programme').selectOption('7');
+  await expect(submitApplication).toBeEnabled();
   await page.getByLabel('Academic year').selectOption('2');
+  await expect(submitApplication).toBeEnabled();
   await page.evaluate(() => Object.defineProperty(navigator, 'clipboard', {
     configurable: true,
     value: { writeText: async value => { window.copiedApplicationNumber = value; } },
   }));
-  await page.getByRole('button', { name: 'Submit application' }).click();
+  await submitApplication.click();
   await expect(page.locator('#admissionStatus')).toContainText('MIT-2026-0007');
   await expect(page.locator('#admissionStatus')).toContainText('A confirmation email has been sent');
   await expect(page.locator('#admissionStatus')).toContainText('receive your username and a one-time temporary password separately');

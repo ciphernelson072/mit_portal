@@ -28,4 +28,10 @@ public interface EmailNotificationDeliveryRepository extends JpaRepository<Email
 
     @EntityGraph(attributePaths = "notification")
     List<EmailNotificationDelivery> findTop100ByOrderByCreatedAtDesc();
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select delivery from EmailNotificationDelivery delivery "
+            + "join fetch delivery.notification "
+            + "where delivery.id = :id")
+    java.util.Optional<EmailNotificationDelivery> findByIdForUpdate(@Param("id") Long id);
 }

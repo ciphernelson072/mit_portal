@@ -38,4 +38,21 @@ class StudentRepositoryFetchTest {
         assertThat(entityManagerFactory.getPersistenceUnitUtil().isLoaded(loadedStudent, "courses")).isTrue();
         assertThat(loadedStudent.getCourses()).isEmpty();
     }
+
+    @Test
+    void locksStudentByUsernameAndIdWithPortableForUpdateQueries() {
+        User user = new User("locked-student", "encoded-password", Role.STUDENT);
+        Student student = new Student(user, "Locked Student", "Year 1");
+        student.setRegistrationNumber("T-" + java.util.UUID.randomUUID());
+        Student saved = studentRepository.saveAndFlush(student);
+
+        assertThat(studentRepository.findByUserUsernameForUpdate("locked-student"))
+                .get()
+                .extracting(Student::getId)
+                .isEqualTo(saved.getId());
+        assertThat(studentRepository.findByIdForUpdate(saved.getId()))
+                .get()
+                .extracting(Student::getId)
+                .isEqualTo(saved.getId());
+    }
 }

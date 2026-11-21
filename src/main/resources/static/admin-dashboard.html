@@ -611,8 +611,8 @@
         <form id="academicYearForm">
           <div class="setting-item"><label for="academicYearCode">Year code</label><input id="academicYearCode" maxlength="20" required></div>
           <div class="setting-item"><label for="academicYearName">Year name</label><input id="academicYearName" maxlength="100" required></div>
-          <div class="setting-item"><label for="academicYearStart">Start date</label><input id="academicYearStart" type="date" required></div>
-          <div class="setting-item"><label for="academicYearEnd">End date</label><input id="academicYearEnd" type="date" required></div>
+          <div class="setting-item"><label for="academicYearStart">Start date</label><input id="academicYearStart" type="date" min="1900-01-01" max="2100-12-31" required></div>
+          <div class="setting-item"><label for="academicYearEnd">End date</label><input id="academicYearEnd" type="date" min="1900-01-01" max="2100-12-31" required></div>
           <div class="setting-item"><label for="activateAcademicYear">Activation</label><label><input id="activateAcademicYear" type="checkbox" checked> Make active immediately</label></div>
           <button class="btn-primary" type="submit">Add Academic Year</button>
         </form>
@@ -625,9 +625,9 @@
           <div class="setting-item"><label for="academicTermYearId">Academic year</label><select id="academicTermYearId" required><option value="">Loading academic years…</option></select></div>
           <div class="setting-item"><label for="academicTermCode">Term code</label><input id="academicTermCode" maxlength="30" required></div>
           <div class="setting-item"><label for="academicTermName">Term name</label><input id="academicTermName" maxlength="100" required></div>
-          <div class="setting-item"><label for="academicTermStart">Start date</label><input id="academicTermStart" type="date" required></div>
-          <div class="setting-item"><label for="academicTermEnd">End date</label><input id="academicTermEnd" type="date" required></div>
-          <div class="setting-item"><label for="academicTermGradeDeadline">Grade submission deadline</label><input id="academicTermGradeDeadline" type="date"><small>Optional; instructors receive reminders 7, 3, and 1 day before, then weekly while grades remain pending.</small></div>
+          <div class="setting-item"><label for="academicTermStart">Start date</label><input id="academicTermStart" type="date" min="1900-01-01" max="2100-12-31" required></div>
+          <div class="setting-item"><label for="academicTermEnd">End date</label><input id="academicTermEnd" type="date" min="1900-01-01" max="2100-12-31" required></div>
+          <div class="setting-item"><label for="academicTermGradeDeadline">Grade submission deadline</label><input id="academicTermGradeDeadline" type="date" min="1900-01-01" max="2100-12-31"><small>Optional; instructors receive reminders 7, 3, and 1 day before, then weekly while grades remain pending.</small></div>
           <div class="setting-item"><label for="academicTermRegistrationOpen">Registration window</label><label><input id="academicTermRegistrationOpen" type="checkbox"> Open registration immediately</label></div>
           <button id="createAcademicTermButton" class="btn-primary" type="submit" disabled>Add Academic Term</button>
         </form>
@@ -760,6 +760,18 @@
       <table class="table admin-table" id="paymentAttemptTable">
         <thead><tr><th>Attempt</th><th>Student</th><th>Fee</th><th>Channel</th><th>Amount</th><th>Provider reference</th><th>Submitted</th><th>Review</th></tr></thead>
         <tbody><tr><td colspan="8">Select Finance to load pending payment attempts.</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="module-header">
+      <h3>Late Flutterwave reconciliation</h3>
+      <button class="btn-secondary" type="button" onclick="loadAdminFlutterwaveReconciliations()">Refresh queue</button>
+    </div>
+    <p>These provider-verified successes arrived after an attempt was closed. No fee balance was changed automatically. Review the current provider settlement before re-verifying and confirming.</p>
+    <div class="table-responsive">
+      <table class="table admin-table" id="flutterwaveReconciliationTable">
+        <thead><tr><th>Attempt</th><th>Student</th><th>Fee</th><th>Amount</th><th>Provider reference</th><th>Transaction</th><th>Submitted</th><th>Review</th></tr></thead>
+        <tbody><tr><td colspan="8">Select Finance to load late Flutterwave payments.</td></tr></tbody>
       </table>
     </div>
 

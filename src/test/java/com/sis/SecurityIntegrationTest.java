@@ -1609,6 +1609,9 @@ class SecurityIntegrationTest {
                 exchangeAs("teacher1", "teacher123", "/api/finance/payments/attempts/pending",
                     HttpMethod.GET, null).getStatusCode());
             assertEquals(HttpStatus.FORBIDDEN,
+                exchangeAs("teacher1", "teacher123", "/api/finance/payments/attempts/reconciliation",
+                    HttpMethod.GET, null).getStatusCode());
+            assertEquals(HttpStatus.FORBIDDEN,
                 exchangeAs("teacher1", "teacher123", "/api/finance/reconciliation/entries",
                     HttpMethod.GET, null).getStatusCode());
             assertEquals(HttpStatus.FORBIDDEN,
@@ -1624,6 +1627,7 @@ class SecurityIntegrationTest {
     void eachFinancePermissionAuthorizesOnlyItsOwnOperation() {
         String[][] permissionChecks = {
             {"FINANCE_PAYMENT_CONFIRM", "/api/finance/payments/attempts/pending", "GET", null},
+            {"FINANCE_PAYMENT_CONFIRM", "/api/finance/payments/attempts/reconciliation", "GET", null},
             {"FINANCE_RECONCILIATION", "/api/finance/reconciliation/entries", "GET", null},
             {"FINANCE_HOLD_MANAGE", "/api/finance/holds/999999/release", "POST", null},
             {"FINANCE_WAIVER", "/api/finance/waivers", "POST",
@@ -1632,13 +1636,15 @@ class SecurityIntegrationTest {
         String[][] unrelatedOperations = {
             {"/api/finance/refunds", "POST",
                 "{\"paymentAttemptId\":999999,\"amount\":\"1.00\",\"reason\":\"test\"}"},
-            {"/api/finance/payments/attempts/pending", "GET", null},
+            {"/api/finance/refunds", "POST",
+                "{\"paymentAttemptId\":999999,\"amount\":\"1.00\",\"reason\":\"test\"}"},
+            {"/api/finance/payments/attempts/reconciliation", "GET", null},
             {"/api/finance/payments/attempts/pending", "GET", null},
             {"/api/finance/refunds", "POST",
                 "{\"paymentAttemptId\":999999,\"amount\":\"1.00\",\"reason\":\"test\"}"}
         };
         HttpStatus[] expectedAllowedStatuses = {
-            HttpStatus.OK, HttpStatus.OK, HttpStatus.BAD_REQUEST, HttpStatus.BAD_REQUEST
+            HttpStatus.OK, HttpStatus.OK, HttpStatus.OK, HttpStatus.BAD_REQUEST, HttpStatus.BAD_REQUEST
         };
 
         for (int index = 0; index < permissionChecks.length; index++) {

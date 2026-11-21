@@ -1,4 +1,10 @@
 const admissionsApi = '/api/public/admissions';
+let admissionOptionsReady = false;
+let securityConfigReady = false;
+let turnstileEnabled = false;
+let turnstileLoadError = null;
+const turnstileTokens = { admission: '', status: '' };
+const turnstileWidgets = { admission: null, status: null };
 
 async function admissionsRequest(path, options = {}) {
   const headers = { ...(options.headers || {}) };
@@ -29,7 +35,11 @@ const applicationStatusGuidance = {
 
 const confirmation = document.getElementById('applicationConfirmation');
 const copyApplicationNumberButton = document.getElementById('copyApplicationNumber');
+const admissionForm = document.getElementById('admissionForm');
 let submittedApplicationNumber = '';
+
+admissionForm.addEventListener('input', updateAdmissionSubmitButton);
+admissionForm.addEventListener('change', updateAdmissionSubmitButton);
 
 if (copyApplicationNumberButton && confirmation) {
   copyApplicationNumberButton.addEventListener('click', async () => {
@@ -59,7 +69,8 @@ async function loadAdmissionOptions() {
     yearSelect.replaceChildren(new Option(year.name || 'No active academic year configured', year.id || ''));
     yearSelect.disabled = !year.id;
     const ready = programs.length > 0 && Boolean(year.id);
-    document.getElementById('submitAdmissionButton').disabled = !ready;
+    admissionOptionsReady = ready;
+    updateAdmissionSubmitButton();
     if (!ready) {
       const missing = [];
       if (!programs.length) missing.push('active programmes');
@@ -74,6 +85,103 @@ async function loadAdmissionOptions() {
     document.getElementById('submitAdmissionButton').disabled = true;
     setAdmissionStatus(error.message, true);
   }
+}
+
+function updateAdmissionSubmitButton() {
+  const submitButton = document.getElementById('submitAdmissionButton');
+  if (submitButton) {
+    submitButton.disabled = !admissionOptionsReady
+      || !securityConfigReady
+      || !admissionForm.checkValidity()
+      || Boolean(turnstileLoadError)
+      || (turnstileEnabled && !turnstileTokens.admission);
+  }
+  const statusButton = document.getElementById('checkApplicationStatusButton');
+  if (statusButton) {
+    statusButton.disabled = !securityConfigReady
+      || Boolean(turnstileLoadError)
+      || (turnstileEnabled && !turnstileTokens.status);
+  }
+}
+
+function loadTurnstileScript() {
+  if (window.turnstile) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+    script.async = true;
+    script.defer = true;
+    script.onload = resolve;
+    script.onerror = () => reject(new Error('Human verification could not load.'));
+    document.head.append(script);
+  });
+}
+
+function renderTurnstileWidgets(siteKey) {
+  return new Promise((resolve, reject) => {
+    window.turnstile.ready(() => {
+      try {
+        [
+          { key: 'admission', element: 'admissionTurnstile', action: 'admission_submit' },
+          { key: 'status', element: 'statusTurnstile', action: 'application_status' },
+        ].forEach(widget => {
+          const container = document.getElementById(widget.element);
+          if (!container) return;
+          container.hidden = false;
+          turnstileWidgets[widget.key] = window.turnstile.render(container, {
+            sitekey: siteKey,
+            action: widget.action,
+            callback: token => {
+              turnstileTokens[widget.key] = token;
+              updateAdmissionSubmitButton();
+            },
+            'expired-callback': () => {
+              turnstileTokens[widget.key] = '';
+              updateAdmissionSubmitButton();
+            },
+            'error-callback': () => {
+              turnstileTokens[widget.key] = '';
+              updateAdmissionSubmitButton();
+              setAdmissionStatus('Human verification failed to load. Please refresh and try again.', true);
+            },
+          });
+        });
+        resolve();
+      } catch (error) {
+        reject(error);
+      }
+    });
+  });
+}
+
+async function loadAdmissionSecurityConfig() {
+  try {
+    const config = await admissionsRequest('/security-config');
+    turnstileEnabled = config.turnstileEnabled === true;
+    if (turnstileEnabled) {
+      if (typeof config.turnstileSiteKey !== 'string' || !config.turnstileSiteKey.trim()) {
+        throw new Error('Human verification is enabled but is not configured correctly.');
+      }
+      await loadTurnstileScript();
+      await renderTurnstileWidgets(config.turnstileSiteKey);
+    }
+    securityConfigReady = true;
+    updateAdmissionSubmitButton();
+  } catch (error) {
+    turnstileLoadError = error;
+    updateAdmissionSubmitButton();
+    setAdmissionStatus(error.message, true);
+    const statusResult = document.getElementById('statusResult');
+    if (statusResult) statusResult.textContent = 'Human verification is unavailable. Please try again later.';
+  }
+}
+
+function resetTurnstileWidget(key) {
+  turnstileTokens[key] = '';
+  if (turnstileEnabled && turnstileWidgets[key] !== null) {
+    window.turnstile.reset(turnstileWidgets[key]);
+  }
+  updateAdmissionSubmitButton();
 }
 
 function renderAdmissionDocumentRequirements(requirements) {
@@ -100,7 +208,7 @@ function escapeAdmissionText(value) {
   })[character]);
 }
 
-document.getElementById('admissionForm').addEventListener('submit', async event => {
+admissionForm.addEventListener('submit', async event => {
   event.preventDefault();
   const form = event.currentTarget;
   const submitButton = document.getElementById('submitAdmissionButton');
@@ -112,6 +220,7 @@ document.getElementById('admissionForm').addEventListener('submit', async event 
     formData.append('phone', document.getElementById('phone').value.trim());
     formData.append('programId', document.getElementById('programId').value);
     formData.append('academicYearId', document.getElementById('academicYearId').value);
+    if (turnstileEnabled) formData.append('turnstileToken', turnstileTokens.admission);
     document.querySelectorAll('#admissionDocumentChecklist input[type="file"]').forEach(input => {
       if (input.files?.[0]) {
         formData.append(input.name, input.files[0]);
@@ -133,7 +242,7 @@ document.getElementById('admissionForm').addEventListener('submit', async event 
   } catch (error) {
     setAdmissionStatus(error.message, true);
   } finally {
-    submitButton.disabled = false;
+    resetTurnstileWidget('admission');
   }
 });
 
@@ -146,6 +255,7 @@ document.getElementById('statusForm').addEventListener('submit', async event => 
       body: JSON.stringify({
         applicationNumber: document.getElementById('applicationNumber').value.trim(),
         email: document.getElementById('statusEmail').value.trim(),
+        ...(turnstileEnabled ? { turnstileToken: turnstileTokens.status } : {}),
       }),
     });
     const statusCode = String(application.status || '').toUpperCase();
@@ -159,7 +269,10 @@ document.getElementById('statusForm').addEventListener('submit', async event => 
     ].join('\n');
   } catch (error) {
     result.textContent = error.message;
+  } finally {
+    resetTurnstileWidget('status');
   }
 });
 
+loadAdmissionSecurityConfig();
 loadAdmissionOptions();

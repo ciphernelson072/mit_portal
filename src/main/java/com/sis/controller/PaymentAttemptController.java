@@ -83,6 +83,18 @@ public class PaymentAttemptController {
         return ResponseEntity.ok(paymentService.pendingAttempts());
     }
 
+    @GetMapping("/attempts/reconciliation")
+    @PreAuthorize("@permissionSecurity.canConfirmPayments()")
+    public ResponseEntity<List<PaymentAttempt>> reconciliation() {
+        return ResponseEntity.ok(paymentService.flutterwaveReconciliationAttempts());
+    }
+
+    @PostMapping("/attempts/{id}/reconcile")
+    @PreAuthorize("@permissionSecurity.canConfirmPayments()")
+    public ResponseEntity<PaymentAttempt> reconcile(@PathVariable Long id) {
+        return ResponseEntity.ok(flutterwave.reconcileLatePayment(id, username()));
+    }
+
     @PostMapping("/attempts/{id}/confirm")
     @PreAuthorize("@permissionSecurity.canConfirmPayments()")
     public ResponseEntity<PaymentAttempt> confirm(@PathVariable Long id) {

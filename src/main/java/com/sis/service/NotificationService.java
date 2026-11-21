@@ -49,11 +49,21 @@ public class NotificationService {
     }
 
     public Notification create(Long userId, String title, String message, NotificationCategory category) {
+        return create(userId, title, message, category, true);
+    }
+
+    public Notification createInAppOnly(
+            Long userId, String title, String message, NotificationCategory category) {
+        return create(userId, title, message, category, false);
+    }
+
+    private Notification create(
+            Long userId, String title, String message, NotificationCategory category, boolean queueEmail) {
         if (category == null) {
             throw new IllegalArgumentException("Notification category is required.");
         }
         Notification notification = repository.save(new Notification(userId, title, message, category));
-        if (preferencePolicyService.emailNotificationsEnabled(userId)) {
+        if (queueEmail && preferencePolicyService.emailNotificationsEnabled(userId)) {
             emailDeliveries.enqueue(notification);
         }
         return notification;

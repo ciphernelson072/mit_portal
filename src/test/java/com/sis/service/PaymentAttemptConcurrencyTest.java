@@ -60,6 +60,9 @@ class PaymentAttemptConcurrencyTest {
     @MockitoBean
     private NotificationService notifications;
 
+    @MockitoBean
+    private NotificationRecipientService notificationRecipients;
+
     @Test
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void concurrentPaymentAttemptsCannotReserveMoreThanFeeAmount() throws Exception {

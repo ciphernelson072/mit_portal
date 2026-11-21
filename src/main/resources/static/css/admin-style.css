@@ -1672,6 +1672,27 @@ body {
 
 /* Faculty workspace: keep teaching workflows readable and form controls aligned. */
 .teacher-content { min-width: 0; }
+.teacher-dashboard .main-content {
+  background: var(--bg-secondary);
+}
+.teacher-dashboard .main-content > .admin-header,
+.teacher-dashboard .main-content > section {
+  width: 100%;
+}
+.teacher-content .stats-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: stretch;
+  margin: 24px;
+  margin-bottom: 0;
+}
+.teacher-content .stats-grid .stat-card {
+  min-height: 118px;
+  align-items: center;
+  padding: 22px;
+}
+.teacher-content .stats-grid .stat-card:last-of-type {
+  min-height: 118px;
+}
 .teacher-content .admin-header { align-items: flex-start; }
 .teacher-content .header-title { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; }
 .teacher-content .header-title h1,

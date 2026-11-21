@@ -586,6 +586,10 @@ test('public admissions form uses the full desktop width and fits mobile', async
 
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto('/admissions.html');
+  await page.locator('#applicantName').fill('Layout Test Applicant');
+  await page.locator('#email').fill('layout-test@example.test');
+  await page.locator('#programId').selectOption('7');
+  await page.locator('#academicYearId').selectOption('2');
   await expect(page.locator('#submitAdmissionButton')).toBeEnabled();
   const desktopLayout = await page.locator('.workspace').evaluate(element => ({
     workspaceWidth: element.getBoundingClientRect().width,

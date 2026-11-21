@@ -17,6 +17,7 @@ import com.sis.security.JwtAuthenticationFilter;
 import com.sis.security.MfaPolicy;
 import com.sis.service.JwtService;
 import com.sis.service.MfaSecretCipher;
+import com.sis.service.MfaRecoveryCodeService;
 import com.sis.service.RefreshTokenService;
 import com.sis.service.SchoolService;
 import com.sis.service.AuthenticationService;
@@ -91,6 +92,9 @@ public class AuthController {
     @Value("${app.security.mfa.required-for-privileged:false}")
     private boolean mfaRequiredForPrivileged;
 
+    @Value("${app.security.mfa.required-for-all:false}")
+    private boolean mfaRequiredForAll;
+
     @Value("${app.security.mfa.issuer:MIT Portal}")
     private String mfaIssuer;
 
@@ -99,6 +103,9 @@ public class AuthController {
 
     @Autowired
     private MfaSecretCipher mfaSecretCipher;
+
+    @Autowired
+    private MfaRecoveryCodeService mfaRecoveryCodes;
 
     @PostConstruct
     public void validateCookiePolicy() {
@@ -109,6 +116,10 @@ public class AuthController {
         if (mfaRequiredForPrivileged && !mfaEnabled) {
             throw new IllegalStateException(
                     "MFA_REQUIRED_FOR_PRIVILEGED=true requires MFA_ENABLED=true");
+        }
+        if (mfaRequiredForAll && !mfaEnabled) {
+            throw new IllegalStateException(
+                    "MFA_REQUIRED_FOR_ALL=true requires MFA_ENABLED=true");
         }
         cookieSameSite = "Strict";
     }
@@ -139,7 +150,10 @@ public class AuthController {
                     .orElseThrow(() -> new IllegalStateException("Authenticated user vanished mid-login"));
             String role = user.getRole().name();
             boolean privilegedMfaRequired = mfaRequiredForPrivileged && mfaPolicy.isPrivileged(user);
-            if (privilegedMfaRequired && !Boolean.TRUE.equals(user.getMfaEnabled())) {
+            boolean mfaRequired = mfaRequiredForAll
+                    || privilegedMfaRequired
+                    || Boolean.TRUE.equals(user.getMfaEnabled());
+            if (mfaRequired && !Boolean.TRUE.equals(user.getMfaEnabled())) {
                 int credentialVersion = refreshTokenService.revokeAllSessions(user.getId());
                 String enrollmentToken = jwtService.generateMfaEnrollmentToken(
                         user.getUsername(), role, credentialVersion);
@@ -167,18 +181,20 @@ public class AuthController {
                 }
                 String storedSecret = user.getMfaSecret();
                 String secret = mfaSecretCipher.decrypt(storedSecret);
-                if (!verifyTotp(secret, request.getOtp())) {
+                boolean recoveryCodeAccepted = mfaRecoveryCodes.consume(user, request.getOtp())
+                        && !request.getOtp().trim().replace("-", "").matches("\\d{6}");
+                if (!verifyTotp(secret, request.getOtp()) && !recoveryCodeAccepted) {
                     return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                             .body(Map.of("message", "Invalid MFA code", "mfaRequired", true));
                 }
-                encryptLegacyMfaSecret(user, storedSecret, secret);
                 mfaVerified = true;
+                encryptLegacyMfaSecret(user, storedSecret, secret);
             }
             RefreshTokenService.IssuedSession session =
                     refreshTokenService.startSingleSession(user.getId(), mfaVerified);
             String accessToken = jwtService.generateToken(
                     request.getUsername(), role, session.getCredentialVersion(),
-                    privilegedMfaRequired, mfaVerified);
+                    mfaRequired, mfaVerified);
 
             HttpHeaders headers = new HttpHeaders();
             headers.add(HttpHeaders.SET_COOKIE, buildAccessCookie(accessToken).toString());
@@ -207,7 +223,9 @@ public class AuthController {
         RefreshTokenService.Rotation rotation = rotationOpt.get();
         User user = rotation.getUser();
         boolean privilegedMfaRequired = mfaRequiredForPrivileged && mfaPolicy.isPrivileged(user);
-        boolean userMfaRequired = privilegedMfaRequired || Boolean.TRUE.equals(user.getMfaEnabled());
+        boolean userMfaRequired = mfaRequiredForAll
+                || privilegedMfaRequired
+                || Boolean.TRUE.equals(user.getMfaEnabled());
         if (userMfaRequired && (!Boolean.TRUE.equals(user.getMfaEnabled())
                 || !rotation.isMfaVerified())) {
             refreshTokenService.revokeAllForUser(user.getId());
@@ -215,7 +233,9 @@ public class AuthController {
         }
         String accessToken = jwtService.generateToken(
                 user.getUsername(), user.getRole().name(), user.getCredentialVersion(),
-                privilegedMfaRequired, rotation.isMfaVerified());
+                mfaRequiredForAll || privilegedMfaRequired
+                        || Boolean.TRUE.equals(user.getMfaEnabled()),
+                rotation.isMfaVerified());
 
         HttpHeaders headers = new HttpHeaders();
         headers.add(HttpHeaders.SET_COOKIE, buildAccessCookie(accessToken).toString());
@@ -295,7 +315,7 @@ public class AuthController {
 
     @PostMapping("/mfa/verify")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Void> verifyMfa(@Valid @RequestBody MfaVerifyRequest request) {
+    public ResponseEntity<MfaSetupResponse> verifyMfa(@Valid @RequestBody MfaVerifyRequest request) {
         if (!mfaEnabled) return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         if (!verifyCurrentPassword(username, request.getCurrentPassword())) {
@@ -305,13 +325,14 @@ public class AuthController {
             String storedSecret = user.getMfaSecret();
             String secret = mfaSecretCipher.decrypt(storedSecret);
             if (!verifyTotp(secret, request.getOtp())) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).<Void>build();
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).<MfaSetupResponse>build();
             }
             encryptLegacyMfaSecret(user, storedSecret, secret);
             user.setMfaEnabled(true);
+            List<String> recoveryCodes = mfaRecoveryCodes.replaceCodes(user);
             revokeSessionsAfterMfaChange(user);
             schoolService.saveUser(user);
-            return ResponseEntity.ok().<Void>build();
+            return ResponseEntity.ok(new MfaSetupResponse(secret, buildOtpauthUri(username, secret), recoveryCodes));
         }).orElse(ResponseEntity.notFound().build());
     }
 
@@ -324,7 +345,8 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
         return schoolService.getUserByUsername(username).map(user -> {
-            if (mfaRequiredForPrivileged && mfaPolicy.isPrivileged(user)) {
+            if (mfaRequiredForAll
+                    || (mfaRequiredForPrivileged && mfaPolicy.isPrivileged(user))) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).<Void>build();
             }
             if (Boolean.TRUE.equals(user.getMfaEnabled())
@@ -333,6 +355,7 @@ public class AuthController {
             }
             user.setMfaEnabled(false);
             user.setMfaSecret(null);
+            mfaRecoveryCodes.revokeCodes(user);
             revokeSessionsAfterMfaChange(user);
             schoolService.saveUser(user);
             return ResponseEntity.ok().<Void>build();

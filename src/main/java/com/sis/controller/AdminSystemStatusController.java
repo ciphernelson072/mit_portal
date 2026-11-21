@@ -3,6 +3,11 @@ package com.sis.controller;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sis.service.EmailService;
+import com.sis.service.EmailNotificationDeliveryService;
+import com.sis.entity.EmailNotificationDelivery;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import com.sis.dto.EmailDeliveryAdminDto;
 import com.sis.repository.EmailNotificationDeliveryRepository;
 import org.slf4j.Logger;
@@ -44,6 +49,8 @@ public class AdminSystemStatusController {
     private final String backupStatusFile;
     private final String uploadBackupStatusFile;
     private final long backupMaxAgeHours;
+    @Autowired
+    private EmailNotificationDeliveryService emailDeliveryService;
 
     public AdminSystemStatusController(JdbcTemplate jdbcTemplate,
                                        EmailNotificationDeliveryRepository emailDeliveries,
@@ -88,6 +95,24 @@ public class AdminSystemStatusController {
                         delivery.getCreatedAt(),
                         delivery.getSentAt()))
                 .toList();
+    }
+
+    @PostMapping("/email-deliveries/{id}/retry")
+    public EmailDeliveryAdminDto retryEmailDelivery(@PathVariable Long id) {
+        if (emailDeliveryService == null) {
+            throw new IllegalStateException("Email delivery retry service is unavailable.");
+        }
+        EmailNotificationDelivery delivery = emailDeliveryService.retryFailedDelivery(id);
+        return new EmailDeliveryAdminDto(
+                delivery.getId(),
+                delivery.getUserId(),
+                delivery.getNotification().getTitle(),
+                delivery.getStatus(),
+                delivery.getAttemptCount(),
+                delivery.getNextAttemptAt(),
+                delivery.getLastError(),
+                delivery.getCreatedAt(),
+                delivery.getSentAt());
     }
 
     private Map<String, Object> backupStatus() {

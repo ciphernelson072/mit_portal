@@ -13,6 +13,13 @@ import jakarta.persistence.LockModeType;
 
 public interface StudentProgramRepository extends JpaRepository<StudentProgram, Long> {
     List<StudentProgram> findByStudentIdOrderByStartDateDesc(Long studentId);
+    @Query("select case when count(enrollment) > 0 then true else false end "
+            + "from StudentProgram enrollment "
+            + "where enrollment.student.id = :studentId "
+            + "and enrollment.program.id in :programIds "
+            + "and enrollment.status = com.sis.entity.StudentLifecycleStatus.ACTIVE")
+    boolean existsActiveByStudentIdAndProgramIds(@Param("studentId") Long studentId,
+                                                  @Param("programIds") List<Long> programIds);
     boolean existsByStudentIdAndProgramIdAndAcademicYearId(Long studentId, Long programId, Long academicYearId);
     @Query("select case when count(enrollment) > 0 then true else false end from StudentProgram enrollment "
             + "where enrollment.program.id = :programId and enrollment.academicYear.id = :academicYearId "

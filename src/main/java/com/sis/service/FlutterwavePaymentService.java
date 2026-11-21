@@ -87,6 +87,23 @@ public class FlutterwavePaymentService {
         return verifyAndFinalize(attempt, transactionId, true);
     }
 
+    public PaymentAttempt reconcileLatePayment(Long attemptId, String reviewer) {
+        ensureConfigured();
+        PaymentAttempt attempt = attempts.findLateFlutterwaveReconciliation(attemptId);
+        Long transactionId;
+        try {
+            transactionId = Long.valueOf(attempt.getProviderTransactionId());
+        } catch (NumberFormatException exception) {
+            throw new IllegalStateException("Stored Flutterwave transaction ID is invalid");
+        }
+        JsonNode data = verifyTransaction(attempt, transactionId, true);
+        if (!"successful".equalsIgnoreCase(data.path("status").asText())) {
+            throw new IllegalStateException("Flutterwave transaction is not currently successful");
+        }
+        return attempts.confirmLateFlutterwaveReconciliation(
+                attempt.getId(), reviewer, Long.toString(transactionId));
+    }
+
     public void handleWebhook(JsonNode payload) {
         if (!"charge.completed".equals(payload.path("event").asText())) {
             return;
@@ -118,6 +135,25 @@ public class FlutterwavePaymentService {
                 && Long.toString(transactionId).equals(attempt.getProviderTransactionId())) {
             return attempt;
         }
+        JsonNode data = verifyTransaction(attempt, transactionId, failOnMismatch);
+        if (data == null) {
+            return attempt;
+        }
+
+        String status = data.path("status").asText();
+        if ("successful".equalsIgnoreCase(status)) {
+            if (attempt.getStatus() == PaymentAttemptStatus.FAILED) {
+                logger.warn("Verified Flutterwave payment arrived after attempt {} was closed; flagging for finance reconciliation",
+                        attempt.getId());
+                return attempts.flagLateFlutterwaveReconciliation(
+                        attempt.getId(), Long.toString(transactionId));
+            }
+            return attempts.confirmFlutterwave(attempt.getId(), Long.toString(transactionId));
+        }
+        return attempt;
+    }
+
+    private JsonNode verifyTransaction(PaymentAttempt attempt, Long transactionId, boolean failOnMismatch) {
         JsonNode body;
         try {
             body = restTemplate.exchange(
@@ -141,19 +177,9 @@ public class FlutterwavePaymentService {
             if (failOnMismatch) {
                 throw new IllegalStateException("The Flutterwave transaction could not be verified for this fee.");
             }
-            return attempt;
+            return null;
         }
-
-        String status = data.path("status").asText();
-        if ("successful".equalsIgnoreCase(status)) {
-            if (attempt.getStatus() == PaymentAttemptStatus.FAILED) {
-                logger.warn("Verified Flutterwave payment arrived after attempt {} was closed; finance reconciliation is required",
-                        attempt.getId());
-                return attempt;
-            }
-            return attempts.confirmFlutterwave(attempt.getId(), Long.toString(transactionId));
-        }
-        return attempt;
+        return data;
     }
 
     private HttpEntity<?> request(Object body) {

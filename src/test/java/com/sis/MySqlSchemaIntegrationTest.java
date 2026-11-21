@@ -19,13 +19,17 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Comparator;
+import org.springframework.jdbc.core.JdbcTemplate;
+import com.sis.repository.UserRepository;
+import com.sis.entity.User;
+import com.sis.entity.Role;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 @Tag("mysql")
-@Testcontainers
+@Testcontainers(disabledWithoutDocker = true)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 class MySqlSchemaIntegrationTest {
 
@@ -43,6 +47,12 @@ class MySqlSchemaIntegrationTest {
 
         @Autowired
         private AcademicYearRepository academicYears;
+
+        @Autowired
+        private JdbcTemplate jdbcTemplate;
+
+        @Autowired
+        private UserRepository users;
 
     @DynamicPropertySource
     static void databaseProperties(DynamicPropertyRegistry registry) {
@@ -72,6 +82,45 @@ class MySqlSchemaIntegrationTest {
                 .max(Comparator.naturalOrder())
                 .orElseThrow(() -> new AssertionError("No versioned Flyway migrations were discovered"));
         assertEquals(latestMigrationVersion, flyway.info().current().getVersion());
+    }
+
+    @Test
+    void latestAutomationAndRecoveryTablesExistAfterMySqlMigration() {
+        assumeTrue(MYSQL.isRunning(), "Docker/Testcontainers MySQL is unavailable in this environment");
+        assertTrue(MYSQL.isRunning());
+        Integer automationColumnCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS "
+                        + "WHERE TABLE_SCHEMA = DATABASE() "
+                        + "AND TABLE_NAME = 'notifications' "
+                        + "AND COLUMN_NAME = 'automation_key'",
+                Integer.class);
+        assertEquals(1, automationColumnCount);
+        Integer recoveryTableCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES "
+                        + "WHERE TABLE_SCHEMA = DATABASE() "
+                        + "AND TABLE_NAME = 'mfa_recovery_codes'",
+                Integer.class);
+        assertEquals(1, recoveryTableCount);
+        Integer announcementTargetCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES "
+                        + "WHERE TABLE_SCHEMA = DATABASE() "
+                        + "AND TABLE_NAME IN ('announcement_program_targets', 'announcement_course_targets')",
+                Integer.class);
+        assertEquals(2, announcementTargetCount);
+    }
+
+    @Test
+    @Transactional
+    void locksUserWithPlainMysqlForUpdateQuery() {
+        User user = new User(
+                "mysql-lock-user-" + System.nanoTime(),
+                "encoded-password",
+                Role.STUDENT);
+        user.setEmail("mysql-lock-" + System.nanoTime() + "@example.test");
+        user = users.saveAndFlush(user);
+
+        assertEquals(user.getUsername(),
+                users.findByIdForUpdate(user.getId()).orElseThrow().getUsername());
     }
 
     @Test

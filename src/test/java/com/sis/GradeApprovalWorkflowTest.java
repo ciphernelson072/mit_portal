@@ -281,7 +281,10 @@ class GradeApprovalWorkflowTest {
                 42L, "Grade needs revision",
                 "Your grade submission for Database Systems was rejected: Missing assessment evidence",
                 com.sis.entity.NotificationCategory.GRADE);
-        Mockito.verify(notifications, Mockito.times(3)).create(
+        verify(notifications).createInAppOnly(
+                42L, "Grade approved", "Your grade for Database Systems has been approved.",
+                com.sis.entity.NotificationCategory.GRADE);
+        Mockito.verify(notifications, Mockito.times(2)).create(
                 Mockito.anyLong(), Mockito.anyString(), Mockito.anyString(),
                 Mockito.eq(com.sis.entity.NotificationCategory.GRADE));
         Mockito.verify(notifications, Mockito.times(2)).emailNotificationsEnabled(42L);

@@ -50,6 +50,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Value("${app.security.mfa.required-for-privileged:false}")
     private boolean mfaRequiredForPrivileged;
 
+    @Value("${app.security.mfa.required-for-all:false}")
+    private boolean mfaRequiredForAll;
+
     @Value("${app.security.cookie-secure:false}")
     private boolean cookieSecure;
 
@@ -84,7 +87,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                 .orElse(false);
                 if (userDetails.isEnabled() && credentialsAreCurrent
                         && jwtService.isMfaEnrollmentToken(token)) {
-                    if (!mfaRequiredForPrivileged || !jwtService.isMfaRequired(token)
+                    if ((!mfaRequiredForAll && !mfaRequiredForPrivileged)
+                            || !jwtService.isMfaRequired(token)
                             || !isAllowedDuringMfaEnrollment(request, userDetails)) {
                         expireAuthCookies(response);
                         response.sendError(HttpServletResponse.SC_FORBIDDEN,
@@ -101,9 +105,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authenticationToken);
                 } else if (userDetails.isEnabled() && credentialsAreCurrent
-                        && mfaRequiredForPrivileged
-                        && (jwtService.isMfaRequired(token)
-                                || MfaPolicy.hasPrivilegedAuthority(userDetails.getAuthorities()))
+                        && (mfaRequiredForAll
+                                || jwtService.isMfaRequired(token)
+                                || (mfaRequiredForPrivileged
+                                    && MfaPolicy.hasPrivilegedAuthority(userDetails.getAuthorities())))
                         && !jwtService.isMfaVerified(token)) {
                     expireAuthCookies(response);
                 } else if (userDetails.isEnabled() && credentialsAreCurrent) {

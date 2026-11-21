@@ -21,11 +21,27 @@ import java.util.Collections;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class StudentProfileUpdateTest {
+
+    @Test
+    void rejectsInvalidOrFutureDateOfBirth() {
+        UpdateStudentRequest request = new UpdateStudentRequest();
+
+        assertThatThrownBy(() -> request.setDateOfBirth("275760-08-04"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Date of birth must be a valid date in YYYY-MM-DD format.");
+        assertThatThrownBy(() -> request.setDateOfBirth("2999-01-01"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Date of birth must be between 1900-01-01 and today.");
+        assertThatThrownBy(() -> request.setDateOfBirth("not-a-date"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Date of birth must be a valid date in YYYY-MM-DD format.");
+    }
 
     @Test
     void updatePersistsAllEditableProfileFields() {

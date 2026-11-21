@@ -2,6 +2,8 @@ package com.sis.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 
 public class UpdateStudentRequest {
 
@@ -66,7 +68,26 @@ public class UpdateStudentRequest {
     }
 
     public String getDateOfBirth() { return dateOfBirth; }
-    public void setDateOfBirth(String dateOfBirth) { this.dateOfBirth = dateOfBirth; }
+    public void setDateOfBirth(String dateOfBirth) {
+        if (dateOfBirth != null && !dateOfBirth.isBlank()) {
+            if (!dateOfBirth.trim().matches("\\d{4}-\\d{2}-\\d{2}")) {
+                throw new IllegalArgumentException(
+                        "Date of birth must be a valid date in YYYY-MM-DD format.");
+            }
+            try {
+                LocalDate parsed = LocalDate.parse(dateOfBirth.trim());
+                if (parsed.isBefore(LocalDate.of(1900, 1, 1))
+                        || parsed.isAfter(LocalDate.now())) {
+                    throw new IllegalArgumentException(
+                            "Date of birth must be between 1900-01-01 and today.");
+                }
+            } catch (DateTimeParseException exception) {
+                throw new IllegalArgumentException(
+                        "Date of birth must be a valid date in YYYY-MM-DD format.");
+            }
+        }
+        this.dateOfBirth = dateOfBirth == null ? null : dateOfBirth.trim();
+    }
     public String getGender() { return gender; }
     public void setGender(String gender) { this.gender = gender; }
     public String getAlternativePhone() { return alternativePhone; }

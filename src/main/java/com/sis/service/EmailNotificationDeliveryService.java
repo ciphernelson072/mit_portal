@@ -66,6 +66,28 @@ public class EmailNotificationDeliveryService {
         return due.size();
     }
 
+    @Transactional
+    public EmailNotificationDelivery retryFailedDelivery(Long deliveryId) {
+        if (deliveryId == null) {
+            throw new IllegalArgumentException("Email delivery ID is required.");
+        }
+        EmailNotificationDelivery delivery = deliveries.findByIdForUpdate(deliveryId)
+                .orElseThrow(() -> new IllegalArgumentException("Email delivery not found."));
+        if (delivery.getStatus() == EmailDeliveryStatus.SENT) {
+            throw new IllegalStateException("This email delivery has already been sent.");
+        }
+        if (delivery.getStatus() == EmailDeliveryStatus.PENDING
+                || delivery.getStatus() == EmailDeliveryStatus.RETRY) {
+            throw new IllegalStateException("This email delivery is already scheduled.");
+        }
+        delivery.setStatus(EmailDeliveryStatus.PENDING);
+        delivery.setAttemptCount(0);
+        delivery.setNextAttemptAt(LocalDateTime.now());
+        delivery.setLastError(null);
+        delivery.setSentAt(null);
+        return deliveries.save(delivery);
+    }
+
     private void recordFailure(EmailNotificationDelivery delivery, RuntimeException failure) {
         int attempts = delivery.getAttemptCount() + 1;
         delivery.setAttemptCount(attempts);

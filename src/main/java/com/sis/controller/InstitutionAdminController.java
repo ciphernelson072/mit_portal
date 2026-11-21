@@ -29,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
+import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,6 +57,12 @@ public class InstitutionAdminController {
         this.academicYears = academicYears;
         this.academicTerms = academicTerms;
         this.automaticCourseAssignments = automaticCourseAssignments;
+    }
+
+    private boolean isSupportedAcademicDate(LocalDate date) {
+        return date != null
+                && !date.isBefore(LocalDate.of(1900, 1, 1))
+                && !date.isAfter(LocalDate.of(2100, 12, 31));
     }
 
     @GetMapping("/campuses")
@@ -176,6 +183,11 @@ public class InstitutionAdminController {
     @Transactional
     public ResponseEntity<Map<String, Object>> createAcademicYear(
             @Valid @RequestBody CreateAcademicYearRequest request) {
+        if (!isSupportedAcademicDate(request.getStartDate())
+                || !isSupportedAcademicDate(request.getEndDate())) {
+            throw new IllegalArgumentException(
+                    "Academic year dates must be valid dates between 1900-01-01 and 2100-12-31.");
+        }
         if (request.getEndDate().isBefore(request.getStartDate())) {
             throw new IllegalArgumentException("Academic year end date must be on or after its start date.");
         }
@@ -213,6 +225,13 @@ public class InstitutionAdminController {
         AcademicYear year = academicYears.findById(request.getAcademicYearId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Academic year not found: " + request.getAcademicYearId()));
+        if (!isSupportedAcademicDate(request.getStartDate())
+                || !isSupportedAcademicDate(request.getEndDate())
+                || (request.getGradeSubmissionDeadline() != null
+                    && !isSupportedAcademicDate(request.getGradeSubmissionDeadline()))) {
+            throw new IllegalArgumentException(
+                    "Academic term dates must be valid dates between 1900-01-01 and 2100-12-31.");
+        }
         if (request.getEndDate().isBefore(request.getStartDate())) {
             throw new IllegalArgumentException("Academic term end date must be on or after its start date.");
         }
@@ -234,6 +253,10 @@ public class InstitutionAdminController {
         if (request.getGradeSubmissionDeadline() != null
                 && request.getGradeSubmissionDeadline().isBefore(request.getStartDate())) {
             throw new IllegalArgumentException("Grade submission deadline must be on or after the term start date.");
+        }
+        if (request.getGradeSubmissionDeadline() != null
+                && request.getGradeSubmissionDeadline().isAfter(request.getEndDate())) {
+            throw new IllegalArgumentException("Grade submission deadline must be on or before the term end date.");
         }
         term.setGradeSubmissionDeadline(request.getGradeSubmissionDeadline());
         AcademicTerm saved = academicTerms.save(term);

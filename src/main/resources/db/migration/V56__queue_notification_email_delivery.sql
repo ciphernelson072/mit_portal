@@ -1,4 +1,4 @@
-CREATE TABLE email_notification_deliveries (
+CREATE TABLE IF NOT EXISTS email_notification_deliveries (
     id BIGINT NOT NULL AUTO_INCREMENT,
     notification_id BIGINT NOT NULL,
     user_id BIGINT NOT NULL,

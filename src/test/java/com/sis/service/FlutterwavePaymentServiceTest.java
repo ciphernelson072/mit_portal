@@ -112,6 +112,109 @@ class FlutterwavePaymentServiceTest {
     }
 
     @Test
+    void lateSuccessfulWebhookIsFlaggedWithoutConfirmingOrCreditingTheFee() throws Exception {
+        PaymentAttemptService attempts = mock(PaymentAttemptService.class);
+        RestTemplate restTemplate = FlutterwavePaymentService.createRestTemplate();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
+        FlutterwavePaymentService service = configuredService(attempts, restTemplate);
+        PaymentAttempt failed = pendingAttempt();
+        failed.setStatus(PaymentAttemptStatus.FAILED);
+        when(attempts.findFlutterwaveAttemptIfPresent("MIT-FLW-test-reference"))
+                .thenReturn(java.util.Optional.of(failed));
+        PaymentAttempt flagged = pendingAttempt();
+        flagged.setStatus(PaymentAttemptStatus.FAILED);
+        flagged.setProviderTransactionId("123456");
+        when(attempts.flagLateFlutterwaveReconciliation(91L, "123456")).thenReturn(flagged);
+        server.expect(requestTo("https://api.flutterwave.com/v3/transactions/123456/verify"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("""
+                        {"status":"success","data":{"id":123456,"tx_ref":"MIT-FLW-test-reference","status":"successful","currency":"UGX","amount":35000.00}}
+                        """, MediaType.APPLICATION_JSON));
+
+        service.handleWebhook(new ObjectMapper().readTree("""
+                {"event":"charge.completed","data":{"id":123456,"tx_ref":"MIT-FLW-test-reference"}}
+                """));
+
+        verify(attempts).flagLateFlutterwaveReconciliation(91L, "123456");
+        verify(attempts, never()).confirmFlutterwave(91L, "123456");
+        server.verify();
+    }
+
+    @Test
+    void duplicateLateSuccessfulWebhookDoesNotRepeatProviderVerificationOrFinanceAlert() throws Exception {
+        PaymentAttemptService attempts = mock(PaymentAttemptService.class);
+        RestTemplate restTemplate = FlutterwavePaymentService.createRestTemplate();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
+        FlutterwavePaymentService service = configuredService(attempts, restTemplate);
+        PaymentAttempt flagged = pendingAttempt();
+        flagged.setStatus(PaymentAttemptStatus.FAILED);
+        flagged.setProviderTransactionId("123456");
+        when(attempts.findFlutterwaveAttemptIfPresent("MIT-FLW-test-reference"))
+                .thenReturn(java.util.Optional.of(flagged));
+
+        service.handleWebhook(new ObjectMapper().readTree("""
+                {"event":"charge.completed","data":{"id":123456,"tx_ref":"MIT-FLW-test-reference"}}
+                """));
+
+        verify(attempts, never()).flagLateFlutterwaveReconciliation(
+                org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyString());
+        server.verify();
+    }
+
+    @Test
+    void lateSuccessfulWebhookWithMismatchedAmountIsNotQueued() throws Exception {
+        PaymentAttemptService attempts = mock(PaymentAttemptService.class);
+        RestTemplate restTemplate = FlutterwavePaymentService.createRestTemplate();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
+        FlutterwavePaymentService service = configuredService(attempts, restTemplate);
+        PaymentAttempt failed = pendingAttempt();
+        failed.setStatus(PaymentAttemptStatus.FAILED);
+        when(attempts.findFlutterwaveAttemptIfPresent("MIT-FLW-test-reference"))
+                .thenReturn(java.util.Optional.of(failed));
+        server.expect(requestTo("https://api.flutterwave.com/v3/transactions/123456/verify"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("""
+                        {"status":"success","data":{"id":123456,"tx_ref":"MIT-FLW-test-reference","status":"successful","currency":"UGX","amount":34999.00}}
+                        """, MediaType.APPLICATION_JSON));
+
+        service.handleWebhook(new ObjectMapper().readTree("""
+                {"event":"charge.completed","data":{"id":123456,"tx_ref":"MIT-FLW-test-reference"}}
+                """));
+
+        verify(attempts, never()).flagLateFlutterwaveReconciliation(
+                org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyString());
+        server.verify();
+    }
+
+    @Test
+    void financeReconciliationReverifiesProviderTransactionBeforeConfirming() {
+        PaymentAttemptService attempts = mock(PaymentAttemptService.class);
+        RestTemplate restTemplate = FlutterwavePaymentService.createRestTemplate();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
+        FlutterwavePaymentService service = configuredService(attempts, restTemplate);
+        PaymentAttempt flagged = pendingAttempt();
+        flagged.setStatus(PaymentAttemptStatus.FAILED);
+        flagged.setProviderTransactionId("123456");
+        when(attempts.findLateFlutterwaveReconciliation(91L)).thenReturn(flagged);
+        PaymentAttempt completed = pendingAttempt();
+        completed.setStatus(PaymentAttemptStatus.COMPLETED);
+        when(attempts.confirmLateFlutterwaveReconciliation(91L, "finance", "123456"))
+                .thenReturn(completed);
+        server.expect(requestTo("https://api.flutterwave.com/v3/transactions/123456/verify"))
+                .andExpect(method(HttpMethod.GET))
+                .andExpect(header("Authorization", "Bearer test-secret"))
+                .andRespond(withSuccess("""
+                        {"status":"success","data":{"id":123456,"tx_ref":"MIT-FLW-test-reference","status":"successful","currency":"UGX","amount":35000.00}}
+                        """, MediaType.APPLICATION_JSON));
+
+        assertThat(service.reconcileLatePayment(91L, "finance").getStatus())
+                .isEqualTo(PaymentAttemptStatus.COMPLETED);
+
+        verify(attempts).confirmLateFlutterwaveReconciliation(91L, "finance", "123456");
+        server.verify();
+    }
+
+    @Test
     void refusesToConfirmWhenVerifiedAmountDoesNotMatchTheAttempt() {
         PaymentAttemptService attempts = mock(PaymentAttemptService.class);
         RestTemplate restTemplate = FlutterwavePaymentService.createRestTemplate();

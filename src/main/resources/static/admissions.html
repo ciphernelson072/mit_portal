@@ -39,6 +39,7 @@
             <p>Upload PDF or image files. Each file may be up to 10 MB.</p>
             <div id="admissionDocumentChecklist" aria-live="polite">Loading document requirements…</div>
           </fieldset>
+          <div class="admission-turnstile" id="admissionTurnstile" hidden></div>
           <button class="button primary" id="submitAdmissionButton" type="submit" disabled>Submit application</button>
         </form>
         <p class="applicant-privacy-note">The form collects your contact and programme details plus the documents you upload for admissions review. <a href="/privacy.html#admissions-applicants">Read the applicant privacy notice</a>.</p>
@@ -55,7 +56,8 @@
         <form id="statusForm" class="field-grid">
           <label>Application number<input id="applicationNumber" autocomplete="off" required></label>
           <label>Email used on application<input id="statusEmail" type="email" autocomplete="email" required></label>
-          <button class="button secondary" type="submit">Check status</button>
+          <div class="admission-turnstile" id="statusTurnstile" hidden></div>
+          <button class="button secondary" id="checkApplicationStatusButton" type="submit" disabled>Check status</button>
         </form>
         <pre id="statusResult" class="result-content" aria-live="polite"></pre>
         <p class="applicant-privacy-note"><a href="/privacy.html#admissions-applicants">Read the applicant privacy notice</a>.</p>

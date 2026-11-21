@@ -39,6 +39,209 @@ import org.mockito.ArgumentCaptor;
 class PaymentAttemptServiceTest {
 
     @Test
+    void lateFlutterwaveSuccessIsPersistedAndNotifiesFinanceOnlyOnce() {
+        PaymentAttemptRepository attempts = mock(PaymentAttemptRepository.class);
+        FeeRepository fees = mock(FeeRepository.class);
+        PaymentAllocationRepository allocations = mock(PaymentAllocationRepository.class);
+        FeeWaiverRepository waivers = mock(FeeWaiverRepository.class);
+        AuditLogRepository auditLogs = mock(AuditLogRepository.class);
+        UserRepository users = mock(UserRepository.class);
+        PaymentTransactionRepository transactions = mock(PaymentTransactionRepository.class);
+        PaymentDestinationService destinations = mock(PaymentDestinationService.class);
+        NotificationService notifications = mock(NotificationService.class);
+        PaymentRefundRepository refunds = mock(PaymentRefundRepository.class);
+        NotificationRecipientService notificationRecipients = mock(NotificationRecipientService.class);
+
+        PaymentAttempt attempt = new PaymentAttempt();
+        attempt.setId(93L);
+        attempt.setFeeId(25L);
+        attempt.setStudentId(14L);
+        attempt.setAmount(new BigDecimal("35000.00"));
+        attempt.setProviderReference("MIT-FLW-late-payment");
+        attempt.setPaymentChannel(PaymentChannel.FLUTTERWAVE);
+        attempt.setStatus(PaymentAttemptStatus.FAILED);
+        when(attempts.findByIdForUpdate(93L)).thenReturn(Optional.of(attempt));
+        when(attempts.save(attempt)).thenReturn(attempt);
+        User financeUser = new User();
+        financeUser.setId(17L);
+        when(notificationRecipients.findActiveUsersWithPermission(
+                "FINANCE_PAYMENT_CONFIRM", com.sis.entity.Role.ADMIN))
+                .thenReturn(List.of(financeUser));
+
+        PaymentAttemptService service = new PaymentAttemptService(
+                attempts, fees, allocations, waivers, auditLogs, users, transactions,
+                destinations, notifications, refunds, notificationRecipients);
+
+        service.flagLateFlutterwaveReconciliation(93L, "123456");
+        service.flagLateFlutterwaveReconciliation(93L, "123456");
+
+        assertThat(attempt.getProviderTransactionId()).isEqualTo("123456");
+        assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.FAILED);
+        assertThat(attempt.getReviewNote()).contains("Finance review required");
+        verify(attempts).save(attempt);
+        verify(notifications).createAutomated(
+                "flutterwave-late-payment:93:123456:17", 17L,
+                "Flutterwave payment needs reconciliation",
+                "Verified successful transaction 123456 arrived after payment attempt #93 was closed. "
+                        + "Reference MIT-FLW-late-payment, amount UGX 35000.00. "
+                        + "No fee balance was changed; review the provider settlement before confirming.",
+                NotificationCategory.PAYMENT);
+        verify(fees, never()).findByIdForUpdate(org.mockito.ArgumentMatchers.anyLong());
+        verify(allocations, never()).save(any(PaymentAllocation.class));
+        verify(transactions, never()).save(any(PaymentTransaction.class));
+    }
+
+    @Test
+    void lateFlutterwaveFlagDoesNotReplaceAnotherTransactionId() {
+        PaymentAttemptRepository attempts = mock(PaymentAttemptRepository.class);
+        PaymentAttempt attempt = new PaymentAttempt();
+        attempt.setId(94L);
+        attempt.setPaymentChannel(PaymentChannel.FLUTTERWAVE);
+        attempt.setStatus(PaymentAttemptStatus.FAILED);
+        attempt.setProviderTransactionId("123456");
+        attempt.setReviewNote("Verified successful Flutterwave payment arrived after attempt closure. Finance review required.");
+        when(attempts.findByIdForUpdate(94L)).thenReturn(Optional.of(attempt));
+
+        PaymentAttemptService service = new PaymentAttemptService(
+                attempts, mock(FeeRepository.class), mock(PaymentAllocationRepository.class),
+                mock(FeeWaiverRepository.class), mock(AuditLogRepository.class), mock(UserRepository.class),
+                mock(PaymentTransactionRepository.class), mock(PaymentDestinationService.class),
+                mock(NotificationService.class), mock(PaymentRefundRepository.class),
+                mock(NotificationRecipientService.class));
+
+        assertThatThrownBy(() -> service.flagLateFlutterwaveReconciliation(94L, "654321"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Payment attempt is already linked to another provider transaction");
+        verify(attempts, never()).save(any(PaymentAttempt.class));
+    }
+
+    @Test
+    void financeReconciliationQueueIncludesOnlyVerifiedLateFlutterwaveAttempts() {
+        PaymentAttemptRepository attempts = mock(PaymentAttemptRepository.class);
+        PaymentAttempt flagged = new PaymentAttempt();
+        flagged.setId(97L);
+        flagged.setPaymentChannel(PaymentChannel.FLUTTERWAVE);
+        flagged.setStatus(PaymentAttemptStatus.FAILED);
+        flagged.setProviderTransactionId("123459");
+        flagged.setReviewNote("Verified successful Flutterwave payment arrived after attempt closure. Finance review required.");
+        PaymentAttempt failedCheckout = new PaymentAttempt();
+        failedCheckout.setId(98L);
+        failedCheckout.setPaymentChannel(PaymentChannel.FLUTTERWAVE);
+        failedCheckout.setStatus(PaymentAttemptStatus.FAILED);
+        failedCheckout.setReviewNote("Flutterwave could not create the checkout session. Please retry.");
+        when(attempts.findByPaymentChannelAndStatusAndProviderTransactionIdIsNotNullOrderByCreatedAtAsc(
+                PaymentChannel.FLUTTERWAVE, PaymentAttemptStatus.FAILED))
+                .thenReturn(List.of(flagged, failedCheckout));
+
+        PaymentAttemptService service = new PaymentAttemptService(
+                attempts, mock(FeeRepository.class), mock(PaymentAllocationRepository.class),
+                mock(FeeWaiverRepository.class), mock(AuditLogRepository.class), mock(UserRepository.class),
+                mock(PaymentTransactionRepository.class), mock(PaymentDestinationService.class),
+                mock(NotificationService.class), mock(PaymentRefundRepository.class),
+                mock(NotificationRecipientService.class));
+
+        assertThat(service.flutterwaveReconciliationAttempts()).containsExactly(flagged);
+    }
+
+    @Test
+    void financeCanConfirmLateFlutterwavePaymentOnlyThroughReconciliationAction() {
+        PaymentAttemptRepository attempts = mock(PaymentAttemptRepository.class);
+        FeeRepository fees = mock(FeeRepository.class);
+        PaymentAllocationRepository allocations = mock(PaymentAllocationRepository.class);
+        FeeWaiverRepository waivers = mock(FeeWaiverRepository.class);
+        AuditLogRepository auditLogs = mock(AuditLogRepository.class);
+        UserRepository users = mock(UserRepository.class);
+        PaymentTransactionRepository transactions = mock(PaymentTransactionRepository.class);
+        NotificationService notifications = mock(NotificationService.class);
+
+        PaymentAttempt attempt = new PaymentAttempt();
+        attempt.setId(95L);
+        attempt.setFeeId(25L);
+        attempt.setStudentId(14L);
+        attempt.setAmount(new BigDecimal("35000.00"));
+        attempt.setProviderReference("MIT-FLW-late-confirm");
+        attempt.setPaymentChannel(PaymentChannel.FLUTTERWAVE);
+        attempt.setStatus(PaymentAttemptStatus.FAILED);
+        attempt.setProviderTransactionId("123457");
+        attempt.setReviewNote("Verified successful Flutterwave payment arrived after attempt closure. Finance review required.");
+        when(attempts.findByIdForUpdate(95L)).thenReturn(Optional.of(attempt));
+        User studentUser = new User();
+        studentUser.setId(42L);
+        Student student = new Student();
+        student.setUser(studentUser);
+        Fee fee = new Fee();
+        fee.setId(25L);
+        fee.setStudent(student);
+        fee.setAmount(new BigDecimal("35000.00"));
+        when(fees.findByIdForUpdate(25L)).thenReturn(Optional.of(fee));
+        when(allocations.findByFeeIdOrderByAllocatedAtAsc(25L)).thenReturn(List.of());
+        when(waivers.findByFeeIdAndActiveTrueOrderByApprovedAtDesc(25L)).thenReturn(List.of());
+        User reviewer = new User();
+        reviewer.setId(18L);
+        when(users.findByUsernameNormalized("finance")).thenReturn(Optional.of(reviewer));
+        when(attempts.save(attempt)).thenReturn(attempt);
+
+        PaymentAttemptService service = new PaymentAttemptService(
+                attempts, fees, allocations, waivers, auditLogs, users, transactions,
+                mock(PaymentDestinationService.class), notifications, mock(PaymentRefundRepository.class),
+                mock(NotificationRecipientService.class));
+
+        assertThatThrownBy(() -> service.confirm(95L, "finance"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Flutterwave payments must be verified with Flutterwave before confirmation");
+        PaymentAttempt completed = service.confirmLateFlutterwaveReconciliation(95L, "finance", "123457");
+
+        assertThat(completed.getStatus()).isEqualTo(PaymentAttemptStatus.COMPLETED);
+        assertThat(fee.isPaid()).isTrue();
+        assertThat(attempt.getReviewedBy()).isEqualTo("finance");
+        verify(allocations).save(any(PaymentAllocation.class));
+        verify(transactions).save(any(PaymentTransaction.class));
+        verify(auditLogs).save(any(com.sis.entity.AuditLog.class));
+    }
+
+    @Test
+    void lateFlutterwaveConfirmationCannotExceedCurrentFeeBalance() {
+        PaymentAttemptRepository attempts = mock(PaymentAttemptRepository.class);
+        FeeRepository fees = mock(FeeRepository.class);
+        PaymentAllocationRepository allocations = mock(PaymentAllocationRepository.class);
+        FeeWaiverRepository waivers = mock(FeeWaiverRepository.class);
+        AuditLogRepository auditLogs = mock(AuditLogRepository.class);
+        PaymentTransactionRepository transactions = mock(PaymentTransactionRepository.class);
+        PaymentRefundRepository refunds = mock(PaymentRefundRepository.class);
+
+        PaymentAttempt attempt = new PaymentAttempt();
+        attempt.setId(96L);
+        attempt.setFeeId(25L);
+        attempt.setAmount(new BigDecimal("35000.00"));
+        attempt.setPaymentChannel(PaymentChannel.FLUTTERWAVE);
+        attempt.setStatus(PaymentAttemptStatus.FAILED);
+        attempt.setProviderTransactionId("123458");
+        attempt.setReviewNote("Verified successful Flutterwave payment arrived after attempt closure. Finance review required.");
+        when(attempts.findByIdForUpdate(96L)).thenReturn(Optional.of(attempt));
+        Fee fee = new Fee();
+        fee.setId(25L);
+        fee.setAmount(new BigDecimal("35000.00"));
+        when(fees.findByIdForUpdate(25L)).thenReturn(Optional.of(fee));
+        when(allocations.findByFeeIdOrderByAllocatedAtAsc(25L))
+                .thenReturn(List.of(allocation(new BigDecimal("10000.00"))));
+        when(refunds.findByFeeIdAndStatus(25L, com.sis.entity.RefundStatus.COMPLETED))
+                .thenReturn(List.of());
+        when(waivers.findByFeeIdAndActiveTrueOrderByApprovedAtDesc(25L)).thenReturn(List.of());
+
+        PaymentAttemptService service = new PaymentAttemptService(
+                attempts, fees, allocations, waivers, auditLogs, mock(UserRepository.class), transactions,
+                mock(PaymentDestinationService.class), mock(NotificationService.class), refunds,
+                mock(NotificationRecipientService.class));
+
+        assertThatThrownBy(() -> service.confirmLateFlutterwaveReconciliation(96L, "finance", "123458"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Late Flutterwave payment exceeds the outstanding fee balance; finance review is required");
+        verify(attempts, never()).save(any(PaymentAttempt.class));
+        verify(allocations, never()).save(any(PaymentAllocation.class));
+        verify(transactions, never()).save(any(PaymentTransaction.class));
+    }
+
+    @Test
     void flutterwaveCheckoutUsesStudentContactEmailInsteadOfAccountEmail() {
         PaymentAttemptRepository attempts = mock(PaymentAttemptRepository.class);
         FeeRepository fees = mock(FeeRepository.class);
@@ -78,7 +281,7 @@ class PaymentAttemptServiceTest {
         });
         PaymentAttemptService service = new PaymentAttemptService(
                 attempts, fees, allocations, waivers, auditLogs, users, transactions,
-                destinations, notifications, refunds);
+                destinations, notifications, refunds, mock(NotificationRecipientService.class));
 
         FlutterwaveCheckoutDetails details = service.createFlutterwaveAttempt(25L, 14L);
 
@@ -112,7 +315,7 @@ class PaymentAttemptServiceTest {
                 PaymentChannel.FLUTTERWAVE, "Flutterwave", true, null, null)));
         PaymentAttemptService service = new PaymentAttemptService(
                 attempts, fees, allocations, waivers, auditLogs, users, transactions,
-                destinations, notifications, refunds);
+                destinations, notifications, refunds, mock(NotificationRecipientService.class));
 
         assertThatThrownBy(() -> service.createFlutterwaveAttempt(25L, 14L))
                 .isInstanceOf(IllegalStateException.class)
@@ -158,7 +361,8 @@ class PaymentAttemptServiceTest {
         when(attempts.save(any(PaymentAttempt.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         PaymentAttemptService service = new PaymentAttemptService(
-                attempts, fees, allocations, waivers, auditLogs, users, transactions, destinations, notifications, refunds);
+                attempts, fees, allocations, waivers, auditLogs, users, transactions, destinations, notifications, refunds,
+                mock(NotificationRecipientService.class));
 
         service.confirm(18L);
         service.confirm(18L);
@@ -204,7 +408,8 @@ class PaymentAttemptServiceTest {
         when(waivers.findByFeeIdAndActiveTrueOrderByApprovedAtDesc(25L)).thenReturn(List.of());
 
         PaymentAttemptService service = new PaymentAttemptService(
-                attempts, fees, allocations, waivers, auditLogs, users, transactions, destinations, notifications, refunds);
+                attempts, fees, allocations, waivers, auditLogs, users, transactions, destinations, notifications, refunds,
+                mock(NotificationRecipientService.class));
         CreatePaymentAttemptRequest request = new CreatePaymentAttemptRequest();
         request.setFeeId(25L);
         request.setAmount(new BigDecimal("25000.00"));
@@ -238,7 +443,8 @@ class PaymentAttemptServiceTest {
         when(attempts.findByIdForUpdate(91L)).thenReturn(Optional.of(attempt));
 
         PaymentAttemptService service = new PaymentAttemptService(
-                attempts, fees, allocations, waivers, auditLogs, users, transactions, destinations, notifications, refunds);
+                attempts, fees, allocations, waivers, auditLogs, users, transactions, destinations, notifications, refunds,
+                mock(NotificationRecipientService.class));
 
         assertThatThrownBy(() -> service.confirm(91L, "finance"))
                 .isInstanceOf(IllegalStateException.class)
@@ -284,7 +490,8 @@ class PaymentAttemptServiceTest {
         when(attempts.save(any(PaymentAttempt.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         PaymentAttemptService service = new PaymentAttemptService(
-                attempts, fees, allocations, waivers, auditLogs, users, transactions, destinations, notifications, refunds);
+                attempts, fees, allocations, waivers, auditLogs, users, transactions, destinations, notifications, refunds,
+                mock(NotificationRecipientService.class));
         CreatePaymentAttemptRequest request = new CreatePaymentAttemptRequest();
         request.setFeeId(25L);
         request.setAmount(new BigDecimal("40.00"));
@@ -339,7 +546,8 @@ class PaymentAttemptServiceTest {
         when(attempts.save(any(PaymentAttempt.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         PaymentAttemptService service = new PaymentAttemptService(
-                attempts, fees, allocations, waivers, auditLogs, users, transactions, destinations, notifications, refunds);
+                attempts, fees, allocations, waivers, auditLogs, users, transactions, destinations, notifications, refunds,
+                mock(NotificationRecipientService.class));
         service.confirm(18L);
 
         assertThat(fee.isPaid()).isFalse();

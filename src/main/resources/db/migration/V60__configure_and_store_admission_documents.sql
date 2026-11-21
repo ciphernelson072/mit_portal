@@ -1,4 +1,4 @@
-CREATE TABLE admission_document_requirements (
+CREATE TABLE IF NOT EXISTS admission_document_requirements (
     id BIGINT NOT NULL AUTO_INCREMENT,
     name VARCHAR(100) NOT NULL,
     description VARCHAR(500) NULL,
@@ -9,7 +9,7 @@ CREATE TABLE admission_document_requirements (
     CONSTRAINT uk_admission_document_requirement_name UNIQUE (name)
 );
 
-CREATE TABLE admission_application_documents (
+CREATE TABLE IF NOT EXISTS admission_application_documents (
     id BIGINT NOT NULL AUTO_INCREMENT,
     application_id BIGINT NOT NULL,
     requirement_id BIGINT NOT NULL,

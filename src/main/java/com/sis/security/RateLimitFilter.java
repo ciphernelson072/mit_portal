@@ -1,5 +1,7 @@
 package com.sis.security;
 
+import com.sis.service.OperationalMetricsService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
@@ -62,6 +64,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private final ConcurrentHashMap<String, Bucket> buckets = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Bucket> overflowBuckets = new ConcurrentHashMap<>();
     private final Object bucketCreationLock = new Object();
+    @Autowired(required = false)
+    private OperationalMetricsService metrics;
 
     @PostConstruct
     public void initializeTrustedProxies() {
@@ -96,6 +100,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
         Bucket bucket = getBucket(key, limiter, requestCapacity);
 
         if (!bucket.tryConsume(refillRate)) {
+            if (metrics != null) {
+                metrics.rateLimitBlocked(limiter);
+            }
             response.setStatus(429); // Too Many Requests
             response.setContentType("application/json");
             response.getWriter().write(

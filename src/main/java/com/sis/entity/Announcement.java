@@ -3,6 +3,8 @@ package com.sis.entity;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "announcements")
@@ -29,6 +31,18 @@ public class Announcement {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private AnnouncementAudience audience = AnnouncementAudience.ALL;
+
+    @ManyToMany
+    @JoinTable(name = "announcement_program_targets",
+            joinColumns = @JoinColumn(name = "announcement_id"),
+            inverseJoinColumns = @JoinColumn(name = "program_id"))
+    private Set<Program> programs = new HashSet<>();
+
+    @ManyToMany
+    @JoinTable(name = "announcement_course_targets",
+            joinColumns = @JoinColumn(name = "announcement_id"),
+            inverseJoinColumns = @JoinColumn(name = "course_id"))
+    private Set<Course> courses = new HashSet<>();
 
     public Announcement() {
     }
@@ -87,4 +101,9 @@ public class Announcement {
     public void setAudience(AnnouncementAudience audience) {
         this.audience = audience == null ? AnnouncementAudience.ALL : audience;
     }
+
+    public Set<Program> getPrograms() { return programs; }
+    public void setPrograms(Set<Program> programs) { this.programs = programs == null ? new HashSet<>() : programs; }
+    public Set<Course> getCourses() { return courses; }
+    public void setCourses(Set<Course> courses) { this.courses = courses == null ? new HashSet<>() : courses; }
 }

@@ -2,6 +2,7 @@ package com.sis.repository;
 
 import com.sis.entity.PaymentAttempt;
 import com.sis.entity.PaymentAttemptStatus;
+import com.sis.entity.PaymentChannel;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -15,6 +16,8 @@ public interface PaymentAttemptRepository extends JpaRepository<PaymentAttempt, 
     List<PaymentAttempt> findByFeeIdAndStudentIdOrderByCreatedAtDesc(Long feeId, Long studentId);
     List<PaymentAttempt> findByStudentIdOrderByCreatedAtDesc(Long studentId);
     List<PaymentAttempt> findByStatusOrderByCreatedAtAsc(com.sis.entity.PaymentAttemptStatus status);
+    List<PaymentAttempt> findByPaymentChannelAndStatusAndProviderTransactionIdIsNotNullOrderByCreatedAtAsc(
+            PaymentChannel paymentChannel, PaymentAttemptStatus status);
     Optional<PaymentAttempt> findByProviderReference(String providerReference);
     Optional<PaymentAttempt> findByProviderReferenceAndPaymentChannel(
             String providerReference, com.sis.entity.PaymentChannel paymentChannel);

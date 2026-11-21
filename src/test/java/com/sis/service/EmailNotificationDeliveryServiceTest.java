@@ -76,6 +76,42 @@ class EmailNotificationDeliveryServiceTest {
         assertThat(delivery.getAttemptCount()).isEqualTo(4);
     }
 
+    @Test
+    void administratorCanResetAFailedDeliveryForRetry() {
+        EmailNotificationDelivery delivery = delivery(4);
+        delivery.setStatus(EmailDeliveryStatus.FAILED);
+        delivery.setLastError("provider unavailable");
+        when(deliveries.findByIdForUpdate(91L)).thenReturn(Optional.of(delivery));
+        when(deliveries.save(delivery)).thenReturn(delivery);
+
+        EmailNotificationDelivery reset = service.retryFailedDelivery(91L);
+
+        assertThat(reset.getStatus()).isEqualTo(EmailDeliveryStatus.PENDING);
+        assertThat(reset.getAttemptCount()).isZero();
+        assertThat(reset.getLastError()).isNull();
+        assertThat(reset.getNextAttemptAt()).isBeforeOrEqualTo(LocalDateTime.now());
+        verify(deliveries).save(delivery);
+    }
+
+    @Test
+    void cannotResetSentOrAlreadyScheduledDelivery() {
+        EmailNotificationDelivery sent = delivery(1);
+        sent.setStatus(EmailDeliveryStatus.SENT);
+        when(deliveries.findByIdForUpdate(92L)).thenReturn(Optional.of(sent));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.retryFailedDelivery(92L))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("This email delivery has already been sent.");
+
+        EmailNotificationDelivery retry = delivery(1);
+        retry.setStatus(EmailDeliveryStatus.RETRY);
+        when(deliveries.findByIdForUpdate(93L)).thenReturn(Optional.of(retry));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.retryFailedDelivery(93L))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("This email delivery is already scheduled.");
+    }
+
     private EmailNotificationDelivery delivery(int priorAttempts) {
         Notification notification = new Notification(
                 8L, "Attendance update", "Please review attendance.");

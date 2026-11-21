@@ -13,6 +13,12 @@ services:
     envVars:
       - key: SPRING_PROFILES_ACTIVE
         value: prod
+      - key: APP_INSTANCE_COUNT
+        value: "1"
+      - key: RATE_LIMIT_STORE
+        value: memory
+      - key: FILE_STORAGE_ADAPTER
+        value: filesystem
       - key: SERVER_ADDRESS
         value: 0.0.0.0
       - key: UPLOAD_DIR
@@ -58,9 +64,11 @@ services:
       - key: SAMPLE_DATA_ENABLED
         value: "false"
       - key: MFA_ENABLED
-        value: "false"
+        value: "true"
       - key: MFA_REQUIRED_FOR_PRIVILEGED
         value: "false"
+      - key: MFA_REQUIRED_FOR_ALL
+        value: "true"
       - key: MFA_ENCRYPTION_KEY
         sync: false
       - key: INITIAL_ADMIN_BOOTSTRAP_ENABLED

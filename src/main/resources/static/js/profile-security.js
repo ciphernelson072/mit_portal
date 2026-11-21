@@ -14,6 +14,8 @@
   const enrollment = document.getElementById('mfaEnrollment');
   const secret = document.getElementById('mfaSecret');
   const otpUri = document.getElementById('mfaOtpUri');
+  const recoveryCodesSection = document.getElementById('mfaRecoveryCodes');
+  const recoveryCodeList = document.getElementById('mfaRecoveryCodeList');
   const message = document.getElementById('mfaMessage');
   const setupButton = document.getElementById('mfaSetupButton');
   const verifyButton = document.getElementById('mfaVerifyButton');
@@ -143,12 +145,17 @@
     }
     verifyButton.disabled = true;
     try {
-      await apiFetch('/auth/mfa/verify', {
+      const response = await apiFetch('/auth/mfa/verify', {
         method: 'POST',
         body: JSON.stringify({ currentPassword: password.value, otp: otp.value.trim() }),
       });
+      const verification = await response.json();
+      if (Array.isArray(verification.recoveryCodes) && verification.recoveryCodes.length > 0) {
+        recoveryCodeList.textContent = verification.recoveryCodes.join('\n');
+        recoveryCodesSection.hidden = false;
+      }
       showMessage('Two-factor authentication enabled. Sign in again to continue.');
-      await logout();
+      setTimeout(logout, 15000);
     } catch (error) {
       showMessage(error.message || 'The authenticator code could not be verified.', true);
     } finally {

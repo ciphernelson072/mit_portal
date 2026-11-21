@@ -30,7 +30,7 @@
     <section class="account-security-intro">
       <p class="security-eyebrow">YOUR ACCOUNT</p>
       <h2>Security &amp; sign-in</h2>
-      <p>Set up an authenticator app to add a six-digit verification step at sign-in. Privileged accounts may be required to enroll before portal access is granted.</p>
+      <p>Set up an authenticator app to add a six-digit verification step at sign-in. Students, teachers, and administrators can enroll; institution-wide enforcement requires MFA for every account.</p>
     </section>
 
     <section class="security-section" id="mfaSecuritySection">
@@ -43,6 +43,11 @@
           <p class="mfa-secret"><code id="mfaSecret"></code></p>
           <a id="mfaOtpUri" class="authenticator-link" rel="noreferrer" hidden>Open in authenticator app</a>
           <p class="security-hint">Keep this setup secret private. Do not send it to anyone.</p>
+        </div>
+        <div id="mfaRecoveryCodes" class="mfa-enrollment" hidden>
+          <p><strong>Save these one-time recovery codes now.</strong></p>
+          <pre id="mfaRecoveryCodeList" style="white-space: pre-wrap;"></pre>
+          <p class="security-hint">Each code can be used once if your authenticator is unavailable. Store them separately and securely.</p>
         </div>
         <div class="form-group" id="mfaPasswordGroup">
           <label for="mfaCurrentPassword">Current password</label>

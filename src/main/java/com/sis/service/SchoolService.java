@@ -616,6 +616,13 @@ public class SchoolService {
         return messagingService.createAnnouncement(title, content, author, audience);
     }
 
+    public AnnouncementDto createAnnouncement(String title, String content, User author,
+                                              com.sis.entity.AnnouncementAudience audience,
+                                              java.util.List<Long> programIds,
+                                              java.util.List<Long> courseIds) {
+        return messagingService.createAnnouncement(title, content, author, audience, programIds, courseIds);
+    }
+
     public List<Map<String, Object>> getPublicAnnouncements() {
         return messagingService.getPublicAnnouncements();
     }

@@ -90,19 +90,20 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .headers(headers -> headers
                         // A conservative CSP: everything defaults to same-origin only. The one
-                        // external dependency the frontend actually has is Chart.js from a CDN
-                        // (see index.html) - explicitly allow-listed rather than opened broadly.
+                        // external dependencies are Chart.js and the optional Turnstile widget;
+                        // explicitly allow-list their origins rather than opening CSP broadly.
                         // unsafe-inline is required for style-src because the pages use inline
                         // style="" attributes throughout; tightening that is real follow-up work
                         // (moving inline styles into the stylesheet), not something to silently
                         // paper over by dropping the header entirely.
                         .contentSecurityPolicy(csp -> csp.policyDirectives(
                                 "default-src 'self'; "
-                                        + "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+                                        + "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://challenges.cloudflare.com; "
                                         + "style-src 'self' 'unsafe-inline'; "
                                         + "img-src 'self' data:; "
                                         + "font-src 'self'; "
                                         + "connect-src 'self'; "
+                                        + "frame-src 'self' https://challenges.cloudflare.com; "
                                         + "frame-ancestors 'none'; "
                                         + "base-uri 'self'; "
                                         + "form-action 'self'"

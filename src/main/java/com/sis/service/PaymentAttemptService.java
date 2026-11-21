@@ -11,7 +11,8 @@ import com.sis.repository.PaymentAttemptRepository;
 import com.sis.repository.PaymentRefundRepository;
 import com.sis.repository.PaymentTransactionRepository;
 import com.sis.repository.UserRepository;
-import com.sis.entity.NotificationCategory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +26,11 @@ import java.util.UUID;
 @Service
 @Transactional
 public class PaymentAttemptService {
+    private static final Logger logger = LoggerFactory.getLogger(PaymentAttemptService.class);
+    private static final String LATE_FLUTTERWAVE_REVIEW_NOTE =
+            "Verified successful Flutterwave payment arrived after attempt closure. Finance review required.";
+    private static final String FINANCE_PAYMENT_CONFIRM = "FINANCE_PAYMENT_CONFIRM";
+
     private final PaymentAttemptRepository attempts;
     private final PaymentTransactionRepository transactions;
     private final PaymentRefundRepository refunds;
@@ -35,13 +41,15 @@ public class PaymentAttemptService {
     private final UserRepository users;
     private final PaymentDestinationService destinations;
     private final NotificationService notifications;
+    private final NotificationRecipientService notificationRecipients;
 
     public PaymentAttemptService(PaymentAttemptRepository attempts, FeeRepository fees,
                                  PaymentAllocationRepository allocations, FeeWaiverRepository waivers,
                                  AuditLogRepository auditLogs, UserRepository users,
                                  PaymentTransactionRepository transactions,
                                  PaymentDestinationService destinations,
-                                 NotificationService notifications, PaymentRefundRepository refunds) {
+                                 NotificationService notifications, PaymentRefundRepository refunds,
+                                 NotificationRecipientService notificationRecipients) {
         this.attempts = attempts;
         this.transactions = transactions;
         this.refunds = refunds;
@@ -52,6 +60,7 @@ public class PaymentAttemptService {
         this.users = users;
         this.destinations = destinations;
         this.notifications = notifications;
+        this.notificationRecipients = notificationRecipients;
     }
 
     public PaymentAttempt create(CreatePaymentAttemptRequest request, Long studentId) {
@@ -194,6 +203,76 @@ public class PaymentAttemptService {
         return confirmInternal(attemptId, null, transactionId);
     }
 
+    public PaymentAttempt flagLateFlutterwaveReconciliation(Long attemptId, String transactionId) {
+        if (transactionId == null || transactionId.isBlank()) {
+            throw new IllegalArgumentException("Flutterwave transaction ID is required");
+        }
+        PaymentAttempt attempt = attempts.findByIdForUpdate(attemptId)
+                .orElseThrow(() -> new IllegalArgumentException("Payment attempt not found"));
+        if (attempt.getStatus() == PaymentAttemptStatus.COMPLETED
+                && transactionId.equals(attempt.getProviderTransactionId())) {
+            return attempt;
+        }
+        if (attempt.getPaymentChannel() != PaymentChannel.FLUTTERWAVE
+                || attempt.getStatus() != PaymentAttemptStatus.FAILED) {
+            throw new IllegalStateException("Only a closed Flutterwave attempt can enter reconciliation");
+        }
+        if (attempt.getProviderTransactionId() != null) {
+            if (transactionId.equals(attempt.getProviderTransactionId())
+                    && LATE_FLUTTERWAVE_REVIEW_NOTE.equals(attempt.getReviewNote())) {
+                return attempt;
+            }
+            throw new IllegalStateException("Payment attempt is already linked to another provider transaction");
+        }
+
+        attempt.setProviderTransactionId(transactionId);
+        attempt.setReviewNote(LATE_FLUTTERWAVE_REVIEW_NOTE);
+        PaymentAttempt flagged = attempts.save(attempt);
+
+        List<User> recipients = notificationRecipients.findActiveUsersWithPermission(
+                FINANCE_PAYMENT_CONFIRM, Role.ADMIN);
+        if (recipients.isEmpty()) {
+            logger.warn("Late Flutterwave payment attempt {} has no active Finance notification recipients",
+                    attemptId);
+        }
+        for (User recipient : recipients) {
+            notifications.createAutomated(
+                    "flutterwave-late-payment:" + attemptId + ":" + transactionId + ":" + recipient.getId(),
+                    recipient.getId(),
+                    "Flutterwave payment needs reconciliation",
+                    "Verified successful transaction " + transactionId + " arrived after payment attempt #"
+                            + attemptId + " was closed. Reference " + attempt.getProviderReference()
+                            + ", amount UGX " + attempt.getAmount()
+                            + ". No fee balance was changed; review the provider settlement before confirming.",
+                    NotificationCategory.PAYMENT);
+        }
+        return flagged;
+    }
+
+    public PaymentAttempt confirmLateFlutterwaveReconciliation(Long attemptId, String confirmedBy,
+                                                               String transactionId) {
+        if (transactionId == null || transactionId.isBlank()) {
+            throw new IllegalArgumentException("Flutterwave transaction ID is required");
+        }
+        return confirmInternal(attemptId, confirmedBy, transactionId, true);
+    }
+
+    @Transactional(readOnly = true)
+    public List<PaymentAttempt> flutterwaveReconciliationAttempts() {
+        return attempts.findByPaymentChannelAndStatusAndProviderTransactionIdIsNotNullOrderByCreatedAtAsc(
+                        PaymentChannel.FLUTTERWAVE, PaymentAttemptStatus.FAILED)
+                .stream()
+                .filter(this::isLateFlutterwaveReconciliation)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public PaymentAttempt findLateFlutterwaveReconciliation(Long attemptId) {
+        return attempts.findById(attemptId)
+                .filter(this::isLateFlutterwaveReconciliation)
+                .orElseThrow(() -> new IllegalArgumentException("Late Flutterwave reconciliation not found"));
+    }
+
     public PaymentAttempt confirm(Long id) {
         return confirm(id, null);
     }
@@ -203,6 +282,11 @@ public class PaymentAttemptService {
     }
 
     private PaymentAttempt confirmInternal(Long id, String confirmedBy, String verifiedTransactionId) {
+        return confirmInternal(id, confirmedBy, verifiedTransactionId, false);
+    }
+
+    private PaymentAttempt confirmInternal(Long id, String confirmedBy, String verifiedTransactionId,
+                                           boolean lateFlutterwaveReconciliation) {
         PaymentAttempt attempt = attempts.findByIdForUpdate(id)
             .orElseThrow(() -> new IllegalArgumentException("Payment attempt not found"));
         if (attempt.getPaymentChannel() == PaymentChannel.FLUTTERWAVE && verifiedTransactionId == null) {
@@ -215,8 +299,17 @@ public class PaymentAttemptService {
                 && !attempt.getProviderTransactionId().equals(verifiedTransactionId)) {
             throw new IllegalStateException("Payment attempt is already linked to another provider transaction");
         }
+        boolean alreadyReconciled = attempt.getStatus() == PaymentAttemptStatus.COMPLETED
+                && verifiedTransactionId != null
+                && verifiedTransactionId.equals(attempt.getProviderTransactionId());
+        if (lateFlutterwaveReconciliation && !alreadyReconciled
+                && !isLateFlutterwaveReconciliation(attempt)) {
+            throw new IllegalStateException("Payment attempt is not awaiting Flutterwave reconciliation");
+        }
         if (attempt.getStatus() == PaymentAttemptStatus.COMPLETED) return attempt;
-        if (attempt.getStatus() == PaymentAttemptStatus.FAILED) throw new IllegalStateException("Payment attempt has failed");
+        if (attempt.getStatus() == PaymentAttemptStatus.FAILED && !lateFlutterwaveReconciliation) {
+            throw new IllegalStateException("Payment attempt has failed");
+        }
         Fee fee = fees.findByIdForUpdate(attempt.getFeeId())
                 .orElseThrow(() -> new IllegalArgumentException("Fee not found"));
         BigDecimal allocated = allocations.findByFeeIdOrderByAllocatedAtAsc(fee.getId()).stream()
@@ -224,6 +317,11 @@ public class PaymentAttemptService {
         allocated = netAllocated(fee.getId(), allocated);
         BigDecimal waived = waivers.findByFeeIdAndActiveTrueOrderByApprovedAtDesc(fee.getId()).stream()
             .map(FeeWaiver::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (lateFlutterwaveReconciliation
+                && allocated.add(attempt.getAmount()).add(waived).compareTo(fee.getAmount()) > 0) {
+            throw new IllegalStateException(
+                    "Late Flutterwave payment exceeds the outstanding fee balance; finance review is required");
+        }
         if (allocated.add(attempt.getAmount()).add(waived).compareTo(fee.getAmount()) >= 0) {
             fee.setPaid(true);
             fee.setPaidDate(LocalDate.now());
@@ -267,6 +365,13 @@ public class PaymentAttemptService {
                 "Your payment of UGX " + saved.getAmount() + " for fee #" + saved.getFeeId() + " has been confirmed.",
                 NotificationCategory.PAYMENT);
         return saved;
+    }
+
+    private boolean isLateFlutterwaveReconciliation(PaymentAttempt attempt) {
+        return attempt.getPaymentChannel() == PaymentChannel.FLUTTERWAVE
+                && attempt.getStatus() == PaymentAttemptStatus.FAILED
+                && attempt.getProviderTransactionId() != null
+                && LATE_FLUTTERWAVE_REVIEW_NOTE.equals(attempt.getReviewNote());
     }
 
     public PaymentAttempt reject(Long id, String rejectedBy, String reason) {

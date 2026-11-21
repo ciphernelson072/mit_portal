@@ -51,9 +51,11 @@ services:
       - key: SAMPLE_DATA_ENABLED
         value: "false"
       - key: MFA_ENABLED
-        value: "false"
+        value: "true"
       - key: MFA_REQUIRED_FOR_PRIVILEGED
         value: "false"
+      - key: MFA_REQUIRED_FOR_ALL
+        value: "true"
       - key: MFA_ENCRYPTION_KEY
         sync: false
       - key: INITIAL_ADMIN_BOOTSTRAP_ENABLED

@@ -8,9 +8,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import com.sis.service.OperationalMetricsService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataAccessException;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -23,6 +27,21 @@ import java.util.Map;
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    @Autowired(required = false)
+    private OperationalMetricsService metrics;
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleUnreadableRequest(
+            HttpMessageNotReadableException ex, WebRequest request) {
+        if (metrics != null) metrics.badRequest();
+        logger.warn("Unreadable JSON request for {}", request.getDescription(false));
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                "The submitted JSON contains an invalid or unsupported date or value.",
+                LocalDateTime.now(),
+                request.getDescription(false).replace("uri=", ""));
+        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+    }
 
     // Logger for error tracking and debugging
     private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
@@ -73,6 +92,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleBadCredentialsException(
             BadCredentialsException ex,
             WebRequest request) {
+        if (metrics != null) metrics.authenticationFailure();
 
         logger.warn("Authentication failed: Invalid credentials");
 
@@ -167,6 +187,36 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorResponse, HttpStatus.SERVICE_UNAVAILABLE);
     }
 
+    @ExceptionHandler(DataAccessException.class)
+    public ResponseEntity<ErrorResponse> handleDataAccessFailure(
+            DataAccessException ex,
+            WebRequest request) {
+        if (metrics != null) metrics.serverError();
+        logger.error("Database operation failed for {}", request.getDescription(false), ex);
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.SERVICE_UNAVAILABLE.value(),
+                "The database is temporarily unavailable. Please try again.",
+                LocalDateTime.now(),
+                request.getDescription(false).replace("uri=", "")
+        );
+        return new ResponseEntity<>(errorResponse, HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
+    @ExceptionHandler(HumanVerificationUnavailableException.class)
+    public ResponseEntity<ErrorResponse> handleHumanVerificationUnavailable(
+            HumanVerificationUnavailableException ex,
+            WebRequest request) {
+
+        logger.warn("Human verification provider unavailable for request {}", request.getDescription(false));
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.SERVICE_UNAVAILABLE.value(),
+                ex.getMessage(),
+                LocalDateTime.now(),
+                request.getDescription(false).replace("uri=", "")
+        );
+        return new ResponseEntity<>(errorResponse, HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
     /**
      * Handle general RuntimeExceptions
      * Returns 400 Bad Request for business logic errors
@@ -178,6 +228,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleRuntimeException(
             RuntimeException ex,
             WebRequest request) {
+        if (metrics != null) metrics.badRequest();
 
         logger.error("Runtime exception occurred: {}", ex.getMessage(), ex);
 
@@ -202,6 +253,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleGlobalException(
             Exception ex,
             WebRequest request) {
+        if (metrics != null) metrics.serverError();
 
         logger.error("Unexpected exception occurred", ex);
 
@@ -226,6 +278,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleAccessDeniedException(
             org.springframework.security.access.AccessDeniedException ex,
             WebRequest request) {
+        if (metrics != null) metrics.accessDenied();
 
         logger.warn("Access denied: {}", ex.getMessage());
 

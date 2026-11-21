@@ -72,7 +72,7 @@ async function handlePortalLogin(event) {
       otpGroup.hidden = false;
       otpInput.required = true;
       otpInput.focus();
-      showLoginMessage('Enter the current code from your authenticator app, then sign in again.', true);
+      showLoginMessage('Enter a current authenticator code or one-time recovery code, then sign in again.', true);
       return;
     }
 

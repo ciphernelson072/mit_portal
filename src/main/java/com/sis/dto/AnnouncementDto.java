@@ -1,6 +1,8 @@
 package com.sis.dto;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 public class AnnouncementDto {
     private Long id;
@@ -9,6 +11,13 @@ public class AnnouncementDto {
     private LocalDateTime createdAt;
     private String authorName;
     private String audience;
+    private int inAppRecipientCount;
+    private int emailRecipientCount;
+    private int emailSuccessCount;
+    private int emailFailureCount;
+    private int emailSkippedCount;
+    private List<Long> programIds = new ArrayList<>();
+    private List<Long> courseIds = new ArrayList<>();
 
     public AnnouncementDto() {
     }
@@ -74,4 +83,19 @@ public class AnnouncementDto {
     public void setAudience(String audience) {
         this.audience = audience;
     }
+
+    public int getInAppRecipientCount() { return inAppRecipientCount; }
+    public void setInAppRecipientCount(int inAppRecipientCount) { this.inAppRecipientCount = inAppRecipientCount; }
+    public int getEmailRecipientCount() { return emailRecipientCount; }
+    public void setEmailRecipientCount(int emailRecipientCount) { this.emailRecipientCount = emailRecipientCount; }
+    public int getEmailSuccessCount() { return emailSuccessCount; }
+    public void setEmailSuccessCount(int emailSuccessCount) { this.emailSuccessCount = emailSuccessCount; }
+    public int getEmailFailureCount() { return emailFailureCount; }
+    public void setEmailFailureCount(int emailFailureCount) { this.emailFailureCount = emailFailureCount; }
+    public int getEmailSkippedCount() { return emailSkippedCount; }
+    public void setEmailSkippedCount(int emailSkippedCount) { this.emailSkippedCount = emailSkippedCount; }
+    public List<Long> getProgramIds() { return programIds; }
+    public void setProgramIds(List<Long> programIds) { this.programIds = programIds == null ? new ArrayList<>() : programIds; }
+    public List<Long> getCourseIds() { return courseIds; }
+    public void setCourseIds(List<Long> courseIds) { this.courseIds = courseIds == null ? new ArrayList<>() : courseIds; }
 }

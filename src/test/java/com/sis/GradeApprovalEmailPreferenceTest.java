@@ -105,6 +105,12 @@ class GradeApprovalEmailPreferenceTest {
         service.acknowledgeAssessmentReview(52L, "admin");
         service.approve(52L, "admin");
 
+        verify(notifications).createInAppOnly(
+                42L, "Grade approved", "Your grade for Database Systems has been approved.",
+                com.sis.entity.NotificationCategory.GRADE);
+        verify(notifications, never()).create(
+                42L, "Grade approved", "Your grade for Database Systems has been approved.",
+                com.sis.entity.NotificationCategory.GRADE);
         if (emailEnabled && "student@example.com".equals(contactEmail)) {
             verify(emailService).sendGradeNotification(
                     "student@example.com", "Test Student", "Database Systems", "A");

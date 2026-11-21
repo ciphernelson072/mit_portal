@@ -1100,7 +1100,11 @@ async function loadProfileData() {
     if (basicInputs[2]) basicInputs[2].value = profile.email || '';
     if (basicInputs[3]) basicInputs[3].value = profile.phone || '';
     if (basicInputs[4]) basicInputs[4].value = profile.alternativePhone || '';
-    if (basicInputs[5]) basicInputs[5].value = profile.dateOfBirth || '';
+    if (basicInputs[5]) {
+      basicInputs[5].min = '1900-01-01';
+      basicInputs[5].max = new Date().toISOString().slice(0, 10);
+      basicInputs[5].value = profile.dateOfBirth || '';
+    }
     if (basicInputs[6]) basicInputs[6].value = profile.gender || '';
     if (basicInputs[7]) basicInputs[7].value = profile.address || '';
     if (basicInputs[8]) basicInputs[8].value = profile.city || '';
@@ -1529,6 +1533,17 @@ async function saveStudentProfile() {
   const fields = document.querySelectorAll('#personalTab .form-grid input, #personalTab .form-grid select');
   const [firstName, lastName, email, phone, alternativePhone, dateOfBirth, gender, address, city, country] = Array.from(fields);
   try {
+    if (dateOfBirth.value) {
+      const parsedDate = new Date(`${dateOfBirth.value}T00:00:00`);
+      const today = new Date();
+      if (Number.isNaN(parsedDate.getTime())
+          || dateOfBirth.value < '1900-01-01'
+          || parsedDate.toISOString().slice(0, 10) > today.toISOString().slice(0, 10)) {
+        alert('Date of birth must be a valid date between 1900-01-01 and today.');
+        dateOfBirth.focus();
+        return;
+      }
+    }
     await apiFetch('/student/profile', {
       method: 'PUT',
       body: JSON.stringify({

@@ -67,12 +67,17 @@ class NotificationServiceTest {
         when(repository.save(any(Notification.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        service.create(7L, "Grade published", "Your result is available.", NotificationCategory.GRADE);
+        service.create(7L, "New service request", "A request needs review.", NotificationCategory.SYSTEM);
+        service.create(7L, "Staff leave request submitted", "A staff member requested leave.", NotificationCategory.SYSTEM);
+        service.create(7L, "Student grade appeal submitted", "An appeal needs review.", NotificationCategory.GRADE);
+        service.create(7L, "Attendance dispute updated", "A dispute needs review.", NotificationCategory.SYSTEM);
+        service.createInAppOnly(7L, "Grade approved", "Your result is available.", NotificationCategory.GRADE);
+        service.createInAppOnly(7L, "New announcement", "Campus update", NotificationCategory.ANNOUNCEMENT);
 
-        verify(emailDeliveries).enqueue(any(Notification.class));
+        verify(emailDeliveries, times(4)).enqueue(any(Notification.class));
 
         preference.setSettingsJson("{\"privacy\":[false,false,false]}");
         service.create(7L, "Another update", "In-app only.", NotificationCategory.SYSTEM);
-        verify(emailDeliveries, times(1)).enqueue(any(Notification.class));
+        verify(emailDeliveries, times(4)).enqueue(any(Notification.class));
     }
 }
