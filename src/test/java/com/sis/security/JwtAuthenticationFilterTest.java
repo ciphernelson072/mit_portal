@@ -117,6 +117,54 @@ class JwtAuthenticationFilterTest {
                 .anyMatch(cookie -> cookie.startsWith("access_token=") && cookie.contains("Max-Age=0")));
     }
 
+    @Test
+    void optionalMfaPolicyAllowsAnEnrollmentTokenToReachStaffLogin() throws ServletException, IOException {
+        when(jwtService.validateToken("enrollment-token")).thenReturn(true);
+        when(jwtService.getUsername("enrollment-token")).thenReturn("admin");
+        when(jwtService.getCredentialVersion("enrollment-token")).thenReturn(0);
+        when(jwtService.isMfaEnrollmentToken("enrollment-token")).thenReturn(true);
+        when(jwtService.isMfaRequired("enrollment-token")).thenReturn(true);
+        when(jwtService.isMfaVerified("enrollment-token")).thenReturn(false);
+        when(userDetailsService.loadUserByUsername("admin"))
+                .thenReturn(User.withUsername("admin").password("encoded").authorities("ADMIN").build());
+        when(userDetailsService.getCredentialVersion("admin")).thenReturn(Optional.of(0));
+
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/admin-login.html");
+        request.setRequestURI("/admin-login.html");
+        request.setCookies(new Cookie(JwtAuthenticationFilter.ACCESS_TOKEN_COOKIE, "enrollment-token"));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        filter.doFilter(request, response, chain);
+
+        assertEquals(request, chain.getRequest());
+        assertEquals(200, response.getStatus());
+    }
+
+    @Test
+    void enforcedMfaEnrollmentTokenCanStillReachStaffLogin() throws ServletException, IOException {
+        ReflectionTestUtils.setField(filter, "mfaRequiredForAll", true);
+        when(jwtService.validateToken("enrollment-token")).thenReturn(true);
+        when(jwtService.getUsername("enrollment-token")).thenReturn("admin");
+        when(jwtService.getCredentialVersion("enrollment-token")).thenReturn(0);
+        when(jwtService.isMfaEnrollmentToken("enrollment-token")).thenReturn(true);
+        when(jwtService.isMfaRequired("enrollment-token")).thenReturn(true);
+        when(userDetailsService.loadUserByUsername("admin"))
+                .thenReturn(User.withUsername("admin").password("encoded").authorities("ADMIN").build());
+        when(userDetailsService.getCredentialVersion("admin")).thenReturn(Optional.of(0));
+
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/admin-login.html");
+        request.setRequestURI("/admin-login.html");
+        request.setCookies(new Cookie(JwtAuthenticationFilter.ACCESS_TOKEN_COOKIE, "enrollment-token"));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        filter.doFilter(request, response, chain);
+
+        assertEquals(request, chain.getRequest());
+        assertEquals(200, response.getStatus());
+    }
+
     private void configureRestrictedUser() {
         when(jwtService.validateToken("restricted-token")).thenReturn(true);
         when(jwtService.getUsername("restricted-token")).thenReturn("new-student");

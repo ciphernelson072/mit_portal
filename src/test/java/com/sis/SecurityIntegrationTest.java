@@ -279,6 +279,56 @@ class SecurityIntegrationTest {
     }
 
     @Test
+    void usersInEveryRoleCanSignInWithoutEnrollingWhenMfaIsOptional() {
+        boolean originalMfaEnabledSetting = (boolean) ReflectionTestUtils.getField(authController, "mfaEnabled");
+        boolean originalAllRequired =
+                (boolean) ReflectionTestUtils.getField(authController, "mfaRequiredForAll");
+        boolean originalPrivilegedRequired =
+                (boolean) ReflectionTestUtils.getField(authController, "mfaRequiredForPrivileged");
+        ReflectionTestUtils.setField(authController, "mfaEnabled", true);
+        ReflectionTestUtils.setField(authController, "mfaRequiredForAll", false);
+        ReflectionTestUtils.setField(authController, "mfaRequiredForPrivileged", false);
+
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            Map<String, String> credentialsByUser = Map.of(
+                    "admin", "admin123",
+                    "teacher1", "teacher123",
+                    "student1", "student123");
+            for (Map.Entry<String, String> credentials : credentialsByUser.entrySet()) {
+                User user = userRepository.findByUsername(credentials.getKey()).orElseThrow();
+                boolean originalMfaEnabled = Boolean.TRUE.equals(user.getMfaEnabled());
+                String originalMfaSecret = user.getMfaSecret();
+                user.setMfaEnabled(false);
+                user.setMfaSecret(null);
+                userRepository.saveAndFlush(user);
+                try {
+                    ResponseEntity<Map> login = restTemplate.postForEntity(
+                            "/api/auth/login",
+                            new HttpEntity<>(Map.of(
+                                    "username", credentials.getKey(),
+                                    "password", credentials.getValue()), headers),
+                            Map.class);
+
+                    assertEquals(HttpStatus.OK, login.getStatusCode(), credentials.getKey());
+                    assertFalse(Boolean.TRUE.equals(login.getBody().get("mfaEnrollmentRequired")));
+                    assertTrue(login.getHeaders().getOrEmpty(HttpHeaders.SET_COOKIE).stream()
+                            .anyMatch(cookie -> cookie.startsWith("access_token=")));
+                } finally {
+                    user.setMfaEnabled(originalMfaEnabled);
+                    user.setMfaSecret(originalMfaSecret);
+                    userRepository.saveAndFlush(user);
+                }
+            }
+        } finally {
+            ReflectionTestUtils.setField(authController, "mfaEnabled", originalMfaEnabledSetting);
+            ReflectionTestUtils.setField(authController, "mfaRequiredForAll", originalAllRequired);
+            ReflectionTestUtils.setField(authController, "mfaRequiredForPrivileged", originalPrivilegedRequired);
+        }
+    }
+
+    @Test
     void privilegedLoginIsRestrictedToMfaEnrollmentUntilVerification() {
         User user = userRepository.findByUsername("admin").orElseThrow();
         boolean originalMfaEnabled = Boolean.TRUE.equals(user.getMfaEnabled());

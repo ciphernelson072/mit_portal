@@ -55,7 +55,7 @@ services:
       - key: MFA_REQUIRED_FOR_PRIVILEGED
         value: "false"
       - key: MFA_REQUIRED_FOR_ALL
-        value: "true"
+        value: "false"
       - key: MFA_ENCRYPTION_KEY
         sync: false
       - key: INITIAL_ADMIN_BOOTSTRAP_ENABLED

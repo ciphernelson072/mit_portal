@@ -85,11 +85,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         && userDetailsService.getCredentialVersion(username)
                                 .map(tokenCredentialVersion::equals)
                                 .orElse(false);
+                boolean mfaRequiredForUser = mfaRequiredForAll
+                        || (mfaRequiredForPrivileged
+                                && MfaPolicy.hasPrivilegedAuthority(userDetails.getAuthorities()));
                 if (userDetails.isEnabled() && credentialsAreCurrent
-                        && jwtService.isMfaEnrollmentToken(token)) {
-                    if ((!mfaRequiredForAll && !mfaRequiredForPrivileged)
-                            || !jwtService.isMfaRequired(token)
-                            || !isAllowedDuringMfaEnrollment(request, userDetails)) {
+                        && jwtService.isMfaEnrollmentToken(token)
+                        && mfaRequiredForUser
+                        && jwtService.isMfaRequired(token)) {
+                    if (!isAllowedDuringMfaEnrollment(request, userDetails)) {
                         expireAuthCookies(response);
                         response.sendError(HttpServletResponse.SC_FORBIDDEN,
                                 "MFA enrollment access is restricted");
@@ -176,6 +179,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if ("GET".equalsIgnoreCase(request.getMethod())) {
             return "/api/auth/mfa/status".equals(path)
                     || "/account-security.html".equals(path)
+                    || "/".equals(path)
+                    || "/index.html".equals(path)
+                    || "/portal-login.html".equals(path)
+                    || "/admin-login.html".equals(path)
                     || ("/force-password-change.html".equals(path)
                             && userDetails.getAuthorities().stream()
                                     .anyMatch(authority -> "PASSWORD_CHANGE_REQUIRED"
@@ -192,6 +199,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
         return "/api/auth/mfa/setup".equals(path)
                 || "/api/auth/mfa/verify".equals(path)
+                || "/api/auth/login".equals(path)
                 || "/api/auth/change-password".equals(path)
                 || "/api/auth/logout".equals(path);
     }
