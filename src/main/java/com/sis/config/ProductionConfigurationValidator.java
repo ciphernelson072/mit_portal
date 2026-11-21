@@ -41,16 +41,7 @@ public class ProductionConfigurationValidator {
     @Value("${app.mail.enabled:true}")
     private boolean mailEnabled;
 
-    @Value("${spring.mail.host:}")
-    private String mailHost;
-
-    @Value("${spring.mail.username:}")
-    private String mailUsername;
-
-    @Value("${spring.mail.password:}")
-    private String mailPassword;
-
-    @Value("${app.mail.provider:smtp}")
+    @Value("${app.mail.provider:brevo}")
     private String mailProvider;
 
     @Value("${app.mail.api-key:}")
@@ -68,11 +59,32 @@ public class ProductionConfigurationValidator {
     @Value("${app.security.cookie-same-site:Strict}")
     private String cookieSameSite;
 
+    @Value("${app.security.mfa.enabled:false}")
+    private boolean mfaEnabled;
+
+    @Value("${app.security.mfa.required-for-privileged:false}")
+    private boolean mfaRequiredForPrivileged;
+
+    @Value("${app.security.mfa.required-for-all:false}")
+    private boolean mfaRequiredForAll;
+
+    @Value("${app.security.mfa.encryption-key:}")
+    private String mfaEncryptionKey;
+
     @Value("${sis.sample-data.enabled:false}")
     private boolean sampleDataEnabled;
 
     @Value("${spring.flyway.baseline-on-migrate:false}")
     private boolean flywayBaselineOnMigrate;
+
+    @Value("${app.deployment.instance-count:1}")
+    private int instanceCount;
+
+    @Value("${app.rate-limit.store:memory}")
+    private String rateLimitStore;
+
+    @Value("${app.file-storage.adapter:filesystem}")
+    private String fileStorageAdapter;
 
     @PostConstruct
     void validate() {
@@ -96,24 +108,29 @@ public class ProductionConfigurationValidator {
             throw new IllegalStateException(
                     "FLYWAY_BASELINE_ON_MIGRATE must be false in production; review and baseline existing databases explicitly.");
         }
+        if (instanceCount != 1) {
+            throw new IllegalStateException(
+                    "APP_INSTANCE_COUNT must be 1; horizontal scaling requires shared rate-limit and file-storage implementation.");
+        }
+        if (!"memory".equalsIgnoreCase(rateLimitStore)) {
+            throw new IllegalStateException(
+                    "RATE_LIMIT_STORE must be memory until a shared distributed rate limiter is implemented.");
+        }
+        if (!"filesystem".equalsIgnoreCase(fileStorageAdapter)) {
+            throw new IllegalStateException(
+                    "FILE_STORAGE_ADAPTER must be filesystem until shared object storage is implemented.");
+        }
         if (uploadDirectory == null || uploadDirectory.isBlank()) {
             throw new IllegalStateException("UPLOAD_DIR must be configured in production.");
         }
         if (mailEnabled) {
-            if ("brevo".equalsIgnoreCase(mailProvider)) {
-                requireConfigured("BREVO_API_KEY", mailApiKey);
-                rejectPlaceholder("BREVO_API_KEY", mailApiKey);
-                requireConfigured("MAIL_FROM_EMAIL", mailApiFromEmail);
-                rejectPlaceholder("MAIL_FROM_EMAIL", mailApiFromEmail);
-            } else if ("smtp".equalsIgnoreCase(mailProvider)) {
-                requireConfigured("MAIL_HOST", mailHost);
-                requireConfigured("MAIL_USERNAME", mailUsername);
-                requireConfigured("MAIL_PASSWORD", mailPassword);
-                requireConfigured("MAIL_FROM_EMAIL", mailApiFromEmail);
-                rejectPlaceholder("MAIL_FROM_EMAIL", mailApiFromEmail);
-            } else {
-                throw new IllegalStateException("MAIL_PROVIDER must be smtp or brevo.");
+            if (!"brevo".equalsIgnoreCase(mailProvider)) {
+                throw new IllegalStateException("MAIL_PROVIDER must be brevo in production.");
             }
+            requireConfigured("BREVO_API_KEY", mailApiKey);
+            rejectPlaceholder("BREVO_API_KEY", mailApiKey);
+            requireConfigured("MAIL_FROM_EMAIL", mailApiFromEmail);
+            rejectPlaceholder("MAIL_FROM_EMAIL", mailApiFromEmail);
         }
         requireAtLeast("PAYMENT_WEBHOOK_SECRET", paymentWebhookSecret, 32);
         if (!"Strict".equalsIgnoreCase(cookieSameSite)) {
@@ -122,6 +139,27 @@ public class ProductionConfigurationValidator {
         }
         if (!cookieSecure) {
             throw new IllegalStateException("COOKIE_SECURE must be true in production.");
+        }
+        if (mfaRequiredForAll && !mfaEnabled) {
+            throw new IllegalStateException(
+                    "MFA_REQUIRED_FOR_ALL=true requires MFA_ENABLED=true.");
+        }
+        if (mfaRequiredForPrivileged && !mfaEnabled) {
+            throw new IllegalStateException(
+                    "MFA_REQUIRED_FOR_PRIVILEGED=true requires MFA_ENABLED=true.");
+        }
+        if (mfaEnabled || mfaRequiredForAll || mfaRequiredForPrivileged) {
+            requireConfigured("MFA_ENCRYPTION_KEY", mfaEncryptionKey);
+            try {
+                byte[] key = java.util.Base64.getDecoder().decode(mfaEncryptionKey);
+                if (key.length != 32) {
+                    throw new IllegalStateException(
+                            "MFA_ENCRYPTION_KEY must decode to exactly 32 bytes.");
+                }
+            } catch (IllegalArgumentException ex) {
+                throw new IllegalStateException(
+                        "MFA_ENCRYPTION_KEY must be a valid Base64-encoded 32-byte key.", ex);
+            }
         }
         try {
             Path uploadPath = Path.of(uploadDirectory);

@@ -10,6 +10,7 @@ import com.sis.service.AdmissionDocumentService;
 import com.sis.service.AdmissionService;
 import com.sis.service.EmailService;
 import com.sis.service.PublicAdmissionSubmissionService;
+import com.sis.service.TurnstileVerificationService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -33,17 +34,26 @@ public class PublicAdmissionsController {
     private final EmailService emailService;
     private final AdmissionDocumentService admissionDocuments;
     private final PublicAdmissionSubmissionService submissions;
+    private final TurnstileVerificationService turnstile;
 
     public PublicAdmissionsController(AdmissionService admissionService, ProgramRepository programRepository,
                                       AcademicYearRepository academicYearRepository, EmailService emailService,
                                       AdmissionDocumentService admissionDocuments,
-                                      PublicAdmissionSubmissionService submissions) {
+                                      PublicAdmissionSubmissionService submissions,
+                                      TurnstileVerificationService turnstile) {
         this.admissionService = admissionService;
         this.programRepository = programRepository;
         this.academicYearRepository = academicYearRepository;
         this.emailService = emailService;
         this.admissionDocuments = admissionDocuments;
         this.submissions = submissions;
+        this.turnstile = turnstile;
+    }
+
+    @GetMapping("/security-config")
+    public Map<String, Object> securityConfig() {
+        String siteKey = turnstile.getSiteKey();
+        return Map.of("turnstileEnabled", turnstile.isEnabled(), "turnstileSiteKey", siteKey == null ? "" : siteKey);
     }
 
     @GetMapping("/programs")
@@ -81,6 +91,7 @@ public class PublicAdmissionsController {
 
     @PostMapping("/applications")
     public ResponseEntity<Map<String, Object>> submit(@Valid @RequestBody AdmissionApplicationRequest request) {
+        turnstile.verify(request.getTurnstileToken(), "admission_submit");
         if (admissionDocuments.hasActiveRequiredDocuments()) {
             throw new IllegalStateException(
                     "Upload the required admission documents using the application form.");
@@ -93,6 +104,7 @@ public class PublicAdmissionsController {
     public ResponseEntity<Map<String, Object>> submitWithDocuments(
             @Valid @ModelAttribute AdmissionApplicationRequest request,
             MultipartHttpServletRequest multipartRequest) {
+        turnstile.verify(request.getTurnstileToken(), "admission_submit");
         AdmissionApplication application = submissions.submit(request, multipartRequest.getFileMap());
         return applicationResponse(application);
     }
@@ -128,6 +140,7 @@ public class PublicAdmissionsController {
 
     @PostMapping("/applications/status")
     public Map<String, Object> status(@Valid @RequestBody AdmissionStatusRequest request) {
+        turnstile.verify(request.getTurnstileToken(), "application_status");
         AdmissionApplication application = admissionService.findStatus(request);
         return Map.of(
                 "applicationNumber", application.getApplicationNumber(),

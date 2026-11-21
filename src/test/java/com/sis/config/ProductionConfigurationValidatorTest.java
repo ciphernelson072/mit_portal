@@ -243,7 +243,7 @@ class ProductionConfigurationValidatorTest {
     }
 
     @Test
-    void shouldStartWithGmailSmtpAndAppPasswordConfiguration() {
+    void shouldRejectSmtpWhenProductionMailIsEnabled() {
         contextRunner
                 .withPropertyValues(
                         "spring.profiles.active=prod",
@@ -266,8 +266,111 @@ class ProductionConfigurationValidatorTest {
                         "app.security.cookie-same-site=Strict"
                 )
                 .run(context -> {
+                    assertThat(context).hasFailed();
+                    assertThat(context.getStartupFailure())
+                            .hasStackTraceContaining("MAIL_PROVIDER must be brevo in production");
+                });
+    }
+
+    @Test
+    void shouldRejectUniversalMfaWithoutEncryptionKey() {
+        contextRunner
+                .withPropertyValues(
+                        "spring.profiles.active=prod",
+                        "jwt.secret=0123456789abcdef0123456789abcdef",
+                        "spring.datasource.url=jdbc:h2:mem:prod-mfa-all-test;MODE=MySQL",
+                        "spring.datasource.username=test-user",
+                        "spring.datasource.password=test-password",
+                        "app.frontend.url=https://portal.example",
+                        "cors.allowed-origins=https://portal.example",
+                        "file.upload.directory=./target/test-uploads",
+                        "app.mail.enabled=false",
+                        "app.finance.webhook.secret=0123456789abcdef0123456789abcdef",
+                        "app.security.cookie-secure=true",
+                        "app.security.cookie-same-site=Strict",
+                        "app.security.mfa.enabled=true",
+                        "app.security.mfa.required-for-all=true",
+                        "app.security.mfa.encryption-key="
+                )
+                .run(context -> {
+                    assertThat(context).hasFailed();
+                    assertThat(context.getStartupFailure())
+                            .hasStackTraceContaining("MFA_ENCRYPTION_KEY");
+                });
+    }
+
+    @Test
+    void shouldStartUniversalMfaWithValidEncryptionKey() {
+        contextRunner
+                .withPropertyValues(
+                        "spring.profiles.active=prod",
+                        "jwt.secret=0123456789abcdef0123456789abcdef",
+                        "spring.datasource.url=jdbc:h2:mem:prod-mfa-all-valid-test;MODE=MySQL",
+                        "spring.datasource.username=test-user",
+                        "spring.datasource.password=test-password",
+                        "app.frontend.url=https://portal.example",
+                        "cors.allowed-origins=https://portal.example",
+                        "file.upload.directory=./target/test-uploads",
+                        "app.mail.enabled=false",
+                        "app.finance.webhook.secret=0123456789abcdef0123456789abcdef",
+                        "app.security.cookie-secure=true",
+                        "app.security.cookie-same-site=Strict",
+                        "app.security.mfa.enabled=true",
+                        "app.security.mfa.required-for-all=true",
+                        "app.security.mfa.encryption-key=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
+                )
+                .run(context -> {
                     assertThat(context).hasNotFailed();
-                    assertThat(context).hasSingleBean(ProductionConfigurationValidator.class);
+                });
+    }
+
+    @Test
+    void shouldRejectUnsupportedProductionReplicaCount() {
+        contextRunner
+                .withPropertyValues(
+                        "spring.profiles.active=prod",
+                        "jwt.secret=0123456789abcdef0123456789abcdef",
+                        "spring.datasource.url=jdbc:h2:mem:prod-replicas-test;MODE=MySQL",
+                        "spring.datasource.username=test-user",
+                        "spring.datasource.password=test-password",
+                        "app.frontend.url=https://portal.example",
+                        "cors.allowed-origins=https://portal.example",
+                        "file.upload.directory=./target/test-uploads",
+                        "app.mail.enabled=false",
+                        "app.finance.webhook.secret=0123456789abcdef0123456789abcdef",
+                        "app.security.cookie-secure=true",
+                        "app.security.cookie-same-site=Strict",
+                        "app.deployment.instance-count=2"
+                )
+                .run(context -> {
+                    assertThat(context).hasFailed();
+                    assertThat(context.getStartupFailure())
+                            .hasStackTraceContaining("APP_INSTANCE_COUNT must be 1");
+                });
+    }
+
+    @Test
+    void shouldRejectUnsupportedSharedStorageConfiguration() {
+        contextRunner
+                .withPropertyValues(
+                        "spring.profiles.active=prod",
+                        "jwt.secret=0123456789abcdef0123456789abcdef",
+                        "spring.datasource.url=jdbc:h2:mem:prod-storage-test;MODE=MySQL",
+                        "spring.datasource.username=test-user",
+                        "spring.datasource.password=test-password",
+                        "app.frontend.url=https://portal.example",
+                        "cors.allowed-origins=https://portal.example",
+                        "file.upload.directory=./target/test-uploads",
+                        "app.mail.enabled=false",
+                        "app.finance.webhook.secret=0123456789abcdef0123456789abcdef",
+                        "app.security.cookie-secure=true",
+                        "app.security.cookie-same-site=Strict",
+                        "app.rate-limit.store=redis"
+                )
+                .run(context -> {
+                    assertThat(context).hasFailed();
+                    assertThat(context.getStartupFailure())
+                            .hasStackTraceContaining("RATE_LIMIT_STORE must be memory");
                 });
     }
 

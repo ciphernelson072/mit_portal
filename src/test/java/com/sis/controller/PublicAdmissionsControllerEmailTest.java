@@ -11,6 +11,7 @@ import com.sis.service.AdmissionService;
 import com.sis.service.EmailService;
 import com.sis.service.AdmissionDocumentService;
 import com.sis.service.PublicAdmissionSubmissionService;
+import com.sis.service.TurnstileVerificationService;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 
@@ -30,7 +31,19 @@ class PublicAdmissionsControllerEmailTest {
     private final PublicAdmissionSubmissionService submissions = mock(PublicAdmissionSubmissionService.class);
     private final PublicAdmissionsController controller =
             new PublicAdmissionsController(
-                    admissionService, programs, academicYears, emailService, admissionDocuments, submissions);
+                    admissionService, programs, academicYears, emailService, admissionDocuments, submissions,
+                    new TurnstileVerificationService(false, "", ""));
+
+    @Test
+    void returnsAnEmptyPublicSiteKeyWhenTurnstileHasNoKey() {
+        PublicAdmissionsController misconfiguredController = new PublicAdmissionsController(
+                admissionService, programs, academicYears, emailService, admissionDocuments, submissions,
+                new TurnstileVerificationService(true, null, "server-secret"));
+
+        assertThat(misconfiguredController.securityConfig())
+                .containsEntry("turnstileEnabled", true)
+                .containsEntry("turnstileSiteKey", "");
+    }
 
     @Test
     void sendsReceiptAfterApplicationIsSavedAndReportsEmailSuccess() {
