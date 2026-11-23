@@ -14,6 +14,7 @@ import com.sis.repository.AccreditationRecordRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.http.HttpHeaders;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -35,6 +36,37 @@ class FileUploadControllerTest {
 
         assertEquals(listing, controller.listStoredFiles().getBody());
         verify(files).listStoredFiles();
+    }
+
+    @Test
+    void documentDownloadsUseAttachmentAndNosniffHeaders() throws IOException {
+        FileUploadService files = mock(FileUploadService.class);
+        when(files.normalizeRelativePath("documents/17/report.pdf")).thenReturn("documents/17/report.pdf");
+        when(files.getFileAsBytes("documents/17/report.pdf")).thenReturn("%PDF-1.7".getBytes());
+        FileUploadController controller = new FileUploadController();
+        ReflectionTestUtils.setField(controller, "fileUploadService", files);
+
+        var response = controller.downloadFile("documents/17/report.pdf");
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("application/octet-stream", response.getHeaders().getContentType().toString());
+        assertTrue(response.getHeaders().getFirst(HttpHeaders.CONTENT_DISPOSITION).startsWith("attachment;"));
+        assertEquals("nosniff", response.getHeaders().getFirst("X-Content-Type-Options"));
+    }
+
+    @Test
+    void profileImageDownloadsRemainInline() throws IOException {
+        FileUploadService files = mock(FileUploadService.class);
+        when(files.normalizeRelativePath("students/17_photo.png")).thenReturn("students/17_photo.png");
+        when(files.getFileAsBytes("students/17_photo.png")).thenReturn(new byte[] {(byte) 0x89, 'P', 'N', 'G'});
+        FileUploadController controller = new FileUploadController();
+        ReflectionTestUtils.setField(controller, "fileUploadService", files);
+
+        var response = controller.downloadFile("students/17_photo.png");
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("image/png", response.getHeaders().getContentType().toString());
+        assertTrue(response.getHeaders().getFirst(HttpHeaders.CONTENT_DISPOSITION).startsWith("inline;"));
     }
 
     @Test

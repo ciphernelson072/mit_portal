@@ -4,7 +4,7 @@ window.emailVerificationToken = null;
 
 function setVerificationStatus(message, error = false) {
   verificationStatus.textContent = message;
-  verificationStatus.style.color = error ? 'var(--danger, #b42318)' : '';
+  verificationStatus.classList.toggle('is-error', error);
 }
 
 async function verifyEmail() {

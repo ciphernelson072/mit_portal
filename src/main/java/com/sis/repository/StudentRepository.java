@@ -48,6 +48,30 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
             + "order by student.fullName")
     List<Student> findByCourseIdIncludingRegistrations(@Param("courseId") Long courseId);
 
+    @Query(value = "SELECT COUNT(DISTINCT roster.student_id) FROM ("
+            + "SELECT course_students.student_id AS student_id "
+            + "FROM course_students JOIN courses course ON course.id = course_students.course_id "
+            + "WHERE course.teacher_id = :teacherId "
+            + "UNION "
+            + "SELECT registration.student_id AS student_id "
+            + "FROM course_registrations registration "
+            + "JOIN course_sections section ON section.id = registration.section_id "
+            + "JOIN courses course ON course.id = section.course_id "
+            + "WHERE course.teacher_id = :teacherId AND registration.status = 'REGISTERED' "
+            + "UNION "
+            + "SELECT unit_students.student_id AS student_id "
+            + "FROM course_unit_students unit_students "
+            + "JOIN course_units unit ON unit.id = unit_students.course_unit_id "
+            + "WHERE unit.teacher_id = :teacherId "
+            + "UNION "
+            + "SELECT registration.student_id AS student_id "
+            + "FROM course_registrations registration "
+            + "JOIN course_sections section ON section.id = registration.section_id "
+            + "JOIN course_units unit ON unit.course_id = section.course_id "
+            + "WHERE unit.teacher_id = :teacherId AND registration.status = 'REGISTERED'"
+            + ") roster", nativeQuery = true)
+    long countDistinctStudentsTaughtByTeacher(@Param("teacherId") Long teacherId);
+
     @Query("SELECT s.user.id FROM Student s WHERE s.id = :studentId")
     Optional<Long> findUserIdByStudentId(@Param("studentId") Long studentId);
 

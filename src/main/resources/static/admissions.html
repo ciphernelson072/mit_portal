@@ -30,7 +30,7 @@
         <p>After you apply, we will email a receipt and application number if email delivery is available. This does not create a portal login. An administrator must accept and enroll you first; then we will email your username and a one-time temporary password. You must change that password before accessing student services. Complete the fields below using accurate contact information.</p>
         <form id="admissionForm" class="field-grid">
           <label>Applicant name<input id="applicantName" autocomplete="name" required></label>
-          <label>Email<input id="email" type="email" autocomplete="email" required></label>
+          <label>Email<input id="email" type="email" maxlength="254" autocomplete="email" required></label>
           <label>Phone (optional)<input id="phone" type="tel" autocomplete="tel"></label>
           <label>Programme<select id="programId" required disabled><option value="">Loading programmes...</option></select></label>
           <label>Academic year<select id="academicYearId" required disabled><option value="">Loading academic year...</option></select></label>
@@ -55,7 +55,7 @@
         <h2>Check application status</h2>
         <form id="statusForm" class="field-grid">
           <label>Application number<input id="applicationNumber" autocomplete="off" required></label>
-          <label>Email used on application<input id="statusEmail" type="email" autocomplete="email" required></label>
+          <label>Email used on application<input id="statusEmail" type="email" maxlength="254" autocomplete="email" required></label>
           <div class="admission-turnstile" id="statusTurnstile" hidden></div>
           <button class="button secondary" id="checkApplicationStatusButton" type="submit" disabled>Check status</button>
         </form>

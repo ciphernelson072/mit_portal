@@ -1,5 +1,17 @@
 # Security Changes Summary
 
+## Security hardening update (23 November 2026)
+
+The review confirmed no exploitable vulnerability, but identified four
+hardening gaps. The current working tree now validates upload signatures,
+requires cookie-backed CSRF tokens for unsafe browser requests, rejects inline
+scripts/styles and removes the jsDelivr CSP allowance, and fails production
+startup unless privileged MFA and a valid persistent key are configured.
+Focused backend and frontend checks passed. These changes are not live yet:
+the active Render image still emits the previous permissive CSP. See
+[Security hardening and release checks](./SECURITY_HARDENING.md) for the exact
+release gate and live verification evidence.
+
 ## Permission model
 
 The project now uses a blended authorization model:
@@ -210,9 +222,13 @@ credential version and revokes refresh sessions, requiring the user to sign in a
 Migration V25 clears malformed legacy seeds and disables MFA for those accounts;
 users with a cleared seed must enroll again.
 
-Because CSRF tokens are not used, the application now rejects startup unless
-`COOKIE_SAME_SITE` is `Strict`; deployments must not relax this setting without
-implementing and testing explicit CSRF defenses.
+This earlier security note described the state before cookie-backed CSRF
+protection was implemented. The current configuration uses
+`CookieCsrfTokenRepository` for unsafe requests authenticated by access-token
+cookies, and the shared browser fetch wrapper obtains `/api/auth/csrf` and sends
+`X-XSRF-TOKEN`. Origin validation and the secure SameSite cookie policy remain
+additional protections. The current implementation is described in
+[Security hardening and release checks](./SECURITY_HARDENING.md).
 
 Profile → Security now displays the refresh sessions returned by the authenticated
 session API and supports revoking an individual refresh token or signing out

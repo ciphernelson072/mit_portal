@@ -16,6 +16,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.Cookie;
 import java.util.Arrays;
 import java.util.Set;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -24,6 +25,8 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /**
@@ -41,6 +44,23 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 @EnableMethodSecurity
 public class SecurityConfig {
+
+    private static final RequestMatcher COOKIE_AUTH_CSRF_MATCHER = request -> {
+        String method = request.getMethod();
+        if ("GET".equalsIgnoreCase(method) || "HEAD".equalsIgnoreCase(method)
+                || "TRACE".equalsIgnoreCase(method) || "OPTIONS".equalsIgnoreCase(method)) {
+            return false;
+        }
+        Cookie[] cookies = request.getCookies();
+        boolean hasAuthCookie = cookies != null && Arrays.stream(cookies).anyMatch(cookie ->
+                JwtAuthenticationFilter.ACCESS_TOKEN_COOKIE.equals(cookie.getName())
+                        || "refresh_token".equals(cookie.getName()));
+        String authorization = request.getHeader("Authorization");
+        boolean bearerOnly = authorization != null
+                && authorization.regionMatches(true, 0, "Bearer ", 0, "Bearer ".length())
+                && !hasAuthCookie;
+        return !bearerOnly;
+    };
 
     private final CustomUserDetailsService userDetailsService;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -82,31 +102,36 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        CookieCsrfTokenRepository csrfTokenRepository = CookieCsrfTokenRepository.withHttpOnlyFalse();
+        csrfTokenRepository.setCookiePath("/");
         http
-                // Cookies remain SameSite=Strict. Unsafe API requests that include
-                // an Origin header are checked against the configured allow-list.
-                .csrf(csrf -> csrf.disable())
+                // Browser requests authenticated by ambient JWT cookies must prove
+                // possession of a same-origin CSRF token. Bearer-only API clients
+                // remain stateless and do not need a CSRF token.
+                .csrf(csrf -> csrf
+                        .csrfTokenRepository(csrfTokenRepository)
+                        .requireCsrfProtectionMatcher(COOKIE_AUTH_CSRF_MATCHER))
                 .cors(cors -> {}) // delegates to config.WebConfig's CorsConfigurationSource
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .headers(headers -> headers
-                        // A conservative CSP: everything defaults to same-origin only. The one
-                        // external dependencies are Chart.js and the optional Turnstile widget;
-                        // explicitly allow-list their origins rather than opening CSP broadly.
-                        // unsafe-inline is required for style-src because the pages use inline
-                        // style="" attributes throughout; tightening that is real follow-up work
-                        // (moving inline styles into the stylesheet), not something to silently
-                        // paper over by dropping the header entirely.
+                        // Inline scripts, event handlers, and styles are externalized so the
+                        // policy can reject all inline code and style injection.
                         .contentSecurityPolicy(csp -> csp.policyDirectives(
                                 "default-src 'self'; "
-                                        + "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://challenges.cloudflare.com; "
-                                        + "style-src 'self' 'unsafe-inline'; "
+                                        + "script-src 'self' https://challenges.cloudflare.com; "
+                                        + "script-src-elem 'self' https://challenges.cloudflare.com; "
+                                        + "script-src-attr 'none'; "
+                                        + "style-src 'self'; "
+                                        + "style-src-elem 'self'; "
+                                        + "style-src-attr 'none'; "
                                         + "img-src 'self' data:; "
                                         + "font-src 'self'; "
-                                        + "connect-src 'self'; "
+                                        + "connect-src 'self' https://challenges.cloudflare.com; "
                                         + "frame-src 'self' https://challenges.cloudflare.com; "
                                         + "frame-ancestors 'none'; "
                                         + "base-uri 'self'; "
-                                        + "form-action 'self'"
+                                        + "form-action 'self'; "
+                                        + "object-src 'none'"
                         ))
                         .frameOptions(frame -> frame.deny())
                 )

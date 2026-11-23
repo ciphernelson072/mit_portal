@@ -17,7 +17,7 @@ class FileUploadFlowTest {
     private FileUploadService fileUploadService;
 
     @Test
-    void studentDocumentUploadAcceptsPdfWithBrowserLikeOctetStreamMime() throws Exception {
+    void studentDocumentUploadRejectsPdfWithMismatchedBrowserMime() {
         MockMultipartFile file = new MockMultipartFile(
                 "file",
                 "report.pdf",
@@ -25,10 +25,7 @@ class FileUploadFlowTest {
                 "%PDF-1.4 test content".getBytes(StandardCharsets.UTF_8)
         );
 
-        String path = fileUploadService.uploadStudentDocument(file, 42L);
-
-        assertTrue(path.startsWith("documents/42/"));
-        assertArrayEquals("%PDF-1.4 test content".getBytes(StandardCharsets.UTF_8),
-                fileUploadService.getFileAsBytes(path));
+        assertThrows(IllegalArgumentException.class,
+                () -> fileUploadService.uploadStudentDocument(file, 42L));
     }
 }

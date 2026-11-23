@@ -44,6 +44,9 @@ public class User {
     @Column(name = "email_normalized", length = 255)
     private String emailNormalized;
 
+    @Column(name = "email_verified", nullable = false)
+    private boolean emailVerified = true;
+
     // Phone number for contact purposes
     @Column
     private String phone;
@@ -137,6 +140,14 @@ public class User {
     public void setEmail(String email) {
         this.email = email;
         normalizeIdentityFields();
+    }
+
+    public boolean isEmailVerified() {
+        return emailVerified && email != null && !email.isBlank();
+    }
+
+    public void setEmailVerified(boolean emailVerified) {
+        this.emailVerified = emailVerified;
     }
 
     public void setEmailNormalized(String emailNormalized) {

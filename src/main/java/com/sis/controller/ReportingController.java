@@ -36,7 +36,7 @@ public class ReportingController {
      * @return academic report DTO
      */
     @GetMapping("/academic/{studentId}")
-    @PreAuthorize("@permissionSecurity.canViewInstitutionalReports() or @studentAccessService.isOwnStudent(#studentId) or @teacherAccessService.teachesStudent(#studentId)")
+    @PreAuthorize("@permissionSecurity.canViewInstitutionalReports() or @studentAccessService.isOwnStudent(#studentId)")
     public ResponseEntity<AcademicReportDto> generateAcademicReport(@PathVariable Long studentId) {
         AcademicReportDto report = isStudentSession()
                 ? academicReportService.getStudentVisibleReport(studentId)
@@ -45,7 +45,7 @@ public class ReportingController {
     }
 
     @GetMapping("/academic/{studentId}/download")
-    @PreAuthorize("@permissionSecurity.canViewInstitutionalReports() or @studentAccessService.isOwnStudent(#studentId) or @teacherAccessService.teachesStudent(#studentId)")
+    @PreAuthorize("@permissionSecurity.canViewInstitutionalReports() or @studentAccessService.isOwnStudent(#studentId)")
     public ResponseEntity<byte[]> downloadAcademicReport(@PathVariable Long studentId) {
         if (!academicReportService.isOfficiallyPublished(studentId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();

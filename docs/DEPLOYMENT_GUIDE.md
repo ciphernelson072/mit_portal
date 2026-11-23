@@ -133,6 +133,12 @@ path first, and verify the restored data and files before relying on a recovery
 plan. The root README documents the script parameters and backup-status
 configuration.
 
+Use `ops/rehearse-restores.ps1` for a controlled upload and database restore
+drill. Database rehearsal requires a name ending in
+`_restore_rehearsal_<suffix>`, refuses an existing database, and never restores
+into the name unless it was first created by the script. Pass
+`-DropDisposableDatabaseAfterSuccess` only when automatic cleanup is authorized.
+
 There is no universally safe automatic rollback across database migrations.
 Before a release, retain the exact prior application artifact and a verified,
 coordinated database-and-upload backup. Roll back the application only when

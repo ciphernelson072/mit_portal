@@ -52,6 +52,19 @@ Save dated screenshots under `docs/screenshots/`:
 9. Unauthorized access response or login redirect.
 10. Health endpoint and LAN browser access.
 
+Source-backed illustrative student, teacher, administrator, mobile, and
+admissions-form screenshots were refreshed on 20 November 2026 under
+[`docs/screenshots/`](./screenshots/):
+
+- [Student dashboard](./screenshots/student-dashboard-2026-11-20.png)
+- [Teacher dashboard](./screenshots/teacher-dashboard-2026-11-20.png)
+- [Administrator dashboard](./screenshots/admin-dashboard-2026-11-20.png)
+- [Student mobile dashboard](./screenshots/student-mobile-390x844-2026-11-20.png)
+- [Admissions intake form](./screenshots/admissions-intake-2026-11-20.png)
+
+They use synthetic values and are presentation references, not proof of
+authenticated workflows or target-environment acceptance.
+
 ## Presentation Order
 
 1. State the problem: centralize student, teacher, and administrator academic workflows.
@@ -62,6 +75,11 @@ Save dated screenshots under `docs/screenshots/`:
 6. Show responsive mobile layout and LAN access from a second device.
 7. Show automated test output, the release checklist, and the CI workflow.
 8. Mention known boundaries honestly: production requires HTTPS, dedicated credentials, secret management, backups, and a reviewed migration process.
+9. The disposable MySQL Testcontainers suite runs in CI where Docker is available.
+   Locally it skips cleanly when Docker is unavailable rather than reporting a
+   false migration failure. It asserts Flyway current-version alignment,
+   Hibernate schema validation, the automation-key column, MFA recovery table,
+   and announcement target tables.
 
 ## Evidence Rules
 

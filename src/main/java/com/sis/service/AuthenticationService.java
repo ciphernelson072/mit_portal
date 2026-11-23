@@ -3,7 +3,9 @@ package com.sis.service;
 import com.sis.entity.PasswordResetToken;
 import com.sis.entity.EmailVerificationToken;
 import com.sis.entity.User;
+import com.sis.dto.EmailVerificationStatusDto;
 import com.sis.exception.ResourceNotFoundException;
+import com.sis.exception.EmailDeliveryException;
 import com.sis.repository.PasswordResetTokenRepository;
 import com.sis.repository.EmailVerificationTokenRepository;
 import com.sis.repository.UserRepository;
@@ -18,6 +20,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.logging.Logger;
@@ -63,7 +66,7 @@ public class AuthenticationService {
     public void requestPasswordReset(String email) {
         String normalizedEmail = email == null ? null : email.trim().toLowerCase(Locale.ROOT);
         Optional<User> userOpt = normalizedEmail == null ? Optional.empty() : userRepository.findByEmailIgnoreCase(normalizedEmail);
-        if (userOpt.isEmpty()) {
+        if (userOpt.isEmpty() || !userOpt.get().isEmailVerified()) {
             return;
         }
 
@@ -162,16 +165,25 @@ public class AuthenticationService {
      * @param user the user
      * @param email email to verify
      */
+    @Transactional(noRollbackFor = EmailDeliveryException.class)
     public void requestEmailVerification(User user, String email) {
-        String verificationEmail = email == null ? null : email.trim();
-        Optional<EmailVerificationToken> existingOpt = verificationEmail == null
-                ? Optional.empty()
-                : emailVerificationTokenRepository.findByEmailIgnoreCase(verificationEmail);
-        if (existingOpt.isPresent()) {
-            emailVerificationTokenRepository.delete(existingOpt.get());
+        String verificationEmail = email == null ? null : email.trim().toLowerCase(Locale.ROOT);
+        if (verificationEmail == null || verificationEmail.isBlank()) {
+            throw new IllegalArgumentException("A valid email address is required for verification");
         }
+        Optional<User> currentOwner = userRepository.findByEmailIgnoreCase(verificationEmail);
+        if (currentOwner.isPresent() && !Objects.equals(currentOwner.get().getId(), user.getId())) {
+            throw new IllegalArgumentException("Email is already associated with another user");
+        }
+        Optional<EmailVerificationToken> pendingOwner =
+                emailVerificationTokenRepository.findByEmailIgnoreCase(verificationEmail);
+        if (pendingOwner.isPresent()
+                && !Objects.equals(pendingOwner.get().getUser().getId(), user.getId())
+                && !Boolean.TRUE.equals(pendingOwner.get().getVerified())) {
+            throw new IllegalArgumentException("Email is already pending verification for another user");
+        }
+        emailVerificationTokenRepository.deleteByUser(user);
 
-        // Generate verification token
         String token = UUID.randomUUID().toString();
         LocalDateTime expiryDate = LocalDateTime.now().plusSeconds(EMAIL_VERIFICATION_EXPIRATION_MS / 1000);
 
@@ -179,7 +191,6 @@ public class AuthenticationService {
                 hashVerificationToken(token), user, verificationEmail, expiryDate);
         emailVerificationTokenRepository.save(verificationToken);
 
-        // Send email
         emailService.sendEmailVerification(verificationEmail, token, user.getUsername());
         logger.info(() -> "Email verification token created for user: " + user.getUsername());
     }
@@ -213,15 +224,20 @@ public class AuthenticationService {
         }
 
         EmailVerificationToken verificationToken = tokenOpt.get();
+        Optional<User> currentOwner = userRepository.findByEmailIgnoreCase(verificationToken.getEmail());
+        if (currentOwner.isPresent()
+                && !Objects.equals(currentOwner.get().getId(), verificationToken.getUser().getId())) {
+            throw new IllegalArgumentException("Email is already associated with another user");
+        }
         if (emailVerificationTokenRepository.consumeIfValid(verificationToken.getId(), LocalDateTime.now()) != 1) {
             throw new ResourceNotFoundException("Invalid or expired email verification token");
         }
 
         User user = verificationToken.getUser();
-
-        // Update user email
         user.setEmail(verificationToken.getEmail());
+        user.setEmailVerified(true);
         userRepository.save(user);
+        emailVerificationTokenRepository.delete(verificationToken);
 
         logger.info(() -> "Email verified for user: " + user.getUsername());
     }
@@ -298,11 +314,16 @@ public class AuthenticationService {
      * @return true if email is verified
      */
     public boolean isEmailVerified(User user) {
-        Optional<EmailVerificationToken> tokenOpt = emailVerificationTokenRepository.findByUser(user);
-        if (tokenOpt.isEmpty()) {
-            return false;
-        }
-        return tokenOpt.get().getVerified();
+        return user.isEmailVerified();
+    }
+
+    public EmailVerificationStatusDto getEmailVerificationStatus(User user) {
+        Optional<EmailVerificationToken> pending = emailVerificationTokenRepository
+                .findFirstByUserAndVerifiedFalseOrderByCreatedAtDesc(user);
+        boolean verified = user.isEmailVerified() && pending.isEmpty();
+        String pendingEmail = pending.map(EmailVerificationToken::getEmail)
+                .orElse(verified ? null : user.getEmail());
+        return new EmailVerificationStatusDto(user.getEmail(), verified, pendingEmail);
     }
 
     /**
@@ -320,14 +341,23 @@ public class AuthenticationService {
      */
     public void resendEmailVerification(String email) {
         String normalizedEmail = email == null ? null : email.trim();
-        Optional<User> userOpt = normalizedEmail == null || normalizedEmail.isEmpty()
-                ? Optional.empty()
-                : userRepository.findByEmailNormalized(normalizedEmail);
-
-        if (userOpt.isEmpty()) {
+        if (normalizedEmail == null || normalizedEmail.isEmpty()) {
             return;
         }
 
-        requestEmailVerification(userOpt.get(), userOpt.get().getEmail());
+        Optional<EmailVerificationToken> pendingToken =
+                emailVerificationTokenRepository.findByEmailIgnoreCase(normalizedEmail)
+                        .filter(token -> !Boolean.TRUE.equals(token.getVerified()));
+        if (pendingToken.isPresent()) {
+            EmailVerificationToken token = pendingToken.get();
+            requestEmailVerification(token.getUser(), token.getEmail());
+            return;
+        }
+
+        Optional<User> userOpt = userRepository.findByEmailNormalized(normalizedEmail)
+                .filter(user -> !user.isEmailVerified());
+        if (userOpt.isPresent()) {
+            requestEmailVerification(userOpt.get(), userOpt.get().getEmail());
+        }
     }
 }

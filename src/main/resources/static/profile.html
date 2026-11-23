@@ -28,7 +28,7 @@
         <button type="button" class="search-btn">🔍</button>
       </div>
       <div class="header-icons">
-        <button class="icon-btn" onclick="goToDashboard()" title="Back to Dashboard">⬅️</button>
+        <button class="icon-btn" data-csp-action="goToDashboard" data-csp-event="click" data-csp-args="%5B%5D" title="Back to Dashboard">⬅️</button>
         <div class="icon-wrapper dropdown">
           <button class="icon-btn profile-btn" id="profileBtn">
             <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%231a3a8c'/%3E%3Ccircle cx='50' cy='35' r='15' fill='%23fff'/%3E%3Cpath d='M20 80 Q20 60 50 60 Q80 60 80 80' fill='%23fff'/%3E%3C/svg%3E" alt="Profile" class="profile-avatar">
@@ -37,7 +37,7 @@
             <div class="dropdown-header">Account</div>
             <a href="profile.html" class="menu-link">👤 My Profile</a>
             <a href="profile.html#preferences" class="menu-link">⚙️ Settings</a>
-            <button class="menu-link logout-btn" onclick="handleLogoutClick()">🚪 Logout</button>
+            <button class="menu-link logout-btn" data-csp-action="handleLogoutClick" data-csp-event="click" data-csp-args="%5B%5D">🚪 Logout</button>
           </div>
         </div>
       </div>
@@ -50,12 +50,12 @@
 
   <!-- Navigation Tabs -->
   <div class="module-tabs">
-    <button class="tab-btn active" onclick="switchTab('personal')">👤 Personal Info</button>
-    <button class="tab-btn" onclick="switchTab('academic')">📚 Academic Info</button>
-    <button class="tab-btn" onclick="switchTab('documents')">📄 Documents</button>
-    <button class="tab-btn" onclick="switchTab('requests')">🎫 Service Requests</button>
-    <button class="tab-btn" onclick="switchTab('security')">🔐 Security</button>
-    <button class="tab-btn" onclick="switchTab('preferences')">⚙️ Preferences</button>
+    <button class="tab-btn active" data-csp-action="switchTab" data-csp-event="click" data-csp-args="%5B%22personal%22%5D">👤 Personal Info</button>
+    <button class="tab-btn" data-csp-action="switchTab" data-csp-event="click" data-csp-args="%5B%22academic%22%5D">📚 Academic Info</button>
+    <button class="tab-btn" data-csp-action="switchTab" data-csp-event="click" data-csp-args="%5B%22documents%22%5D">📄 Documents</button>
+    <button class="tab-btn" data-csp-action="switchTab" data-csp-event="click" data-csp-args="%5B%22requests%22%5D">🎫 Service Requests</button>
+    <button class="tab-btn" data-csp-action="switchTab" data-csp-event="click" data-csp-args="%5B%22security%22%5D">🔐 Security</button>
+    <button class="tab-btn" data-csp-action="switchTab" data-csp-event="click" data-csp-args="%5B%22preferences%22%5D">⚙️ Preferences</button>
   </div>
 
   <!-- TAB 1: PERSONAL INFO -->
@@ -113,7 +113,7 @@
           </div>
         </form>
         <p class="muted">Contact email is used for academic and other contact messages. It is separate from the account email used for sign-in and password recovery.</p>
-        <button class="btn-primary" onclick="editProfile()">✏️ Edit Profile</button>
+        <button class="btn-primary" data-csp-action="editProfile" data-csp-event="click" data-csp-args="%5B%5D">✏️ Edit Profile</button>
       </div>
 
       <div class="form-section">
@@ -136,7 +136,7 @@
             <span></span>
           </div>
         </div>
-        <button class="btn-secondary" onclick="editContact()">Edit Contact Info</button>
+        <button class="btn-secondary" data-csp-action="editContact" data-csp-event="click" data-csp-args="%5B%5D">Edit Contact Info</button>
       </div>
     </div>
   </section>
@@ -228,7 +228,7 @@
           <p class="upload-text">Drag and drop documents here or click to browse</p>
           <p class="upload-hint">Supported formats: PDF, JPG, PNG, GIF (Max 10MB)</p>
           <input type="file" id="documentFileInput" accept=".pdf,.jpg,.jpeg,.png,.gif,application/pdf,image/jpeg,image/png,image/gif" hidden>
-          <button class="btn-secondary" onclick="uploadDocument()">Choose File</button>
+          <button class="btn-secondary" data-csp-action="uploadDocument" data-csp-event="click" data-csp-args="%5B%5D">Choose File</button>
         </div>
       </div>
     </div>
@@ -250,7 +250,7 @@
             <p><strong>Status:</strong> Available</p>
             <p><strong>Processing Time:</strong> 3-5 working days</p>
           </div>
-          <button class="btn-primary" onclick="requestService('idcard')">Request</button>
+          <button class="btn-primary" data-csp-action="requestService" data-csp-event="click" data-csp-args="%5B%22idcard%22%5D">Request</button>
         </div>
 
         <div class="request-card">
@@ -261,7 +261,7 @@
             <p><strong>Status:</strong> Available</p>
             <p><strong>Processing Time:</strong> 2-3 working days</p>
           </div>
-          <button class="btn-primary" onclick="requestService('transcript')">Request</button>
+          <button class="btn-primary" data-csp-action="requestService" data-csp-event="click" data-csp-args="%5B%22transcript%22%5D">Request</button>
         </div>
 
         <div class="request-card">
@@ -283,7 +283,7 @@
             <p><strong>Status:</strong> Available</p>
             <p><strong>Processing Time:</strong> 5 working days</p>
           </div>
-          <button class="btn-primary" onclick="requestService('reference')">Request</button>
+          <button class="btn-primary" data-csp-action="requestService" data-csp-event="click" data-csp-args="%5B%22reference%22%5D">Request</button>
         </div>
 
         <div class="request-card">
@@ -293,7 +293,7 @@
           <div class="request-info">
             <p><strong>Status:</strong> Available</p>
           </div>
-          <button class="btn-primary" onclick="requestService('hostel')">Request</button>
+          <button class="btn-primary" data-csp-action="requestService" data-csp-event="click" data-csp-args="%5B%22hostel%22%5D">Request</button>
         </div>
 
         <div class="request-card">
@@ -304,12 +304,12 @@
             <p><strong>Status:</strong> Pending</p>
             <p><strong>Valid:</strong> Per semester</p>
           </div>
-          <button class="btn-primary" onclick="requestService('transport')">Request</button>
+          <button class="btn-primary" data-csp-action="requestService" data-csp-event="click" data-csp-args="%5B%22transport%22%5D">Request</button>
         </div>
 
       </div>
 
-      <h3 style="margin-top: 30px;">Pending Requests</h3>
+      <h3 class="csp-inline-203322639169">Pending Requests</h3>
       <table class="requests-table">
         <thead>
           <tr>
@@ -338,7 +338,7 @@
         <div class="security-card">
           <p><strong>Last Changed:</strong> <span id="profileLastChanged">Not set</span></p>
           <p class="security-hint">It's recommended to change your password every 90 days for security</p>
-          <button class="btn-primary" onclick="changePassword()">🔐 Change Password</button>
+          <button class="btn-primary" data-csp-action="changePassword" data-csp-event="click" data-csp-args="%5B%5D">🔐 Change Password</button>
         </div>
       </div>
 
@@ -378,7 +378,7 @@
             <input type="checkbox" checked>
             <span>Allow data collection for analytics</span>
           </label>
-          <button class="btn-primary" onclick="savePrivacySettings()">💾 Save Settings</button>
+          <button class="btn-primary" data-csp-action="savePrivacySettings" data-csp-event="click" data-csp-args="%5B%5D">💾 Save Settings</button>
         </div>
       </div>
 
@@ -394,7 +394,7 @@
       <div class="preference-section">
         <h3>Language</h3>
         <p class="security-hint">Language choices are saved, but the portal interface is currently available in English only.</p>
-        <select class="preference-select" onchange="changeLanguage(this.value)">
+        <select class="preference-select" data-csp-action="changeLanguage" data-csp-event="change" data-csp-args="%5B%7B%22%24mitCspArg%22%3A%22value%22%7D%5D">
           <option selected>English</option>
           <option disabled>Luganda (not available yet)</option>
           <option disabled>Swahili (not available yet)</option>
@@ -471,7 +471,7 @@
         </div>
       </div>
 
-      <button class="btn-primary" onclick="savePreferences()">💾 Save Preferences</button>
+      <button class="btn-primary" data-csp-action="savePreferences" data-csp-event="click" data-csp-args="%5B%5D">💾 Save Preferences</button>
 
     </div>
   </section>

@@ -249,7 +249,7 @@ public class RegistrationService {
                 student.getId(), programId, course.getId(), course.getCourseCode(), reason);
     }
 
-    public void drop(String username, Long registrationId) {
+    public CourseRegistration drop(String username, Long registrationId) {
         Student student = students.findByUserUsernameForUpdate(username)
                 .orElseThrow(() -> new IllegalArgumentException("Student profile not found"));
         CourseRegistration registration = registrations
@@ -265,7 +265,7 @@ public class RegistrationService {
         }
         registration.setStatus(RegistrationStatus.DROPPED);
         registration.setDroppedAt(LocalDateTime.now());
-        registrations.save(registration);
+        return registrations.save(registration);
     }
 
     private Student student(String username) {

@@ -1,3 +1,9 @@
+let teacherRosterRequestVersion = 0;
+let teacherAttendanceRequestVersion = 0;
+let teacherGradeRequestVersion = 0;
+let teacherAssessmentRequestVersion = 0;
+let teacherDisputeRequestVersion = 0;
+
 document.addEventListener('DOMContentLoaded', async () => {
   if (!requireRole(['TEACHER', 'ADMIN'], 'admin-login.html')) return;
   setupTeacherWorkspaceNavigation();
@@ -34,14 +40,14 @@ async function loadTeacherGradeAppeals() {
   const list = document.getElementById('teacherGradeAppealList');
   if (!list) return;
   try {
-    const appeals = await apiGet('/teacher/grade-appeals');
+    const appeals = requireResponseArray(await apiGet('/teacher/grade-appeals'), 'grade appeals');
     list.innerHTML = appeals.length ? appeals.map(item => `
       <article class="teacher-request-item">
         <strong>${escapeHtml(item.courseCode)} · ${escapeHtml(item.studentName)}</strong>
         <p>${escapeHtml(item.reason)}</p>
         <label for="gradeAppealTeacherResponse-${Number(item.id)}">Optional response to the administrator</label>
         <textarea id="gradeAppealTeacherResponse-${Number(item.id)}" maxlength="2000" rows="3"></textarea>
-        <button class="btn-secondary" type="button" onclick="submitTeacherGradeAppealResponse(${Number(item.id)})">Send response to administrator</button>
+        <button class="btn-secondary" type="button" data-csp-action="submitTeacherGradeAppealResponse" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(Number(item.id))]))}">Send response to administrator</button>
       </article>`).join('') : '<p>No grade appeals currently require teacher review.</p>';
   } catch (error) {
     list.innerHTML = `<p role="alert">${escapeHtml(error.message || 'Unable to load grade appeals.')}</p>`;
@@ -69,7 +75,8 @@ async function loadTeacherPublicationStatuses() {
   const list = document.getElementById('teacherPublicationStatusList');
   if (!list) return;
   try {
-    const statuses = await apiGet('/teacher/results/publication-status');
+    const statuses = requireResponseArray(
+      await apiGet('/teacher/results/publication-status'), 'result publication statuses');
     list.innerHTML = statuses.length ? `
       <table class="roster-table">
         <thead><tr><th>Student</th><th>Assigned courses</th><th>Status</th><th>Details</th></tr></thead>
@@ -105,7 +112,7 @@ async function loadTeacherCorrections() {
   const list = document.getElementById('teacherCorrectionList');
   if (!list) return;
   try {
-    const corrections = await apiGet('/teacher/corrections');
+    const corrections = requireResponseArray(await apiGet('/teacher/corrections'), 'grade corrections');
     list.innerHTML = corrections.length ? `
       <table class="roster-table">
         <thead><tr><th>Correction</th><th>Grade</th><th>Status</th><th>Reason</th><th>Authorized</th></tr></thead>
@@ -126,6 +133,7 @@ async function loadTeacherCorrections() {
 async function loadTeacherDashboard() {
   const fields = [
     'assignedCourseCount',
+    'assignedCourseUnitCount',
     'enrolledStudentCount',
     'pendingGradeCount',
     'upcomingAssignmentCount',
@@ -134,13 +142,24 @@ async function loadTeacherDashboard() {
   const status = document.getElementById('teacherDashboardStatus');
   try {
     const overview = await apiGet('/teacher/dashboard');
+    if (!overview || typeof overview !== 'object' || Array.isArray(overview)) {
+      throw new Error('The server returned an invalid teaching summary.');
+    }
+    const missingFields = [];
     fields.forEach(field => {
       const value = document.querySelector(`[data-teacher-stat="${field}"]`);
-      if (value) value.textContent = String(overview[field] ?? 0);
+      if (!value) return;
+      if (typeof overview[field] === 'number' && Number.isFinite(overview[field])) {
+        value.textContent = String(overview[field]);
+      } else {
+        value.textContent = '—';
+        missingFields.push(field);
+      }
     });
     if (status) {
-      status.textContent = '';
-      status.className = 'teacher-status';
+      setStatus('teacherDashboardStatus', missingFields.length
+        ? 'Some teaching summary values are unavailable. Refresh or contact the administrator.'
+        : '', missingFields.length ? 'warning' : '');
     }
   } catch (err) {
     fields.forEach(field => {
@@ -153,6 +172,13 @@ async function loadTeacherDashboard() {
 
 function getTeacherRequestRole() {
   return normalizeRole(getRole()) === 'ADMIN' ? 'ADMIN' : 'TEACHER';
+}
+
+function requireResponseArray(value, label) {
+  if (!Array.isArray(value)) {
+    throw new Error(`The server returned an invalid ${label} response.`);
+  }
+  return value;
 }
 
 async function submitTeacherRequest(event) {
@@ -172,7 +198,7 @@ async function submitTeacherRequest(event) {
 
 async function loadTeacherRequests() {
   try {
-    const requests = await apiGet('/student/requests');
+    const requests = requireResponseArray(await apiGet('/student/requests'), 'service requests');
     const list = document.getElementById('teacherRequestList');
     if (list) {
       list.innerHTML = requests.length
@@ -195,7 +221,7 @@ async function loadTeacherLeaveRequests() {
   const list = document.getElementById('teacherLeaveList');
   if (!list) return;
   try {
-    const requests = await apiGet('/hr/leave/mine');
+    const requests = requireResponseArray(await apiGet('/hr/leave/mine'), 'leave requests');
     list.innerHTML = requests.length ? requests.map(item => `
       <div class="teacher-request-item"><strong>${escapeHtml(item.startDate)} – ${escapeHtml(item.endDate)}</strong>
       <span>${escapeHtml(item.status)} · ${escapeHtml(item.reason)}</span></div>`).join('')
@@ -227,10 +253,10 @@ async function submitTeacherLeaveRequest(event) {
 
 async function loadTeacherNotifications() {
   try {
-    const notifications = await apiGet('/notifications');
+    const notifications = requireResponseArray(await apiGet('/notifications'), 'notifications');
     const list = document.getElementById('teacherNotificationList');
     const badge = document.getElementById('teacherNotificationBadge');
-    if (list) list.innerHTML = notifications.length ? notifications.slice(0, 8).map(item => `<button type="button" class="teacher-notification-item ${item.read ? '' : 'unread'}" onclick="markTeacherNotificationRead(${item.id}, this)"><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.message)}</span></button>`).join('') : '<p>No notifications yet.</p>';
+    if (list) list.innerHTML = notifications.length ? notifications.slice(0, 8).map(item => `<button type="button" class="teacher-notification-item ${item.read ? '' : 'unread'}" data-csp-action="markTeacherNotificationRead" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(item.id),{"$mitCspArg":"element"}]))}"><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.message)}</span></button>`).join('') : '<p>No notifications yet.</p>';
     const unread = notifications.filter(item => !item.read).length;
     if (badge) { badge.textContent = unread; badge.hidden = unread === 0; }
   } catch (err) { setStatus('teacherWelcome', err.message, 'error'); }
@@ -319,23 +345,55 @@ async function uploadTeacherPhoto() {
 }
 
 async function loadCourses() {
-  try {
-    const courses = await apiGet('/teacher/my-courses');
+  window._teacherCourses = [];
+  window._teacherCourseUnits = [];
+  const [courseResult, unitResult] = await Promise.allSettled([
+    apiGet('/teacher/my-courses').then(result => requireResponseArray(result, 'assigned courses')),
+    apiGet('/teacher/course-units').then(result => requireResponseArray(result, 'assigned course units')),
+  ]);
+  const courseSelect = document.getElementById('rosterCourseSelect');
+  const attendanceSelect = document.getElementById('attendanceCourseSelect');
+  const unitSelect = document.getElementById('rosterCourseUnitSelect');
+
+  if (courseResult.status === 'fulfilled') {
+    const courses = courseResult.value;
     window._teacherCourses = courses;
-    const courseOptions = courses.length
+    const options = courses.length
       ? courses.map(course => `<option value="${course.id}">${escapeHtml(course.courseCode || '—')} · ${escapeHtml(course.name)}</option>`).join('')
       : '<option value="">No assigned courses</option>';
-    document.getElementById('rosterCourseSelect').innerHTML = courseOptions;
-    document.getElementById('attendanceCourseSelect').innerHTML = courseOptions;
+    courseSelect.innerHTML = options;
+    attendanceSelect.innerHTML = options;
     if (courses.length) {
-      await loadRoster();
+      setStatus('rosterStatus', '', '');
+      await Promise.all([loadRoster(), loadAttendanceRoster()]);
+    } else {
+      renderTeacherRoster([]);
+      resetTeacherGradeWorkspace('No assigned course is available');
+      setStatus('rosterStatus', 'No courses are currently assigned to your account.', 'warning');
+      setStatus('attendanceStatus', 'No assigned courses are available for attendance.', 'warning');
     }
-    if (courses.length) await loadAttendanceRoster();
-  } catch (err) {
-    document.getElementById('rosterCourseSelect').innerHTML = '<option value="">Unable to load courses</option>';
-    document.getElementById('attendanceCourseSelect').innerHTML = '<option value="">Unable to load courses</option>';
-    setStatus('rosterStatus', err.message, 'error');
-    setStatus('attendanceStatus', err.message, 'error');
+  } else {
+    const message = courseResult.reason?.message || 'Unable to load assigned courses.';
+    courseSelect.innerHTML = '<option value="">Unable to load courses</option>';
+    attendanceSelect.innerHTML = '<option value="">Unable to load courses</option>';
+    renderTeacherRoster([]);
+    resetTeacherGradeWorkspace('Courses could not be loaded');
+    setStatus('rosterStatus', message, 'error');
+    setStatus('attendanceStatus', message, 'error');
+  }
+
+  if (unitResult.status === 'fulfilled') {
+    const courseUnits = unitResult.value;
+    window._teacherCourseUnits = courseUnits;
+    unitSelect.innerHTML = courseUnits.length
+      ? courseUnits.map(unit => `<option value="${unit.id}">${escapeHtml(unit.unitCode || '—')} · ${escapeHtml(unit.name)} (${escapeHtml(unit.courseCode || unit.courseName || 'Course')})</option>`).join('')
+      : '<option value="">No assigned course units</option>';
+    setStatus('courseUnitRosterStatus', courseUnits.length
+      ? '' : 'No course units are currently assigned to your account.', courseUnits.length ? '' : 'warning');
+  } else {
+    unitSelect.innerHTML = '<option value="">Unable to load course units</option>';
+    setStatus('courseUnitRosterStatus',
+      unitResult.reason?.message || 'Unable to load assigned course units.', 'error');
   }
 }
 
@@ -344,32 +402,83 @@ function selectedTeacherCourse(selectId = 'rosterCourseSelect') {
   return (window._teacherCourses || []).find(course => course.id === id);
 }
 
+function renderTeacherRoster(students) {
+  const table = document.getElementById('rosterTable');
+  table.hidden = !students.length;
+  table.querySelector('tbody').innerHTML = students.map(student =>
+    `<tr><td>${escapeHtml(student.fullName)}</td><td>${escapeHtml(student.registrationNumber || '—')}</td></tr>`
+  ).join('');
+}
+
+function resetTeacherGradeWorkspace(message = 'Select a course to load grades.') {
+  document.getElementById('gradeRecordId').value = '';
+  document.getElementById('gradeStudent').innerHTML = `<option value="">${escapeHtml(message)}</option>`;
+  document.getElementById('assessmentMarksFields').innerHTML =
+    '<p>Select an assigned course to load its assessment structure.</p>';
+  document.getElementById('teacherGradeList').innerHTML = '<p>Select an assigned course to load grades.</p>';
+  document.getElementById('exportTeacherGrades').disabled = true;
+  document.querySelector('#gradeForm [type="submit"]').disabled = true;
+  window._teacherGrades = [];
+  window._teacherAssessmentComponents = [];
+}
+
 async function loadRoster() {
   const courseId = document.getElementById('rosterCourseSelect').value;
-  const table = document.getElementById('rosterTable');
   const status = document.getElementById('rosterStatus');
-  document.getElementById('gradeRecordId').value = '';
+  const requestVersion = ++teacherRosterRequestVersion;
+  teacherGradeRequestVersion++;
+  teacherAssessmentRequestVersion++;
+  resetTeacherGradeWorkspace('Loading course roster...');
   window._teacherRoster = [];
+  renderTeacherRoster([]);
+  status.textContent = '';
+  status.className = 'teacher-status';
   document.getElementById('exportTeacherRoster').disabled = true;
   if (!courseId) return;
   try {
-    const students = await apiGet(`/teacher/courses/${courseId}/students`);
+    const students = requireResponseArray(
+      await apiGet(`/teacher/courses/${courseId}/students`), 'course roster');
+    if (requestVersion !== teacherRosterRequestVersion
+        || document.getElementById('rosterCourseSelect').value !== courseId) return;
     window._teacherRoster = students;
     document.getElementById('exportTeacherRoster').disabled = students.length === 0;
     const options = students.map(student => `<option value="${student.id}">${escapeHtml(student.fullName)} (${escapeHtml(student.registrationNumber || '—')})</option>`).join('');
     document.getElementById('gradeStudent').innerHTML = options || '<option value="">No enrolled students</option>';
-    table.hidden = !students.length;
-    table.querySelector('tbody').innerHTML = students.map(student => {
-      const photo = student.profileImagePath
-        ? `<img class="teacher-roster-photo" data-photo-viewer data-photo-caption="${escapeHtml(student.fullName)} profile photo" tabindex="0" role="button" src="${escapeHtml(`${API}/files/download?filePath=${encodeURIComponent(student.profileImagePath)}`)}" alt="${escapeHtml(student.fullName)} profile photo; activate to view full screen">`
-        : '<span aria-label="No profile photo">—</span>';
-      return `<tr><td>${photo}</td><td>${escapeHtml(student.fullName)}</td><td>${escapeHtml(student.registrationNumber || '—')}</td><td>${student.cgpa == null ? '—' : Number(student.cgpa).toFixed(2)}</td><td><button type="button" class="btn-secondary small" onclick="viewStudentProfile(${student.id})">Profile</button></td></tr>`;
-    }).join('');
+    renderTeacherRoster(students);
     status.textContent = `${students.length} enrolled student${students.length === 1 ? '' : 's'}.`;
     status.className = 'teacher-status success';
     await Promise.all([loadTeacherGrades(), loadAssessmentComponents(courseId)]);
   } catch (err) {
+    if (requestVersion !== teacherRosterRequestVersion) return;
     setStatus('rosterStatus', err.message, 'error');
+  }
+}
+
+async function loadCourseUnitRoster() {
+  const unitId = document.getElementById('rosterCourseUnitSelect').value;
+  const status = document.getElementById('courseUnitRosterStatus');
+  const requestVersion = ++teacherRosterRequestVersion;
+  status.textContent = '';
+  status.className = 'teacher-status';
+  teacherGradeRequestVersion++;
+  teacherAssessmentRequestVersion++;
+  resetTeacherGradeWorkspace('Course-unit rosters are view-only; select an assigned course for grade entry');
+  document.getElementById('exportTeacherRoster').disabled = true;
+  window._teacherRoster = [];
+  renderTeacherRoster([]);
+  if (!unitId) return;
+  try {
+    const students = requireResponseArray(
+      await apiGet(`/teacher/course-units/${unitId}/students`), 'course-unit roster');
+    if (requestVersion !== teacherRosterRequestVersion
+        || document.getElementById('rosterCourseUnitSelect').value !== unitId) return;
+    window._teacherRoster = students;
+    renderTeacherRoster(students);
+    status.textContent = `${students.length} enrolled student${students.length === 1 ? '' : 's'} in this course unit.`;
+    status.className = 'teacher-status success';
+  } catch (err) {
+    if (requestVersion !== teacherRosterRequestVersion) return;
+    setStatus('courseUnitRosterStatus', err.message || 'Unable to load the course-unit roster.', 'error');
   }
 }
 
@@ -382,8 +491,6 @@ function exportTeacherRoster() {
     studentId: student.id,
     fullName: student.fullName,
     registrationNumber: student.registrationNumber,
-    className: student.className,
-    cgpa: student.cgpa,
   })));
 }
 
@@ -402,13 +509,6 @@ function exportTeacherGrades() {
     remarks: grade.remarks,
     rejectionReason: grade.rejectionReason,
   })));
-}
-
-async function viewStudentProfile(studentId) {
-  try {
-    const profile = await apiGet(`/teacher/students/${studentId}/profile`);
-    alert(`${profile.fullName}\nUsername: ${profile.username}\nClass: ${profile.className || '—'}\nCGPA: ${profile.cgpa == null ? '—' : Number(profile.cgpa).toFixed(2)}`);
-  } catch (err) { alert(err.message || 'Unable to load student profile.'); }
 }
 
 async function submitGrade(event) {
@@ -454,11 +554,15 @@ async function submitGrade(event) {
 async function loadAssessmentComponents(courseId) {
   const container = document.getElementById('assessmentMarksFields');
   const submitButton = document.querySelector('#gradeForm [type="submit"]');
+  const requestVersion = ++teacherAssessmentRequestVersion;
   if (!container) return;
   container.innerHTML = '<p>Loading course assessment structure…</p>';
   submitButton.disabled = true;
   try {
-    const components = await apiGet(`/teacher/courses/${courseId}/assessment-components`);
+    const components = requireResponseArray(
+      await apiGet(`/teacher/courses/${courseId}/assessment-components`), 'assessment components');
+    if (requestVersion !== teacherAssessmentRequestVersion
+        || Number(selectedTeacherCourse()?.id) !== Number(courseId)) return;
     window._teacherAssessmentComponents = components;
     if (!components.length) {
       container.innerHTML = '<p role="alert">No assessment structure is configured. Ask an administrator to configure this course before recording marks.</p>';
@@ -472,6 +576,7 @@ async function loadAssessmentComponents(courseId) {
       </label>`).join('');
     submitButton.disabled = false;
   } catch (err) {
+    if (requestVersion !== teacherAssessmentRequestVersion) return;
     window._teacherAssessmentComponents = [];
     container.innerHTML = `<p role="alert">${escapeHtml(err.message || 'Unable to load the course assessment structure.')}</p>`;
     setStatus('gradeStatus', err.message, 'error');
@@ -530,13 +635,18 @@ function editTeacherGrade(gradeId, studentId) {
 async function loadTeacherGrades() {
   const list = document.getElementById('teacherGradeList');
   const courseId = Number(selectedTeacherCourse()?.id);
+  const requestVersion = ++teacherGradeRequestVersion;
   if (!list) return;
   if (!courseId) {
     list.innerHTML = '<p>Select a course to load grades.</p>';
+    document.getElementById('exportTeacherGrades').disabled = true;
     return;
   }
   try {
-    const grades = await apiGet(`/teacher/courses/${courseId}/grades`);
+    const grades = requireResponseArray(
+      await apiGet(`/teacher/courses/${courseId}/grades`), 'course grades');
+    if (requestVersion !== teacherGradeRequestVersion
+        || Number(selectedTeacherCourse()?.id) !== courseId) return;
     window._teacherGrades = grades;
     document.getElementById('exportTeacherGrades').disabled = grades.length === 0;
     list.innerHTML = grades.length ? `
@@ -560,7 +670,9 @@ async function loadTeacherGrades() {
     list.querySelectorAll('[data-submit-grade]').forEach(button => button.addEventListener('click', () => submitGradeForApproval(button.dataset.submitGrade)));
     list.querySelectorAll('[data-delete-grade]').forEach(button => button.addEventListener('click', () => deleteGradeRecord(button.dataset.deleteGrade)));
   } catch (err) {
+    if (requestVersion !== teacherGradeRequestVersion) return;
     list.textContent = 'Unable to load course grades.';
+    document.getElementById('exportTeacherGrades').disabled = true;
     setStatus('gradeStatus', err.message, 'error');
   }
 }
@@ -596,31 +708,44 @@ async function loadTeacherMaterials() {
     list.innerHTML = '<p>No assigned courses available.</p>';
     return;
   }
-  try {
-    const results = await Promise.all(courses.map(async course => ({
-      course,
-      materials: await apiGet(`/materials/course/${course.id}`),
-    })));
-    const materials = results.flatMap(({ course, materials: courseMaterials }) => courseMaterials.map(material => ({
+  const results = await Promise.allSettled(courses.map(async course => ({
+    course,
+    materials: requireResponseArray(
+      await apiGet(`/materials/course/${course.id}`), 'course materials'),
+  })));
+  const failedCourses = results.filter(result => result.status === 'rejected');
+  const materials = results.filter(result => result.status === 'fulfilled')
+    .flatMap(result => {
+      const { course, materials: courseMaterials } = result.value;
+      return courseMaterials.map(material => ({
       ...material,
       courseCode: course.courseCode,
       courseName: course.name,
-    })));
-    list.innerHTML = materials.length ? materials.map(material => `
+      }));
+    });
+  list.innerHTML = materials.length ? materials.map(material => `
       <article class="teacher-request-item">
         <strong>${escapeHtml(material.title)}</strong>
         <span>${escapeHtml(material.courseCode || material.courseName || 'Assigned course')} · Uploaded ${escapeHtml((material.uploadedAt || '').replace('T', ' ') || 'date unavailable')}</span>
         ${material.description ? `<p>${escapeHtml(material.description)}</p>` : ''}
         <a class="btn-secondary" href="${API}/materials/${encodeURIComponent(material.id)}/download" target="_blank" rel="noopener">Download</a>
       </article>`).join('') : '<p>No materials published to your courses yet.</p>';
-  } catch (err) {
+  if (failedCourses.length === courses.length) {
     list.textContent = 'Unable to load published course materials.';
-    setStatus('materialStatus', err.message, 'error');
+    const firstFailure = failedCourses[0].reason;
+    setStatus('materialStatus', firstFailure?.message || 'Unable to load published course materials.', 'error');
+  } else if (failedCourses.length) {
+    setStatus('materialStatus',
+      `Materials loaded for ${courses.length - failedCourses.length} of ${courses.length} courses; some course responses failed.`,
+      'warning');
+  } else {
+    setStatus('materialStatus', '', '');
   }
 }
 
 async function loadAttendanceRoster() {
   const courseId = Number(document.getElementById('attendanceCourseSelect').value);
+  const requestVersion = ++teacherAttendanceRequestVersion;
   const table = document.getElementById('courseAttendanceTable');
   const date = document.getElementById('attendanceDate').value;
   const tbody = table.querySelector('tbody');
@@ -634,9 +759,14 @@ async function loadAttendanceRoster() {
   try {
     await loadAttendanceDisputes(courseId);
     const [students, records] = await Promise.all([
-      apiGet(`/teacher/courses/${courseId}/students`),
-      apiGet(`/teacher/courses/${courseId}/attendance?date=${encodeURIComponent(date)}`),
+      apiGet(`/teacher/courses/${courseId}/students`)
+        .then(result => requireResponseArray(result, 'attendance roster')),
+      apiGet(`/teacher/courses/${courseId}/attendance?date=${encodeURIComponent(date)}`)
+        .then(result => requireResponseArray(result, 'attendance records')),
     ]);
+    if (requestVersion !== teacherAttendanceRequestVersion
+        || Number(document.getElementById('attendanceCourseSelect').value) !== courseId
+        || document.getElementById('attendanceDate').value !== date) return;
     const existing = new Map(records.map(record => [record.studentId, record]));
     tbody.innerHTML = students.map(student => {
       const existingRecord = existing.get(student.id);
@@ -645,15 +775,21 @@ async function loadAttendanceRoster() {
     }).join('');
     table.hidden = !students.length;
     setStatus('attendanceStatus', `${students.length} enrolled student${students.length === 1 ? '' : 's'} ready for approval.`, 'success');
-  } catch (err) { setStatus('attendanceStatus', err.message, 'error'); }
+  } catch (err) {
+    if (requestVersion !== teacherAttendanceRequestVersion) return;
+    setStatus('attendanceStatus', err.message, 'error');
+  }
 }
 
 async function loadAttendanceDisputes(courseId) {
   const list = document.getElementById('attendanceDisputeList');
   if (!courseId || !list) return;
+  const requestVersion = ++teacherDisputeRequestVersion;
   list.innerHTML = '<p>Loading disputes…</p>';
   try {
-    const disputes = await apiGet(`/teacher/courses/${courseId}/attendance/disputes`);
+    const disputes = requireResponseArray(
+      await apiGet(`/teacher/courses/${courseId}/attendance/disputes`), 'attendance disputes');
+    if (requestVersion !== teacherDisputeRequestVersion) return;
     list.innerHTML = disputes.length ? disputes.map(dispute => `
       <article class="teacher-card compact">
         <strong>${escapeHtml(dispute.studentName)}</strong>
@@ -661,11 +797,12 @@ async function loadAttendanceDisputes(courseId) {
         <p>${escapeHtml(dispute.reason)}</p>
         <small>Status: ${escapeHtml(dispute.status)}</small>
         ${['OPEN', 'ESCALATED'].includes(dispute.status) ? `
-          <button class="btn-secondary" type="button" onclick="reviewAttendanceDispute(${Number(dispute.id)}, 'APPROVED', ${Number(courseId)})">Approve</button>
-          <button class="btn-secondary" type="button" onclick="reviewAttendanceDispute(${Number(dispute.id)}, 'REJECTED', ${Number(courseId)})">Reject</button>
+          <button class="btn-secondary" type="button" data-csp-action="reviewAttendanceDispute" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(Number(dispute.id)),('APPROVED'),(Number(courseId))]))}">Approve</button>
+          <button class="btn-secondary" type="button" data-csp-action="reviewAttendanceDispute" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(Number(dispute.id)),('REJECTED'),(Number(courseId))]))}">Reject</button>
         ` : ''}
       </article>`).join('') : '<p>No attendance disputes for this course.</p>';
   } catch (err) {
+    if (requestVersion !== teacherDisputeRequestVersion) return;
     list.innerHTML = `<p>Unable to load attendance disputes: ${escapeHtml(err.message)}</p>`;
   }
 }
@@ -737,7 +874,8 @@ async function loadTeacherAssignments() {
   const list = document.getElementById('teacherAssignmentList');
   if (!list) return;
   try {
-    const assignments = await apiGet('/portal/teacher/assignments');
+    const assignments = requireResponseArray(
+      await apiGet('/portal/teacher/assignments'), 'published assignments');
     list.innerHTML = assignments.length ? assignments.map(assignment => `
       <article class="teacher-request-item">
         <strong>${escapeHtml(assignment.title)}</strong>

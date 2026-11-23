@@ -35,7 +35,10 @@ class ProductionConfigurationValidatorTest {
                         "spring.mail.password=",
                         "app.finance.webhook.secret=0123456789abcdef0123456789abcdef",
                         "app.security.cookie-secure=true",
-                        "app.security.cookie-same-site=Strict"
+                        "app.security.cookie-same-site=Strict",
+                        "app.security.mfa.enabled=true",
+                        "app.security.mfa.required-for-privileged=true",
+                        "app.security.mfa.encryption-key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
                 )
                 .run(context -> {
                     assertThat(context).hasNotFailed();
@@ -88,6 +91,33 @@ class ProductionConfigurationValidatorTest {
                     assertThat(context).hasFailed();
                     assertThat(context.getStartupFailure())
                             .hasStackTraceContaining("COOKIE_SAME_SITE must remain Strict");
+                });
+    }
+
+    @Test
+    void shouldRejectProductionWhenPrivilegedMfaIsDisabled() {
+        contextRunner
+                .withPropertyValues(
+                        "spring.profiles.active=prod",
+                        "jwt.secret=0123456789abcdef0123456789abcdef",
+                        "spring.datasource.url=jdbc:h2:mem:prod-mfa-test;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE",
+                        "spring.datasource.username=test-user",
+                        "spring.datasource.password=test-password",
+                        "app.frontend.url=https://portal.example",
+                        "cors.allowed-origins=https://portal.example",
+                        "file.upload.directory=./target/test-uploads",
+                        "app.mail.enabled=false",
+                        "app.finance.webhook.secret=0123456789abcdef0123456789abcdef",
+                        "app.security.cookie-secure=true",
+                        "app.security.cookie-same-site=Strict",
+                        "app.security.mfa.enabled=true",
+                        "app.security.mfa.required-for-privileged=false",
+                        "app.security.mfa.encryption-key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+                )
+                .run(context -> {
+                    assertThat(context).hasFailed();
+                    assertThat(context.getStartupFailure())
+                            .hasStackTraceContaining("MFA_REQUIRED_FOR_PRIVILEGED must be true in production");
                 });
     }
 
@@ -207,7 +237,10 @@ class ProductionConfigurationValidatorTest {
                         "app.mail.from-email=portal@verified.example",
                         "app.finance.webhook.secret=0123456789abcdef0123456789abcdef",
                         "app.security.cookie-secure=true",
-                        "app.security.cookie-same-site=Strict"
+                        "app.security.cookie-same-site=Strict",
+                        "app.security.mfa.enabled=true",
+                        "app.security.mfa.required-for-privileged=true",
+                        "app.security.mfa.encryption-key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
                 )
                 .run(context -> {
                     assertThat(context).hasNotFailed();

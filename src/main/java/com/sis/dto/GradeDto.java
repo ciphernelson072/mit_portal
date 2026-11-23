@@ -1,5 +1,7 @@
 package com.sis.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -30,6 +32,8 @@ public class GradeDto {
     private Boolean retakeRequired;
     private String gradingPolicyVersion;
     private List<AssessmentMarkDto> assessmentComponents;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private AutomaticCourseAssignmentSummary automaticAssignments;
 
     public GradeDto() {}
 
@@ -73,4 +77,8 @@ public class GradeDto {
     public void setGradingPolicyVersion(String gradingPolicyVersion) { this.gradingPolicyVersion = gradingPolicyVersion; }
     public List<AssessmentMarkDto> getAssessmentComponents() { return assessmentComponents; }
     public void setAssessmentComponents(List<AssessmentMarkDto> assessmentComponents) { this.assessmentComponents = assessmentComponents; }
+    public AutomaticCourseAssignmentSummary getAutomaticAssignments() { return automaticAssignments; }
+    public void setAutomaticAssignments(AutomaticCourseAssignmentSummary automaticAssignments) {
+        this.automaticAssignments = automaticAssignments;
+    }
 }

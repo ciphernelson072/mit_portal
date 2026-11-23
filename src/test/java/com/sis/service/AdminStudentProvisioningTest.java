@@ -57,7 +57,9 @@ class AdminStudentProvisioningTest {
     private final AdminService service = new AdminService(
             users, students, teachers, courses, departments, grades, passwordEncoder, refreshTokens,
             studentPrograms, statusHistory, programs, academicYears, academicRecords,
-            mock(com.sis.repository.CurriculumCourseRepository.class));
+            mock(com.sis.repository.CurriculumCourseRepository.class),
+            mock(org.springframework.context.ApplicationEventPublisher.class),
+            mock(com.sis.repository.EmailVerificationTokenRepository.class));
 
     @Test
     void newAdminProvisionedStudentRequiresPasswordChange() {
@@ -136,6 +138,7 @@ class AdminStudentProvisioningTest {
         org.mockito.ArgumentCaptor<User> savedUser = org.mockito.ArgumentCaptor.forClass(User.class);
         verify(users).save(savedUser.capture());
         assertThat(savedUser.getValue().isPasswordChangeRequired()).isTrue();
+        assertThat(savedUser.getValue().isEmailVerified()).isFalse();
         org.mockito.ArgumentCaptor<Teacher> savedTeacher = org.mockito.ArgumentCaptor.forClass(Teacher.class);
         verify(teachers).save(savedTeacher.capture());
         assertThat(savedTeacher.getValue().getHomeDepartment()).isSameAs(department);

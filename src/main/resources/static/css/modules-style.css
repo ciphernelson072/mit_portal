@@ -1186,3 +1186,584 @@ body.dark-mode .status-badge.muted {
   background: rgba(178, 192, 199, .12);
   color: var(--text-secondary);
 }
+
+
+.chat-container {
+    height: 600px;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-light);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .chat-message {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    animation: slideIn 0.3s ease;
+  }
+
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .chat-message.user {
+    align-items: flex-end;
+  }
+
+  .chat-message.bot {
+    align-items: flex-start;
+  }
+
+  .message-content {
+    max-width: 70%;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    word-break: break-word;
+  }
+
+  .chat-message.user .message-content {
+    background: var(--color-primary);
+    color: white;
+  }
+
+  .chat-message.bot .message-content {
+    background: var(--bg-light-secondary);
+    color: var(--text-dark);
+  }
+
+  .message-time {
+    font-size: 11px;
+    color: var(--text-muted);
+    padding: 0 8px;
+  }
+
+  .chat-suggestions {
+    padding: 16px 20px;
+    border-top: 1px solid var(--border-light);
+    background: var(--bg-light-secondary);
+  }
+
+  .chat-suggestions p {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+
+  .suggestion-btn {
+    display: inline-block;
+    padding: 6px 12px;
+    background: var(--bg-light);
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    margin-right: 8px;
+    margin-bottom: 8px;
+    transition: all 0.2s;
+  }
+
+  .suggestion-btn:hover {
+    border-color: var(--color-primary);
+    background: var(--bg-light);
+  }
+
+  .chat-input {
+    padding: 16px 20px;
+    border-top: 1px solid var(--border-light);
+    display: flex;
+    gap: 8px;
+  }
+
+  .chat-input input {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    font-size: 13px;
+    outline: none;
+  }
+
+  .chat-input input:focus {
+    border-color: var(--color-primary);
+  }
+
+  .checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    cursor: pointer;
+    font-size: 13px;
+  }
+
+  .checkbox-item input[type="checkbox"],
+  .checkbox-item input[type="radio"] {
+    cursor: pointer;
+    accent-color: var(--color-primary);
+  }
+
+  .faq-item {
+    background: var(--bg-light);
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+
+  .faq-question {
+    padding: 16px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+    transition: background 0.2s;
+  }
+
+  .faq-question:hover {
+    background: var(--bg-light-secondary);
+  }
+
+  .faq-arrow {
+    transition: transform 0.3s;
+    font-size: 18px;
+  }
+  .faq-arrow.is-open {
+    transform: rotate(90deg);
+  }
+
+  .faq-answer {
+    display: none;
+    padding: 0 16px 16px;
+    background: var(--bg-light-secondary);
+    border-top: 1px solid var(--border-light);
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+  .faq-answer.is-open {
+    display: block;
+  }
+
+  .contact-info-box {
+    display: grid;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .contact-item {
+    display: flex;
+    gap: 16px;
+    padding: 16px;
+    background: var(--bg-light-secondary);
+    border-radius: 8px;
+  }
+
+  .contact-item .icon {
+    font-size: 24px;
+    min-width: 32px;
+  }
+
+  .contact-item p {
+    margin: 4px 0;
+    font-size: 13px;
+  }
+
+  .text-muted {
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+
+  .filter-bar {
+    margin-bottom: 20px;
+  }
+
+  .filter-select {
+    padding: 10px 12px;
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    font-size: 13px;
+    background: var(--bg-light);
+    color: var(--text-dark);
+    outline: none;
+    cursor: pointer;
+  }
+
+  .filter-select:focus {
+    border-color: var(--color-primary);
+  }
+
+  .table-pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    background: var(--bg-light-secondary);
+    margin-top: 16px;
+    border-radius: 8px;
+  }
+
+  .preference-select,
+  .preference-options {
+    margin-bottom: 20px;
+  }
+
+  .radio-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    cursor: pointer;
+    font-size: 13px;
+  }
+
+  .radio-item input[type="radio"] {
+    cursor: pointer;
+    accent-color: var(--color-primary);
+  }
+
+  .clubs-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 16px;
+  }
+
+  .club-card {
+    background: var(--bg-light);
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    transition: all 0.3s;
+  }
+
+  .club-card:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+  }
+
+  .club-icon {
+    font-size: 32px;
+    margin-bottom: 8px;
+  }
+
+  .club-card h3 {
+    font-size: 14px;
+    margin: 0 0 8px 0;
+  }
+
+  .club-description {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+  }
+
+  .club-info {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-light);
+  }
+
+  .club-info span {
+    display: block;
+    margin: 4px 0;
+  }
+
+  .event-card,
+  .route-card {
+    background: var(--bg-light);
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+    transition: all 0.2s;
+  }
+
+  .event-card.featured {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(216, 27, 96, 0.1);
+  }
+
+  .event-header,
+  .route-card .route-number {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+
+  .event-card h3,
+  .route-card h4 {
+    margin: 0;
+    font-size: 15px;
+  }
+
+  .route-number {
+    background: var(--color-primary);
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+  }
+
+  .event-detail,
+  .payment-detail {
+    font-size: 12px;
+    margin: 8px 0;
+  }
+
+  .detail-label {
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  .routes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .event-actions,
+  .assignment-actions,
+  .invoice-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .accommodation-card,
+  .pass-status {
+    background: var(--bg-light-secondary);
+    padding: 16px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+  }
+
+  .accommodation-detail {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-light);
+    font-size: 13px;
+  }
+
+  .accommodation-detail:last-child {
+    border-bottom: none;
+  }
+
+  .rules-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .rules-list li {
+    padding: 8px 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  .rules-list li:before {
+    content: "✓ ";
+    color: var(--color-success);
+    font-weight: 600;
+    margin-right: 8px;
+  }
+
+  .facilities-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin: 16px 0;
+  }
+
+  .facility-item {
+    background: var(--bg-light-secondary);
+    padding: 12px;
+    border-radius: 8px;
+    text-align: center;
+    font-size: 13px;
+  }
+
+  .attendance-courses {
+    display: grid;
+    gap: 16px;
+  }
+
+  .course-attendance {
+    background: var(--bg-light);
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    padding: 16px;
+  }
+
+  .course-header-att {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+
+  .course-code {
+    font-weight: 600;
+    color: var(--color-primary);
+    font-size: 12px;
+  }
+
+  .course-name {
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .attendance-percent {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--color-primary);
+  }
+
+  .attendance-breakdown-bar {
+    display: flex;
+    height: 6px;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 8px;
+  }
+
+  .present-bar {
+    background: var(--color-success);
+    flex: 1;
+  }
+
+  .absent-bar {
+    background: var(--color-danger);
+    flex: 1;
+  }
+
+  .attendance-detail {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  .alerts-container {
+    display: grid;
+    gap: 12px;
+  }
+
+  .alert-box {
+    padding: 16px;
+    border-radius: 8px;
+    display: flex;
+    gap: 12px;
+    border-left: 4px solid;
+  }
+
+  .alert-box.success {
+    background: rgba(67, 160, 71, 0.1);
+    border-left-color: var(--color-success);
+  }
+
+  .alert-box.warning {
+    background: rgba(251, 140, 0, 0.1);
+    border-left-color: var(--color-warning);
+  }
+
+  .alert-icon {
+    font-size: 20px;
+    min-width: 24px;
+  }
+
+  .alert-content {
+    flex: 1;
+  }
+
+  .alert-title {
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: 2px;
+  }
+
+  .alert-text {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  .payment-card {
+    background: var(--bg-light);
+    border-left: 4px solid var(--border-light);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+
+  .payment-card.alert {
+    border-left-color: var(--color-danger);
+    background: rgba(229, 57, 53, 0.02);
+  }
+
+  .payment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .payment-header h3 {
+    margin: 0;
+    font-size: 14px;
+  }
+
+  .payment-amount {
+    font-weight: 700;
+    color: var(--color-primary);
+  }
+
+  .payment-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .faq-container {
+    max-width: 600px;
+  }
+
+  .helpdesk-hero {
+    background: var(--bg-light-secondary);
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+    margin-bottom: 30px;
+  }
+
+  .helpdesk-hero h3 {
+    margin-top: 0;
+  }

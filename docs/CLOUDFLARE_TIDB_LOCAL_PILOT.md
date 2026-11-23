@@ -52,6 +52,10 @@ Cloudflare Tunnel can remain in front of that host.
 TiDB Cloud Starter connections require TLS. The local config validates that
 the JDBC URL uses port `4000` and `sslMode=VERIFY_IDENTITY`.
 
+For pessimistic student-row locks, production uses a TiDB-safe MySQL dialect
+that disables Hibernate's `FOR UPDATE OF <alias>` output. Queries lock the
+underlying entities using the plain MySQL/TiDB `FOR UPDATE` form.
+
 ## 2. Create a named Cloudflare Tunnel
 
 1. Add a domain you control to your Cloudflare account and ensure its DNS is

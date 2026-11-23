@@ -1,5 +1,7 @@
 package com.sis.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 public class AdminCourseDto {
     private Long id;
     private String name;
@@ -9,6 +11,8 @@ public class AdminCourseDto {
     private String semester;
     private Integer credits;
     private Boolean core;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private AutomaticCourseAssignmentSummary automaticAssignments;
 
     public AdminCourseDto() {
     }
@@ -77,4 +81,8 @@ public class AdminCourseDto {
 
     public Boolean getCore() { return core; }
     public void setCore(Boolean core) { this.core = core; }
+    public AutomaticCourseAssignmentSummary getAutomaticAssignments() { return automaticAssignments; }
+    public void setAutomaticAssignments(AutomaticCourseAssignmentSummary automaticAssignments) {
+        this.automaticAssignments = automaticAssignments;
+    }
 }

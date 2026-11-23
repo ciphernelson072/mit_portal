@@ -47,6 +47,92 @@ public interface StudentProgramRepository extends JpaRepository<StudentProgram, 
     List<StudentProgram> findActiveForAutoAssignmentByAcademicYearId(
             @Param("academicYearId") Long academicYearId,
             @Param("status") StudentLifecycleStatus status);
+    @EntityGraph(attributePaths = {"student.user", "program", "academicYear"})
+    @Query("select enrollment from StudentProgram enrollment "
+            + "join enrollment.program program "
+            + "join program.department department "
+            + "join department.faculty faculty "
+            + "join faculty.campus campus "
+            + "where enrollment.student.id = :studentId "
+            + "and enrollment.status = :status "
+            + "and enrollment.student.user.isActive = true "
+            + "and program.active = true and department.active = true "
+            + "and faculty.active = true and campus.active = true")
+    List<StudentProgram> findActiveForAutoAssignmentByStudentId(
+            @Param("studentId") Long studentId,
+            @Param("status") StudentLifecycleStatus status);
+    @EntityGraph(attributePaths = {"student.user", "program", "academicYear"})
+    @Query("select enrollment from StudentProgram enrollment "
+            + "join enrollment.program program "
+            + "join program.department department "
+            + "join department.faculty faculty "
+            + "join faculty.campus campus "
+            + "where enrollment.status = :status "
+            + "and enrollment.student.user.isActive = true "
+            + "and program.active = true and department.active = true "
+            + "and faculty.active = true and campus.active = true "
+            + "and exists (select curriculum.id from CurriculumCourse curriculum "
+            + "where curriculum.program.id = program.id "
+            + "and curriculum.semesterNumber = enrollment.currentSemester "
+            + "and curriculum.required = true "
+            + "and curriculum.course.id = :courseId)")
+    List<StudentProgram> findActiveForAutoAssignmentByCourseId(
+            @Param("courseId") Long courseId,
+            @Param("status") StudentLifecycleStatus status);
+    @EntityGraph(attributePaths = {"student.user", "program", "academicYear"})
+    @Query("select enrollment from StudentProgram enrollment "
+            + "join enrollment.program program "
+            + "join program.department department "
+            + "join department.faculty faculty "
+            + "join faculty.campus campus "
+            + "where enrollment.status = :status "
+            + "and enrollment.academicYear.id = :academicYearId "
+            + "and enrollment.student.user.isActive = true "
+            + "and program.active = true and department.active = true "
+            + "and faculty.active = true and campus.active = true "
+            + "and exists (select curriculum.id from CurriculumCourse curriculum "
+            + "where curriculum.program.id = program.id "
+            + "and curriculum.semesterNumber = enrollment.currentSemester "
+            + "and curriculum.required = true "
+            + "and curriculum.course.id = :courseId)")
+    List<StudentProgram> findActiveForAutoAssignmentByCourseIdAndAcademicYearId(
+            @Param("courseId") Long courseId,
+            @Param("academicYearId") Long academicYearId,
+            @Param("status") StudentLifecycleStatus status);
+    @EntityGraph(attributePaths = {"student.user", "program", "academicYear"})
+    @Query("select enrollment from StudentProgram enrollment "
+            + "join enrollment.program program "
+            + "join program.department department "
+            + "join department.faculty faculty "
+            + "join faculty.campus campus "
+            + "where enrollment.status = :status "
+            + "and enrollment.student.user.isActive = true "
+            + "and program.active = true and department.active = true "
+            + "and faculty.active = true and campus.active = true "
+            + "and exists (select curriculum.id from CurriculumCourse curriculum "
+            + "where curriculum.program.id = program.id "
+            + "and curriculum.semesterNumber = enrollment.currentSemester "
+            + "and curriculum.required = true "
+            + "and curriculum.course.teacher.id = :teacherId)")
+    List<StudentProgram> findActiveForAutoAssignmentByTeacherId(
+            @Param("teacherId") Long teacherId,
+            @Param("status") StudentLifecycleStatus status);
+    @EntityGraph(attributePaths = {"student.user", "program", "academicYear"})
+    @Query("select enrollment from StudentProgram enrollment "
+            + "join enrollment.program program "
+            + "join program.department department "
+            + "join department.faculty faculty "
+            + "join faculty.campus campus "
+            + "where enrollment.program.id = :programId "
+            + "and enrollment.currentSemester = :semesterNumber "
+            + "and enrollment.status = :status "
+            + "and enrollment.student.user.isActive = true "
+            + "and program.active = true and department.active = true "
+            + "and faculty.active = true and campus.active = true")
+    List<StudentProgram> findActiveForAutoAssignmentByProgramIdAndCurrentSemester(
+            @Param("programId") Long programId,
+            @Param("semesterNumber") Integer semesterNumber,
+            @Param("status") StudentLifecycleStatus status);
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select enrollment from StudentProgram enrollment "
             + "where enrollment.student.id = :studentId and enrollment.program.id = :programId "

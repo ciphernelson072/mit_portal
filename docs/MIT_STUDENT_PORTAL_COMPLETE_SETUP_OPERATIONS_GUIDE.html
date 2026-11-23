@@ -1,0 +1,749 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="author" content="Makerere Institute of Technology">
+  <title>MIT Student Portal | Complete Setup and Operations Guide</title>
+  <style>
+    :root {
+      --navy: #112b46;
+      --blue: #1769aa;
+      --teal: #138b83;
+      --ink: #243447;
+      --muted: #627285;
+      --line: #d7e0e9;
+      --pale: #f2f6fa;
+      --green: #e7f5ef;
+      --amber: #fff3d8;
+      --red: #fff0ef;
+    }
+    @page { size: A4; margin: 20mm 17mm 19mm; }
+    * { box-sizing: border-box; }
+    body {
+      color: var(--ink);
+      font: 10pt/1.48 "Segoe UI", Arial, sans-serif;
+      margin: 0;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    header {
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+      font: 8pt "Segoe UI", Arial, sans-serif;
+      padding-bottom: 5px;
+      width: 100%;
+    }
+    footer {
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font: 8pt "Segoe UI", Arial, sans-serif;
+      padding-top: 5px;
+      width: 100%;
+    }
+    .page-number:before { content: counter(page); }
+    .cover {
+      align-items: flex-start;
+      background: linear-gradient(140deg, #102943 0%, #174e78 70%, #137f82 100%);
+      border-radius: 4px;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 238mm;
+      padding: 22mm 17mm 16mm;
+    }
+    .cover .eyebrow {
+      color: #b7e7e4;
+      font-size: 10pt;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+    .cover h1 {
+      border: 0;
+      color: white;
+      font-size: 34pt;
+      line-height: 1.08;
+      margin: 0 0 12px;
+      max-width: 150mm;
+      padding: 0;
+    }
+    .cover .subtitle {
+      color: #e0eef8;
+      font-size: 15pt;
+      max-width: 145mm;
+    }
+    .cover .cover-rule { border-top: 3px solid #65d0bf; margin: 14mm 0 8mm; width: 31mm; }
+    .cover .version { color: #e0eef8; font-size: 10pt; line-height: 1.65; }
+    .cover .bottom { color: #d7e7f3; font-size: 9pt; }
+    .chapter { break-before: page; }
+    h1, h2, h3 { color: var(--navy); break-after: avoid; }
+    h1 { border-bottom: 2px solid var(--teal); font-size: 24pt; line-height: 1.17; margin: 0 0 15px; padding-bottom: 9px; }
+    h2 { font-size: 15pt; line-height: 1.25; margin: 22px 0 8px; }
+    h3 { font-size: 11pt; margin: 16px 0 5px; }
+    p { margin: 7px 0 9px; }
+    a { color: #075d99; text-decoration: none; }
+    ul, ol { margin: 6px 0 11px; padding-left: 21px; }
+    li { margin: 3px 0; }
+    table { border-collapse: collapse; font-size: 8.6pt; margin: 10px 0 14px; width: 100%; }
+    thead { display: table-header-group; }
+    tr, figure, .keep, .callout, pre { break-inside: avoid; }
+    th { background: var(--navy); color: white; font-weight: 700; text-align: left; }
+    td, th { border: 1px solid var(--line); padding: 6px 7px; vertical-align: top; }
+    tbody tr:nth-child(even) { background: #f6f9fc; }
+    code {
+      background: #eef3f8;
+      border-radius: 3px;
+      color: #173c5b;
+      font: 8.6pt Consolas, "Courier New", monospace;
+      padding: 1px 3px;
+      overflow-wrap: anywhere;
+    }
+    pre {
+      background: #f3f6f9;
+      border: 1px solid var(--line);
+      border-left: 3px solid var(--blue);
+      border-radius: 3px;
+      color: #17324d;
+      font: 8.2pt/1.4 Consolas, "Courier New", monospace;
+      overflow-wrap: anywhere;
+      padding: 10px 12px;
+      white-space: pre-wrap;
+    }
+    .lede { color: #42586c; font-size: 12pt; line-height: 1.5; }
+    .muted { color: var(--muted); }
+    .small { font-size: 8.5pt; }
+    .callout { border-left: 4px solid var(--blue); background: var(--pale); margin: 12px 0; padding: 10px 12px; }
+    .callout.good { background: var(--green); border-color: #178252; }
+    .callout.warn { background: var(--amber); border-color: #cf8b11; }
+    .callout.stop { background: var(--red); border-color: #bb3c32; }
+    .tag { border: 1px solid #adc1d2; border-radius: 12px; color: var(--navy); display: inline-block; font-size: 8pt; font-weight: 700; margin: 2px 3px 2px 0; padding: 2px 7px; }
+    .toc { columns: 2; column-gap: 13mm; list-style: none; padding: 0; }
+    .toc li { break-inside: avoid; border-bottom: 1px dotted var(--line); margin: 0; padding: 7px 0; }
+    .toc a { display: block; font-weight: 600; }
+    .checklist { list-style: none; padding: 0; }
+    .checklist li { margin: 6px 0; padding-left: 25px; position: relative; }
+    .checklist li:before { border: 1px solid #7d91a5; content: ""; height: 12px; left: 2px; position: absolute; top: 3px; width: 12px; }
+    #checklists .checklist li { margin: 3px 0; }
+    .source-note { border-top: 1px solid var(--line); color: var(--muted); font-size: 8.3pt; margin-top: 18px; padding-top: 8px; }
+    .two-col { columns: 2; column-gap: 12mm; }
+    .two-col > * { break-inside: avoid; }
+    .no-break { break-inside: avoid; }
+    .center { text-align: center; }
+    @media screen {
+      body { margin: 26px auto; max-width: 185mm; }
+      .cover { min-height: 267mm; }
+    }
+  </style>
+</head>
+<body>
+  <section class="cover">
+    <div>
+      <div class="eyebrow">Makerere Institute of Technology</div>
+      <div class="cover-rule"></div>
+      <h1>Student Portal</h1>
+      <div class="subtitle">Complete Setup and Operations Guide</div>
+    </div>
+    <div>
+      <div class="version">
+        <strong>System reviewed:</strong> 20 November 2026<br>
+        <strong>Deployment reference:</strong> Render Free test service<br>
+        <strong>Document edition:</strong> 1.0
+      </div>
+      <p class="bottom">A practical handbook for administrators, academic staff, operators, and testers</p>
+    </div>
+  </section>
+
+  <section class="chapter" id="purpose">
+    <h1>Purpose, status, and safe use</h1>
+    <p class="lede">This guide combines the supplied setup guide with a review of the current portal repository, deployment templates, operational scripts, and release records. It distinguishes implemented application behavior from environment settings or live workflows that still require confirmation.</p>
+    <div class="callout good"><strong>Current service check:</strong> On 20 November 2026, Render reported deployment <code>dep-dc04tdqjnfac738vi3sg</code> live on image <code>sha-682553db36256d08a93362e22b069776c8c2a096</code>. GitHub Actions run <code>44744430275</code> passed; health and readiness reported <code>UP</code>, and the public login/admissions routes returned HTTP 200.</div>
+    <div class="callout warn"><strong>Test environment, not production approval:</strong> The active Render Free service stores uploads under <code>/tmp/uploads</code>. Files there are ephemeral and can disappear on restart or redeploy. A healthy endpoint does not prove that login, email delivery, database recovery, every role workflow, or production safeguards are accepted.</div>
+    <h2>Verified facts and outstanding verification</h2>
+    <table>
+      <thead><tr><th>Topic</th><th>What this review establishes</th><th>What the operator must still verify</th></tr></thead>
+      <tbody>
+        <tr><td>Render release</td><td>Image tag <code>docker.io/ciphernelson/mit-portal:sha-682553db36256d08a93362e22b069776c8c2a096</code>; commit <code>682553db36256d08a93362e22b069776c8c2a096</code>.</td><td>Before a later release, confirm the active Render image/digest and CI result again.</td></tr>
+        <tr><td>Health</td><td>Public <code>/actuator/health</code> returned HTTP 200 and <code>UP</code> during this review.</td><td>Database, storage, role access, email, backups, recovery, and user acceptance need their own tests.</td></tr>
+        <tr><td>Email</td><td>Current source supports transactional email through Brevo's HTTPS API and SMTP.</td><td>Confirm the active service's private environment, verified sender, rotated API key, and inbox delivery. Provider acceptance alone is not delivery proof.</td></tr>
+        <tr><td>Database and data</td><td>The application uses MySQL-compatible storage and MySQL-specific Flyway migrations.</td><td>Confirm the exact Render database, owner, engine, schema version, isolation, migration plan, backups, and restoration; do not assume Render PostgreSQL is compatible.</td></tr>
+        <tr><td>Automations</td><td>The deployed release includes automatic required-course assignment, one active session per user, scheduled reminders/attendance alerts, email retry tracking, draft-fee approval, and configurable admission documents.</td><td>Verify each role-specific workflow with approved test accounts. Health checks and CI do not prove live account, email, or data acceptance.</td></tr>
+        <tr><td>Production status</td><td>The current Render instance is documented as a Free test service.</td><td>Institutional privacy, security, service ownership, persistence, support, and data-governance approvals remain separate go-live gates.</td></tr>
+      </tbody>
+    </table>
+    <h2>Important corrections to the supplied guide</h2>
+    <ul>
+      <li>The supplied PDF says email uses “SMTP or Resend.” That is not the current release configuration: the reviewed Render templates use <strong>Brevo over HTTPS</strong>. Configure only the provider actually selected for the service.</li>
+      <li>The supplied PDF's staff names, campus/programme/course codes, categories, year dates, term dates, capacities, fees, and sample screen descriptions are examples, not institution-approved data or guaranteed current field labels. Do not copy them into a live system.</li>
+      <li>Current grading requires component-based teacher entry, review, versioned approval, and publication; simply entering a grade and pressing approve is not a complete safe-results procedure.</li>
+      <li>The deployed image matches the 20 November release commit. The recorded health and public-route checks do not prove every authenticated workflow, provider delivery, or migration of an existing database; complete those acceptance checks before using real data.</li>
+    </ul>
+  </section>
+
+  <section id="contents">
+    <h1>Contents</h1>
+    <ol class="toc">
+      <li><a href="#system">1. System overview and trust boundaries</a></li>
+      <li><a href="#environments">2. Choose the right environment</a></li>
+      <li><a href="#local">3. Local setup and verification</a></li>
+      <li><a href="#render">4. Render service setup and configuration</a></li>
+      <li><a href="#bootstrap">5. First administrator and first login</a></li>
+      <li><a href="#institution-setup">6. Institution and academic setup</a></li>
+      <li><a href="#admissions">7. Admissions and account lifecycle</a></li>
+      <li><a href="#academics">8. Teaching, results, and corrections</a></li>
+      <li><a href="#students">9. Student self-service</a></li>
+      <li><a href="#finance">10. Fees and payment operations</a></li>
+      <li><a href="#communications">11. Email, messages, and announcements</a></li>
+      <li><a href="#security">12. Security, privacy, and access control</a></li>
+      <li><a href="#daily-ops">13. Routine operations and monitoring</a></li>
+      <li><a href="#release">14. Releases, migrations, and rollback</a></li>
+      <li><a href="#backups">15. Backups and recovery</a></li>
+      <li><a href="#incidents">16. Incident response</a></li>
+      <li><a href="#checklists">17. Acceptance and launch checklists</a></li>
+      <li><a href="#troubleshooting">18. Troubleshooting</a></li>
+      <li><a href="#reference">19. Reference and ownership record</a></li>
+    </ol>
+    <div class="callout"><strong>Suggested reading:</strong> Operators should read sections 1–5, 12–17 before changing service configuration. Institutional administrators should read sections 6–13 and complete section 17 with test accounts.</div>
+  </section>
+
+  <section class="chapter" id="system">
+    <h1>1. System overview and trust boundaries</h1>
+    <p>The MIT Student Information Portal is a Spring Boot web application. Static HTML, CSS, and JavaScript are served by the application; the browser communicates with Spring APIs. Authorization is enforced on the server for role and record ownership. Hiding a button in a page is not an access-control boundary.</p>
+    <table>
+      <thead><tr><th>Layer</th><th>Current design</th><th>Operator responsibility</th></tr></thead>
+      <tbody>
+        <tr><td>Browser</td><td>Responsive static pages, service worker/PWA, and the MIT logo favicon across portal pages.</td><td>Use the institution's supported browsers; manage updates and cache changes through releases.</td></tr>
+        <tr><td>Application</td><td>Java 25, Spring Boot, Spring Security, JPA/Hibernate, Flyway; Docker image for Render.</td><td>Deploy only a CI-verified, identified image; preserve logs without secrets or private records.</td></tr>
+        <tr><td>Database</td><td>MySQL-compatible database; current migrations target MySQL. H2 is used for isolated automated tests.</td><td>Use an external, private test/production database with a least-privilege app account and an approved backup/restore process.</td></tr>
+        <tr><td>Uploads</td><td>Private application filesystem, protected by application access checks.</td><td>Provide durable storage and a separate backup for any environment holding data that must survive deployment.</td></tr>
+        <tr><td>Identity</td><td>Username/password, secure cookies in production, session/refresh-token controls, optional TOTP MFA.</td><td>Secure accounts, plan MFA key custody and recovery, and never distribute permanent passwords.</td></tr>
+        <tr><td>External services</td><td>Brevo/SMTP mail support; optional payment/provider configuration.</td><td>Approve providers, protect credentials, test end to end, monitor failures and reconcile transactions.</td></tr>
+      </tbody>
+    </table>
+    <h2>Role summary</h2>
+    <table>
+      <thead><tr><th>Role</th><th>Typical responsibility</th><th>Boundary</th></tr></thead>
+      <tbody>
+        <tr><td>Administrator</td><td>Institution setup, accounts/permissions, admissions decisions, academic review/publication, finance and oversight.</td><td>Grant the minimum role permissions. Permission administration is highly privileged.</td></tr>
+        <tr><td>Teacher</td><td>Work with assigned courses, rosters, attendance, component marks and course-scoped data.</td><td>Server checks course assignment and student/course ownership.</td></tr>
+        <tr><td>Student</td><td>View their own published records and use supported registration, requests, messages, and payment workflows.</td><td>Student access must not reveal other students' records or unpublished marks.</td></tr>
+        <tr><td>Applicant/public visitor</td><td>Use public institutional information and submit or check an application where enabled.</td><td>Public routes must not expose private student, staff, or operational data.</td></tr>
+      </tbody>
+    </table>
+    <div class="callout stop"><strong>Do not infer scope from menus.</strong> The presence of a screen, channel name, or setting does not establish that its integration is configured, deployed, secure, or institutionally approved. Check the source-status inventories and acceptance record.</div>
+  </section>
+
+  <section class="chapter" id="environments">
+    <h1>2. Choose the right environment</h1>
+    <table>
+      <thead><tr><th>Environment</th><th>Use</th><th>Data and operating limits</th></tr></thead>
+      <tbody>
+        <tr><td>Local Docker Compose</td><td>Development and isolated testing on a Windows machine.</td><td>Local database and files; bind addresses default to loopback. Use test data only.</td></tr>
+        <tr><td>Local Java / IDE</td><td>Source development, debugging, and controlled local integration work.</td><td>Requires JDK 25 for current source; use a private local test database and loopback binding by default.</td></tr>
+        <tr><td>Render Free test service (current)</td><td>Remote demonstration and controlled functional testing.</td><td>May sleep when idle; uploads under <code>/tmp/uploads</code> are ephemeral. Confirm the attached external database is isolated. Do not use real student/finance data.</td></tr>
+        <tr><td>Render paid Blueprint (template)</td><td>Proposed single-instance hosted configuration with persistent upload disk.</td><td>Not proof that production has been approved or provisioned. Persistent disk is not an external DB backup and is not shared multi-instance storage.</td></tr>
+        <tr><td>Production</td><td>Institution-approved service for real users/data.</td><td>Requires security, privacy, database, durable storage, backup/restore, monitoring, email, domain, support, and user-acceptance gates before launch.</td></tr>
+      </tbody>
+    </table>
+    <h2>Environment rules</h2>
+    <ul>
+      <li>Keep development, test, staging, and production databases and credentials separate. Verify the destination before any migration, import, reset, or restore.</li>
+      <li>Use synthetic/test accounts in development and the current Render Free service. Never seed sample/demo accounts into a shared or production database.</li>
+      <li>Render managed PostgreSQL is not a drop-in replacement for this MySQL-specific application. Select a supported MySQL-compatible service and confirm its networking/TLS requirements.</li>
+      <li>Do not expose a developer machine using router port forwarding, publish MySQL, or use a temporary tunnel as a production address.</li>
+      <li>Production changes need an identified release, tested migration order, a verified pre-change backup, an operator, and a rollback/recovery plan.</li>
+    </ul>
+    <p><strong>Common paths:</strong> gateway <code>/</code>; student sign-in <code>/index.html</code>; employee sign-in <code>/admin-login.html</code>; public site <code>/public/index.html</code>; health <code>/actuator/health</code>. Health confirms service readiness, not workflow acceptance.</p>
+    <p><span class="tag">TEST</span> Label the environment in test accounts and operator notes. Avoid copying real student records into lower environments.</p>
+  </section>
+
+  <section class="chapter" id="local">
+    <h1>3. Local setup and verification</h1>
+    <h2>Prerequisites</h2>
+    <ul>
+      <li>Windows 10/11, Git, Docker Desktop for the simplest local run, and the repository checked out.</li>
+      <li>JDK 25 is required to build/run Java directly. Docker builds supply the Java runtime. The Maven Wrapper is included; a separate Maven install is not required.</li>
+      <li>For direct database testing, use a supported local MySQL 8.0 test instance; current MySQL-specific migrations may not work unchanged with other engines/versions.</li>
+      <li>Node.js/npm is needed for frontend/unit tests. Install dependencies with <code>npm ci</code> only if the local dependency directory is absent or out of date.</li>
+    </ul>
+    <h2>Recommended local Docker workflow</h2>
+    <p>Open PowerShell in the repository root. Read <code>.env.example</code>, replace placeholders with unique local-only values in an ignored <code>.env</code>, then start the stack:</p>
+    <pre>Copy-Item .env.example .env
+# Edit .env locally. Never commit or share it.
+.\run-sis.bat docker-up</pre>
+    <p>Wait for the script's health check. Browse to <code>http://localhost:8080/</code> for the local gateway. Shut it down with:</p>
+    <pre>.\run-sis.bat docker-down</pre>
+    <div class="callout stop"><strong>Destructive operation:</strong> <code>.\run-sis.bat docker-reset</code> removes the local Compose database volume. Do not run it unless the exact local test data can be discarded and any needed backup is verified. Never aim local commands at a shared/institutional database.</div>
+    <h2>Test the source before sharing a build</h2>
+    <pre>.\mvnw.cmd -q test
+npm ci
+npm run build
+npm run test:unit
+.\ops\run-e2e.ps1</pre>
+    <p>The isolated browser runner provisions its own test instance/database. Do not change its base URL to a production portal. Record command, commit, test counts, and failures; passing local tests do not equal live environment acceptance.</p>
+  </section>
+
+  <section class="chapter" id="render">
+    <h1>4. Render service setup and configuration</h1>
+    <h2>Current service reference</h2>
+    <table>
+      <tbody>
+        <tr><th>Service</th><td>MIT Student Portal, Render Free test service</td></tr>
+        <tr><th>Portal URL</th><td><a href="https://makerere-institute-of-technology.onrender.com/">https://makerere-institute-of-technology.onrender.com/</a></td></tr>
+        <tr><th>Current recorded image</th><td><code>docker.io/ciphernelson/mit-portal:sha-682553db36256d08a93362e22b069776c8c2a096</code></td></tr>
+        <tr><th>Health endpoint</th><td><code>/actuator/health</code></td></tr>
+        <tr><th>Upload path</th><td><code>/tmp/uploads</code> (ephemeral on Free)</td></tr>
+        <tr><th>Database</th><td>External MySQL-compatible database; verify the active service target and isolation in Render.</td></tr>
+      </tbody>
+    </table>
+    <h2>Render environment variables</h2>
+    <p>Use Render's private environment/secret fields. The following is a configuration checklist, not a set of credentials to copy from chat. Keep values out of the PDF, repositories, screenshots, logs, and support tickets.</p>
+    <table>
+      <thead><tr><th>Variable</th><th>Purpose / safe setting</th><th>Handling</th></tr></thead>
+      <tbody>
+        <tr><td><code>SPRING_PROFILES_ACTIVE</code></td><td><code>prod</code></td><td>Application profile</td></tr>
+        <tr><td><code>SERVER_ADDRESS</code></td><td><code>0.0.0.0</code>; Render's injected <code>PORT</code> is used.</td><td>Host/network configuration</td></tr>
+        <tr><td><code>DB_URL</code></td><td>JDBC URL for the approved MySQL-compatible service, with provider TLS/timezone options.</td><td>Private configuration; no public database endpoint</td></tr>
+        <tr><td><code>DB_USER</code>, <code>DB_PASSWORD</code></td><td>Dedicated least-privilege application account.</td><td>Private; never use database root</td></tr>
+        <tr><td><code>FRONTEND_URL</code>, <code>CORS_ALLOWED_ORIGINS</code></td><td>Exact approved HTTPS origin(s); no path or trailing slash.</td><td>Do not allow arbitrary origins</td></tr>
+        <tr><td><code>JWT_SECRET</code>, <code>PAYMENT_WEBHOOK_SECRET</code></td><td>Strong generated, persistent signing secrets. Do not rotate casually; rotation can invalidate sessions or signed callbacks.</td><td>Render-generated/private secrets</td></tr>
+        <tr><td><code>COOKIE_SECURE</code></td><td><code>true</code> for HTTPS production/test deployment.</td><td>Protect authentication cookies</td></tr>
+        <tr><td><code>SAMPLE_DATA_ENABLED</code>, <code>FLYWAY_BASELINE_ON_MIGRATE</code></td><td><code>false</code> in hosted production configuration.</td><td>Production safety gates</td></tr>
+        <tr><td><code>UPLOAD_DIR</code></td><td>Current Free: <code>/tmp/uploads</code>; paid template: <code>/var/data/uploads</code>.</td><td>Free storage is temporary; the disk template is not the active service automatically</td></tr>
+        <tr><td><code>MAIL_PROVIDER</code>, <code>MAIL_ENABLED</code></td><td>Blueprint defaults to <code>brevo</code> and enabled. Confirm the active service's actual values.</td><td>Provider choice is not delivery proof</td></tr>
+        <tr><td><code>BREVO_API_KEY</code>, <code>MAIL_FROM_EMAIL</code></td><td>Key and sender address for Brevo HTTPS API.</td><td>Key is secret; sender must be verified; rotate the previously exposed key</td></tr>
+        <tr><td><code>MFA_ENABLED</code>, <code>MFA_REQUIRED_FOR_PRIVILEGED</code>, <code>MFA_ENCRYPTION_KEY</code></td><td>Production requires MFA for privileged accounts. Securely provision/back up a persistent 32-byte Base64 key and verify enrollment and recovery readiness.</td><td>Production startup fails if the key is missing or privileged enforcement is disabled.</td></tr>
+        <tr><td><code>INITIAL_ADMIN_BOOTSTRAP_*</code></td><td>Only for first startup on a truly empty database; disable and remove credentials immediately after creation.</td><td>Never use as account recovery or on a populated database</td></tr>
+      </tbody>
+    </table>
+    <div class="callout warn"><strong>Rotate exposed Brevo credentials.</strong> Revoke the previously exposed API key in Brevo, create a replacement, set it directly as the Render secret, redeploy/restart as required, then send a controlled test message and verify receipt. Do not send or paste the replacement key to anyone through chat.</div>
+    <h2>Change and deploy the image safely</h2>
+    <ol>
+      <li>Identify the reviewed source commit and run the project's CI/build/test gates. Check the Docker Hub commit-specific tag exists and its digest is the expected published artifact.</li>
+      <li>Back up the target database and required uploads. For an existing schema, review migration compatibility and rehearse against a protected copy first.</li>
+      <li>Change the Render image to the exact immutable commit tag (or verify an intentionally configured auto-update to <code>latest</code>); do not rely on a Git push alone.</li>
+      <li>Wait for Render to report the deployment live. Inspect sanitized startup logs for migration/configuration errors.</li>
+      <li>Check health, login and role-specific smoke workflows, logs, email if in scope, and persistence. Capture the deployment ID, image tag/digest, time, and results.</li>
+    </ol>
+  </section>
+
+  <section class="chapter" id="bootstrap">
+    <h1>5. First administrator and first login</h1>
+    <div class="callout stop"><strong>Do not create a new administrator on the assumption the database is empty.</strong> First confirm which database the service uses and whether it already contains users. Never turn on bootstrap on a populated or shared database.</div>
+    <h2>One-time bootstrap for a new empty database</h2>
+    <ol>
+      <li>Confirm database identity, owner approval, empty/initial state, engine compatibility, and completed backup plan. Review the migrations included in the exact application artifact.</li>
+      <li>Temporarily set <code>INITIAL_ADMIN_BOOTSTRAP_ENABLED=true</code> and supply a unique username, reachable email, and unique password (at least 12 characters; within application byte limits) in Render's private environment fields.</li>
+      <li>Deploy and wait for application startup and health. Verify that exactly the intended administrator can sign in over HTTPS.</li>
+      <li>Immediately set the bootstrap flag to <code>false</code> and remove the bootstrap username/email/password fields from Render. The database claim is one-time, but removing secrets is still required.</li>
+      <li>Require the administrator to choose a personal, non-shared password and configure MFA only through the approved staged process.</li>
+    </ol>
+    <p>No default account or default password should be assumed. The identity/temporary credential handoff must be through an approved private channel. Never place passwords in a PDF, source file, ticket, email campaign, or chat.</p>
+    <h2>Account lifecycle</h2>
+    <ul>
+      <li>Create accounts only for approved people and assign the minimum role and permissions required for their work.</li>
+      <li>Use one account per person. Do not share administrator credentials or impersonate a user.</li>
+      <li>Confirm contact/recovery email ownership using the deployed verification flow where enabled.</li>
+      <li>On role change, departure, or suspected compromise, disable/restrict access through approved admin controls, revoke sessions where available, preserve required audit records, and follow institutional retention policy.</li>
+      <li>When a temporary password is used, deliver it privately and require the account holder to change it before portal data access. Emailing permanent passwords is prohibited.</li>
+    </ul>
+  </section>
+
+  <section class="chapter" id="institution-setup">
+    <h1>6. Institution and academic setup</h1>
+    <p>Before entering records, the Registrar/Academic Office and Finance Office should approve names, codes, dates, fees, grading and operational rules. Use the actual UI to confirm field names and validation. The ordering below follows entity dependencies; it does not assert that every optional module is enabled in the deployed release.</p>
+    <div class="callout warn"><strong>Do not seed from the attached example tables.</strong> The supplied PDF includes invented staff names and illustrative course/campus/term data. Replace all examples with data formally approved by the relevant institutional owner. Do not upload student records until privacy/retention approval and environment isolation are verified.</div>
+    <table>
+      <thead><tr><th>Order</th><th>Setup area</th><th>Dependency / acceptance check</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Institution identity and campuses</td><td>Approve permanent campus identifiers, display names, official contacts, and public content. Check whether codes can be changed after records depend on them.</td></tr>
+        <tr><td>2</td><td>Faculties and departments</td><td>Link each faculty to an approved campus and each department to its faculty. Confirm responsible owners.</td></tr>
+        <tr><td>3</td><td>Programmes and award types</td><td>Link to the owning department; approve code, title, award/classification type, duration, and active status. Only approved active programmes should be open to applications.</td></tr>
+        <tr><td>4</td><td>Academic year and terms</td><td>Enter Registrar-approved dates. The portal supports one active academic year at a time; activation can affect admissions. Define registration windows per term.</td></tr>
+        <tr><td>5</td><td>Course categories</td><td>Create only categories the institution wants to use; review any starter/default category instead of assuming it is correct.</td></tr>
+        <tr><td>6</td><td>Staff and teacher accounts</td><td>Create approved staff records, departments and role assignments before assigning teachers to courses. Verify role access with a test account.</td></tr>
+        <tr><td>7</td><td>Courses and assessment structures</td><td>Approve unique course codes, names, categories, credits and ownership. Configure assessment components, max marks, types, and weights totalling 100% before marks are entered.</td></tr>
+        <tr><td>8</td><td>Course sections and timetable</td><td>Link course and term, define capacity, and add approved meeting time/venue. Test registration window/capacity behavior.</td></tr>
+        <tr><td>9</td><td>Fees and payment policy</td><td>Finance approves fee names, amount, due dates, waivers, reconciliation rules, and the supported payment methods before student-facing use.</td></tr>
+        <tr><td>10</td><td>Admissions</td><td>Open approved active programmes for the correct academic year. Submit a synthetic application and verify status/account provisioning before inviting applicants.</td></tr>
+      </tbody>
+    </table>
+    <p class="small">Appendix A lists safe placeholder formats. Replace them with institution-approved codes and dates before configuration.</p>
+    <div class="callout"><strong>Automated course registration depends on setup:</strong> map required courses to each programme semester, assign an active instructor to each course, create active sections for the term, then open the registration window only when approved. The portal uses these records to assign required courses; it does not select or hire instructors.</div>
+  </section>
+
+  <section class="chapter" id="admissions">
+    <h1>7. Admissions and account lifecycle</h1>
+    <h2>Application-to-enrollment flow</h2>
+    <ol>
+      <li>Academic owners confirm the active year, programme availability, application dates, required fields/documents, and admissions/privacy notice.</li>
+      <li>Open only approved programmes for applications. Test a synthetic public application and confirm its receipt/status behavior. Avoid collecting sensitive documents or payment-card data through public forms.</li>
+      <li>Admissions staff review eligibility and record the decision through the authorized workflow. Record an audit trail; never approve an application merely to create a login.</li>
+      <li>For accepted applicants, confirm enrollment/account creation and the programme/year assignment. Verify the account exists and is linked to the correct approved record.</li>
+      <li>When enrollment completes, the portal attempts required-course registration for the student's current programme semester in each open term for that academic year. Review the returned created/already-registered/skipped counts and any issues; missing instructors or sections, full sections, financial holds, and prior drops require staff review.</li>
+      <li>If configured, send onboarding details through the approved verified email path. Provisioned accounts receive a temporary password and must change it before portal access. If email is unavailable, follow the private administrator handoff without exposing credentials in a response or report.</li>
+      <li>Test the new student's first login, password change, sign-out, and account recovery with a test account before opening the process to real applicants.</li>
+    </ol>
+    <h2>Admissions operating checks</h2>
+    <ul>
+      <li>Confirm programme and application are in the intended academic year; deactivate or close offers when no longer approved.</li>
+      <li>Protect application-status lookups and verify applicant access does not reveal other applicants' records.</li>
+      <li>Review email delivery state separately from admission/account state. A successful account operation with failed email requires a controlled follow-up, not a second application or duplicate account.</li>
+      <li>Keep application documents private, restrict downloads, and follow records-retention periods.</li>
+      <li>Test duplicate applications, invalid/missing contact information, rejection, acceptance, and unavailable-email-provider paths using synthetic accounts.</li>
+    </ul>
+  </section>
+
+  <section class="chapter" id="academics">
+    <h1>8. Teaching, results, and corrections</h1>
+    <div class="callout"><strong>Canonical routine grading path:</strong> Teacher assessment-component entry is the normal path. Administrator single-grade/file import, if available in the active release, is for authorized batch or exceptional entry only; imported records remain pending and require teacher component-mark completion and normal review.</div>
+    <h2>Configure and submit marks</h2>
+    <ol>
+      <li>An administrator configures the course's assessment structure before any component marks exist. Define each component, type, maximum score, required/optional status, and weights totalling exactly 100%. Marked structures may be immutable so historical marks retain their meaning.</li>
+      <li>Assign an active teacher to the correct course and confirm student enrollment. The teacher opens only assigned courses and enrolled students.</li>
+      <li>Enter component marks and submit them through the supported teacher workflow. The server validates component membership, duplicates, score bounds and required marks, then calculates totals/grade points and retake state. Missing marks are not equivalent to zero.</li>
+      <li>An administrator authorized for grade review examines the assessment structure and marks. Review is recorded against the exact data state; a later change invalidates that review.</li>
+      <li>Approve the appropriate academic result version, then publish that exact version as a separate step. Verify the version/status and student visibility using test accounts.</li>
+      <li>Before official publication, student pages expose workflow status only where the deployed version supports it; marks, grade values, GPA, and return reasons must remain hidden. After publication, confirm only the correct student can see their official report.</li>
+    </ol>
+    <h2>Corrections, retakes, and appeals</h2>
+    <ul>
+      <li>For a correction to an approved result, use the authorized correction workflow and record the reason. The portal preserves the prior result/assessment snapshot; an assigned teacher makes the change through the standard submission path.</li>
+      <li>Re-review and approve the changed result, then publish the new version. Correction authorization alone does not publish a result.</li>
+      <li>Retakes are separate attempts. The application stores attempt linkage; institutional rules for which attempt replaces another for CGPA/credits must be approved and configured operationally. Do not assume a universal retake policy.</li>
+      <li>Grade appeals are separate from grade correction authorization. Use the appeal workflow only if present in the deployed version; institutionally define deadlines, consultation, escalation, decision authority, and relation to correction/republication.</li>
+      <li>Do not send marks through ordinary email or include marks in notifications unless an approved policy and implemented flow explicitly permit it.</li>
+    </ul>
+    <div class="callout"><strong>Progression remains registrar-controlled:</strong> New admissions start in semester 1. Review the progression recommendation against approved required-course results, then update the student's current semester only after registrar approval. The update attempts required-course assignment for open terms; it does not automatically advance a student.</div>
+    <h2>Grading policy reference</h2>
+    <p>The reviewed source documents a five-point policy named <code>UG_5_POINT_V1</code>; confirm the policy and migration are present in the deployed release and approved by the institution before use.</p>
+    <table>
+      <thead><tr><th>Mark %</th><th>Grade</th><th>Points</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td>80–100</td><td>A</td><td>5.0</td><td>Exceptional / distinction</td></tr>
+        <tr><td>75–&lt;80</td><td>B+</td><td>4.5</td><td>Excellent</td></tr>
+        <tr><td>70–&lt;75</td><td>B</td><td>4.0</td><td>Very good</td></tr>
+        <tr><td>65–&lt;70</td><td>C+</td><td>3.5</td><td>Good</td></tr>
+        <tr><td>60–&lt;65</td><td>C</td><td>3.0</td><td>Fair</td></tr>
+        <tr><td>55–&lt;60</td><td>D+</td><td>2.5</td><td>Satisfactory</td></tr>
+        <tr><td>50–&lt;55</td><td>D</td><td>2.0</td><td>Minimum pass</td></tr>
+        <tr><td>0–&lt;50</td><td>F</td><td>0.0</td><td>Fail / retake required</td></tr>
+      </tbody>
+    </table>
+    <p class="small">Institutional approval is still required for retake replacement, credit progression, CGPA rounding, award classification, correction periods, and appeal timelines. Do not adjust grades or import legacy letter scales to bypass the current policy.</p>
+  </section>
+
+  <section class="chapter" id="students">
+    <h1>9. Student self-service</h1>
+    <ol>
+      <li>Open the student sign-in page over HTTPS and sign in with individual credentials. Complete a required first-login password change before using protected pages.</li>
+      <li>Review contact/profile details and verified recovery email; ask the authorized office to correct identity/programme data.</li>
+      <li>When the correct term's registration window is open, select an available course section. Full sections and closed registration should be rejected. Confirm the student's own registration history.</li>
+      <li>View grades and official reports only when the current results version is published. Do not treat a pre-publication status notice as a final grade or rely on cached data.</li>
+      <li>Review fee balances and use only channels that Finance has enabled and tested. Submit bank-transfer references through the intended workflow, not through an unapproved public message or email.</li>
+      <li>Use the portal's supported attendance dispute, grade appeal, service request, or message workflow where enabled. Keep requests factual and avoid posting passwords, MFA codes, or payment secrets.</li>
+      <li>Sign out on shared devices. Contact the institution's published support route for account recovery; never share a one-time code or password with support staff.</li>
+    </ol>
+    <div class="callout warn"><strong>Offline/PWA note:</strong> The service worker improves delivery of static application assets. It is not a backup, a substitute for current server data, or proof that cached account data is current. Do not treat the portal as an offline record system.</div>
+  </section>
+
+  <section class="chapter" id="finance">
+    <h1>10. Fees and payment operations</h1>
+    <h2>Manual and provider-based payments</h2>
+    <ul>
+      <li>Finance owns fee schedules, due dates, waivers, settlement details, reconciliation, refund review, and segregation of duties.</li>
+      <li>New finance-created student charges begin as <code>DRAFT</code>. A finance-authorized administrator must approve a draft before it appears in the student's balance, reminders, or payment flow. Verify the student, description, amount and due date before approval.</li>
+      <li>Manual requests remain pending until authorized Finance staff verify and reconcile payment evidence. Match references and exact amounts against an approved bank/provider statement; preserve an audit trail.</li>
+      <li>Flutterwave Standard hosted checkout is implemented in source, but production readiness is not established by code alone. Keep it disabled until sandbox checkout, signature/webhook verification, retries, duplicates, delayed events, settlement and refund reconciliation are accepted.</li>
+      <li>Refund creation is a request, not proof money moved. A different authorized Finance user must complete/reject after external payment is verified; record the unique provider/bank refund reference.</li>
+      <li>Other payment destinations (including bank instructions, PayPal, Airtel Money, and MTN MoMo) may be configuration/UI destinations without a complete automated provider integration. Verify each channel's status before offering it. Direct card collection is disabled; never store card number, CVV, PIN, or one-time codes in this portal.</li>
+    </ul>
+    <h2>Minimum payment acceptance tests (sandbox/test accounts only)</h2>
+    <ol>
+      <li>Create a test fee and confirm amount, currency, due date, and student ownership.</li>
+      <li>Exercise initiation, success, failure, cancellation, timeout, invalid amount, and unknown reference.</li>
+      <li>For a hosted provider, verify server-side transaction status, exact amount/currency/reference, webhook signature, retry, duplicate and delayed events.</li>
+      <li>Confirm browser return or an unsigned webhook alone cannot mark the fee paid.</li>
+      <li>Reconcile provider settlement report to portal allocations and test refunds with separate requester/approver identities.</li>
+      <li>Confirm audit logs record the actor and action without logging credentials or card data.</li>
+    </ol>
+    <div class="callout stop"><strong>Do not switch to live payment keys or publish public account numbers until the institution has approved the channel and finance has completed reconciliation, refund, settlement, dispute, and support procedures.</strong></div>
+  </section>
+
+  <section class="chapter" id="communications">
+    <h1>11. Email, messages, and announcements</h1>
+    <h2>Transactional email and account recovery</h2>
+    <ul>
+      <li>For the current Render Blueprint, use Brevo HTTPS API: <code>MAIL_PROVIDER=brevo</code>, enable mail only when approved, set the verified <code>MAIL_FROM_EMAIL</code>, and store <code>BREVO_API_KEY</code> as a Render secret.</li>
+      <li>SMTP support exists in source but Render Free blocks outbound SMTP ports 25, 465, and 587. Do not switch to SMTP on Free; use the provider API or an explicitly approved SMTP relay that supports the target host.</li>
+      <li>After key rotation, test password-reset and verification email using an approved test inbox; verify sender, link destination, expiry, one-time use, delivery logs and support procedure. Never paste recovery links or tokens into chat.</li>
+      <li>Password-reset and verification endpoints intentionally use generic public responses to reduce account enumeration. Provider acceptance does not prove receipt. Never use an email response to disclose whether an account exists.</li>
+      <li>Admissions/onboarding emails may contain a one-time temporary password when configured; never send permanent passwords. Verify forced first-login change and private fallback before using real accounts.</li>
+      <li>Notification email is queued for eligible opted-in users. Failed deliveries are retried after 1, 5, and 30 minutes following the initial failure; review the admin dashboard's <strong>Email Delivery Activity</strong> panel for recent attempts and exhausted failures. A retry status is not proof of inbox receipt.</li>
+      <li>Grade and announcement emails depend on explicit user opt-in and valid profile contact addresses. Event-triggered email is distinct from in-portal notifications. Bounce/retry monitoring and target-inbox delivery still require acceptance.</li>
+    </ul>
+    <h2>Messages, campaigns, and notifications</h2>
+    <ul>
+      <li>Use recipient selection and audience targeting only as intended by the active release. Administrators must review recipient scope before sending a campaign; campaigns can send individually to many recipients.</li>
+      <li>Use test recipients first. Confirm the sender, recipient count, audience filter, content, and partial-failure report. Retry only identified failed recipients after verifying the previous outcome.</li>
+      <li>Do not place sensitive academic, financial, identity, or health details in bulk announcements or unsecured email.</li>
+      <li>Some service requests, leave requests, attendance disputes, appeals, and correction events currently use in-app alerts rather than email. Do not promise email notifications for those events without confirming implementation and policy.</li>
+      <li>Messages/attachments remain subject to retention, access, and export policies. Confirm that file links remain private and expire/access-check as designed.</li>
+    </ul>
+  </section>
+
+  <section class="chapter" id="security">
+    <h1>12. Security, privacy, and access control</h1>
+    <h2>Credentials and privileged access</h2>
+    <ul>
+      <li>Keep database, JWT, payment webhook, Brevo, Flutterwave, MFA, and bootstrap secrets only in an approved secret manager/Render secret field. Never commit <code>.env</code>, paste a key into a guide, or include credentials in a screenshot.</li>
+      <li>Use distinct least-privilege database/application accounts. Do not use database root in a hosted service.</li>
+      <li>Give each operator a unique account; review administrator and finance permissions periodically. Only an authorized <code>ADMIN</code> should assign/revoke role permissions.</li>
+      <li>Each user account supports one active session. A new sign-in invalidates the previous session; users can revoke sessions from Profile &gt; Security. Test this with two browsers and avoid shared accounts.</li>
+      <li>Rotate credentials suspected of exposure promptly. Keep signing keys stable unless following a planned rotation procedure because rotation can invalidate sessions or callbacks.</li>
+      <li>Keep secure cookies and HTTPS enabled. Restrict CORS to exact approved HTTPS origins and operational endpoints to authenticated administrators/approved monitoring networks.</li>
+    </ul>
+    <h2>MFA policy and recovery</h2>
+    <p>MFA and privileged-role enforcement are off by default in the reviewed Blueprint. Before enabling:</p>
+    <ol>
+      <li>Approve the scope (administrators/finance-privileged accounts), enrollment schedule, helpdesk identity proof, independent approval, incident logging, and lost-device recovery.</li>
+      <li>Generate and store a persistent Base64-encoded 32-byte <code>MFA_ENCRYPTION_KEY</code> in the secret manager. Back it up using the institution's encrypted key-custody process and test decrypting a non-production seed.</li>
+      <li>Enable MFA first without mandatory enforcement. Enroll privileged users; verify login, challenge, refresh, session revocation, key restore and recovery.</li>
+      <li>Production requires <code>MFA_REQUIRED_FOR_PRIVILEGED=true</code>; verify privileged-account enrollment and the approved support recovery process before rollout. Never promise recovery paths not supported by the source.</li>
+    </ol>
+    <h2>Privacy and student records</h2>
+    <ul>
+      <li>Obtain institution-approved privacy notice, lawful purpose, collection minimization, retention/deletion/legal-hold policy, complaint/support route, and named privacy owner before real data.</li>
+      <li>Inventory database, files, backups, exports, email provider, logs, monitoring and support copies. Apply access controls and retention/deletion across all copies.</li>
+      <li>Do not use production personal data in tests, tickets, screenshots or demonstrations. Use synthetic identities and redact identifiers from diagnostics.</li>
+      <li>Restrict downloads and exports to legitimate authorized scope. Verify student-owned and teacher-assigned-course boundaries using dedicated test accounts.</li>
+      <li>Review institution-approved public admissions/contact/social/privacy content before enabling applications.</li>
+    </ul>
+  </section>
+
+  <section class="chapter" id="daily-ops">
+    <h1>13. Routine operations and monitoring</h1>
+    <h2>Daily operator routine</h2>
+    <ol>
+      <li>Check Render deployment state, health, recent restarts, memory/storage capacity, application errors, and provider/database connectivity. Inspect sanitized logs; do not export secrets or personal records.</li>
+      <li>Review urgent login/recovery, admission, student/teacher request, security, and system-status queues with least privilege.</li>
+      <li>Finance reviews pending payments and refunds against external statements; require separation between requester and approver where policy requires it.</li>
+      <li>Academic administrators review pending grade/appeal queues. Publish only reviewed, approved, intended result versions.</li>
+      <li>Check email provider delivery/failure events and recent campaign summaries. Follow up using test-safe, recipient-specific procedures.</li>
+      <li>Check backup freshness, latest artifact/checksum, storage capacity, and alert state. A status marker alone does not prove a restore.</li>
+      <li>Review automated fee/grade deadline reminders and attendance-risk alerts. Fee and grade reminders run daily at 09:00 and attendance-risk alerts at 09:30 in <code>APP_AUTOMATION_TIME_ZONE</code> (default <code>Africa/Nairobi</code>); verify the intended timezone and investigate delivery failures.</li>
+      <li>Record operator, time, environment, release, queue/action outcome and sanitized incident/ticket reference.</li>
+    </ol>
+    <h2>Weekly/monthly routine</h2>
+    <table>
+      <thead><tr><th>Cadence</th><th>Review</th></tr></thead>
+      <tbody>
+        <tr><td>Weekly</td><td>Access/permission changes, failed email/payment/reconciliation events, unresolved requests, backup freshness, upload capacity, database health, and security/audit anomalies.</td></tr>
+        <tr><td>Monthly</td><td>Privileged account and MFA enrollment review; retention/deletion queue; provider and database access review; restore/monitoring alert evidence; operating costs and capacity; public content and owner contacts.</td></tr>
+        <tr><td>Before a release</td><td>See section 14: immutable artifact, CI, backup, schema compatibility, pre-release smoke tests, deployment/rollback owner, post-deploy health and functional checks.</td></tr>
+      </tbody>
+    </table>
+    <h2>Monitoring setup</h2>
+    <ul>
+      <li>Use <code>/actuator/health</code> for host readiness only. Keep operational metrics private or authenticated; scrape <code>/actuator/prometheus</code> only from an approved monitoring network.</li>
+      <li>Alert on application down/restart loops, sustained HTTP 5xx, database connectivity, high latency, JVM/resource exhaustion, storage exhaustion, and stale/missed backups.</li>
+      <li>Route structured logs to an institution-approved, access-controlled system with retention and redaction. Avoid passwords, tokens, recovery codes, request bodies with PII, and document content.</li>
+      <li>Test the alert path and responsible on-call contacts; a configured dashboard without a working alert is not operational monitoring.</li>
+    </ul>
+  </section>
+
+  <section class="chapter" id="release">
+    <h1>14. Releases, migrations, and rollback</h1>
+    <h2>Release procedure</h2>
+    <ol>
+      <li>Start from a reviewed source change and identify its exact commit. Ensure the intended Render branch/image source is confirmed rather than inferred from an old record.</li>
+      <li>Run required backend, migration, frontend and browser tests in CI. Review test failures and artifacts; do not bypass gates to publish a Docker image.</li>
+      <li>Record the commit-specific Docker tag and digest. A mutable <code>latest</code> tag is not adequate release identity by itself.</li>
+      <li>Review database migrations against a disposable copy using the actual engine/version. For an existing database, take and validate a backup and perform a data-preserving-copy rehearsal. Never treat a clean disposable database as evidence that an existing database is safe.</li>
+      <li>Coordinate backup of database and uploads, release window, operator/approver, compatibility plan and rollback/recovery conditions.</li>
+      <li>Deploy the identified image to staging/test first. Confirm live health and authenticated critical workflows with synthetic accounts.</li>
+      <li>Record deployment ID, image digest, migration version, health, critical smoke outcomes, provider outcomes, and any exceptions.</li>
+      <li>For production, obtain explicit institutional approval before enabling real data/users or switching provider credentials.</li>
+    </ol>
+    <h2>Rollback and schema compatibility</h2>
+    <div class="callout stop"><strong>There is no universally safe automatic rollback across database migrations.</strong> Do not redeploy an older image blindly after schema changes. The previous application may not understand the new schema, and restoring an old database can discard newer writes.</div>
+    <ul>
+      <li>Prefer a forward fix when the schema/data state is compatible and the recovery plan supports it.</li>
+      <li>Only application-rollback when the previous image explicitly supports the current schema and migration state.</li>
+      <li>If restoring database and files is necessary, coordinate a write freeze/downtime and restore both from a consistent verified recovery point.</li>
+      <li>After recovery, validate login, role boundaries, academic/finance data, file download, audit history, database schema, and service health in the target environment.</li>
+    </ul>
+    <h2>Current release boundary</h2>
+    <p>The deployment reference in this guide is the 20 November image for commit <code>682553db36256d08a93362e22b069776c8c2a096</code>. GitHub Actions run <code>44744430275</code> passed, and Render deployment <code>dep-dc04tdqjnfac738vi3sg</code> reported live. Health/readiness and public route checks do not replace authenticated workflow, provider-delivery, or data-preserving migration acceptance.</p>
+  </section>
+
+  <section class="chapter" id="backups">
+    <h1>15. Backups and recovery</h1>
+    <div class="callout warn"><strong>Render storage boundary:</strong> The current Free service uses ephemeral <code>/tmp/uploads</code>. A paid Blueprint disk mounted at <code>/var/data</code> persists uploads across restarts but does not back up the external database. A single attached disk is not shared storage for horizontal scaling. Establish independent database backups and upload backup/restore before real records.</div>
+    <div class="callout warn"><strong>Restore safety:</strong> Restore scripts overwrite or create data in the selected destination. Rehearse only to a newly created disposable database/path first; verify the checksum and target identity. Do not paste a production connection string into an example command or run a restore against an active database without explicit approval and a written recovery plan.</div>
+    <h2>What must be protected</h2>
+    <ul>
+      <li>Database contents and schema/migration history.</li>
+      <li>Uploaded files and a mapping to the database records that reference them.</li>
+      <li>Required encryption/signing key material and recovery instructions, stored separately in approved encrypted secret management.</li>
+      <li>Configuration and immutable application artifact/digest. Never include secret values in general backup bundles.</li>
+    </ul>
+    <h2>Requirements for a valid operational backup</h2>
+    <ol>
+      <li>Choose an institution-approved, encrypted, access-controlled off-host destination with tested retention and data-residency rules.</li>
+      <li>Back up database and uploads on a coordinated schedule, with checksums and a documented completion/failure alert. Do not place backup files inside the upload folder.</li>
+      <li>Store credentials for backup jobs through protected automation or secret management; never put passwords in command arguments, scripts, or logs.</li>
+      <li>Test restoration in a new disposable database and empty staging path. Verify checksum, Flyway history, application startup, representative synthetic records/files, and owner/ACL behavior.</li>
+      <li>Measure recovery time (RTO) and recovery point (RPO), document data loss window, owners, escalation, and approval before any production incident.</li>
+    </ol>
+    <h2>Repository backup tools</h2>
+    <p>The repository provides scripts such as <code>ops/backup-mysql.ps1</code>, <code>ops/restore-mysql.ps1</code>, <code>ops/backup-uploads.ps1</code>, and <code>ops/restore-uploads.ps1</code>; TiDB-specific dumpling/scheduler scripts are also documented. Read each script and its parameters before use. Backups created on a local workstation are not off-site disaster recovery.</p>
+  </section>
+
+  <section class="chapter" id="incidents">
+    <h1>16. Incident response</h1>
+    <h2>Possible compromised credential or unauthorized access</h2>
+    <ol>
+      <li>Notify the designated security/portal owner through the approved incident route. Record timestamp, environment, suspected account/secret type, and sanitized evidence. Do not include the secret itself.</li>
+      <li>For a leaked API/database credential, revoke or rotate it at the provider, update the deployment secret securely, redeploy/restart if required, and test the dependent flow. Do not rotate JWT/payment signing keys without the planned impact/coordination process.</li>
+      <li>Disable/restrict affected accounts and revoke sessions using approved tools; preserve audit records and logs subject to privacy rules.</li>
+      <li>Determine possible data exposure, exports, emails, files and provider events with authorized reviewers. Follow institutional legal/privacy notification policy.</li>
+      <li>Restore service only after the risk is contained and monitoring/login checks pass. Record root cause, corrective action, and review owner.</li>
+    </ol>
+    <h2>Service outage, database issue, or failed release</h2>
+    <ul>
+      <li>Check Render deployment status and sanitized logs; compare deployed image/digest with the release record.</li>
+      <li>Check health, database availability/connectivity, schema/migration errors, storage fullness and provider status. Do not run ad hoc SQL or delete files as a first response.</li>
+      <li>If a migration is implicated, stop writes/deployment changes if safe, contact database/release owners, and use the rehearsed compatibility/recovery plan.</li>
+      <li>Communicate user impact through approved channels. Never promise a recovery time until the operator's measured RTO and current evidence support it.</li>
+    </ul>
+    <h2>Data loss or restore request</h2>
+    <p>Obtain explicit database and institutional authorization. Identify the exact restore point and scope, estimate lost writes, preserve the current state where feasible, freeze writes, restore to a disposable environment for validation, then follow the approved cutover plan. Database and uploads must be treated as a coordinated set.</p>
+  </section>
+
+  <section class="chapter" id="checklists">
+    <h1>17. Acceptance and launch checklists</h1>
+    <div class="callout stop"><strong>Go / no-go:</strong> If database isolation, data restoration, privileged recovery, data privacy, credential safety, or role boundaries are unverified, keep the deployment in test mode and do not load real institutional data.</div>
+    <h2>Environment and account setup</h2>
+    <ul class="checklist">
+      <li>Test/staging/production service, database, domain and account owners are named and separated.</li>
+      <li>Database engine, host, schema, user privileges, TLS and isolation are confirmed; no production/shared database is used for testing.</li>
+      <li>Initial admin was provisioned only on a verified empty database; bootstrap credentials removed and flag disabled.</li>
+      <li>Campus, faculty, department, programmes, terms, categories, staff, courses and sections were entered from institution-approved source data.</li>
+      <li>Roles and permissions were tested with one administrator, teacher, and student account without exposing another user's data.</li>
+      <li>First-login password change, sign-out/session invalidation and recovery procedures were tested with synthetic accounts.</li>
+      <li>A second sign-in invalidates the first session; Profile &gt; Security session revocation is tested for the intended account.</li>
+    </ul>
+    <h2>Academic, admissions, and finance</h2>
+    <ul class="checklist">
+      <li>One synthetic public application completed review/decision/account provisioning and private credential handoff.</li>
+      <li>Required and optional admission-document rules were tested with synthetic files; reviewer access and retention are approved.</li>
+      <li>Automatic required-course assignment was tested for an admitted student and an opened term; skipped/missing-instructor/section/capacity cases are reviewed, and progression remains registrar-approved.</li>
+      <li>Teacher course assignment and enrollment boundaries tested; marks, review, approval, publication, correction and report download tested against the intended database.</li>
+      <li>Institution-approved grading, retake, CGPA, award, appeal and correction policies documented.</li>
+      <li>Fees, manual reconciliation, provider sandbox, refund separation and settlement process accepted by Finance; unverified channels remain disabled.</li>
+      <li>New student fee charges remain hidden as drafts until Finance approval; reminders and email retry status were checked with synthetic accounts.</li>
+      <li>File upload/download authorization and survival after restart/redeploy verified on the actual durable target storage.</li>
+    </ul>
+    <h2>Security and operations</h2>
+    <ul class="checklist">
+      <li>HTTPS, secure cookies, exact CORS origins, database network restrictions, secrets, log redaction and role boundaries confirmed.</li>
+      <li>Brevo key rotated and active Render secret updated; controlled password-reset/verification/onboarding email delivered to test inboxes.</li>
+      <li>MFA policy, encrypted key custody, privileged enrollment and account recovery tested before enforcement.</li>
+      <li>Database and uploads backed up off-host, checksums verified, restore rehearsed, retention/access controls approved, RPO/RTO measured.</li>
+      <li>Health, metrics access, central logs, alerts and escalation recipients tested.</li>
+      <li>Institutional privacy notice, admissions text, public contacts, retention and deletion, support hours, incident contacts, and accessibility requirements approved.</li>
+      <li>Named campus users completed critical student/teacher/admin workflows on supported devices/network; issues are resolved or formally accepted.</li>
+    </ul>
+  </section>
+
+  <section class="chapter" id="troubleshooting">
+    <h1>18. Troubleshooting</h1>
+    <table>
+      <thead><tr><th>Symptom</th><th>Safe checks</th><th>Next action</th></tr></thead>
+      <tbody>
+        <tr><td>Render reports unhealthy/startup failure</td><td>Check latest deploy logs for environment validation, port binding, DB connectivity, and Flyway errors. Never share secret-bearing lines.</td><td>Fix the identified cause; if migrations are implicated, pause and consult the database/release owner before retrying.</td></tr>
+        <tr><td>Database connection refused</td><td>Confirm host/port, TLS parameters, database allowlist, account status/privileges, and exact database name privately.</td><td>Correct Render's private environment or approved network rules. Do not expose MySQL to the internet.</td></tr>
+        <tr><td>Migration/schema validation failure</td><td>Identify the exact deployed artifact, migration version, and target DB state; compare to the reviewed copy/backup.</td><td>Do not enable Flyway baseline-on-migrate or manually create tables to silence the error. Use a reviewed migration plan.</td></tr>
+        <tr><td>Login page loads but sign-in fails</td><td>Check the actual deployment and application logs, exact account status/role, HTTPS cookie settings, and service health.</td><td>Use a test account and approved password recovery; avoid sharing credentials or bypassing authentication.</td></tr>
+        <tr><td>Reset/verification email not received</td><td>Check verified sender, active provider config, Brevo event/delivery status, recipient spam/quarantine and sanitized application logs.</td><td>Rotate a previously exposed key; verify a test inbox and provider acceptance. Generic responses are intentional and should not be weakened.</td></tr>
+        <tr><td>File disappeared after deployment</td><td>Confirm the active <code>UPLOAD_DIR</code> and whether the service is Free or has an attached persistent disk.</td><td>Free <code>/tmp/uploads</code> is ephemeral. Restore only from a verified archive to an approved target; do not assume a disk snapshot covers the DB.</td></tr>
+        <tr><td>Student cannot see grades</td><td>Check account/student mapping, result workflow status, current published version, and role access.</td><td>Only publish after required teacher submission and administrator review/approval; do not directly update records to force visibility.</td></tr>
+        <tr><td>Payment remains pending</td><td>Check server-side provider verification, exact reference/amount/currency, callback verification, and Finance reconciliation.</td><td>Do not manually mark paid from a browser redirect or screenshot. Use audited reconciliation by authorized Finance staff.</td></tr>
+        <tr><td>Free service is slow on first visit</td><td>Check whether Render has resumed an idle service and inspect health once it responds.</td><td>Wait for the service, retry once, and document the expected Free-tier wake-up. A sleeping host may not meet a production availability target.</td></tr>
+        <tr><td>Course/programme dropdown empty</td><td>Check parent campus/faculty/department, active academic year/term, active programmes, categories, and course/section records.</td><td>Complete setup in dependency order; use current field labels and authorized admin workflow.</td></tr>
+      </tbody>
+    </table>
+    <p>For suspected cross-role exposure, unexpected provider activity, secret leakage, data loss, or failed restore, stop the test/launch and use section 16.</p>
+  </section>
+
+  <section class="chapter" id="reference">
+    <h1>19. Reference and ownership record</h1>
+    <h2>Project documentation reviewed</h2>
+    <ul class="two-col">
+      <li><code>README.md</code> — project, local verification and current Render status.</li>
+      <li><code>docs/RENDER_DEPLOYMENT.md</code> — Render image, configuration and deployment gates.</li>
+      <li><code>docs/REMAINING_WORK_AND_DEPLOYMENT.md</code> — phased rollout and production-readiness gates.</li>
+      <li><code>docs/RELEASE_CHECKLIST.md</code> — release evidence and pending acceptance items.</li>
+      <li><code>docs/MIT_STUDENT_PORTAL_ADMIN_SAMPLING_SAMPLE_DATA.pdf</code> and its HTML source — fictional values and step-by-step, disposable-database sampling.</li>
+      <li><code>docs/DEPLOYMENT_GUIDE.md</code> — local, deployment, monitoring and backup boundaries.</li>
+      <li><code>docs/LOCAL_JAVA_AND_PWA_HOSTING.md</code> / <code>docs/IDE_SETUP.md</code> — Windows setup and local tests.</li>
+      <li><code>docs/INTEGRATION_GAPS.md</code> — implemented, partial and unverified external integrations.</li>
+      <li><code>docs/ROLE_WORKFLOW_GAPS.md</code> / <code>docs/ACADEMIC_RESULTS_WORKFLOW.md</code> — role and academic process details.</li>
+      <li><code>docs/OPERATIONS_MONITORING_RUNBOOK.md</code> / <code>docs/LOCAL_BACKUP_SETUP.md</code> — monitoring, backups and restore.</li>
+      <li><code>docs/PRIVACY_RETENTION_AND_RECOVERY.md</code> / <code>docs/MFA_RECOVERY.md</code> — privacy, recovery and MFA key custody.</li>
+      <li><code>docs/PAYMENT_CONFIGURATION.md</code> — payment-channel setup and acceptance.</li>
+      <li><code>render.free.yaml</code> / <code>render.yaml</code> — Free test and paid template; neither supplies secrets or an external database.</li>
+    </ul>
+    <h2>Operational ownership register</h2>
+    <p>Fill this register from the institute's approved directory. Do not put personal phone numbers or credentials in a publicly distributed copy.</p>
+    <table>
+      <thead><tr><th>Responsibility</th><th>Named role/owner</th><th>Approved contact route</th><th>Escalation/SLA</th></tr></thead>
+      <tbody>
+        <tr><td>Portal service / Render</td><td>To be assigned</td><td>To be approved</td><td>To be approved</td></tr>
+        <tr><td>Database, migrations, backup and restore</td><td>To be assigned</td><td>To be approved</td><td>To be approved</td></tr>
+        <tr><td>Identity, privileged access and MFA recovery</td><td>To be assigned</td><td>To be approved</td><td>To be approved</td></tr>
+        <tr><td>Registrar / academic results</td><td>To be assigned</td><td>To be approved</td><td>To be approved</td></tr>
+        <tr><td>Admissions and student support</td><td>To be assigned</td><td>To be approved</td><td>To be approved</td></tr>
+        <tr><td>Finance and payment reconciliation</td><td>To be assigned</td><td>To be approved</td><td>To be approved</td></tr>
+        <tr><td>Brevo/email provider</td><td>To be assigned</td><td>To be approved</td><td>To be approved</td></tr>
+        <tr><td>Privacy and security incident response</td><td>To be assigned</td><td>To be approved</td><td>To be approved</td></tr>
+      </tbody>
+    </table>
+    <h2>Document control</h2>
+    <table>
+      <tbody>
+        <tr><th>Title</th><td>MIT Student Portal — Complete Setup and Operations Guide</td></tr>
+        <tr><th>Reviewed</th><td>20 November 2026</td></tr>
+        <tr><th>Release reference</th><td>Render image for commit <code>682553db36256d08a93362e22b069776c8c2a096</code>, as recorded on 20 November 2026</td></tr>
+        <tr><th>Approval</th><td>Operational reference draft; institutional owners must approve policies, data, contacts, environment and production readiness.</td></tr>
+        <tr><th>Review trigger</th><td>Any application release, migration, hosting/database/provider change, institutional policy change, incident, or at least quarterly.</td></tr>
+      </tbody>
+    </table>
+    <h2>Appendix A: Example code formats</h2>
+    <p>These are input-format placeholders only, not MIT-approved codes or dates. Replace and validate every value with the responsible institutional owner.</p>
+    <table>
+      <thead><tr><th>Field</th><th>Illustrative placeholder</th><th>Replace/validate with</th></tr></thead>
+      <tbody>
+        <tr><td>Campus code</td><td><code>CAMPUS-01</code></td><td>Registrar-approved permanent code</td></tr>
+        <tr><td>Department code</td><td><code>DEPT-01</code></td><td>Approved organizational code and parent faculty</td></tr>
+        <tr><td>Programme code</td><td><code>PROG-01</code></td><td>Approved programme register, award type, and duration</td></tr>
+        <tr><td>Academic year</td><td><code>YYYY/YY</code></td><td>Registrar-approved calendar and active-year decision</td></tr>
+        <tr><td>Term code</td><td><code>YYYY-T1</code></td><td>Approved term dates, registration start/end, and status</td></tr>
+        <tr><td>Course code</td><td><code>COURSE-1001</code></td><td>Approved course catalogue and owner</td></tr>
+      </tbody>
+    </table>
+    <h2>Appendix B: Backup command template</h2>
+    <p>Use only after an operator has verified the database identity and configured a protected backup destination. This template is not a production restore command.</p>
+    <pre>.\ops\backup-mysql.ps1 `
+  -DatabaseHost &lt;APPROVED_DB_HOST&gt; `
+  -DatabaseName &lt;APPROVED_DATABASE&gt; `
+  -DatabaseUser &lt;DEDICATED_BACKUP_USER&gt; `
+  -OutputDirectory &lt;PROTECTED_BACKUP_DIRECTORY&gt;</pre>
+    <p>Supply the database password only through the approved protected session/secret mechanism required by the script. Back up uploads with <code>.\ops\backup-uploads.ps1 -UploadDirectory &lt;UPLOAD_DIR&gt; -OutputDirectory &lt;SEPARATE_BACKUP_DIRECTORY&gt;</code>.</p>
+    <p class="center muted"><strong>End of guide</strong></p>
+  </section>
+
+</body>
+</html>

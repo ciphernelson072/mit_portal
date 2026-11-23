@@ -22,6 +22,55 @@ const ROLE_KEY = 'mitRole';
 const USERNAME_KEY = 'mitUsername';
 const PASSWORD_CHANGE_KEY = 'mitPasswordChangeRequired';
 const MFA_ENROLLMENT_KEY = 'mitMfaEnrollmentRequired';
+const CSP_ACTION_ALLOWLIST = new Set(["__clickElementById","acknowledgeGradeReview","activateAcademicYear","adminLogout","applyForScholarship","approveClassAttendance","approveDraftFee","approveGrade","approveStudentReport","askQuestion","authorizeGradeCorrection","cancelAdminInput","cancelEventRegistration","changeLanguage","changePassword","closeModal","completeAdminRefund","composeMessage","configureCourseAssessments","confirmAdminPaymentAttempt","confirmDeactivateStaff","confirmDeactivateStudent","confirmGradeAppealConsultation","confirmRemoveStudent","confirmRemoveTeacher","confirmRemoveUser","createAdminFee","createGradeRetake","deactivateUser","decideAdmission","decideGradeAppeal","deleteCourseCategory","deleteStudentDocument","dismissAlert","downloadAdmissionDocument","downloadGradeImportTemplate","downloadHallTicket","downloadInvoice","downloadReceipt","downloadReport","downloadStudentDocument","editContact","editCourse","editProfile","editStudent","editTeacher","editUser","enrollAcceptedApplication","exportAdminData","exportGrades","exportTeacherGrades","exportTeacherRoster","filterByCourse","generateFinanceReport","generateReport","generateStudentReport","goToDashboard","handleAdminLogin","handleChatSubmit","handleLogin","handleLogoutClick","importGrades","initiatePayment","joinClub","loadAdminFlutterwaveReconciliations","loadAdminPaymentAttempts","loadAdminRefunds","loadAdmissionApplications","loadAttendanceRoster","loadCourseUnitRoster","loadDeletedUsers","loadHrManagement","loadPendingActions","loadRequests","loadRoster","loadTeacherPublicationStatuses","loadUsers","markAdminNotificationRead","markAllAdminNotificationsRead","markTeacherNotificationRead","openCourseCategoryForm","openCourseForm","openCourseUnitForm","openEditCourseCategoryForm","openEditStaffModal","openEditStudentModal","openGradeAppeal","openStaffForm","openStudentForm","openStudentGraduationAudit","openStudentLifecycleModal","openStudentTransferModal","openUserForm","publishAnnouncement","publishStudentReport","recalculateStudentCgpa","reconcileLateFlutterwavePayment","registerEvent","rejectAdminPaymentAttempt","rejectAdminRefund","rejectGrade","renewPass","requestAdminPasswordReset","requestExamPermit","requestGradeAppealConsultation","requestHostel","requestPasswordReset","requestService","restoreStudent","restoreTeacher","restoreUser","retryEmailDelivery","reviewAdminAttendanceDispute","reviewAttendanceDispute","reviewGradeAssessments","reviewHrLeave","savePreferences","savePrivacySettings","saveProgramAwardType","selectPaymentMethod","sendChatMessage","setAcademicTermRegistration","setAdmissionDocumentRequirementActive","submitAdminInput","submitAssignment","submitAttendanceDispute","submitStudentReportApproval","submitTeacherGradeAppealResponse","submitTicket","switchModule","switchTab","teacherLogout","testEmail","toggleClubMembership","toggleCourseCategory","toggleFAQ","togglePasswordVisibility","trackRequest","updateRequestAssignee","updateRequestStatus","uploadDocument","uploadTeacherPhoto","viewAdmissionDocuments","viewAssignment","viewCourseDetails","viewCourseGrades","viewEventDetails","viewInvoice","viewRequest","viewRoute","viewStudentCGPA","viewStudentCgpa","viewSubmission","viewTicket"]);
+
+function dispatchCspAction(event) {
+  let element = event.target instanceof Element ? event.target : event.target?.parentElement;
+  while (element && element !== document.documentElement) {
+    if (element.dataset.cspAction && element.dataset.cspEvent === event.type) {
+      const actionName = element.dataset.cspAction;
+      if (!CSP_ACTION_ALLOWLIST.has(actionName)) {
+        console.error(`Blocked unregistered portal action: ${actionName}`);
+        return;
+      }
+      const args = JSON.parse(decodeURIComponent(element.dataset.cspArgs || '%5B%5D')).map(argument => {
+        if (argument?.__mitCspArg === 'element') return element;
+        if (argument?.__mitCspArg === 'event') return event;
+        if (argument?.__mitCspArg === 'value') return element.value;
+        if (argument?.__mitCspArg === 'checked') return element.checked;
+        return argument;
+      });
+      const action = actionName === '__clickElementById'
+        ? elementId => {
+          const target = document.getElementById(elementId);
+          if (!target) throw new Error(`Missing action target: ${elementId}`);
+          target.click();
+        }
+        : window[actionName];
+      if (typeof action !== 'function') {
+        console.error(`Registered portal action is unavailable: ${actionName}`);
+        return;
+      }
+      const result = action.apply(element, args);
+      if (result === false || element.dataset.cspPreventDefault === 'true') {
+        event.preventDefault();
+      }
+    }
+    element = element.parentElement;
+  }
+}
+
+for (const eventType of ['click', 'submit', 'change', 'input', 'keypress', 'keyup', 'focus', 'blur']) {
+  document.addEventListener(eventType, dispatchCspAction, eventType === 'focus' || eventType === 'blur');
+}
+
+if (!document.querySelector('link[data-mit-csp-inline-styles]')) {
+  const stylesheet = document.createElement('link');
+  stylesheet.rel = 'stylesheet';
+  stylesheet.href = '/css/csp-inline-styles.css';
+  stylesheet.dataset.mitCspInlineStyles = '';
+  document.head.appendChild(stylesheet);
+}
 
 function installRequestFeedback() {
   if (window.__mitRequestFeedbackInstalled) return;
@@ -35,32 +84,13 @@ function installRequestFeedback() {
 
   function ensureFeedbackElements() {
     if (!processingIndicator) {
-      const style = document.createElement('style');
-      style.textContent = `
-        #mitRequestProcessing, #mitRequestSuccess {
-          position: fixed; right: 1rem; z-index: 10000; display: flex;
-          align-items: center; gap: .65rem; max-width: min(26rem, calc(100vw - 2rem));
-          padding: .8rem 1rem; border-radius: .65rem; color: #fff;
-          font: 600 14px/1.4 system-ui, sans-serif;
-          box-shadow: 0 .35rem 1.2rem rgba(0, 0, 0, .22);
-        }
-        #mitRequestProcessing { bottom: 1rem; background: #173b67; }
-        #mitRequestProcessing[hidden], #mitRequestSuccess[hidden] { display: none; }
-        #mitRequestSuccess { bottom: 1rem; background: #176b3a; }
-        #mitRequestProcessing:not([hidden]) + #mitRequestSuccess:not([hidden]) {
-          bottom: 4.5rem;
-        }
-        .mit-request-spinner {
-          width: 1rem; height: 1rem; flex: 0 0 1rem;
-          border: 2px solid rgba(255,255,255,.45); border-top-color: #fff;
-          border-radius: 50%; animation: mit-request-spin .75s linear infinite;
-        }
-        @keyframes mit-request-spin { to { transform: rotate(360deg); } }
-        @media (prefers-reduced-motion: reduce) {
-          .mit-request-spinner { animation-duration: 1.8s; }
-        }
-      `;
-      document.head.appendChild(style);
+      if (!document.querySelector('link[data-mit-request-feedback-styles]')) {
+        const stylesheet = document.createElement('link');
+        stylesheet.rel = 'stylesheet';
+        stylesheet.href = '/css/request-feedback.css';
+        stylesheet.dataset.mitRequestFeedbackStyles = '';
+        document.head.appendChild(stylesheet);
+      }
       processingIndicator = document.createElement('div');
       processingIndicator.id = 'mitRequestProcessing';
       processingIndicator.setAttribute('role', 'status');
@@ -89,6 +119,28 @@ function installRequestFeedback() {
   }
 
   const originalFetch = window.fetch.bind(window);
+  let csrfTokenPromise;
+
+  function getCsrfToken() {
+    if (!csrfTokenPromise) {
+      csrfTokenPromise = originalFetch(`${API}/auth/csrf`, {
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+      }).then(async response => {
+        if (!response.ok) throw new Error(`Could not load CSRF token (${response.status})`);
+        const payload = await response.json();
+        if (typeof payload?.token !== 'string' || !payload.token) {
+          throw new Error('CSRF token response was invalid');
+        }
+        return payload.token;
+      }).catch(error => {
+        csrfTokenPromise = null;
+        throw error;
+      });
+    }
+    return csrfTokenPromise;
+  }
+
   window.fetch = async function (...args) {
     const input = args[0];
     const requestUrl = input instanceof Request ? input.url : String(input);
@@ -113,6 +165,12 @@ function installRequestFeedback() {
     }
 
     try {
+      if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+        const headers = new Headers(input instanceof Request ? input.headers : undefined);
+        new Headers(init.headers).forEach((value, name) => headers.set(name, value));
+        headers.set('X-XSRF-TOKEN', await getCsrfToken());
+        args = [input, { ...init, headers }];
+      }
       const response = await originalFetch(...args);
       const authPath = `${API_URL.pathname.replace(/\/$/, '')}/auth/`;
       const readOnlyPostPaths = [
@@ -427,14 +485,14 @@ function escapeHtml(value) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-// Optional PWA service worker registration: the project ships the static files
-// and Spring Security already permits /service-worker.js and /manifest.json.
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js').catch(() => {
-      // Service worker registration is non-blocking; if the origin is not served
-      // from an http(s) origin or the SW file is unavailable, the portal still
-      // works as a normal web app.
-    });
-  });
+function loadPwaUpdateSupport() {
+  if (!('serviceWorker' in navigator) || window.__mitPortalPwaUpdateScriptRequested) return;
+  window.__mitPortalPwaUpdateScriptRequested = true;
+  const script = document.createElement('script');
+  script.src = '/js/pwa-update.js';
+  script.async = true;
+  script.onerror = () => console.error('Unable to load MIT Portal update support.');
+  document.head.appendChild(script);
 }
+
+loadPwaUpdateSupport();

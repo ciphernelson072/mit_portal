@@ -2,11 +2,14 @@
 
 ## Current test deployment
 
-The Render Free test service was verified after deployment of commit `9c212d4`
-on 10 November 2026. GitHub Actions passed the backend, MySQL migration,
-frontend, browser, and Docker image gates; Render readiness returned `UP`, and
-the gateway, student sign-in, employee sign-in, and public pages returned
-HTTP 200. The public service is
+On 23 November 2026, the Render Free test service reported deployment
+`dep-dc1se1nf3r2c73dko37g` live for image/commit
+`sha-8b0cdf94e173861aa314326176127529a0427253`. The public homepage and
+`/admin-login.html` returned HTTP 200 after the Free instance woke. The live
+login response still included `'unsafe-inline'`, `https://cdn.jsdelivr.net`,
+and inline HTML handlers/styles, so the latest local security hardening is not
+in this image. No successful account sign-in or end-to-end email delivery was
+performed. The public service is
 [`https://makerere-institute-of-technology.onrender.com/`](https://makerere-institute-of-technology.onrender.com/).
 This is a test deployment, not production approval.
 
@@ -14,8 +17,7 @@ The active Free service uses `UPLOAD_DIR=/tmp/uploads`; uploads are ephemeral
 and may be lost on restart or redeploy. The Free Blueprint now uses the same
 path. Verify the service is connected to an isolated test database before
 creating accounts or entering data. Never use real student records in this
-environment. Documentation and sitemap changes made after commit `9c212d4`
-are not part of that deployed release unless separately built and deployed.
+environment.
 
 The root `render.yaml` Blueprint is for a paid Starter service with a persistent
 uploads disk. For public student testing on Render Free, select
@@ -49,15 +51,23 @@ The Render service consumes a prebuilt Docker Hub image rather than building
 the Git branch directly. The GitHub Actions workflow publishes
 `docker.io/ciphernelson/mit-portal:latest` and a commit-specific tag on pushes
 to `main` and `fix/admin-login-offline-styles`, after the CI gates pass. The
-10 November 2026 release confirmed the `latest` image flow and automatic Render
-deployment. A Git push alone is not deployment evidence: confirm the workflow,
-the deployed release, and service health for each release.
+current 23 November deployment uses
+`docker.io/ciphernelson/mit-portal:sha-8b0cdf94e173861aa314326176127529a0427253`.
+A Git push alone is not deployment evidence: confirm the workflow, the
+deployed release, and service health for each release.
+
+The public-admissions Turnstile integration is opt-in. For an approved test
+domain, configure `TURNSTILE_ENABLED=true`, the public `TURNSTILE_SITE_KEY`,
+and the private `TURNSTILE_SECRET_KEY` in Render's environment settings. Keep
+the feature disabled until the keys and domain are verified with synthetic
+submissions; never put the secret in source, screenshots, or browser code.
+Cloudflare Turnstile offers a free plan, but provider keys, domain ownership,
+and live verification have not been accepted for this test service.
 
 The GitHub Actions repository secrets `DOCKERHUB_USERNAME` and
 `DOCKERHUB_TOKEN` must be configured; never put registry tokens in workflow
-files or chat. Confirm in Render that the image source is set to
-`docker.io/ciphernelson/mit-portal:latest` and image updates are set to deploy
-automatically. Verify the deployed image digest and application health after
+files or chat. The active service is configured to use the commit-specific
+image tag above. Verify the deployed image digest and application health after
 each release; do not claim that a Git push updated the service until those
 checks pass.
 
@@ -76,6 +86,11 @@ uncommitted local files. Confirm the reviewed commit is pushed to that connected
 branch and its GitHub Actions checks pass before deployment. Do not assume the
 branch name in an older deployment record is still configured for Render;
 verify the current setting in the Render service.
+The CI workflow currently publishes Docker images only for pushes to `main`
+and `fix/admin-login-offline-styles`; verify the Render-connected branch and
+workflow condition before selecting a release path. A push to another branch
+does not publish the image used by this service.
+
 After a frontend authentication or service-worker change, verify the deployed
 release commit and public login flows. The service worker uses a versioned cache;
 increment `CACHE_NAME` when a release must invalidate previously cached assets.

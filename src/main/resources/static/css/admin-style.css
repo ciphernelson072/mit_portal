@@ -1680,11 +1680,14 @@ body {
   width: 100%;
 }
 .teacher-content .stats-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  width: auto;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: stretch;
   margin: 24px;
   margin-bottom: 0;
 }
+.teacher-content #teacherDashboardStatus { grid-column: 1 / -1; }
+.teacher-content #teacherDashboardStatus:empty { min-height: 0; margin: 0; }
 .teacher-content .stats-grid .stat-card {
   min-height: 118px;
   align-items: center;
@@ -1713,7 +1716,9 @@ body {
 .teacher-gradebook-heading { justify-content: space-between; }
 .teacher-gradebook-heading h3 { margin: 0; }
 .teacher-roster-photo { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; vertical-align: middle; }
-.teacher-dashboard #rosterTable { min-width: 560px; }
+.teacher-dashboard #rosterTable { min-width: 0; table-layout: fixed; }
+.teacher-dashboard #rosterTable th,
+.teacher-dashboard #rosterTable td { white-space: normal; overflow-wrap: anywhere; }
 .teacher-dashboard .teacher-card[id] { scroll-margin-top: 18px; }
 .admin-csv-exports { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .admin-csv-exports > p { flex-basis: 100%; margin: 0; color: var(--text-secondary); font-size: 13px; }
@@ -1751,7 +1756,16 @@ body.dark-mode #teacherPublicationStatusList .status-badge.pending { background:
   .teacher-grid { grid-template-columns: 1fr; }
 }
 
+@media (max-width: 1024px) {
+  .teacher-content .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 @media (max-width: 560px) {
+  .teacher-content .stats-grid { margin: 12px; gap: 10px; }
+  .teacher-content .stats-grid .stat-card { min-height: 104px; gap: 10px; padding: 12px; }
+  .teacher-content .stats-grid .stat-icon { flex: 0 0 36px; width: 36px; height: 36px; font-size: 23px; }
+  .teacher-content .stats-grid .stat-info { min-width: 0; }
+  .teacher-content .stats-grid .stat-label { overflow-wrap: anywhere; font-size: 11px; }
   .teacher-content .admin-header { gap: 12px; }
   .teacher-content .header-title { display: grid; grid-template-columns: 1fr; align-items: stretch; }
   .teacher-content .header-title .btn-secondary { width: 100%; }
@@ -1765,6 +1779,10 @@ body.dark-mode #teacherPublicationStatusList .status-badge.pending { background:
   .teacher-actions > button,
   .teacher-card > .btn-primary,
   .teacher-card form > .btn-primary { width: 100%; justify-content: center; }
+}
+
+@media (max-width: 359px) {
+  .teacher-content .stats-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (max-width: 480px) {

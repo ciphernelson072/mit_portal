@@ -93,7 +93,7 @@ async function loadAdminNotifications() {
   try {
     const notifications = await apiGet('/notifications');
     const list = document.getElementById('adminNotificationList');
-    if (list) list.innerHTML = notifications.length ? notifications.slice(0, 10).map(item => `<button type="button" class="admin-notification-item ${item.read ? '' : 'unread'}" onclick="markAdminNotificationRead(${item.id}, this)"><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.message)}</span></button>`).join('') : '<p>No notifications yet.</p>';
+    if (list) list.innerHTML = notifications.length ? notifications.slice(0, 10).map(item => `<button type="button" class="admin-notification-item ${item.read ? '' : 'unread'}" data-csp-action="markAdminNotificationRead" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(item.id),{"$mitCspArg":"element"}]))}"><strong>${escapeHtml(item.title)}</strong><span>${escapeHtml(item.message)}</span></button>`).join('') : '<p>No notifications yet.</p>';
     const badge = document.getElementById('adminNotificationBadge');
     if (badge) {
       const unread = notifications.filter(item => !item.read).length;
@@ -158,8 +158,8 @@ async function loadAdminAttendanceDisputes() {
         <p>${escapeHtml(dispute.attendanceDate)}: ${dispute.requestedPresent ? 'Request present' : 'Request absent'} - ${escapeHtml(dispute.status)}</p>
         <p>${escapeHtml(dispute.reason)}</p>
         ${['OPEN', 'ESCALATED'].includes(dispute.status) ? `
-          <button class="btn-secondary" type="button" onclick="reviewAdminAttendanceDispute(${Number(dispute.id)}, 'APPROVED')">Approve</button>
-          <button class="btn-secondary" type="button" onclick="reviewAdminAttendanceDispute(${Number(dispute.id)}, 'REJECTED')">Reject</button>
+          <button class="btn-secondary" type="button" data-csp-action="reviewAdminAttendanceDispute" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(Number(dispute.id)),('APPROVED')]))}">Approve</button>
+          <button class="btn-secondary" type="button" data-csp-action="reviewAdminAttendanceDispute" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(Number(dispute.id)),('REJECTED')]))}">Reject</button>
         ` : ''}
       </article>`).join('') : '<p>No attendance disputes found.</p>';
   } catch (err) {
@@ -439,13 +439,18 @@ function setupAcademicForms() {
     event.preventDefault();
     const termId = document.getElementById('sectionAcademicTermId').value;
     try {
-      await apiFetch('/registration/sections', { method: 'POST', body: JSON.stringify({
+      const response = await apiFetch('/registration/sections', { method: 'POST', body: JSON.stringify({
         courseId: Number(document.getElementById('sectionCourseId').value),
         academicTermId: Number(termId),
         sectionCode: document.getElementById('sectionCode').value.trim(),
         capacity: Number(document.getElementById('sectionCapacity').value),
       }) });
-      setAdminStatus('courseSectionStatus', 'Course section created.', 'success');
+      const section = await response.json();
+      setAdminStatus(
+        'courseSectionStatus',
+        `Course section created.${automaticAssignmentStatus(section.automaticAssignments)}`,
+        section.automaticAssignments?.skipped > 0 ? 'warning' : 'success',
+      );
       const courseId = document.getElementById('sectionCourseId').value;
       event.target.reset();
       document.getElementById('sectionAcademicTermId').value = termId;
@@ -626,7 +631,7 @@ async function loadSetupPrograms(departmentId) {
   try {
     const programs = await apiGet(`/admin/institution/programs?departmentId=${encodeURIComponent(departmentId)}`);
     list.innerHTML = programs.length
-      ? `<ul>${programs.map(program => `<li>${escapeHtml(program.code)} · ${escapeHtml(program.name)} (${escapeHtml(program.awardTitle)}) <label>Award type <select id="program-award-type-${program.id}"><option value="">Unclassified</option><option value="BACHELOR" ${program.awardType === 'BACHELOR' ? 'selected' : ''}>Bachelor's Degree</option><option value="DIPLOMA" ${program.awardType === 'DIPLOMA' ? 'selected' : ''}>Diploma</option></select></label> <button type="button" class="btn-small" onclick="saveProgramAwardType(${program.id})">Save type</button></li>`).join('')}</ul>`
+      ? `<ul>${programs.map(program => `<li>${escapeHtml(program.code)} · ${escapeHtml(program.name)} (${escapeHtml(program.awardTitle)}) <label>Award type <select id="program-award-type-${program.id}"><option value="">Unclassified</option><option value="BACHELOR" ${program.awardType === 'BACHELOR' ? 'selected' : ''}>Bachelor's Degree</option><option value="DIPLOMA" ${program.awardType === 'DIPLOMA' ? 'selected' : ''}>Diploma</option></select></label> <button type="button" class="btn-small" data-csp-action="saveProgramAwardType" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(program.id)]))}">Save type</button></li>`).join('')}</ul>`
       : '<p>No active programmes in this department.</p>';
   } catch (err) {
     list.textContent = err.message || 'Unable to load programmes.';
@@ -664,7 +669,7 @@ async function loadAdminAcademicYears() {
     const years = await apiGet('/admin/institution/academic-years');
     window._adminAcademicYears = years;
     list.innerHTML = years.length
-      ? `<ul>${years.map(year => `<li><strong>${escapeHtml(year.name)} (${escapeHtml(year.code)})</strong> · ${escapeHtml(year.startDate)} to ${escapeHtml(year.endDate)} · ${year.active ? '<span class="badge success">Active</span>' : `<button class="btn-small" type="button" onclick="activateAcademicYear(${year.id})">Make active</button>`}</li>`).join('')}</ul>`
+      ? `<ul>${years.map(year => `<li><strong>${escapeHtml(year.name)} (${escapeHtml(year.code)})</strong> · ${escapeHtml(year.startDate)} to ${escapeHtml(year.endDate)} · ${year.active ? '<span class="badge success">Active</span>' : `<button class="btn-small" type="button" data-csp-action="activateAcademicYear" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(year.id)]))}">Make active</button>`}</li>`).join('')}</ul>`
       : '<p>No academic years configured yet.</p>';
     const yearSelect = document.getElementById('academicTermYearId');
     if (yearSelect) {
@@ -700,7 +705,7 @@ async function loadAcademicTerms(academicYearId, selectedTermId = '') {
   try {
     const terms = await apiGet(`/admin/institution/academic-terms?academicYearId=${encodeURIComponent(academicYearId)}`);
     list.innerHTML = terms.length
-      ? `<ul>${terms.map(term => `<li><strong>${escapeHtml(term.name)} (${escapeHtml(term.code)})</strong> · ${escapeHtml(term.startDate)} to ${escapeHtml(term.endDate)} · Registration ${term.registrationOpen ? '<span class="badge success">Open</span><button class="btn-small" type="button" onclick="setAcademicTermRegistration(${term.id}, false)">Close window</button>' : `<span class="badge">Closed</span><button class="btn-small" type="button" onclick="setAcademicTermRegistration(${term.id}, true)">Open window</button>`}</li>`).join('')}</ul>`
+      ? `<ul>${terms.map(term => `<li><strong>${escapeHtml(term.name)} (${escapeHtml(term.code)})</strong> · ${escapeHtml(term.startDate)} to ${escapeHtml(term.endDate)} · Registration ${term.registrationOpen ? '<span class="badge success">Open</span><button class="btn-small" type="button" data-csp-action="setAcademicTermRegistration" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(term.id),(false)]))}">Close window</button>' : `<span class="badge">Closed</span><button class="btn-small" type="button" data-csp-action="setAcademicTermRegistration" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(term.id),(true)]))}">Open window</button>`}</li>`).join('')}</ul>`
       : '<p>No academic terms configured for this year.</p>';
     termSelect.innerHTML = `<option value="">${terms.length ? 'Select an academic term' : 'No terms configured'}</option>${terms.map(term =>
       `<option value="${term.id}">${escapeHtml(term.code)} · ${escapeHtml(term.name)}</option>`).join('')}`;
@@ -821,9 +826,12 @@ async function loadUsers() {
       const active = user.isActive ?? user.active;
       const isCurrentUser = user.username === localStorage.getItem('mitUsername');
       const statusAction = active
-        ? (isCurrentUser ? '<span class="muted">Current account</span>' : `<button class="btn-small delete" onclick="deactivateUser(${user.id})">Deactivate</button>`)
-        : `<button class="btn-small" onclick="restoreUser(${user.id})">Restore</button>`;
-      return `<tr><td>#${user.id}</td><td>${escapeHtml(user.username)}</td><td>${escapeHtml(user.role)}</td><td>${escapeHtml(user.email || '—')}</td><td>${active ? 'Active' : 'Deactivated'}</td><td><button class="btn-small" onclick="editUser(${user.id})">Edit</button>${statusAction}</td></tr>`;
+        ? (isCurrentUser ? '<span class="muted">Current account</span>' : `<button class="btn-small delete" data-csp-action="deactivateUser" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(user.id)]))}">Deactivate</button>`)
+        : `<button class="btn-small" data-csp-action="restoreUser" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(user.id)]))}">Restore</button>`;
+      const emailStatus = user.email
+        ? (user.emailVerified ? 'Verified' : 'Verification pending')
+        : 'No email';
+      return `<tr><td>#${user.id}</td><td>${escapeHtml(user.username)}</td><td>${escapeHtml(user.role)}</td><td>${escapeHtml(user.email || '—')}<br><small>${emailStatus}</small></td><td>${active ? 'Active' : 'Deactivated'}</td><td><button class="btn-small" data-csp-action="editUser" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(user.id)]))}">Edit</button>${statusAction}</td></tr>`;
     }).join('') : '<tr><td colspan="6">No users found.</td></tr>';
   } catch (err) { tbody.innerHTML = `<tr><td colspan="6">${escapeHtml(err.message)}</td></tr>`; }
 }
@@ -831,7 +839,7 @@ async function loadUsers() {
 function openUserForm(user = null) {
   const roleOptions = ['STUDENT', 'TEACHER', 'ADMIN'].map(role =>
     `<option value="${role}" ${user?.role === role ? 'selected' : ''}>${role}</option>`).join('');
-  openModal(`<span class="modal-close" onclick="closeModal()">&times;</span><h2>${user ? 'Edit' : 'Add Administrator'}</h2><form id="userForm"><div class="modal-field"><label>Username</label><input name="username" value="${escapeHtml(user?.username || '')}" required ${user ? 'readonly' : ''}></div><div class="modal-field"><label>Password</label><input name="password" type="password" ${user ? '' : 'required'}></div><div class="modal-field"><label>Role</label><select name="role">${roleOptions}</select></div><div class="modal-field"><label>Account Email</label><input name="email" type="email" value="${escapeHtml(user?.email || '')}"><small>Used for sign-in and password recovery. Student and teacher contact email is managed separately in their profiles.</small></div><div class="modal-field"><label>Phone</label><input name="phone" value="${escapeHtml(user?.phone || '')}"></div><div class="modal-actions"><button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button><button class="btn-primary">Save</button></div></form>`);
+  openModal(`<span class="modal-close" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">&times;</span><h2>${user ? 'Edit' : 'Add Administrator'}</h2><form id="userForm"><div class="modal-field"><label>Username</label><input name="username" value="${escapeHtml(user?.username || '')}" required ${user ? 'readonly' : ''}></div><div class="modal-field"><label>Password</label><input name="password" type="password" ${user ? '' : 'required'}></div><div class="modal-field"><label>Role</label><select name="role">${roleOptions}</select></div><div class="modal-field"><label>Account Email</label><input name="email" type="email" maxlength="254" autocomplete="email" value="${escapeHtml(user?.email || '')}"><small>Used for sign-in and password recovery. Student and teacher contact email is managed separately in their profiles.</small></div><div class="modal-field"><label>Phone</label><input name="phone" value="${escapeHtml(user?.phone || '')}"></div><div class="modal-actions"><button type="button" class="btn-secondary" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">Cancel</button><button class="btn-primary">Save</button></div></form>`);
   document.getElementById('userForm').addEventListener('submit', async event => {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(event.target));
@@ -899,8 +907,8 @@ async function loadAdminGrades() {
     tbody.innerHTML = grades.length ? grades.map(grade => {
       const finalized = grade.status === 'APPROVED' || grade.status === 'REJECTED';
       const actions = finalized
-        ? `<span class="badge ${grade.status === 'APPROVED' ? 'success' : 'danger'}">${escapeHtml(grade.status)}</span>${grade.status === 'APPROVED' ? `${grade.retakeRequired ? `<button class="btn-small" onclick="createGradeRetake(${grade.id})">Create retake</button>` : ''}<button class="btn-small" onclick="authorizeGradeCorrection(${grade.id})">Authorize correction</button>` : ''}`
-        : `<div class="row-actions"><button class="btn-small" onclick="reviewGradeAssessments(${grade.id})">Review marks</button><button class="btn-small" data-approve-grade="${grade.id}" onclick="approveGrade(${grade.id})" disabled>Approve</button><button class="btn-small danger" onclick="rejectGrade(${grade.id})">Reject</button></div>`;
+        ? `<span class="badge ${grade.status === 'APPROVED' ? 'success' : 'danger'}">${escapeHtml(grade.status)}</span>${grade.status === 'APPROVED' ? `${grade.retakeRequired ? `<button class="btn-small" data-csp-action="createGradeRetake" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(grade.id)]))}">Create retake</button>` : ''}<button class="btn-small" data-csp-action="authorizeGradeCorrection" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(grade.id)]))}">Authorize correction</button>` : ''}`
+        : `<div class="row-actions"><button class="btn-small" data-csp-action="reviewGradeAssessments" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(grade.id)]))}">Review marks</button><button class="btn-small" data-approve-grade="${grade.id}" data-csp-action="approveGrade" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(grade.id)]))}" disabled>Approve</button><button class="btn-small danger" data-csp-action="rejectGrade" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(grade.id)]))}">Reject</button></div>`;
       return `<tr>
       <td>${escapeHtml(grade.studentUsername)}</td>
       <td>${escapeHtml(grade.studentName)}</td>
@@ -930,12 +938,12 @@ async function loadAdminGradeAppeals() {
         <tbody>${appeals.map(item => {
           let actions = '—';
           if (item.status === 'OPEN') {
-            actions = `<button class="btn-small" type="button" onclick="requestGradeAppealConsultation(${Number(item.id)})">Request teacher consultation</button>`;
+            actions = `<button class="btn-small" type="button" data-csp-action="requestGradeAppealConsultation" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(Number(item.id))]))}">Request teacher consultation</button>`;
           } else if (item.status === 'TEACHER_REVIEW') {
-            actions = `<button class="btn-small" type="button" onclick="confirmGradeAppealConsultation(${Number(item.id)})">Confirm consulted; no written response</button>`;
+            actions = `<button class="btn-small" type="button" data-csp-action="confirmGradeAppealConsultation" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(Number(item.id))]))}">Confirm consulted; no written response</button>`;
           } else if (item.status === 'READY_FOR_DECISION') {
-            actions = `<button class="btn-small" type="button" onclick="decideGradeAppeal(${Number(item.id)}, 'APPROVED')">Approve appeal</button>
-              <button class="btn-small danger" type="button" onclick="decideGradeAppeal(${Number(item.id)}, 'REJECTED')">Reject appeal</button>`;
+            actions = `<button class="btn-small" type="button" data-csp-action="decideGradeAppeal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(Number(item.id)),('APPROVED')]))}">Approve appeal</button>
+              <button class="btn-small danger" type="button" data-csp-action="decideGradeAppeal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(Number(item.id)),('REJECTED')]))}">Reject appeal</button>`;
           }
           return `<tr>
             <td>${escapeHtml(item.studentName)}<br><small>${escapeHtml(item.registrationNumber || '')}</small></td>
@@ -1010,12 +1018,12 @@ async function reviewGradeAssessments(id) {
       <td>${mark.score == null ? '<span class="badge pending">MISSING</span>' : `${escapeHtml(mark.score)} / ${escapeHtml(mark.maxScore)}`}</td>
       <td>${escapeHtml(mark.weightPercentage)}%</td>
     </tr>`).join('') : '<tr><td colspan="3">No assessment structure is configured for this course.</td></tr>';
-    openModal(`<button type="button" class="modal-close" onclick="closeModal()" aria-label="Close">&times;</button>
+    openModal(`<button type="button" class="modal-close" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}" aria-label="Close">&times;</button>
       <h2>Assessment review · ${escapeHtml(grade?.courseName || `Grade ${id}`)}</h2>
       <p>Calculated result: ${escapeHtml(grade?.totalMark ?? 'NOT FINALIZED')}% · ${escapeHtml(grade?.gradeValue || '—')} · ${grade?.gpaScore == null ? '—' : `${Number(grade.gpaScore).toFixed(2)} grade points`}</p>
       <div class="roster-wrap"><table class="admin-table"><thead><tr><th>Assessment component</th><th>Mark</th><th>Weight</th></tr></thead><tbody>${rows}</tbody></table></div>
       <p class="teacher-status ${missing.length ? 'error' : 'success'}" role="status">${missing.length ? `${missing.length} assessment mark(s) are missing. Approval will be rejected until all required marks are entered.` : 'All configured assessment components have marks. The server will recompute and validate the weighted result during approval.'}</p>
-      <div class="modal-actions"><button type="button" class="btn-secondary" onclick="closeModal()">Close</button><button type="button" class="btn-primary" ${missing.length || !marks.length ? 'disabled' : ''} onclick="acknowledgeGradeReview(${id}, ${missing.length === 0 && marks.length > 0})">Mark reviewed</button></div>`);
+      <div class="modal-actions"><button type="button" class="btn-secondary" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">Close</button><button type="button" class="btn-primary" ${missing.length || !marks.length ? 'disabled' : ''} data-csp-action="acknowledgeGradeReview" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(id),(missing.length === 0 && marks.length > 0)]))}">Mark reviewed</button></div>`);
   } catch (error) {
     alert(error.message || 'Unable to load assessment details.');
   }
@@ -1040,8 +1048,14 @@ async function approveGrade(id) {
     return alert('Review the assessment marks and validation status before approving this grade.');
   }
   try {
-    await apiFetch(`/admin/grades/${id}/approve`, { method: 'POST' });
+    const response = await apiFetch(`/admin/grades/${id}/approve`, { method: 'POST' });
+    const grade = await response.json();
     await loadAdminGrades();
+    const summary = grade.automaticAssignments;
+    showAdminToast(
+      `Grade approved.${automaticAssignmentStatus(summary)}`,
+      summary?.skipped > 0 ? 'warning' : 'success',
+    );
   } catch (err) { alert(err.message); }
 }
 
@@ -1104,7 +1118,7 @@ async function loadDeletedUsers() {
   try {
     const users = await apiGet('/admin/deleted-users');
     window._usersCache = users;
-    tbody.innerHTML = users.length ? users.map(user => `<tr><td>#${user.id}</td><td>${escapeHtml(user.username)}</td><td>${escapeHtml(user.role)}</td><td>${escapeHtml(user.email || '—')}</td><td>Deactivated</td><td><button class="btn-small" onclick="restoreUser(${user.id})">Restore</button></td></tr>`).join('') : '<tr><td colspan="6">No deleted users found.</td></tr>';
+    tbody.innerHTML = users.length ? users.map(user => `<tr><td>#${user.id}</td><td>${escapeHtml(user.username)}</td><td>${escapeHtml(user.role)}</td><td>${escapeHtml(user.email || '—')}</td><td>Deactivated</td><td><button class="btn-small" data-csp-action="restoreUser" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(user.id)]))}">Restore</button></td></tr>`).join('') : '<tr><td colspan="6">No deleted users found.</td></tr>';
   } catch (err) { tbody.innerHTML = `<tr><td colspan="6">${escapeHtml(err.message)}</td></tr>`; }
 }
 
@@ -1130,7 +1144,7 @@ async function loadAdminFinance() {
       const balance = Number(fee.balance ?? (fee.paid ? 0 : fee.amount));
       const settled = balance <= 0;
       const approval = fee.status === 'DRAFT'
-        ? `<button class="btn-small" onclick="approveDraftFee(${Number(fee.id)})">Approve</button>`
+        ? `<button class="btn-small" data-csp-action="approveDraftFee" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(Number(fee.id))]))}">Approve</button>`
         : '<span class="badge success">Approved</span>';
       return `<tr><td>${escapeHtml(fee.studentName)} (${escapeHtml(fee.studentUsername)})</td><td>UGX ${Number(fee.amount).toLocaleString()}</td><td>UGX ${amountPaid.toLocaleString()}</td><td>UGX ${balance.toLocaleString()}</td><td>${escapeHtml(fee.dueDate || 'Not set')}</td><td><span class="badge ${settled ? 'success' : 'pending'}">${settled ? 'Settled' : amountPaid > 0 ? 'Partially paid' : 'Pending'}</span></td><td>${approval}</td></tr>`;
     }).join('') : '<tr><td colspan="6">No fee records found.</td></tr>';
@@ -1163,10 +1177,10 @@ function renderAdminPaymentAttempts(attempts) {
       && new Date(attempt.checkoutExpiresAt).getTime() <= Date.now();
     const reviewActions = isFlutterwave
       ? checkoutExpired
-        ? `<span>Checkout expired</span><button class="btn-small danger" onclick="rejectAdminPaymentAttempt(${Number(attempt.id)})">Close attempt</button>`
+        ? `<span>Checkout expired</span><button class="btn-small danger" data-csp-action="rejectAdminPaymentAttempt" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(Number(attempt.id))]))}">Close attempt</button>`
         : '<span>Awaiting verified Flutterwave result</span>'
-      : `<button class="btn-small" onclick="confirmAdminPaymentAttempt(${Number(attempt.id)})">Confirm verified</button>
-          <button class="btn-small danger" onclick="rejectAdminPaymentAttempt(${Number(attempt.id)})">Reject</button>`;
+      : `<button class="btn-small" data-csp-action="confirmAdminPaymentAttempt" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(Number(attempt.id))]))}">Confirm verified</button>
+          <button class="btn-small danger" data-csp-action="rejectAdminPaymentAttempt" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(Number(attempt.id))]))}">Reject</button>`;
     return `
     <tr>
       <td>#${Number(attempt.id)}</td>
@@ -1206,7 +1220,7 @@ function renderAdminFlutterwaveReconciliations(attempts) {
       <td>${escapeHtml(attempt.providerTransactionId || '—')}</td>
       <td>${escapeHtml((attempt.createdAt || '').replace('T', ' ').slice(0, 16))}</td>
       <td><span>${escapeHtml(attempt.reviewNote || 'Finance review required')}</span>
-          <button class="btn-small" onclick="reconcileLateFlutterwavePayment(${Number(attempt.id)})">Re-verify &amp; confirm</button></td>
+          <button class="btn-small" data-csp-action="reconcileLateFlutterwavePayment" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(Number(attempt.id))]))}">Re-verify &amp; confirm</button></td>
     </tr>`).join('') : '<tr><td colspan="8">No late Flutterwave payments need reconciliation.</td></tr>';
 }
 
@@ -1253,8 +1267,8 @@ async function loadAdminRefunds() {
         <td>${escapeHtml(refund.processedBy || '—')}</td>
         <td>${escapeHtml(refund.reason || '—')}</td>
         <td>${escapeHtml(refund.refundReference || '—')}</td>
-        <td><button class="btn-small" onclick="completeAdminRefund(${Number(refund.id)})">Confirm external refund</button>
-            <button class="btn-small danger" onclick="rejectAdminRefund(${Number(refund.id)})">Reject</button></td>
+        <td><button class="btn-small" data-csp-action="completeAdminRefund" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(Number(refund.id))]))}">Confirm external refund</button>
+            <button class="btn-small danger" data-csp-action="rejectAdminRefund" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(Number(refund.id))]))}">Reject</button></td>
       </tr>`).join('') : '<tr><td colspan="8">No pending refund requests.</td></tr>';
   } catch (err) {
     tbody.innerHTML = `<tr><td colspan="8">${escapeHtml(err.message || 'Unable to load refund requests.')}</td></tr>`;
@@ -1303,7 +1317,7 @@ async function approveDraftFee(feeId) {
 async function loadRequests() {
   const tbody = document.querySelector('#requestsModule table tbody');
   if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Loading requests…</td></tr>';
+  tbody.innerHTML = '<tr><td class="csp-inline-5a2dfef236e7" colspan="7">Loading requests…</td></tr>';
   try {
     const [requests, assignees] = await Promise.all([
       apiGet('/student/requests/admin'),
@@ -1321,18 +1335,18 @@ async function loadRequests() {
         <td>${escapeHtml(request.type)}</td>
         <td>${escapeHtml((request.createdAt || '').slice(0, 10))}</td>
         <td><select aria-label="Administrator owner for request ${request.id}"
-          onchange="updateRequestAssignee(${request.id}, this.value)">
+          data-csp-action="updateRequestAssignee" data-csp-event="change" data-csp-args="${encodeURIComponent(JSON.stringify([(request.id),{"$mitCspArg":"value"}]))}">
           <option value="">Unassigned</option>
           ${assignees.map(admin => `<option value="${admin.id}" ${admin.id === request.assigneeId ? 'selected' : ''}>${escapeHtml(admin.username)}</option>`).join('')}
         </select></td>
         <td><select aria-label="Status for request ${request.id}"
-          onchange="updateRequestStatus(${request.id}, this.value)">
+          data-csp-action="updateRequestStatus" data-csp-event="change" data-csp-args="${encodeURIComponent(JSON.stringify([(request.id),{"$mitCspArg":"value"}]))}">
           ${['OPEN','IN_PROGRESS','APPROVED','REJECTED','COMPLETED'].map(option => `<option value="${option}" ${option === request.status ? 'selected' : ''}>${option.replace('_', ' ')}</option>`).join('')}
         </select></td>
-        <td><button class="btn-small" onclick="viewRequest(${request.id})">View</button></td>
-      </tr>`).join('') : '<tr><td colspan="7" style="text-align:center;">No requests found.</td></tr>';
+        <td><button class="btn-small" data-csp-action="viewRequest" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(request.id)]))}">View</button></td>
+      </tr>`).join('') : '<tr><td class="csp-inline-5a2dfef236e7" colspan="7">No requests found.</td></tr>';
   } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--danger);">${escapeHtml(err.message)}</td></tr>`;
+    tbody.innerHTML = `<tr><td class="csp-inline-0b92b7dfc2db" colspan="7">${escapeHtml(err.message)}</td></tr>`;
   }
 }
 
@@ -1387,7 +1401,7 @@ async function viewRequest(id) {
       }
       return `Request activity recorded${actor}`;
     };
-    openModal(`<span class="modal-close" onclick="closeModal()">&times;</span>
+    openModal(`<span class="modal-close" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">&times;</span>
       <h2>Request #${request.id}</h2>
       <p><strong>Student:</strong> ${escapeHtml(request.studentName)} (${escapeHtml(request.studentUsername)})</p>
       <p><strong>Type:</strong> ${escapeHtml(request.type)}</p>
@@ -1417,15 +1431,15 @@ function requestAdminInput(title, label, type = 'text') {
   return new Promise(resolve => {
     pendingAdminInputResolver = resolve;
     openModal(`
-      <button type="button" class="modal-close" onclick="cancelAdminInput()" aria-label="Close">&times;</button>
+      <button type="button" class="modal-close" data-csp-action="cancelAdminInput" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}" aria-label="Close">&times;</button>
       <h2 id="adminInputTitle">${escapeHtml(title)}</h2>
-      <form onsubmit="submitAdminInput(event)" aria-labelledby="adminInputTitle">
+      <form data-csp-action="submitAdminInput" data-csp-event="submit" data-csp-args="${encodeURIComponent(JSON.stringify([{"$mitCspArg":"event"}]))}" aria-labelledby="adminInputTitle">
         <div class="modal-field">
           <label for="adminInputValue">${escapeHtml(label)}</label>
           <input id="adminInputValue" name="value" type="${type}" ${type === 'number' ? 'min="1" step="1"' : ''} required>
         </div>
         <div class="modal-actions">
-          <button type="button" class="btn-secondary" onclick="cancelAdminInput()">Cancel</button>
+          <button type="button" class="btn-secondary" data-csp-action="cancelAdminInput" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">Cancel</button>
           <button type="submit" class="btn-primary">Continue</button>
         </div>
       </form>
@@ -1551,14 +1565,14 @@ async function loadPendingActions() {
 
   const tasks = [];
   if (pendingGrades.length) {
-    tasks.push(`<button type="button" class="task-item task-link" onclick="switchModule('grades')"><span class="task-info"><span class="task-title">${pendingGrades.length} grade approval${pendingGrades.length === 1 ? '' : 's'}</span><span>Review teacher-submitted grades.</span></span><span aria-hidden="true">→</span></button>`);
+    tasks.push(`<button type="button" class="task-item task-link" data-csp-action="switchModule" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([('grades')]))}"><span class="task-info"><span class="task-title">${pendingGrades.length} grade approval${pendingGrades.length === 1 ? '' : 's'}</span><span>Review teacher-submitted grades.</span></span><span aria-hidden="true">→</span></button>`);
   }
   if (pendingAdmissions.length) {
-    tasks.push(`<button type="button" class="task-item task-link" onclick="switchModule('admissions')"><span class="task-info"><span class="task-title">${pendingAdmissions.length} admission application${pendingAdmissions.length === 1 ? '' : 's'}</span><span>Review submitted applications.</span></span><span aria-hidden="true">→</span></button>`);
+    tasks.push(`<button type="button" class="task-item task-link" data-csp-action="switchModule" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([('admissions')]))}"><span class="task-info"><span class="task-title">${pendingAdmissions.length} admission application${pendingAdmissions.length === 1 ? '' : 's'}</span><span>Review submitted applications.</span></span><span aria-hidden="true">→</span></button>`);
   }
   if (failedQueues.length) {
     tasks.push(`<p class="teacher-status error" role="alert">Unable to load ${escapeHtml(failedQueues.join(' and '))} queue${failedQueues.length === 1 ? '' : 's'}.</p>
-      <button type="button" class="btn-secondary" onclick="loadPendingActions()">Retry pending actions</button>`);
+      <button type="button" class="btn-secondary" data-csp-action="loadPendingActions" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">Retry pending actions</button>`);
   } else if (!taskCount) {
     tasks.push('<p>No pending actions.</p>');
   }
@@ -1585,13 +1599,13 @@ async function loadAdmissionApplications() {
     tbody.innerHTML = applications.length ? applications.map(application => {
       const canDecide = application.status === 'SUBMITTED' || application.status === 'UNDER_REVIEW';
       const actions = canDecide
-        ? `<div class="row-actions"><button class="btn-small" type="button" onclick="decideAdmission(${application.id}, 'ACCEPTED')">Accept</button><button class="btn-small danger" type="button" onclick="decideAdmission(${application.id}, 'REJECTED')">Reject</button></div>`
+        ? `<div class="row-actions"><button class="btn-small" type="button" data-csp-action="decideAdmission" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(application.id),('ACCEPTED')]))}">Accept</button><button class="btn-small danger" type="button" data-csp-action="decideAdmission" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(application.id),('REJECTED')]))}">Reject</button></div>`
         : application.status === 'ACCEPTED' && application.enrolled
           ? '<span class="badge success">Enrolled</span>'
           : application.status === 'ACCEPTED'
-            ? `<button class="btn-small" type="button" onclick="enrollAcceptedApplication(${application.id})">Enroll student</button>`
+            ? `<button class="btn-small" type="button" data-csp-action="enrollAcceptedApplication" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(application.id)]))}">Enroll student</button>`
           : `<span class="muted">${escapeHtml(application.status)}</span>`;
-      return `<tr><td>${escapeHtml(application.applicationNumber)}</td><td>${escapeHtml(application.applicantName)}</td><td>${escapeHtml(application.email)}${application.phone ? `<br>${escapeHtml(application.phone)}` : ''}</td><td>${escapeHtml(application.programName)}</td><td>${escapeHtml(application.academicYearName || application.academicYearId)}</td><td>${escapeHtml(String(application.submittedAt || '').slice(0, 10) || '—')}</td><td><span class="badge ${application.status === 'ACCEPTED' ? 'success' : application.status === 'REJECTED' ? 'danger' : 'pending'}">${escapeHtml(application.status)}</span></td><td>${escapeHtml(application.reviewerNotes || '—')}</td><td><button class="btn-small" type="button" onclick="viewAdmissionDocuments(${application.id})">View files</button></td><td>${actions}</td></tr>`;
+      return `<tr><td>${escapeHtml(application.applicationNumber)}</td><td>${escapeHtml(application.applicantName)}</td><td>${escapeHtml(application.email)}${application.phone ? `<br>${escapeHtml(application.phone)}` : ''}</td><td>${escapeHtml(application.programName)}</td><td>${escapeHtml(application.academicYearName || application.academicYearId)}</td><td>${escapeHtml(String(application.submittedAt || '').slice(0, 10) || '—')}</td><td><span class="badge ${application.status === 'ACCEPTED' ? 'success' : application.status === 'REJECTED' ? 'danger' : 'pending'}">${escapeHtml(application.status)}</span></td><td>${escapeHtml(application.reviewerNotes || '—')}</td><td><button class="btn-small" type="button" data-csp-action="viewAdmissionDocuments" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(application.id)]))}">View files</button></td><td>${actions}</td></tr>`;
     }).join('') : '<tr><td colspan="10">No applications found for this status.</td></tr>';
     setAdminStatus('admissionQueueStatus', `${applications.length} application${applications.length === 1 ? '' : 's'} loaded; ${reviewable.length} awaiting decision.`, 'success');
   } catch (err) {
@@ -1614,7 +1628,7 @@ async function loadAdmissionDocumentRequirements() {
         <td>${requirement.required ? 'Required' : 'Optional'}</td>
         <td>${requirement.active ? 'Active' : 'Inactive'}</td>
         <td><button class="btn-small" type="button"
-          onclick="setAdmissionDocumentRequirementActive(${requirement.id}, ${!requirement.active})">
+          data-csp-action="setAdmissionDocumentRequirementActive" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(requirement.id),(!requirement.active)]))}">
           ${requirement.active ? 'Deactivate' : 'Activate'}
         </button></td>
       </tr>`).join('') : '<tr><td colspan="5">No document requirements configured.</td></tr>';
@@ -1663,10 +1677,10 @@ async function viewAdmissionDocuments(applicationId) {
         <td>${document.required ? 'Required' : 'Optional'}</td>
         <td>${escapeHtml(document.uploadedAt || '')}</td>
         <td><button class="btn-small" type="button"
-        onclick="downloadAdmissionDocument(${applicationId}, ${document.id})">
+        data-csp-action="downloadAdmissionDocument" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(applicationId),(document.id)]))}">
           Download</button></td></tr>`).join('')
       : '<tr><td colspan="4">No documents have been uploaded.</td></tr>';
-    openModal(`<button type="button" class="modal-close" onclick="closeModal()" aria-label="Close">&times;</button>
+    openModal(`<button type="button" class="modal-close" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}" aria-label="Close">&times;</button>
       <h2>Application documents</h2>
       <p>Document completeness is for reviewer consideration and does not automatically decide the application.</p>
       <div class="roster-wrap"><table class="table admin-table">
@@ -1714,15 +1728,15 @@ function requestAdminNotes(title, label) {
   return new Promise(resolve => {
     pendingAdminInputResolver = resolve;
     openModal(`
-      <span class="modal-close" onclick="cancelAdminInput()">&times;</span>
+      <span class="modal-close" data-csp-action="cancelAdminInput" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">&times;</span>
       <h2>${escapeHtml(title)}</h2>
-      <form id="adminInputForm" onsubmit="submitAdminInput(event)">
+      <form id="adminInputForm" data-csp-action="submitAdminInput" data-csp-event="submit" data-csp-args="${encodeURIComponent(JSON.stringify([{"$mitCspArg":"event"}]))}">
         <div class="modal-field">
           <label for="adminInputValue">${escapeHtml(label)}</label>
           <textarea id="adminInputValue" name="value" maxlength="2000"></textarea>
         </div>
         <div class="modal-actions">
-          <button type="button" class="btn-secondary" onclick="cancelAdminInput()">Cancel</button>
+          <button type="button" class="btn-secondary" data-csp-action="cancelAdminInput" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">Cancel</button>
           <button type="submit" class="btn-primary">Confirm</button>
         </div>
       </form>
@@ -1771,7 +1785,7 @@ function openAdmissionEnrollmentModal(applicationId, candidates) {
   }).join('');
   const available = candidates.some(student => !student.enrolled);
   openModal(`
-    <span class="modal-close" onclick="closeModal()">&times;</span>
+    <span class="modal-close" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">&times;</span>
     <h2>Enroll accepted applicant</h2>
     <p>Only active student accounts whose profile contact email matches the applicant email are shown.</p>
     <form id="admissionEnrollmentForm">
@@ -1783,7 +1797,7 @@ function openAdmissionEnrollmentModal(applicationId, candidates) {
         </select>
       </div>
       <div class="modal-actions">
-        <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
+        <button type="button" class="btn-secondary" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">Cancel</button>
         <button type="submit" class="btn-primary" ${available ? '' : 'disabled'}>Confirm enrollment</button>
       </div>
     </form>
@@ -1858,7 +1872,7 @@ function renderEmailDeliveryActivity(deliveries) {
         <p>${escapeHtml(delivery.sentAt || delivery.nextAttemptAt || delivery.createdAt || '')}</p>
         ${delivery.lastError ? `<p class="teacher-status error">${escapeHtml(delivery.lastError)}</p>` : ''}
         ${delivery.status === 'FAILED'
-          ? `<button class="btn-small" type="button" onclick="retryEmailDelivery(${Number(delivery.id)})">Retry now</button>`
+          ? `<button class="btn-small" type="button" data-csp-action="retryEmailDelivery" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(Number(delivery.id))]))}">Retry now</button>`
           : ''}
       </div>
     </li>`).join('')}</ul>`;
@@ -1881,7 +1895,7 @@ async function renderRecentStudents() {
     const page = await apiGet('/admin/students?size=5&sort=id,desc');
     const students = page.content || [];
     if (!students.length) {
-      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text-secondary);">No students yet.</td></tr>`;
+      tbody.innerHTML = `<tr><td class="csp-inline-6361c1afdccd" colspan="4">No students yet.</td></tr>`;
       return;
     }
     tbody.innerHTML = students.map(s => `
@@ -1900,7 +1914,7 @@ async function renderRecentStudents() {
 async function loadStudents(page = 0) {
   const tbody = document.querySelector('#studentsModule table tbody');
   if (!tbody) return;
-  tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">Loading…</td></tr>`;
+  tbody.innerHTML = `<tr><td class="csp-inline-5a2dfef236e7" colspan="7">Loading…</td></tr>`;
 
   try {
     const query = document.querySelector('[data-admin-filter="student-search"]')?.value.trim() || '';
@@ -1920,20 +1934,20 @@ async function loadStudents(page = 0) {
         <td>${escapeHtml(s.email || '—')}</td>
         <td><span class="badge ${s.active ? 'active' : 'inactive'}">${s.active ? 'Active' : 'Deactivated'}</span></td>
         <td>
-          <button class="btn-small edit" onclick="openEditStudentModal(${s.id})">Edit</button>
-          <button class="btn-small" onclick="viewStudentCgpa(${s.id})">CGPA</button>
-          <button class="btn-small" onclick="openStudentGraduationAudit(${s.id})">Grad audit</button>
-          <button class="btn-small" onclick="openStudentLifecycleModal(${s.id})">Lifecycle</button>
-          <button class="btn-small" onclick="openStudentTransferModal(${s.id})">Transfer</button>
-          <button class="btn-small" onclick="recalculateStudentCgpa(${s.id})">Recalculate</button>
-          ${s.active ? `<button class="btn-small delete" onclick="confirmDeactivateStudent(${s.id}, '${escapeHtml(s.fullName)}')">Deactivate</button>` : `<button class="btn-small" onclick="restoreStudent(${s.id})">Restore</button>`}
+          <button class="btn-small edit" data-csp-action="openEditStudentModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(s.id)]))}">Edit</button>
+          <button class="btn-small" data-csp-action="viewStudentCgpa" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(s.id)]))}">CGPA</button>
+          <button class="btn-small" data-csp-action="openStudentGraduationAudit" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(s.id)]))}">Grad audit</button>
+          <button class="btn-small" data-csp-action="openStudentLifecycleModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(s.id)]))}">Lifecycle</button>
+          <button class="btn-small" data-csp-action="openStudentTransferModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(s.id)]))}">Transfer</button>
+          <button class="btn-small" data-csp-action="recalculateStudentCgpa" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(s.id)]))}">Recalculate</button>
+          ${s.active ? `<button class="btn-small delete" data-csp-action="confirmDeactivateStudent" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(s.id),('${escapeHtml(s.fullName)}')]))}">Deactivate</button>` : `<button class="btn-small" data-csp-action="restoreStudent" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(s.id)]))}">Restore</button>`}
         </td>
-      </tr>`).join('') : `<tr><td colspan="7" style="text-align:center;color:var(--text-secondary);">No students admitted yet.</td></tr>`;
+      </tr>`).join('') : `<tr><td class="csp-inline-6361c1afdccd" colspan="7">No students admitted yet.</td></tr>`;
 
     renderPagination('studentsModule', data, loadStudents);
     window._studentsCache = students;
   } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--danger);">${escapeHtml(err.message)}</td></tr>`;
+    tbody.innerHTML = `<tr><td class="csp-inline-0b92b7dfc2db" colspan="7">${escapeHtml(err.message)}</td></tr>`;
   }
 }
 
@@ -1959,7 +1973,7 @@ function renderPagination(moduleId, page, reloadFn) {
 function openStudentForm(prefill = {}, onCreated = null) {
   const admissionEnrollment = Boolean(onCreated);
   openModal(`
-    <span class="modal-close" onclick="closeModal()">&times;</span>
+    <span class="modal-close" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">&times;</span>
     <h2>Admit New Student</h2>
     <form id="admitStudentForm">
       <div class="modal-field"><label>Full Name *</label><input name="fullName" value="${escapeHtml(prefill.fullName || '')}" required></div>
@@ -1968,12 +1982,12 @@ function openStudentForm(prefill = {}, onCreated = null) {
         ? '<p class="muted">A secure temporary password will be generated. If email delivery is configured, it will be sent to the student; otherwise, it will be shown once for private handoff. The student must change it before accessing student services.</p>'
         : '<div class="modal-field"><label>Password *</label><input name="password" type="password" required minlength="6"></div>'}
       <div class="modal-row">
-        <div class="modal-field"><label>Account Email *</label><input name="email" type="email" value="${escapeHtml(prefill.email || '')}" required><small>Used for sign-in and password recovery; it also initializes the profile contact email. These can be updated separately later.</small></div>
+        <div class="modal-field"><label>Account Email *</label><input name="email" type="email" maxlength="254" autocomplete="email" value="${escapeHtml(prefill.email || '')}" required><small>Used for sign-in and password recovery; it also initializes the profile contact email. These can be updated separately later.</small></div>
         <div class="modal-field"><label>Phone</label><input name="phone" value="${escapeHtml(prefill.phone || '')}"></div>
       </div>
       <div class="modal-field"><label>Class / Program</label><input name="className" value="${escapeHtml(prefill.className || '')}" placeholder="e.g. B.IT Year 2"></div>
       <div class="modal-actions">
-        <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
+        <button type="button" class="btn-secondary" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">Cancel</button>
         <button type="submit" class="btn-primary">${onCreated ? 'Create account and enroll' : 'Admit Student'}</button>
       </div>
     </form>
@@ -2013,7 +2027,7 @@ function showAdmissionCredentials(credentials) {
       ? 'One-time sign-in details were emailed to the applicant.'
       : 'Email is unavailable. Share the temporary password privately with the student.');
   openModal(`
-    <span class="modal-close" onclick="closeModal()">&times;</span>
+    <span class="modal-close" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">&times;</span>
     <h2>Student account ready</h2>
     <p>${escapeHtml(deliveryMessage)}</p>
     <div class="modal-field"><label for="admissionLoginUrl">Student sign-in page</label><input id="admissionLoginUrl" value="${escapeHtml(loginUrl)}" readonly></div>
@@ -2024,7 +2038,7 @@ function showAdmissionCredentials(credentials) {
     <p id="admissionCredentialCopyStatus" role="status" aria-live="polite"></p>
     <div class="modal-actions">
       ${emailSent ? '' : '<button type="button" class="btn-secondary" id="copyAdmissionCredentials">Copy sign-in details</button>'}
-      <button type="button" class="btn-primary" onclick="closeModal()">Done</button>
+      <button type="button" class="btn-primary" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">Done</button>
     </div>
   `);
   const copyButton = document.getElementById('copyAdmissionCredentials');
@@ -2044,7 +2058,7 @@ function openEditStudentModal(id) {
   const student = (window._studentsCache || []).find(s => s.id === id);
   if (!student) return;
   openModal(`
-    <span class="modal-close" onclick="closeModal()">&times;</span>
+    <span class="modal-close" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">&times;</span>
     <h2>Edit Student</h2>
     <form id="editStudentForm">
       <div class="modal-field"><label>Full Name *</label><input name="fullName" value="${escapeHtml(student.fullName)}" required></div>
@@ -2056,7 +2070,7 @@ function openEditStudentModal(id) {
       </div>
       <div class="modal-field"><label>Address</label><textarea name="address" rows="2">${escapeHtml(student.address || '')}</textarea></div>
       <div class="modal-actions">
-        <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
+        <button type="button" class="btn-secondary" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">Cancel</button>
         <button type="submit" class="btn-primary">Save Changes</button>
       </div>
     </form>
@@ -2124,7 +2138,7 @@ async function openStudentGraduationAudit(studentId) {
     };
 
     openModal(`
-      <span class="modal-close" onclick="closeModal()">&times;</span>
+      <span class="modal-close" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">&times;</span>
       <h2>Graduation Clearance</h2>
       <p>Graduation is available only when all required approved courses are complete, the programme directory is active, and financial clearance is granted.</p>
       ${audits.map(renderAudit).join('')}
@@ -2164,7 +2178,7 @@ async function openStudentLifecycleModal(studentId) {
     ]);
     if (!enrollments.length) {
       openModal(`
-        <span class="modal-close" onclick="closeModal()">&times;</span>
+        <span class="modal-close" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">&times;</span>
         <h2>Student Status History</h2>
         <p>This student has no programme enrollments available for a status change.</p>
         ${renderStudentStatusHistory(history)}
@@ -2173,7 +2187,7 @@ async function openStudentLifecycleModal(studentId) {
     }
 
     openModal(`
-      <span class="modal-close" onclick="closeModal()">&times;</span>
+      <span class="modal-close" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">&times;</span>
       <h2>Student Programme Status</h2>
       <form id="studentLifecycleForm">
         <div class="modal-field">
@@ -2196,7 +2210,7 @@ async function openStudentLifecycleModal(studentId) {
         </div>
         <p id="lifecycleMessage" class="muted" role="status"></p>
         <div class="modal-actions">
-          <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
+          <button type="button" class="btn-secondary" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">Cancel</button>
           <button type="submit" class="btn-primary">Update Status</button>
         </div>
       </form>
@@ -2315,7 +2329,7 @@ async function openStudentLifecycleModal(studentId) {
       event.preventDefault();
       const selected = enrollments[Number(enrollmentSelect.value)];
       try {
-        await apiFetch(`/admin/students/${studentId}/status`, {
+        const response = await apiFetch(`/admin/students/${studentId}/status`, {
           method: 'POST',
           body: JSON.stringify({
             programId: selected.programId,
@@ -2324,8 +2338,14 @@ async function openStudentLifecycleModal(studentId) {
             reason: document.getElementById('lifecycleReason').value,
           }),
         });
+        const result = await response.json();
         closeModal();
         await loadStudents();
+        const summary = result.automaticAssignments;
+        showAdminToast(
+          `${result.message || 'Student status updated successfully.'}${automaticAssignmentStatus(summary)}`,
+          summary?.skipped > 0 ? 'warning' : 'success',
+        );
       } catch (err) {
         alert(err.message || 'Unable to update student status.');
       }
@@ -2376,7 +2396,7 @@ async function openStudentTransferModal(studentId) {
     }
 
     openModal(`
-      <span class="modal-close" onclick="closeModal()">&times;</span>
+      <span class="modal-close" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">&times;</span>
       <h2>Transfer Student Programme</h2>
       <form id="studentTransferForm">
         <div class="modal-field">
@@ -2407,7 +2427,7 @@ async function openStudentTransferModal(studentId) {
         </div>
         <p class="muted">This closes the source enrollment as TRANSFERRED and creates an ACTIVE enrollment in the selected destination.</p>
         <div class="modal-actions">
-          <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
+          <button type="button" class="btn-secondary" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">Cancel</button>
           <button type="submit" class="btn-primary">Complete Transfer</button>
         </div>
       </form>
@@ -2434,7 +2454,7 @@ async function openStudentTransferModal(studentId) {
       event.preventDefault();
       const source = activeEnrollments[Number(sourceSelect.value)];
       try {
-        await apiFetch(`/admin/students/${studentId}/transfer`, {
+        const response = await apiFetch(`/admin/students/${studentId}/transfer`, {
           method: 'POST',
           body: JSON.stringify({
             sourceProgramId: source.programId,
@@ -2444,8 +2464,14 @@ async function openStudentTransferModal(studentId) {
             reason: document.getElementById('transferReason').value.trim(),
           }),
         });
+        const result = await response.json();
         closeModal();
         await loadStudents();
+        const summary = result.automaticAssignments;
+        showAdminToast(
+          `${result.message || 'Student programme transfer completed.'}${automaticAssignmentStatus(summary)}`,
+          summary?.skipped > 0 ? 'warning' : 'success',
+        );
       } catch (err) {
         alert(err.message || 'Unable to transfer student programme.');
       }
@@ -2463,7 +2489,16 @@ function confirmDeactivateStudent(id, name) {
 }
 
 async function restoreStudent(id) {
-  try { await apiFetch(`/admin/students/${id}/restore`, { method: 'POST' }); await loadStudents(); }
+  try {
+    const response = await apiFetch(`/admin/students/${id}/restore`, { method: 'POST' });
+    const result = await response.json();
+    await loadStudents();
+    const summary = result.automaticAssignments;
+    showAdminToast(
+      `${result.message || 'Student account restored successfully.'}${automaticAssignmentStatus(summary)}`,
+      summary?.skipped > 0 ? 'warning' : 'success',
+    );
+  }
   catch (err) { alert(err.message || 'Unable to restore student.'); }
 }
 
@@ -2487,7 +2522,7 @@ async function recalculateStudentCgpa(id) {
 async function loadCourses(page = 0) {
   const grid = document.querySelector('#coursesModule .courses-grid');
   if (!grid) return;
-  grid.innerHTML = `<p style="color:var(--text-secondary);">Loading…</p>`;
+  grid.innerHTML = `<p class="csp-inline-b98d394f4bb4">Loading…</p>`;
 
   try {
     const [coursesPage, teachersPage, categories, courseUnits] = await Promise.all([
@@ -2521,8 +2556,8 @@ async function loadCourses(page = 0) {
           <p><strong>Requirement:</strong> ${c.core ? 'Core course' : 'Elective / not designated core'}</p>
           <p><strong>Status:</strong> <span class="badge active">Active</span></p>
         </div>
-        <div class="course-actions"><button class="btn-small edit" onclick="editCourse(${c.id})">Edit</button><button class="btn-small" onclick="viewCourseGrades(${c.id})">Grades</button><button class="btn-small" onclick="configureCourseAssessments(${c.id})">Assessment structure</button></div>
-      </div>`).join('') : `<p style="color:var(--text-secondary);">No courses created yet.</p>`;
+        <div class="course-actions"><button class="btn-small edit" data-csp-action="editCourse" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(c.id)]))}">Edit</button><button class="btn-small" data-csp-action="viewCourseGrades" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(c.id)]))}">Grades</button><button class="btn-small" data-csp-action="configureCourseAssessments" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(c.id)]))}">Assessment structure</button></div>
+      </div>`).join('') : `<p class="csp-inline-b98d394f4bb4">No courses created yet.</p>`;
     window._coursesCache = courses;
     window._courseUnitsCache = courseUnits;
     renderCourseUnits(courseUnits);
@@ -2531,13 +2566,13 @@ async function loadCourses(page = 0) {
 
     renderPagination('coursesModule', coursesPage, loadCourses);
   } catch (err) {
-    grid.innerHTML = `<p style="color:var(--danger);">${escapeHtml(err.message)}</p>`;
+    grid.innerHTML = `<p class="csp-inline-24287da44c73">${escapeHtml(err.message)}</p>`;
   }
 }
 
 function assessmentComponentRow(component = {}) {
   const types = ['COURSEWORK', 'FINAL_PAPER', 'OTHER'];
-  return `<div class="assessment-component-row" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.5rem;margin:.75rem 0;">
+  return `<div class="assessment-component-row csp-inline-d4224d2a589f">
     <label>Code<input name="componentCode" maxlength="40" value="${escapeHtml(component.componentCode || '')}" required></label>
     <label>Name<input name="displayName" maxlength="120" value="${escapeHtml(component.displayName || '')}" required></label>
     <label>Type<select name="componentType">${types.map(type => `<option value="${type}" ${component.componentType === type ? 'selected' : ''}>${type.replace('_', ' ')}</option>`).join('')}</select></label>
@@ -2555,14 +2590,14 @@ async function configureCourseAssessments(courseId) {
     alert(error.message || 'Unable to load the course assessment structure.');
     return;
   }
-  openModal(`<button type="button" class="modal-close" onclick="closeModal()" aria-label="Close">&times;</button>
+  openModal(`<button type="button" class="modal-close" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}" aria-label="Close">&times;</button>
     <h2>Course assessment structure</h2>
     <p>Define course-specific components. Weights must total exactly 100%. Once any marks are submitted, the structure is locked to preserve result history.</p>
     <form id="courseAssessmentStructureForm">
       <div id="assessmentComponentRows">${(components.length ? components : [{}]).map(assessmentComponentRow).join('')}</div>
       <button id="addAssessmentComponentRow" type="button" class="btn-secondary">Add component</button>
       <p id="assessmentStructureStatus" role="status" aria-live="polite"></p>
-      <div class="modal-actions"><button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button><button type="submit" class="btn-primary">Save assessment structure</button></div>
+      <div class="modal-actions"><button type="button" class="btn-secondary" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">Cancel</button><button type="submit" class="btn-primary">Save assessment structure</button></div>
     </form>`);
   const form = document.getElementById('courseAssessmentStructureForm');
   document.getElementById('addAssessmentComponentRow').addEventListener('click', () => {
@@ -2645,12 +2680,12 @@ async function openCourseUnitForm() {
   try {
     ({ courses, teachers } = await loadCourseManagementOptions());
   } catch (error) {
-    openModal(`<span class="modal-close" onclick="closeModal()" aria-label="Close">&times;</span><h2>Course units unavailable</h2><p role="alert">${escapeHtml(error.message || 'Could not load courses and instructors. Please try again.')}</p><div class="modal-actions"><button type="button" class="btn-secondary" onclick="closeModal()">Close</button><button type="button" class="btn-primary" onclick="openCourseUnitForm()">Try again</button></div>`);
+    openModal(`<span class="modal-close" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}" aria-label="Close">&times;</span><h2>Course units unavailable</h2><p role="alert">${escapeHtml(error.message || 'Could not load courses and instructors. Please try again.')}</p><div class="modal-actions"><button type="button" class="btn-secondary" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">Close</button><button type="button" class="btn-primary" data-csp-action="openCourseUnitForm" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">Try again</button></div>`);
     return;
   }
 
   if (!courses.length) {
-    openModal(`<span class="modal-close" onclick="closeModal()" aria-label="Close">&times;</span><h2>No courses to assign</h2><p>Create a course before adding its units. Once created, it will be available to all portal users in the course catalogue.</p><div class="modal-actions"><button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button><button type="button" class="btn-primary" id="createCourseBeforeUnit">Create a course</button></div>`);
+    openModal(`<span class="modal-close" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}" aria-label="Close">&times;</span><h2>No courses to assign</h2><p>Create a course before adding its units. Once created, it will be available to all portal users in the course catalogue.</p><div class="modal-actions"><button type="button" class="btn-secondary" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">Cancel</button><button type="button" class="btn-primary" id="createCourseBeforeUnit">Create a course</button></div>`);
     document.getElementById('createCourseBeforeUnit').addEventListener('click', () => {
       openCourseForm();
     });
@@ -2658,7 +2693,7 @@ async function openCourseUnitForm() {
   }
 
   if (!teachers.length) {
-    openModal(`<span class="modal-close" onclick="closeModal()" aria-label="Close">&times;</span><h2>No instructors available</h2><p>Add an instructor in Staff before creating a course unit.</p><div class="modal-actions"><button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button><button type="button" class="btn-primary" id="openStaffFromCourseUnit">Open Staff</button></div>`);
+    openModal(`<span class="modal-close" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}" aria-label="Close">&times;</span><h2>No instructors available</h2><p>Add an instructor in Staff before creating a course unit.</p><div class="modal-actions"><button type="button" class="btn-secondary" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">Cancel</button><button type="button" class="btn-primary" id="openStaffFromCourseUnit">Open Staff</button></div>`);
     document.getElementById('openStaffFromCourseUnit').addEventListener('click', () => {
       closeModal();
       switchModule('staff');
@@ -2666,14 +2701,14 @@ async function openCourseUnitForm() {
     return;
   }
 
-  openModal(`<span class="modal-close" onclick="closeModal()" aria-label="Close">&times;</span><h2>Add Course Unit</h2>
+  openModal(`<span class="modal-close" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}" aria-label="Close">&times;</span><h2>Add Course Unit</h2>
     <form id="courseUnitForm">
       <div class="modal-field"><label for="courseUnitCode">Unit code *</label><input id="courseUnitCode" name="unitCode" maxlength="30" required></div>
       <div class="modal-field"><label for="courseUnitName">Unit name *</label><input id="courseUnitName" name="name" required></div>
       <div class="modal-field"><label for="courseUnitCourse">Course *</label><select id="courseUnitCourse" name="courseId" required><option value="">Choose a course…</option>${courses.map(course => `<option value="${course.id}">${escapeHtml(course.courseCode || '—')} · ${escapeHtml(course.name)}</option>`).join('')}</select></div>
       <div class="modal-field"><label for="courseUnitTeacher">Instructor *</label><select id="courseUnitTeacher" name="teacherId" required><option value="">Choose an instructor…</option>${teachers.map(teacher => `<option value="${teacher.id}">${escapeHtml(teacher.fullName)}</option>`).join('')}</select></div>
       <p id="courseUnitFormMessage" role="alert" hidden></p>
-      <div class="modal-actions"><button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button><button class="btn-primary" type="submit">Create Unit</button></div>
+      <div class="modal-actions"><button type="button" class="btn-secondary" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">Cancel</button><button class="btn-primary" type="submit">Create Unit</button></div>
     </form>`);
   document.getElementById('courseUnitForm').addEventListener('submit', async event => {
     event.preventDefault();
@@ -2706,7 +2741,7 @@ async function openCourseForm() {
   try {
     await Promise.all([loadCourseManagementOptions(), loadActiveCourseCategories()]);
   } catch (error) {
-    openModal(`<span class="modal-close" onclick="closeModal()" aria-label="Close">&times;</span><h2>Course setup unavailable</h2><p role="alert">${escapeHtml(error.message || 'Could not load instructors and categories. Please try again.')}</p><div class="modal-actions"><button type="button" class="btn-secondary" onclick="closeModal()">Close</button><button type="button" class="btn-primary" onclick="openCourseForm()">Try again</button></div>`);
+    openModal(`<span class="modal-close" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}" aria-label="Close">&times;</span><h2>Course setup unavailable</h2><p role="alert">${escapeHtml(error.message || 'Could not load instructors and categories. Please try again.')}</p><div class="modal-actions"><button type="button" class="btn-secondary" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">Close</button><button type="button" class="btn-primary" data-csp-action="openCourseForm" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">Try again</button></div>`);
     return;
   }
 
@@ -2719,7 +2754,7 @@ async function openCourseForm() {
       !currentTeachers.length ? '<button type="button" class="btn-primary" id="openCourseStaff">Open Staff</button>' : '',
       !window._courseCategories.length ? '<button type="button" class="btn-primary" id="openCourseCategories">Open Course Categories</button>' : '',
     ].filter(Boolean).join('');
-    openModal(`<span class="modal-close" onclick="closeModal()" aria-label="Close">&times;</span><h2>Course setup needs more information</h2><p>Add an ${escapeHtml(missing.join(' and '))} before creating a course.</p><div class="modal-actions"><button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>${setupActions}</div>`);
+    openModal(`<span class="modal-close" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}" aria-label="Close">&times;</span><h2>Course setup needs more information</h2><p>Add an ${escapeHtml(missing.join(' and '))} before creating a course.</p><div class="modal-actions"><button type="button" class="btn-secondary" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">Cancel</button>${setupActions}</div>`);
     document.getElementById('openCourseStaff')?.addEventListener('click', () => {
       closeModal();
       switchModule('staff');
@@ -2734,7 +2769,7 @@ async function openCourseForm() {
   const teacherOptions = currentTeachers.map(t => `<option value="${t.id}">${escapeHtml(t.fullName)}</option>`).join('');
   const categoryOptions = (window._courseCategories || []).map(category => `<option value="${category.id}">${escapeHtml(category.name)}</option>`).join('');
   openModal(`
-    <span class="modal-close" onclick="closeModal()">&times;</span>
+    <span class="modal-close" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">&times;</span>
     <h2>Add New Course</h2>
     <form id="createCourseForm">
       <div class="modal-field"><label>Course Name *</label><input name="name" required></div>
@@ -2749,7 +2784,7 @@ async function openCourseForm() {
         </select>
       </div>
       <div class="modal-actions">
-        <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
+        <button type="button" class="btn-secondary" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">Cancel</button>
         <button type="submit" class="btn-primary">Create Course</button>
       </div>
     </form>
@@ -2779,16 +2814,16 @@ async function loadCourseCategories() {
     tbody.innerHTML = categories.length ? categories.map(category => `<tr>
       <td>${escapeHtml(category.code)}</td><td>${escapeHtml(category.name)}</td>
       <td><span class="badge ${category.active ? 'active' : 'inactive'}">${category.active ? 'Active' : 'Inactive'}</span></td>
-      <td><button class="btn-small edit" onclick="openEditCourseCategoryForm(${category.id})">Edit</button><button class="btn-small" onclick="toggleCourseCategory(${category.id}, ${!category.active})">${category.active ? 'Deactivate' : 'Activate'}</button><button class="btn-small delete" onclick="deleteCourseCategory(${category.id})">Delete</button></td>
+      <td><button class="btn-small edit" data-csp-action="openEditCourseCategoryForm" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(category.id)]))}">Edit</button><button class="btn-small" data-csp-action="toggleCourseCategory" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(category.id),(!category.active)]))}">${category.active ? 'Deactivate' : 'Activate'}</button><button class="btn-small delete" data-csp-action="deleteCourseCategory" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(category.id)]))}">Delete</button></td>
     </tr>`).join('') : '<tr><td colspan="4">No categories configured.</td></tr>';
   } catch (err) { tbody.innerHTML = `<tr><td colspan="4">${escapeHtml(err.message)}</td></tr>`; }
 }
 
 function openCourseCategoryForm() {
-  openModal(`<span class="modal-close" onclick="closeModal()">&times;</span><h2>Add Course Category</h2>
+  openModal(`<span class="modal-close" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">&times;</span><h2>Add Course Category</h2>
     <form id="courseCategoryForm"><div class="modal-field"><label>Code *</label><input name="code" placeholder="SCIENCES" required maxlength="30"></div>
     <div class="modal-field"><label>Name *</label><input name="name" placeholder="Sciences" required maxlength="100"></div>
-    <div class="modal-actions"><button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button><button class="btn-primary">Create Category</button></div></form>`);
+    <div class="modal-actions"><button type="button" class="btn-secondary" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">Cancel</button><button class="btn-primary">Create Category</button></div></form>`);
   document.getElementById('courseCategoryForm').addEventListener('submit', async event => {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(event.target));
@@ -2800,10 +2835,10 @@ function openCourseCategoryForm() {
 function openEditCourseCategoryForm(id) {
   const category = (window._allCourseCategories || []).find(item => item.id === id);
   if (!category) return;
-  openModal(`<span class="modal-close" onclick="closeModal()">&times;</span><h2>Edit Course Category</h2>
+  openModal(`<span class="modal-close" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">&times;</span><h2>Edit Course Category</h2>
     <form id="editCourseCategoryForm"><div class="modal-field"><label>Code *</label><input name="code" value="${escapeHtml(category.code)}" required maxlength="30"></div>
     <div class="modal-field"><label>Name *</label><input name="name" value="${escapeHtml(category.name)}" required maxlength="100"></div>
-    <div class="modal-actions"><button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button><button class="btn-primary">Save Changes</button></div></form>`);
+    <div class="modal-actions"><button type="button" class="btn-secondary" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">Cancel</button><button class="btn-primary">Save Changes</button></div></form>`);
   document.getElementById('editCourseCategoryForm').addEventListener('submit', async event => {
     event.preventDefault();
     try { await apiFetch(`/admin/course-categories/${id}`, { method: 'PUT', body: JSON.stringify(Object.fromEntries(new FormData(event.target))) }); closeModal(); await loadCourseCategories(); }
@@ -2827,7 +2862,7 @@ async function editCourse(courseId) {
   if (!course) return;
   const teacherOptions = currentTeachers.map(t => `<option value="${t.id}" ${t.fullName === course.teacherFullName ? 'selected' : ''}>${escapeHtml(t.fullName)}</option>`).join('');
   const categoryOptions = (window._courseCategories || []).map(category => `<option value="${category.id}" ${category.name === course.category ? 'selected' : ''}>${escapeHtml(category.name)}</option>`).join('');
-  openModal(`<span class="modal-close" onclick="closeModal()">&times;</span>
+  openModal(`<span class="modal-close" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">&times;</span>
     <h2>Edit Course</h2>
     <form id="editCourseForm">
       <div class="modal-field"><label>Course Name *</label><input name="name" value="${escapeHtml(course.name)}" required></div>
@@ -2835,15 +2870,23 @@ async function editCourse(courseId) {
       <div class="modal-row"><div class="modal-field"><label>Semester</label><input name="semester" value="${escapeHtml(course.semester || '')}"></div><div class="modal-field"><label>Course Units</label><input name="credits" type="number" min="1" max="30" value="${course.credits ?? 3}" required></div></div>
       <div class="modal-field"><label><input name="core" type="checkbox" value="true" ${course.core ? 'checked' : ''}> Core course unit</label></div>
       <div class="modal-field"><label>Instructor *</label><select name="teacherId" required>${teacherOptions}</select></div>
-      <div class="modal-actions"><button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button><button type="submit" class="btn-primary">Save Changes</button></div>
+      <div class="modal-actions"><button type="button" class="btn-secondary" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">Cancel</button><button type="submit" class="btn-primary">Save Changes</button></div>
     </form>`);
   document.getElementById('editCourseForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
     try {
-      await apiFetch(`/admin/courses/${courseId}`, { method: 'PUT', body: JSON.stringify({ name: fd.get('name'), courseCode: fd.get('courseCode'), categoryId: Number(fd.get('categoryId')), teacherId: Number(fd.get('teacherId')), semester: fd.get('semester'), credits: Number(fd.get('credits') || 3), core: fd.get('core') === 'true' }) });
+      const response = await apiFetch(`/admin/courses/${courseId}`, { method: 'PUT', body: JSON.stringify({ name: fd.get('name'), courseCode: fd.get('courseCode'), categoryId: Number(fd.get('categoryId')), teacherId: Number(fd.get('teacherId')), semester: fd.get('semester'), credits: Number(fd.get('credits') || 3), core: fd.get('core') === 'true' }) });
+      const course = await response.json();
       closeModal();
       loadCourses();
+      const summary = course.automaticAssignments;
+      if (summary) {
+        showAdminToast(
+          `Course instructor updated.${automaticAssignmentStatus(summary)}`,
+          summary.skipped > 0 ? 'warning' : 'success',
+        );
+      }
     } catch (err) { alert(err.message); }
   });
 }
@@ -2860,7 +2903,7 @@ async function viewCourseGrades(courseName) {
 async function loadStaff(page = 0) {
   const tbody = document.querySelector('#staffModule table tbody');
   if (!tbody) return;
-  tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;">Loading…</td></tr>`;
+  tbody.innerHTML = `<tr><td class="csp-inline-5a2dfef236e7" colspan="7">Loading…</td></tr>`;
 
   try {
     const data = await apiGet(`/admin/teachers?page=${page}&size=20&sort=id`);
@@ -2876,14 +2919,14 @@ async function loadStaff(page = 0) {
         <td>${escapeHtml(t.email || '—')}</td>
         <td><span class="badge ${t.active ? 'active' : 'inactive'}">${t.active ? 'Active' : 'Deactivated'}</span></td>
         <td>
-          <button class="btn-small edit" onclick="openEditStaffModal(${t.id})">Edit</button>
-          ${t.active ? `<button class="btn-small delete" onclick="confirmDeactivateStaff(${t.id}, '${escapeHtml(t.fullName)}')">Deactivate</button>` : `<button class="btn-small" onclick="restoreTeacher(${t.id})">Restore</button>`}
+          <button class="btn-small edit" data-csp-action="openEditStaffModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(t.id)]))}">Edit</button>
+          ${t.active ? `<button class="btn-small delete" data-csp-action="confirmDeactivateStaff" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(t.id),('${escapeHtml(t.fullName)}')]))}">Deactivate</button>` : `<button class="btn-small" data-csp-action="restoreTeacher" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(t.id)]))}">Restore</button>`}
         </td>
-      </tr>`).join('') : `<tr><td colspan="7" style="text-align:center;color:var(--text-secondary);">No staff hired yet.</td></tr>`;
+      </tr>`).join('') : `<tr><td class="csp-inline-6361c1afdccd" colspan="7">No staff hired yet.</td></tr>`;
 
     renderPagination('staffModule', data, loadStaff);
   } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--danger);">${escapeHtml(err.message)}</td></tr>`;
+    tbody.innerHTML = `<tr><td class="csp-inline-0b92b7dfc2db" colspan="7">${escapeHtml(err.message)}</td></tr>`;
   }
 }
 
@@ -2923,8 +2966,8 @@ async function loadHrManagement() {
       <tr><td>${escapeHtml(item.staff?.fullName || item.staff?.user?.username || '—')}</td>
       <td>${escapeHtml(item.startDate)} – ${escapeHtml(item.endDate)}</td>
       <td>${escapeHtml(item.reason)}</td><td>
-      <button class="btn-small edit" type="button" onclick="reviewHrLeave(${Number(item.id)}, 'APPROVED')">Approve</button>
-      <button class="btn-small delete" type="button" onclick="reviewHrLeave(${Number(item.id)}, 'REJECTED')">Reject</button>
+      <button class="btn-small edit" type="button" data-csp-action="reviewHrLeave" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(Number(item.id)),('APPROVED')]))}">Approve</button>
+      <button class="btn-small delete" type="button" data-csp-action="reviewHrLeave" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(Number(item.id)),('REJECTED')]))}">Reject</button>
       </td></tr>`).join('')
       : '<tr><td colspan="4">No pending leave requests.</td></tr>';
     setAdminStatus('hrStaffStatus', '', '');
@@ -3011,15 +3054,15 @@ async function openStaffForm() {
   try {
     departments = await apiGet('/admin/institution/departments/active');
   } catch (err) {
-    openModal(`<h2>Departments unavailable</h2><p role="alert">${escapeHtml(err.message || 'Unable to load active departments.')}</p><div class="modal-actions"><button type="button" class="btn-secondary" onclick="closeModal()">Close</button></div>`);
+    openModal(`<h2>Departments unavailable</h2><p role="alert">${escapeHtml(err.message || 'Unable to load active departments.')}</p><div class="modal-actions"><button type="button" class="btn-secondary" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">Close</button></div>`);
     return;
   }
   if (!departments.length) {
-    openModal('<h2>No active departments</h2><p>Configure an active campus, faculty, and department in Academic Operations before hiring a teacher.</p><div class="modal-actions"><button type="button" class="btn-secondary" onclick="closeModal()">Close</button></div>');
+    openModal('<h2>No active departments</h2><p>Configure an active campus, faculty, and department in Academic Operations before hiring a teacher.</p><div class="modal-actions"><button type="button" class="btn-secondary" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">Close</button></div>');
     return;
   }
   openModal(`
-    <span class="modal-close" onclick="closeModal()">&times;</span>
+    <span class="modal-close" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">&times;</span>
     <h2>Add Staff Member</h2>
     <form id="hireStaffForm">
       <div class="modal-field"><label>Full Name *</label><input name="fullName" required></div>
@@ -3034,11 +3077,11 @@ async function openStaffForm() {
       <div class="modal-field"><label>Subject Specialization</label><input name="department" maxlength="255"></div>
       <div class="modal-field"><label>Qualification</label><textarea name="qualification" rows="2"></textarea></div>
       <div class="modal-row">
-        <div class="modal-field"><label>Account Email</label><input name="email" type="email"><small>Used for sign-in and password recovery; it also initializes the profile contact email. These can be updated separately later.</small></div>
+        <div class="modal-field"><label>Account Email</label><input name="email" type="email" maxlength="254" autocomplete="email"><small>Used for sign-in and password recovery; it also initializes the profile contact email. These can be updated separately later.</small></div>
         <div class="modal-field"><label>Phone</label><input name="phone"></div>
       </div>
       <div class="modal-actions">
-        <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
+        <button type="button" class="btn-secondary" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">Cancel</button>
         <button type="submit" class="btn-primary">Hire Staff</button>
       </div>
     </form>
@@ -3081,7 +3124,7 @@ async function openEditStaffModal(id) {
   try {
     departments = await apiGet('/admin/institution/departments/active');
   } catch (err) {
-    openModal(`<h2>Departments unavailable</h2><p role="alert">${escapeHtml(err.message || 'Unable to load active departments.')}</p><div class="modal-actions"><button type="button" class="btn-secondary" onclick="closeModal()">Close</button></div>`);
+    openModal(`<h2>Departments unavailable</h2><p role="alert">${escapeHtml(err.message || 'Unable to load active departments.')}</p><div class="modal-actions"><button type="button" class="btn-secondary" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">Close</button></div>`);
     return;
   }
   if (teacher.departmentId && !departments.some(department => String(department.id) === String(teacher.departmentId))) {
@@ -3094,7 +3137,7 @@ async function openEditStaffModal(id) {
     });
   }
   openModal(`
-    <span class="modal-close" onclick="closeModal()">&times;</span>
+    <span class="modal-close" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">&times;</span>
     <h2>Edit Staff Member</h2>
     <form id="editStaffForm">
       <div class="modal-field"><label>Full Name *</label><input name="fullName" value="${escapeHtml(teacher.fullName)}" required></div>
@@ -3109,7 +3152,7 @@ async function openEditStaffModal(id) {
         <div class="modal-field"><label>Phone</label><input name="phone" value="${escapeHtml(teacher.phone || '')}"></div>
       </div>
       <div class="modal-actions">
-        <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
+        <button type="button" class="btn-secondary" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">Cancel</button>
         <button type="submit" class="btn-primary">Save Changes</button>
       </div>
     </form>
@@ -3141,7 +3184,16 @@ function confirmDeactivateStaff(id, name) {
 }
 
 async function restoreTeacher(id) {
-  try { await apiFetch(`/admin/teachers/${id}/restore`, { method: 'POST' }); await loadStaff(); }
+  try {
+    const response = await apiFetch(`/admin/teachers/${id}/restore`, { method: 'POST' });
+    const result = await response.json();
+    await loadStaff();
+    const summary = result.automaticAssignments;
+    showAdminToast(
+      `${result.message || 'Teacher account restored successfully.'}${automaticAssignmentStatus(summary)}`,
+      summary?.skipped > 0 ? 'warning' : 'success',
+    );
+  }
   catch (err) { alert(err.message || 'Unable to restore teacher.'); }
 }
 
@@ -3221,7 +3273,7 @@ async function refreshStudentReportApprovalStatus(studentId) {
   if (!badge || !studentId) return;
   try {
     const report = await apiGet(`/reports/academic/${studentId}/status`);
-    badge.style.display = 'inline-block';
+    badge.hidden = false;
     badge.className = report?.published ? 'status-badge success'
       : report?.approved ? 'status-badge warning' : 'status-badge muted';
     badge.textContent = report?.published
@@ -3232,7 +3284,7 @@ async function refreshStudentReportApprovalStatus(studentId) {
           ? `Changes require reapproval for Student ${studentId}`
           : `Pending approval for Student ${studentId}`;
   } catch (err) {
-    badge.style.display = 'inline-block';
+    badge.hidden = false;
     badge.className = 'status-badge muted';
     badge.textContent = `Approval status unavailable for Student ${studentId}`;
   }
@@ -3240,18 +3292,18 @@ async function refreshStudentReportApprovalStatus(studentId) {
 
 async function approveStudentReport() {
   openModal(`
-    <button type="button" class="modal-close" onclick="closeModal()" aria-label="Close">&times;</button>
+    <button type="button" class="modal-close" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}" aria-label="Close">&times;</button>
     <h2 id="approveStudentReportTitle">Approve student report</h2>
-    <form id="approveStudentReportForm" onsubmit="submitStudentReportApproval(event)" aria-labelledby="approveStudentReportTitle">
+    <form id="approveStudentReportForm" data-csp-action="submitStudentReportApproval" data-csp-event="submit" data-csp-args="${encodeURIComponent(JSON.stringify([{"$mitCspArg":"event"}]))}" aria-labelledby="approveStudentReportTitle">
       <div class="modal-field">
         <label for="approveStudentReportId">Student ID</label>
         <input id="approveStudentReportId" name="studentId" type="number" min="1" step="1" required>
       </div>
       <p id="approveStudentReportMessage" class="status-badge muted" role="status" aria-live="polite"></p>
       <div class="modal-actions">
-        <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
+        <button type="button" class="btn-secondary" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">Cancel</button>
         <button id="approveStudentReportSubmit" type="submit" class="btn-primary">Approve current version</button>
-        <button id="publishStudentReportButton" type="button" class="btn-primary" onclick="publishStudentReport()" hidden>Publish approved version</button>
+        <button id="publishStudentReportButton" type="button" class="btn-primary" data-csp-action="publishStudentReport" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}" hidden>Publish approved version</button>
       </div>
     </form>
   `);
@@ -3271,7 +3323,7 @@ async function submitStudentReportApproval(event) {
     const approved = await report.json();
     const badge = document.getElementById('studentReportApprovalStatus');
     if (badge) {
-      badge.style.display = 'inline-block';
+      badge.hidden = false;
       badge.className = 'status-badge warning';
       badge.textContent = `Approved, not published: Student ${studentId} · version ${approved.resultsVersion}`;
     }
@@ -3304,7 +3356,7 @@ async function publishStudentReport() {
     const published = await response.json();
     const badge = document.getElementById('studentReportApprovalStatus');
     if (badge) {
-      badge.style.display = 'inline-block';
+      badge.hidden = false;
       badge.className = 'status-badge success';
       badge.textContent = `Published: Student ${studentId} · version ${published.resultsVersion} · ${published.publishedAt || 'now'}`;
     }

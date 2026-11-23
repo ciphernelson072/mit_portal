@@ -1,0 +1,22 @@
+#mitRequestProcessing, #mitRequestSuccess {
+  position: fixed; right: 1rem; z-index: 10000; display: flex;
+  align-items: center; gap: .65rem; max-width: min(26rem, calc(100vw - 2rem));
+  padding: .8rem 1rem; border-radius: .65rem; color: #fff;
+  font: 600 14px/1.4 system-ui, sans-serif;
+  box-shadow: 0 .35rem 1.2rem rgba(0, 0, 0, .22);
+}
+#mitRequestProcessing { bottom: 1rem; background: #173b67; }
+#mitRequestProcessing[hidden], #mitRequestSuccess[hidden] { display: none; }
+#mitRequestSuccess { bottom: 1rem; background: #176b3a; }
+#mitRequestProcessing:not([hidden]) + #mitRequestSuccess:not([hidden]) {
+  bottom: 4.5rem;
+}
+.mit-request-spinner {
+  width: 1rem; height: 1rem; flex: 0 0 1rem;
+  border: 2px solid rgba(255,255,255,.45); border-top-color: #fff;
+  border-radius: 50%; animation: mit-request-spin .75s linear infinite;
+}
+@keyframes mit-request-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .mit-request-spinner { animation-duration: 1.8s; }
+}

@@ -9,7 +9,9 @@ import com.sis.repository.StudentProgramRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class AutomaticCourseAssignmentService {
@@ -41,6 +43,16 @@ public class AutomaticCourseAssignmentService {
                 .findByAcademicYearIdAndRegistrationOpenTrueOrderByStartDateAsc(academicYearId));
     }
 
+    public AutomaticCourseAssignmentSummary assignStudentForOpenTerms(Long studentId) {
+        if (studentId == null) {
+            throw new IllegalArgumentException("Student is required for automatic assignment");
+        }
+        List<StudentProgram> enrollments =
+                studentPrograms.findActiveForAutoAssignmentByStudentId(
+                        studentId, StudentLifecycleStatus.ACTIVE);
+        return assign(enrollments, findOpenTerms(enrollments));
+    }
+
     public AutomaticCourseAssignmentSummary assignActiveStudentsForTerm(Long termId) {
         AcademicTerm term = academicTerms.findWithAcademicYearById(termId)
                 .orElseThrow(() -> new IllegalArgumentException("Academic term not found"));
@@ -51,6 +63,72 @@ public class AutomaticCourseAssignmentService {
                 studentPrograms.findActiveForAutoAssignmentByAcademicYearId(
                         term.getAcademicYear().getId(), StudentLifecycleStatus.ACTIVE);
         return assign(enrollments, List.of(term));
+    }
+
+    public AutomaticCourseAssignmentSummary assignActiveStudentsForProgramSemester(
+            Long programId, Integer semesterNumber) {
+        if (programId == null || semesterNumber == null) {
+            throw new IllegalArgumentException("Programme and semester are required for automatic assignment");
+        }
+        List<StudentProgram> enrollments =
+                studentPrograms.findActiveForAutoAssignmentByProgramIdAndCurrentSemester(
+                        programId, semesterNumber, StudentLifecycleStatus.ACTIVE);
+        if (enrollments.isEmpty()) {
+            return emptySummary();
+        }
+
+        return assign(enrollments, findOpenTerms(enrollments));
+    }
+
+    public AutomaticCourseAssignmentSummary assignActiveStudentsForCourse(Long courseId) {
+        if (courseId == null) {
+            throw new IllegalArgumentException("Course is required for automatic assignment");
+        }
+        List<StudentProgram> enrollments =
+                studentPrograms.findActiveForAutoAssignmentByCourseId(
+                        courseId, StudentLifecycleStatus.ACTIVE);
+        return assign(enrollments, findOpenTerms(enrollments));
+    }
+
+    public AutomaticCourseAssignmentSummary assignActiveStudentsForCourseInTerm(
+            Long studentId, Long courseId, Long termId) {
+        if (studentId == null || courseId == null || termId == null) {
+            throw new IllegalArgumentException("Student, course, and term are required for automatic assignment");
+        }
+        AcademicTerm term = academicTerms.findWithAcademicYearById(termId)
+                .orElseThrow(() -> new IllegalArgumentException("Academic term not found"));
+        if (!Boolean.TRUE.equals(term.getRegistrationOpen())) {
+            return emptySummary();
+        }
+        Long academicYearId = term.getAcademicYear().getId();
+        Map<Long, StudentProgram> enrollmentsById = new LinkedHashMap<>();
+        studentPrograms.findActiveForAutoAssignmentByCourseIdAndAcademicYearId(
+                        courseId, academicYearId, StudentLifecycleStatus.ACTIVE)
+                .forEach(enrollment -> enrollmentsById.put(enrollment.getId(), enrollment));
+        studentPrograms.findActiveForAutoAssignmentByStudentId(
+                        studentId, StudentLifecycleStatus.ACTIVE).stream()
+                .filter(enrollment -> academicYearId.equals(enrollment.getAcademicYear().getId()))
+                .forEach(enrollment -> enrollmentsById.putIfAbsent(enrollment.getId(), enrollment));
+        return assign(new ArrayList<>(enrollmentsById.values()), List.of(term));
+    }
+
+    public AutomaticCourseAssignmentSummary assignActiveStudentsForTeacher(Long teacherId) {
+        if (teacherId == null) {
+            throw new IllegalArgumentException("Instructor is required for automatic assignment");
+        }
+        List<StudentProgram> enrollments =
+                studentPrograms.findActiveForAutoAssignmentByTeacherId(
+                        teacherId, StudentLifecycleStatus.ACTIVE);
+        return assign(enrollments, findOpenTerms(enrollments));
+    }
+
+    private List<AcademicTerm> findOpenTerms(List<StudentProgram> enrollments) {
+        return enrollments.stream()
+                .map(enrollment -> enrollment.getAcademicYear().getId())
+                .distinct()
+                .flatMap(yearId -> academicTerms
+                        .findByAcademicYearIdAndRegistrationOpenTrueOrderByStartDateAsc(yearId).stream())
+                .toList();
     }
 
     private AutomaticCourseAssignmentSummary assign(StudentProgram enrollment, List<AcademicTerm> terms) {

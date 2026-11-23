@@ -28,7 +28,7 @@
         <button type="button" class="search-btn">🔍</button>
       </div>
       <div class="header-icons">
-        <button class="icon-btn" onclick="goToDashboard()" title="Back to Dashboard">⬅️</button>
+        <button class="icon-btn" data-csp-action="goToDashboard" data-csp-event="click" data-csp-args="%5B%5D" title="Back to Dashboard">⬅️</button>
         <div class="icon-wrapper dropdown">
           <button class="icon-btn profile-btn" id="profileBtn">
             <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%231a3a8c'/%3E%3Ccircle cx='50' cy='35' r='15' fill='%23fff'/%3E%3Cpath d='M20 80 Q20 60 50 60 Q80 60 80 80' fill='%23fff'/%3E%3C/svg%3E" alt="Profile" class="profile-avatar">
@@ -37,7 +37,7 @@
             <div class="dropdown-header">Account</div>
             <a href="profile.html" class="menu-link">👤 My Profile</a>
             <a href="profile.html#preferences" class="menu-link">⚙️ Settings</a>
-            <button class="menu-link logout-btn" onclick="handleLogoutClick()">🚪 Logout</button>
+            <button class="menu-link logout-btn" data-csp-action="handleLogoutClick" data-csp-event="click" data-csp-args="%5B%5D">🚪 Logout</button>
           </div>
         </div>
       </div>
@@ -50,13 +50,13 @@
 
   <!-- Navigation Tabs -->
   <div class="module-tabs">
-    <button class="tab-btn active" onclick="switchTab('courses')">📚 My Courses</button>
-    <button class="tab-btn" onclick="switchTab('timetable')">📅 Timetable</button>
-    <button class="tab-btn" onclick="switchTab('assignments')">📝 Assignments</button>
-    <button class="tab-btn" onclick="switchTab('grades')">📊 Grades</button>
-    <button class="tab-btn" onclick="switchTab('academic-records')">📄 Academic Records</button>
-    <button class="tab-btn" onclick="switchTab('exams')">🎯 Exam Results</button>
-    <button class="tab-btn" onclick="switchTab('analytics')">📈 Analytics</button>
+    <button class="tab-btn active" data-csp-action="switchTab" data-csp-event="click" data-csp-args="%5B%22courses%22%5D">📚 My Courses</button>
+    <button class="tab-btn" data-csp-action="switchTab" data-csp-event="click" data-csp-args="%5B%22timetable%22%5D">📅 Timetable</button>
+    <button class="tab-btn" data-csp-action="switchTab" data-csp-event="click" data-csp-args="%5B%22assignments%22%5D">📝 Assignments</button>
+    <button class="tab-btn" data-csp-action="switchTab" data-csp-event="click" data-csp-args="%5B%22grades%22%5D">📊 Grades</button>
+    <button class="tab-btn" data-csp-action="switchTab" data-csp-event="click" data-csp-args="%5B%22academic-records%22%5D">📄 Academic Records</button>
+    <button class="tab-btn" data-csp-action="switchTab" data-csp-event="click" data-csp-args="%5B%22exams%22%5D">🎯 Exam Results</button>
+    <button class="tab-btn" data-csp-action="switchTab" data-csp-event="click" data-csp-args="%5B%22analytics%22%5D">📈 Analytics</button>
   </div>
 
   <!-- TAB 1: MY COURSES -->
@@ -77,7 +77,7 @@
         <div class="course-progress">
           <div class="progress-label">Course Progress</div>
           <div class="progress-bar">
-            <div class="progress-fill" style="width: 75%"></div>
+            <div class="progress-fill csp-inline-a4a8ccd7ec74"></div>
           </div>
           <span class="progress-percent">75%</span>
         </div>
@@ -95,7 +95,7 @@
             <span class="stat-value">8/10</span>
           </div>
         </div>
-        <button class="btn-primary" onclick="viewCourseDetails('CS201')">View Details</button>
+        <button class="btn-primary" data-csp-action="viewCourseDetails" data-csp-event="click" data-csp-args="%5B%22CS201%22%5D">View Details</button>
       </div>
 
       <div class="course-card">
@@ -111,7 +111,7 @@
         <div class="course-progress">
           <div class="progress-label">Course Progress</div>
           <div class="progress-bar">
-            <div class="progress-fill" style="width: 85%"></div>
+            <div class="progress-fill csp-inline-ad4b6d5328b8"></div>
           </div>
           <span class="progress-percent">85%</span>
         </div>
@@ -129,7 +129,7 @@
             <span class="stat-value">9/10</span>
           </div>
         </div>
-        <button class="btn-primary" onclick="viewCourseDetails('CS205')">View Details</button>
+        <button class="btn-primary" data-csp-action="viewCourseDetails" data-csp-event="click" data-csp-args="%5B%22CS205%22%5D">View Details</button>
       </div>
 
       <div class="course-card">
@@ -145,7 +145,7 @@
         <div class="course-progress">
           <div class="progress-label">Course Progress</div>
           <div class="progress-bar">
-            <div class="progress-fill" style="width: 65%"></div>
+            <div class="progress-fill csp-inline-35c9f8902de9"></div>
           </div>
           <span class="progress-percent">65%</span>
         </div>
@@ -163,7 +163,7 @@
             <span class="stat-value">7/10</span>
           </div>
         </div>
-        <button class="btn-primary" onclick="viewCourseDetails('MATH201')">View Details</button>
+        <button class="btn-primary" data-csp-action="viewCourseDetails" data-csp-event="click" data-csp-args="%5B%22MATH201%22%5D">View Details</button>
       </div>
 
       <div class="course-card">
@@ -179,7 +179,7 @@
         <div class="course-progress">
           <div class="progress-label">Course Progress</div>
           <div class="progress-bar">
-            <div class="progress-fill" style="width: 80%"></div>
+            <div class="progress-fill csp-inline-35bebdef8cc0"></div>
           </div>
           <span class="progress-percent">80%</span>
         </div>
@@ -197,7 +197,7 @@
             <span class="stat-value">10/10</span>
           </div>
         </div>
-        <button class="btn-primary" onclick="viewCourseDetails('CS212')">View Details</button>
+        <button class="btn-primary" data-csp-action="viewCourseDetails" data-csp-event="click" data-csp-args="%5B%22CS212%22%5D">View Details</button>
       </div>
 
     </div>
@@ -325,8 +325,8 @@
           </div>
         </div>
         <div class="assignment-actions">
-          <button class="btn-secondary" onclick="viewAssignment()">View Details</button>
-          <button class="btn-primary" onclick="submitAssignment()">Submit Now</button>
+          <button class="btn-secondary" data-csp-action="viewAssignment" data-csp-event="click" data-csp-args="%5B%5D">View Details</button>
+          <button class="btn-primary" data-csp-action="submitAssignment" data-csp-event="click" data-csp-args="%5B%5D">Submit Now</button>
         </div>
       </div>
 
@@ -352,8 +352,8 @@
           </div>
         </div>
         <div class="assignment-actions">
-          <button class="btn-secondary" onclick="viewAssignment()">View Details</button>
-          <button class="btn-secondary" onclick="viewSubmission()">View Submission</button>
+          <button class="btn-secondary" data-csp-action="viewAssignment" data-csp-event="click" data-csp-args="%5B%5D">View Details</button>
+          <button class="btn-secondary" data-csp-action="viewSubmission" data-csp-event="click" data-csp-args="%5B%5D">View Submission</button>
         </div>
       </div>
 
@@ -379,8 +379,8 @@
           </div>
         </div>
         <div class="assignment-actions">
-          <button class="btn-secondary" onclick="viewAssignment()">View Details</button>
-          <button class="btn-primary" onclick="submitAssignment()">Submit</button>
+          <button class="btn-secondary" data-csp-action="viewAssignment" data-csp-event="click" data-csp-args="%5B%5D">View Details</button>
+          <button class="btn-primary" data-csp-action="submitAssignment" data-csp-event="click" data-csp-args="%5B%5D">Submit</button>
         </div>
       </div>
 
@@ -407,8 +407,8 @@
           <p class="submission-info">Submitted on June 15, 2026 at 10:15 AM</p>
         </div>
         <div class="assignment-actions">
-          <button class="btn-secondary" onclick="viewAssignment()">View Details</button>
-          <button class="btn-secondary" onclick="viewSubmission()">View Submission</button>
+          <button class="btn-secondary" data-csp-action="viewAssignment" data-csp-event="click" data-csp-args="%5B%5D">View Details</button>
+          <button class="btn-secondary" data-csp-action="viewSubmission" data-csp-event="click" data-csp-args="%5B%5D">View Submission</button>
         </div>
       </div>
 
@@ -494,7 +494,7 @@
         <div>
           <h3 id="transcriptHeading">Official Transcript</h3>
           <p id="transcriptSummary" role="status">Loading transcript...</p>
-          <span id="officialTranscriptStatus" class="status-badge muted" style="display:none;">Official transcript pending publication</span>
+          <span id="officialTranscriptStatus" class="status-badge muted" hidden>Official transcript pending publication</span>
         </div>
         <button id="downloadTranscript" class="btn-secondary" type="button" disabled>Download PDF</button>
       </div>
@@ -564,7 +564,7 @@
             </div>
           </div>
         </div>
-        <button class="btn-secondary" onclick="downloadHallTicket()">📥 Download Hall Tickets</button>
+        <button class="btn-secondary" data-csp-action="downloadHallTicket" data-csp-event="click" data-csp-args="%5B%5D">📥 Download Hall Tickets</button>
       </div>
 
     </div>
@@ -586,28 +586,28 @@
           <div class="performance-item">
             <span class="performance-label">Database Systems</span>
             <div class="performance-bar">
-              <div class="performance-fill" style="width: 95%"></div>
+              <div class="performance-fill csp-inline-b1453c74736a"></div>
             </div>
             <span class="performance-percent">95%</span>
           </div>
           <div class="performance-item">
             <span class="performance-label">Web Development</span>
             <div class="performance-bar">
-              <div class="performance-fill" style="width: 92%"></div>
+              <div class="performance-fill csp-inline-73c9bc0f3a3e"></div>
             </div>
             <span class="performance-percent">92%</span>
           </div>
           <div class="performance-item">
             <span class="performance-label">Discrete Math</span>
             <div class="performance-bar">
-              <div class="performance-fill" style="width: 80%"></div>
+              <div class="performance-fill csp-inline-35bebdef8cc0"></div>
             </div>
             <span class="performance-percent">80%</span>
           </div>
           <div class="performance-item">
             <span class="performance-label">Network Security</span>
             <div class="performance-bar">
-              <div class="performance-fill" style="width: 96%"></div>
+              <div class="performance-fill csp-inline-79fd17d4bdc6"></div>
             </div>
             <span class="performance-percent">96%</span>
           </div>
@@ -644,14 +644,14 @@
           <div class="completion-item">
             <span class="completion-label">Submitted</span>
             <div class="completion-bar">
-              <div class="completion-fill" style="width: 80%"></div>
+              <div class="completion-fill csp-inline-35bebdef8cc0"></div>
             </div>
             <span>8/10</span>
           </div>
           <div class="completion-item">
             <span class="completion-label">Pending</span>
             <div class="completion-bar pending-bar">
-              <div class="completion-fill" style="width: 20%"></div>
+              <div class="completion-fill csp-inline-a01153c96511"></div>
             </div>
             <span>2/10</span>
           </div>

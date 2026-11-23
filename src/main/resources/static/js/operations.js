@@ -103,7 +103,7 @@ const operationDomains = [
     { label: 'Current academic year', method: 'GET', path: '/institution/academic-years/current' },
     { label: 'Open academic terms', method: 'GET', path: '/institution/academic-terms/open' },
   ] },
-  { name: 'Academic records', description: 'Retrieve transcripts and degree audits for authorized students.', roles: ['ADMIN', 'TEACHER', 'STUDENT'], endpoints: [
+  { name: 'Academic records', description: 'Retrieve transcripts and degree audits for authorized students.', roles: ['ADMIN', 'STUDENT'], endpoints: [
     { label: 'Transcript', method: 'GET', path: '/academic-records/{studentId}/transcript' },
     { label: 'Degree audit', method: 'GET', path: '/academic-records/{studentId}/degree-audit' },
     { label: 'Download transcript', method: 'GET', path: '/academic-records/{studentId}/transcript/download' },

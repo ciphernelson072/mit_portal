@@ -4,6 +4,16 @@ const siteHeader = document.querySelector('.site-header');
 const installAppButton = document.querySelector('#installAppButton');
 const installAppStatus = document.querySelector('#installAppStatus');
 let pendingInstallPrompt = null;
+let signedInRole = '';
+try {
+  signedInRole = String(window.localStorage.getItem('mitRole') || '').trim().toUpperCase();
+} catch (error) {
+  if (error?.name !== 'SecurityError') throw error;
+  console.warn('Unable to read the portal role hint; admissions links remain visible.', error);
+}
+if (signedInRole === 'STUDENT') {
+  document.querySelectorAll('a[href="/admissions.html#admissionForm"]').forEach(link => link.remove());
+}
 const socialPlatforms = {
   facebook: ['https://www.facebook.com/', 'Facebook'],
   instagram: ['https://www.instagram.com/', 'Instagram'],
@@ -249,12 +259,13 @@ if (photoCarousel) {
   if (isPlaying) setPlaying(true);
 }
 
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js').catch(error => {
-      console.error('Unable to enable offline portal support.', error);
-    });
-  });
+if ('serviceWorker' in navigator && !window.__mitPortalPwaUpdateScriptRequested) {
+  window.__mitPortalPwaUpdateScriptRequested = true;
+  const pwaUpdateScript = document.createElement('script');
+  pwaUpdateScript.src = '/js/pwa-update.js';
+  pwaUpdateScript.async = true;
+  pwaUpdateScript.onerror = () => console.error('Unable to load MIT Portal update support.');
+  document.head.appendChild(pwaUpdateScript);
 }
 
 document.querySelectorAll('[data-current-year-number]').forEach(element => {

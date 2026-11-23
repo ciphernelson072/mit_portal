@@ -11,6 +11,7 @@ public class UserDto {
     private Long id;
     private String username;
     private String email;
+    private boolean emailVerified;
     private String phone;
     private String role;
 
@@ -22,9 +23,15 @@ public class UserDto {
     private boolean active;
 
     public UserDto(Long id, String username, String email, String phone, String role, boolean active) {
+        this(id, username, email, true, phone, role, active);
+    }
+
+    public UserDto(Long id, String username, String email, boolean emailVerified,
+                   String phone, String role, boolean active) {
         this.id = id;
         this.username = username;
         this.email = email;
+        this.emailVerified = emailVerified;
         this.phone = phone;
         this.role = role;
         this.active = active;
@@ -38,6 +45,8 @@ public class UserDto {
     public void setUsername(String username) { this.username = username; }
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
+    public boolean isEmailVerified() { return emailVerified; }
+    public void setEmailVerified(boolean emailVerified) { this.emailVerified = emailVerified; }
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
     public String getRole() { return role; }

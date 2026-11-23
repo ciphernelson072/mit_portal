@@ -14,6 +14,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.context.annotation.Profile;
+import org.springframework.context.ApplicationEventPublisher;
+import com.sis.service.UserEmailVerificationRequestedEvent;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
@@ -29,6 +31,7 @@ public class InitialAdminBootstrap implements ApplicationRunner {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JdbcTemplate jdbcTemplate;
+    private final ApplicationEventPublisher eventPublisher;
     private final String username;
     private final String email;
     private final String password;
@@ -36,12 +39,14 @@ public class InitialAdminBootstrap implements ApplicationRunner {
     public InitialAdminBootstrap(UserRepository userRepository,
                                  PasswordEncoder passwordEncoder,
                                  JdbcTemplate jdbcTemplate,
+                                 ApplicationEventPublisher eventPublisher,
                                  @Value("${sis.initial-admin-bootstrap.username:}") String username,
                                  @Value("${sis.initial-admin-bootstrap.email:}") String email,
                                  @Value("${sis.initial-admin-bootstrap.password:}") String password) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jdbcTemplate = jdbcTemplate;
+        this.eventPublisher = eventPublisher;
         this.username = username;
         this.email = email;
         this.password = password;
@@ -72,7 +77,10 @@ public class InitialAdminBootstrap implements ApplicationRunner {
         User administrator = new User(username.trim(),
                 passwordEncoder.encode(password), Role.ADMIN);
         administrator.setEmail(email.trim().toLowerCase(Locale.ROOT));
-        userRepository.saveAndFlush(administrator);
+        administrator.setEmailVerified(false);
+        User savedAdministrator = userRepository.saveAndFlush(administrator);
+        eventPublisher.publishEvent(new UserEmailVerificationRequestedEvent(
+                savedAdministrator.getId(), savedAdministrator.getEmail()));
         logger.info("Initial administrator account created. Remove the bootstrap credentials and disable "
                 + "INITIAL_ADMIN_BOOTSTRAP_ENABLED before the next deployment.");
     }

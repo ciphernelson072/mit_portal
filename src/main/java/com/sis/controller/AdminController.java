@@ -4,6 +4,8 @@ import com.sis.dto.*;
 import com.sis.entity.*;
 import com.sis.exception.ResourceNotFoundException;
 import com.sis.repository.AuditLogRepository;
+import com.sis.repository.StudentRepository;
+import com.sis.repository.TeacherRepository;
 import com.sis.service.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -55,6 +57,12 @@ public class AdminController {
 
     @Autowired
     private AuditLogRepository auditLogRepository;
+
+    @Autowired
+    private StudentRepository studentRepository;
+
+    @Autowired
+    private TeacherRepository teacherRepository;
 
     @Autowired
     private GradeImportService gradeImportService;
@@ -139,6 +147,17 @@ public class AdminController {
     public ResponseEntity<String> restoreUser(@PathVariable Long id) {
         UserDto target = adminService.getUserById(id);
         adminService.restoreUser(id);
+        if (Role.STUDENT.name().equals(target.getRole())) {
+            Student student = studentRepository.findByUserId(id)
+                    .orElseThrow(() -> new IllegalStateException(
+                            "Restored student account has no student profile"));
+            automaticCourseAssignments.assignStudentForOpenTerms(student.getId());
+        } else if (Role.TEACHER.name().equals(target.getRole())) {
+            Teacher teacher = teacherRepository.findByUserId(id)
+                    .orElseThrow(() -> new IllegalStateException(
+                            "Restored teacher account has no teacher profile"));
+            automaticCourseAssignments.assignActiveStudentsForTeacher(teacher.getId());
+        }
         auditAdminAccountChange("ADMIN_USER_RESTORED", id,
                 "Restored account with role " + target.getRole());
         return ResponseEntity.ok("User account restored successfully");
@@ -207,14 +226,18 @@ public class AdminController {
     }
 
     @PostMapping("/students/{id}/transfer")
-    public ResponseEntity<String> transferStudentProgram(
+    public ResponseEntity<java.util.Map<String, Object>> transferStudentProgram(
             @PathVariable Long id,
             @Valid @RequestBody com.sis.dto.CreateStudentProgramTransferRequest request) {
         String changedBy = SecurityContextHolder.getContext().getAuthentication().getName();
         adminService.transferStudentProgram(id, request.getSourceProgramId(), request.getSourceAcademicYearId(),
                 request.getDestinationProgramId(), request.getDestinationAcademicYearId(),
                 request.getReason(), changedBy);
-        return ResponseEntity.ok("Student programme transfer completed successfully");
+        AutomaticCourseAssignmentSummary assignments = automaticCourseAssignments.assignStudentForOpenTerms(
+                id, request.getDestinationProgramId(), request.getDestinationAcademicYearId());
+        return ResponseEntity.ok(java.util.Map.of(
+                "message", "Student programme transfer completed successfully",
+                "automaticAssignments", assignments));
     }
 
     /** Admit (create) a new student - creates both the student and its user account. */
@@ -238,9 +261,12 @@ public class AdminController {
     }
 
     @PostMapping("/students/{id}/restore")
-    public ResponseEntity<String> restoreStudent(@PathVariable Long id) {
+    public ResponseEntity<java.util.Map<String, Object>> restoreStudent(@PathVariable Long id) {
         adminService.restoreStudent(id);
-        return ResponseEntity.ok("Student account restored successfully");
+        AutomaticCourseAssignmentSummary assignments = automaticCourseAssignments.assignStudentForOpenTerms(id);
+        return ResponseEntity.ok(java.util.Map.of(
+                "message", "Student account restored successfully",
+                "automaticAssignments", assignments));
     }
 
     @GetMapping("/students/{id}/cgpa")
@@ -260,11 +286,18 @@ public class AdminController {
     }
 
     @PostMapping("/students/{id}/status")
-    public ResponseEntity<String> changeStudentStatus(@PathVariable Long id, @Valid @RequestBody com.sis.dto.ChangeStudentStatusRequest request) {
+    public ResponseEntity<java.util.Map<String, Object>> changeStudentStatus(
+            @PathVariable Long id, @Valid @RequestBody com.sis.dto.ChangeStudentStatusRequest request) {
         String changedBy = SecurityContextHolder.getContext().getAuthentication().getName();
         adminService.changeStudentLifecycleStatus(id, request.getProgramId(), request.getAcademicYearId(),
                 request.getStatus(), request.getReason(), changedBy);
-        return ResponseEntity.ok("Student status updated successfully");
+        java.util.Map<String, Object> response = new java.util.LinkedHashMap<>();
+        response.put("message", "Student status updated successfully");
+        if (request.getStatus() == StudentLifecycleStatus.ACTIVE) {
+            response.put("automaticAssignments", automaticCourseAssignments.assignStudentForOpenTerms(
+                    id, request.getProgramId(), request.getAcademicYearId()));
+        }
+        return ResponseEntity.ok(response);
     }
 
     // ===== TEACHER MANAGEMENT ENDPOINTS =====
@@ -323,9 +356,11 @@ public class AdminController {
     }
 
     @PostMapping("/teachers/{id}/restore")
-    public ResponseEntity<String> restoreTeacher(@PathVariable Long id) {
+    public ResponseEntity<java.util.Map<String, Object>> restoreTeacher(@PathVariable Long id) {
         adminService.restoreTeacher(id);
-        return ResponseEntity.ok("Teacher account restored successfully");
+        return ResponseEntity.ok(java.util.Map.of(
+                "message", "Teacher account restored successfully",
+                "automaticAssignments", automaticCourseAssignments.assignActiveStudentsForTeacher(id)));
     }
 
     // ===== STATISTICS AND REPORTING ENDPOINTS =====
@@ -447,7 +482,12 @@ public class AdminController {
     @PutMapping("/courses/{id}")
     public ResponseEntity<AdminCourseDto> updateCourse(@PathVariable Long id,
                                                         @Valid @RequestBody UpdateCourseRequest request) {
-        return ResponseEntity.ok(schoolService.updateCourseDto(id, request));
+        boolean instructorChanged = !schoolService.isCourseAssignedToTeacher(id, request.getTeacherId());
+        AdminCourseDto course = schoolService.updateCourseDto(id, request);
+        if (instructorChanged) {
+            course.setAutomaticAssignments(automaticCourseAssignments.assignActiveStudentsForCourse(id));
+        }
+        return ResponseEntity.ok(course);
     }
 
     @GetMapping("/course-units")

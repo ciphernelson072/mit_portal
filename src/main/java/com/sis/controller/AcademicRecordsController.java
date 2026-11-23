@@ -25,14 +25,14 @@ public class AcademicRecordsController {
     }
 
     @GetMapping("/{studentId}/transcript")
-    @PreAuthorize("@permissionSecurity.canManageAcademicOperations() or @studentAccessService.isOwnStudent(#studentId)")
+    @PreAuthorize("@permissionSecurity.canViewInstitutionalReports() or @studentAccessService.isOwnStudent(#studentId)")
     public Map<String, Object> transcript(@PathVariable Long studentId) {
         requirePublishedForStudent(studentId);
         return records.transcript(studentId);
     }
 
     @GetMapping("/{studentId}/degree-audit")
-    @PreAuthorize("@permissionSecurity.canManageAcademicOperations() or @studentAccessService.isOwnStudent(#studentId)")
+    @PreAuthorize("@permissionSecurity.canViewInstitutionalReports() or @studentAccessService.isOwnStudent(#studentId)")
     public Map<String, Object> degreeAudit(@PathVariable Long studentId,
                                            @RequestParam(required = false) @Nullable Long programId,
                                            @RequestParam(required = false) @Nullable Long academicYearId) {
@@ -46,7 +46,7 @@ public class AcademicRecordsController {
     }
 
     @GetMapping("/{studentId}/transcript/download")
-    @PreAuthorize("@permissionSecurity.canManageAcademicOperations() or @studentAccessService.isOwnStudent(#studentId)")
+    @PreAuthorize("@permissionSecurity.canViewInstitutionalReports() or @studentAccessService.isOwnStudent(#studentId)")
     public ResponseEntity<byte[]> downloadTranscript(@PathVariable Long studentId) {
         requirePublishedForStudent(studentId);
         Map<String, Object> transcript = records.transcript(studentId);

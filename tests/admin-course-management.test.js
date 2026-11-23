@@ -59,18 +59,19 @@ function createAdminScriptContext({ coursesByPage, teachers = [], categories = [
   return { context, modal, handlers, requests };
 }
 
-test('teacher summary uses the same four-card shell as the admin dashboard', () => {
+test('teacher summary displays all metrics in a responsive card grid', () => {
   const html = fs.readFileSync(
     path.join(__dirname, '../src/main/resources/static/teacher-dashboard.html'),
     'utf8',
   );
-  assert.equal((html.match(/class="stat-card"/g) || []).length, 4);
+  assert.equal((html.match(/class="stat-card"/g) || []).length, 6);
   const css = fs.readFileSync(
     path.join(__dirname, '../src/main/resources/static/css/admin-style.css'),
     'utf8',
   );
-  assert.match(css, /\.teacher-content \.stats-grid \{/);
-  assert.match(css, /repeat\(4, minmax\(0, 1fr\)\)/);
+  assert.match(css, /\.teacher-content \.stats-grid \{[\s\S]*?repeat\(3, minmax\(0, 1fr\)\)/);
+  assert.match(css, /@media \(max-width: 1024px\)[\s\S]*?\.teacher-content \.stats-grid \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\); \}/);
+  assert.match(css, /@media \(max-width: 359px\)[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
 });
 
 test('pending actions and system status fail with retryable evidence', () => {
@@ -127,4 +128,21 @@ test('course-unit selector includes courses across pages and requires explicit s
   assert.match(state.modal.html, /<option value="">Choose a course…<\/option>/);
   assert.match(state.modal.html, /<option value="">Choose an instructor…<\/option>/);
   assert.ok(state.requests.some(pathValue => pathValue.includes('page=1')));
+});
+
+test('automatic assignment summaries report registrations and review items', () => {
+  const state = createAdminScriptContext({ coursesByPage: [[]] });
+  const summary = {
+    registrationsCreated: 2,
+    alreadyRegistered: 1,
+    skipped: 1,
+    issues: [{ courseCode: 'CSC101', reason: 'No active section is available.' }],
+  };
+
+  const status = state.context.automaticAssignmentStatus(summary);
+
+  assert.match(status, /2 required course sections assigned/);
+  assert.match(status, /1 already registered/);
+  assert.match(status, /1 need review/);
+  assert.match(status, /CSC101: No active section is available/);
 });

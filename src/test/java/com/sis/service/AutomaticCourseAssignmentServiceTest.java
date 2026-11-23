@@ -66,6 +66,24 @@ class AutomaticCourseAssignmentServiceTest {
     }
 
     @Test
+    void restoredStudentIsReconciledAcrossOpenTermsForActiveEnrollments() {
+        StudentProgram enrollment = enrollment(2L, 5L, 3);
+        AcademicTerm term = term(11L, 2L, true);
+        when(studentPrograms.findActiveForAutoAssignmentByStudentId(19L, StudentLifecycleStatus.ACTIVE))
+                .thenReturn(List.of(enrollment));
+        when(academicTerms.findByAcademicYearIdAndRegistrationOpenTrueOrderByStartDateAsc(2L))
+                .thenReturn(List.of(term));
+        when(registrationService.autoAssignRequiredCourses("student", 11L, 5L, 3))
+                .thenReturn(summary(1, 0));
+
+        AutomaticCourseAssignmentSummary result = service.assignStudentForOpenTerms(19L);
+
+        assertThat(result.studentsProcessed()).isEqualTo(1);
+        verify(studentPrograms).findActiveForAutoAssignmentByStudentId(19L, StudentLifecycleStatus.ACTIVE);
+        verify(registrationService).autoAssignRequiredCourses("student", 11L, 5L, 3);
+    }
+
+    @Test
     void termOpeningAssignsActiveStudentsOnlyWithinThatAcademicYear() {
         AcademicTerm term = term(11L, 2L, true);
         when(academicTerms.findWithAcademicYearById(11L)).thenReturn(Optional.of(term));
@@ -79,6 +97,139 @@ class AutomaticCourseAssignmentServiceTest {
         assertThat(result.studentsProcessed()).isEqualTo(1);
         verify(registrationService).autoAssignRequiredCourses("student", 11L, 5L, 4);
         verify(registrationService, never()).autoAssignRequiredCourses("student", 11L, 6L, 1);
+    }
+
+    @Test
+    void curriculumChangeAssignsMatchingSemesterAcrossEachEnrollmentYear() {
+        StudentProgram firstYearEnrollment = enrollment(2L, 5L, 3);
+        StudentProgram secondYearEnrollment = enrollment(3L, 5L, 3);
+        AcademicTerm firstYearTerm = term(11L, 2L, true);
+        AcademicTerm secondYearTerm = term(12L, 3L, true);
+        when(studentPrograms.findActiveForAutoAssignmentByProgramIdAndCurrentSemester(
+                5L, 3, StudentLifecycleStatus.ACTIVE))
+                .thenReturn(List.of(firstYearEnrollment, secondYearEnrollment));
+        when(academicTerms.findByAcademicYearIdAndRegistrationOpenTrueOrderByStartDateAsc(2L))
+                .thenReturn(List.of(firstYearTerm));
+        when(academicTerms.findByAcademicYearIdAndRegistrationOpenTrueOrderByStartDateAsc(3L))
+                .thenReturn(List.of(secondYearTerm));
+        when(registrationService.autoAssignRequiredCourses("student", 11L, 5L, 3))
+                .thenReturn(summary(1, 0));
+        when(registrationService.autoAssignRequiredCourses("student", 12L, 5L, 3))
+                .thenReturn(summary(1, 0));
+
+        AutomaticCourseAssignmentSummary result = service.assignActiveStudentsForProgramSemester(5L, 3);
+
+        assertThat(result.studentsProcessed()).isEqualTo(2);
+        verify(studentPrograms).findActiveForAutoAssignmentByProgramIdAndCurrentSemester(
+                5L, 3, StudentLifecycleStatus.ACTIVE);
+        verify(registrationService).autoAssignRequiredCourses("student", 11L, 5L, 3);
+        verify(registrationService).autoAssignRequiredCourses("student", 12L, 5L, 3);
+    }
+
+    @Test
+    void courseInstructorChangeReconcilesOnlyEnrollmentsRequiringThatCourse() {
+        StudentProgram enrollment = enrollment(2L, 5L, 3);
+        AcademicTerm term = term(11L, 2L, true);
+        when(studentPrograms.findActiveForAutoAssignmentByCourseId(31L, StudentLifecycleStatus.ACTIVE))
+                .thenReturn(List.of(enrollment));
+        when(academicTerms.findByAcademicYearIdAndRegistrationOpenTrueOrderByStartDateAsc(2L))
+                .thenReturn(List.of(term));
+        when(registrationService.autoAssignRequiredCourses("student", 11L, 5L, 3))
+                .thenReturn(summary(1, 0));
+
+        AutomaticCourseAssignmentSummary result = service.assignActiveStudentsForCourse(31L);
+
+        assertThat(result.studentsProcessed()).isEqualTo(1);
+        verify(studentPrograms).findActiveForAutoAssignmentByCourseId(31L, StudentLifecycleStatus.ACTIVE);
+        verify(registrationService).autoAssignRequiredCourses("student", 11L, 5L, 3);
+    }
+
+    @Test
+    void instructorRestorationReconcilesOnlyEnrollmentsWithTheirRequiredCourses() {
+        StudentProgram enrollment = enrollment(2L, 5L, 3);
+        AcademicTerm term = term(11L, 2L, true);
+        when(studentPrograms.findActiveForAutoAssignmentByTeacherId(41L, StudentLifecycleStatus.ACTIVE))
+                .thenReturn(List.of(enrollment));
+        when(academicTerms.findByAcademicYearIdAndRegistrationOpenTrueOrderByStartDateAsc(2L))
+                .thenReturn(List.of(term));
+        when(registrationService.autoAssignRequiredCourses("student", 11L, 5L, 3))
+                .thenReturn(summary(1, 0));
+
+        AutomaticCourseAssignmentSummary result = service.assignActiveStudentsForTeacher(41L);
+
+        assertThat(result.studentsProcessed()).isEqualTo(1);
+        verify(studentPrograms).findActiveForAutoAssignmentByTeacherId(41L, StudentLifecycleStatus.ACTIVE);
+        verify(registrationService).autoAssignRequiredCourses("student", 11L, 5L, 3);
+    }
+
+    @Test
+    void releasedCourseSeatRetriesOnlyMatchingEnrollmentsInTheSpecifiedOpenTerm() {
+        StudentProgram enrollment = enrollment(2L, 5L, 3);
+        enrollment.setId(50L);
+        AcademicTerm term = term(11L, 2L, true);
+        when(academicTerms.findWithAcademicYearById(11L)).thenReturn(Optional.of(term));
+        when(studentPrograms.findActiveForAutoAssignmentByCourseIdAndAcademicYearId(
+                31L, 2L, StudentLifecycleStatus.ACTIVE)).thenReturn(List.of(enrollment));
+        when(studentPrograms.findActiveForAutoAssignmentByStudentId(19L, StudentLifecycleStatus.ACTIVE))
+                .thenReturn(List.of(enrollment));
+        when(registrationService.autoAssignRequiredCourses("student", 11L, 5L, 3))
+                .thenReturn(summary(1, 0));
+
+        AutomaticCourseAssignmentSummary result =
+                service.assignActiveStudentsForCourseInTerm(19L, 31L, 11L);
+
+        assertThat(result.studentsProcessed()).isEqualTo(1);
+        verify(studentPrograms).findActiveForAutoAssignmentByCourseIdAndAcademicYearId(
+                31L, 2L, StudentLifecycleStatus.ACTIVE);
+        verify(studentPrograms).findActiveForAutoAssignmentByStudentId(19L, StudentLifecycleStatus.ACTIVE);
+        verify(registrationService).autoAssignRequiredCourses("student", 11L, 5L, 3);
+        verify(academicTerms, never())
+                .findByAcademicYearIdAndRegistrationOpenTrueOrderByStartDateAsc(2L);
+    }
+
+    @Test
+    void droppingAnElectiveStillRetriesThatStudentsOtherRequiredCoursesInTheSameTerm() {
+        StudentProgram droppingStudentEnrollment = enrollment(2L, 5L, 3);
+        droppingStudentEnrollment.setId(50L);
+        AcademicTerm term = term(11L, 2L, true);
+        when(academicTerms.findWithAcademicYearById(11L)).thenReturn(Optional.of(term));
+        when(studentPrograms.findActiveForAutoAssignmentByCourseIdAndAcademicYearId(
+                31L, 2L, StudentLifecycleStatus.ACTIVE)).thenReturn(List.of());
+        when(studentPrograms.findActiveForAutoAssignmentByStudentId(19L, StudentLifecycleStatus.ACTIVE))
+                .thenReturn(List.of(droppingStudentEnrollment));
+        when(registrationService.autoAssignRequiredCourses("student", 11L, 5L, 3))
+                .thenReturn(summary(1, 0));
+
+        AutomaticCourseAssignmentSummary result =
+                service.assignActiveStudentsForCourseInTerm(19L, 31L, 11L);
+
+        assertThat(result.studentsProcessed()).isEqualTo(1);
+        verify(studentPrograms).findActiveForAutoAssignmentByCourseIdAndAcademicYearId(
+                31L, 2L, StudentLifecycleStatus.ACTIVE);
+        verify(studentPrograms).findActiveForAutoAssignmentByStudentId(19L, StudentLifecycleStatus.ACTIVE);
+        verify(registrationService).autoAssignRequiredCourses("student", 11L, 5L, 3);
+    }
+
+    @Test
+    void releasedSeatDoesNotRetryWhenTermRegistrationIsClosed() {
+        when(academicTerms.findWithAcademicYearById(11L))
+                .thenReturn(Optional.of(term(11L, 2L, false)));
+
+        AutomaticCourseAssignmentSummary result =
+                service.assignActiveStudentsForCourseInTerm(19L, 31L, 11L);
+
+        assertThat(result.studentsProcessed()).isZero();
+        verify(studentPrograms, never()).findActiveForAutoAssignmentByCourseIdAndAcademicYearId(
+                org.mockito.ArgumentMatchers.anyLong(),
+                org.mockito.ArgumentMatchers.anyLong(),
+                org.mockito.ArgumentMatchers.any());
+        verify(studentPrograms, never()).findActiveForAutoAssignmentByStudentId(
+                org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.any());
+        verify(registrationService, never()).autoAssignRequiredCourses(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyLong(),
+                org.mockito.ArgumentMatchers.anyLong(),
+                org.mockito.ArgumentMatchers.anyInt());
     }
 
     private StudentProgram enrollment(Long yearId, Long programId, int semester) {

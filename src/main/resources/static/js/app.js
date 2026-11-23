@@ -192,9 +192,9 @@ async function renderStudentDashboard() {
 async function renderAdminDashboard() {
     dashboardContent.innerHTML = `
         <div class="row g-4">
-            <div class="col-md-4"><div class="card h-100 border-0 shadow-sm p-2"><h3 class="h6 mb-3 px-2 mt-2">👥 Students</h3><div id="adminStudents" class="overflow-auto px-2" style="max-height:300px"></div></div></div>
-            <div class="col-md-4"><div class="card h-100 border-0 shadow-sm p-2"><h3 class="h6 mb-3 px-2 mt-2">🏫 Teachers</h3><div id="adminTeachers" class="overflow-auto px-2" style="max-height:300px"></div></div></div>
-            <div class="col-md-4"><div class="card h-100 border-0 shadow-sm p-2"><h3 class="h6 mb-3 px-2 mt-2">📚 Courses</h3><div id="adminCourses" class="overflow-auto px-2" style="max-height:300px"></div></div></div>
+            <div class="col-md-4"><div class="card h-100 border-0 shadow-sm p-2"><h3 class="h6 mb-3 px-2 mt-2">👥 Students</h3><div id="adminStudents" class="overflow-auto px-2 csp-inline-54b94db65193"></div></div></div>
+            <div class="col-md-4"><div class="card h-100 border-0 shadow-sm p-2"><h3 class="h6 mb-3 px-2 mt-2">🏫 Teachers</h3><div id="adminTeachers" class="overflow-auto px-2 csp-inline-54b94db65193"></div></div></div>
+            <div class="col-md-4"><div class="card h-100 border-0 shadow-sm p-2"><h3 class="h6 mb-3 px-2 mt-2">📚 Courses</h3><div id="adminCourses" class="overflow-auto px-2 csp-inline-54b94db65193"></div></div></div>
         </div>
         <div class="row g-4 mt-2">
             <div class="col-md-6 col-lg-3">
@@ -420,10 +420,12 @@ logoutButton?.addEventListener('click', () => { clearSession(); showLogin(); });
 window.addEventListener('load', async () => {
     if (getToken()) await showDashboard();
 
-    // Register Service Worker for PWA functionality - CORRECTED PATH
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./service-worker.js')
-            .then(() => console.log("Service Worker Registered successfully"))
-            .catch(err => console.log("Service Worker Registration Failed", err));
+    if ('serviceWorker' in navigator && !window.__mitPortalPwaUpdateScriptRequested) {
+        window.__mitPortalPwaUpdateScriptRequested = true;
+        const pwaUpdateScript = document.createElement('script');
+        pwaUpdateScript.src = '/js/pwa-update.js';
+        pwaUpdateScript.async = true;
+        pwaUpdateScript.onerror = () => console.error('Unable to load MIT Portal update support.');
+        document.head.appendChild(pwaUpdateScript);
     }
 });

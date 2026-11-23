@@ -113,6 +113,10 @@ public class SchoolService {
                 ? 0 : courseRepository.countDistinctStudentsByCourseIds(courseIds);
     }
 
+    public long countDistinctStudentsTaughtByTeacher(Long teacherId) {
+        return teacherId == null ? 0 : studentRepository.countDistinctStudentsTaughtByTeacher(teacherId);
+    }
+
     public long countPendingGradesInCourses(List<Long> courseIds) {
         return courseIds == null || courseIds.isEmpty()
                 ? 0 : gradeRepository.countByCourseIdsAndStatusOrNull(courseIds, GradeStatus.PENDING);
@@ -266,6 +270,11 @@ public class SchoolService {
         return courseId == null ? Optional.empty() : courseRepository.findById(courseId);
     }
 
+    public boolean isCourseAssignedToTeacher(Long courseId, Long teacherId) {
+        return courseId != null && teacherId != null
+                && courseRepository.existsByIdAndTeacher_Id(courseId, teacherId);
+    }
+
     public List<Long> getUserIdsForStudentsInCourse(Long courseId) {
         return courseId == null ? Collections.emptyList() : studentRepository.findUserIdsByCourseId(courseId);
     }
@@ -282,7 +291,6 @@ public class SchoolService {
                     dto.setId(course.getId());
                     dto.setName(course.getName());
                     dto.setCourseCode(course.getCourseCode());
-                    dto.setCategory(course.getCategory() != null ? course.getCategory().getName() : "Other");
                     dto.setTeacherName(course.getTeacher().getFullName());
                     dto.setSemester(course.getSemester());
                     dto.setCredits(course.getCredits());
@@ -329,7 +337,7 @@ public class SchoolService {
         public List<CourseUnitDto> getCourseUnitsForTeacher(Long teacherId) {
         if (teacherId == null) return Collections.emptyList();
         return courseUnitRepository.findByTeacherIdWithCourse(teacherId).stream()
-            .map(this::toCourseUnitDto)
+            .map(this::toTeacherCourseUnitDto)
             .collect(Collectors.toList());
         }
 
@@ -379,6 +387,13 @@ public class SchoolService {
             unit.getTeacher().getId(), unit.getTeacher().getFullName());
         }
 
+            private CourseUnitDto toTeacherCourseUnitDto(CourseUnit unit) {
+            Course course = unit.getCourse();
+            return new CourseUnitDto(unit.getId(), unit.getUnitCode(), unit.getName(), course.getId(),
+                course.getName(), course.getCourseCode(), null,
+                unit.getTeacher().getId(), unit.getTeacher().getFullName());
+            }
+
     public List<Student> listStudentsByCourse(Long courseId) {
         if (courseId == null) {
             return new ArrayList<>();
@@ -405,11 +420,14 @@ public class SchoolService {
         return courseUnitRepository.existsAssignedToTeacherForCourse(unitId, username);
     }
 
+    public boolean teacherHasStudentInCourseUnit(String username, Long studentId) {
+        if (username == null || studentId == null) return false;
+        return courseUnitRepository.existsRosterStudentForTeacher(username, studentId);
+    }
+
     public List<Student> listStudentsByCourseUnit(Long unitId) {
-        return getCourseUnitById(unitId)
-                .map(unit -> new ArrayList<>(unit.getStudents()))
-                .map(students -> (List<Student>) students)
-                .orElse(Collections.emptyList());
+        return unitId == null ? Collections.emptyList()
+                : courseUnitRepository.findRosterStudentsByUnitId(unitId);
     }
 
     public Course createCourse(CreateCourseRequest request) {

@@ -5,6 +5,9 @@
   const status = document.getElementById('mfaStatus');
   if (!status) return;
 
+  const emailStatus = document.getElementById('emailVerificationStatus');
+  const emailMessage = document.getElementById('emailVerificationMessage');
+  const resendEmailButton = document.getElementById('resendEmailVerificationButton');
   const mfaSection = document.getElementById('mfaSecuritySection');
   const sessionsSection = document.getElementById('activeSessionsSection');
   const passwordGroup = document.getElementById('mfaPasswordGroup');
@@ -24,6 +27,7 @@
   const revokeAllSessionsButton = document.getElementById('revokeAllSessionsButton');
   const enrollmentOnly = isMfaEnrollmentRequired();
   let enabled = false;
+  let emailToVerify = null;
 
   if (enrollmentOnly && sessionsSection) sessionsSection.hidden = true;
 
@@ -31,6 +35,44 @@
     message.textContent = text;
     message.setAttribute('aria-live', error ? 'assertive' : 'polite');
   }
+
+  async function loadEmailVerificationStatus() {
+    try {
+      const response = await apiFetch('/auth/email-status');
+      const emailState = await response.json();
+      emailToVerify = emailState.pendingEmail || emailState.email || null;
+      if (emailState.verified) {
+        emailStatus.textContent = 'Your account email is verified.';
+        resendEmailButton.hidden = true;
+      } else if (emailToVerify) {
+        emailStatus.textContent = `Email verification is pending for ${emailToVerify}. Sign-in remains available.`;
+        resendEmailButton.hidden = false;
+      } else {
+        emailStatus.textContent = 'No account email is set. Ask an administrator to add one.';
+        resendEmailButton.hidden = true;
+      }
+    } catch (error) {
+      emailStatus.textContent = 'Unable to load email verification status.';
+      emailMessage.textContent = error.message || 'Please try again later.';
+    }
+  }
+
+  resendEmailButton.addEventListener('click', async () => {
+    if (!emailToVerify) return;
+    resendEmailButton.disabled = true;
+    emailMessage.textContent = '';
+    try {
+      await apiFetch('/auth/resend-email-verification', {
+        method: 'POST',
+        body: JSON.stringify({ email: emailToVerify }),
+      });
+      emailMessage.textContent = 'If the account exists, a verification link has been sent.';
+    } catch (error) {
+      emailMessage.textContent = error.message || 'Could not resend the verification link.';
+    } finally {
+      resendEmailButton.disabled = false;
+    }
+  });
 
   async function loadMfaStatus() {
     try {
@@ -196,5 +238,6 @@
   });
 
   loadMfaStatus();
+  loadEmailVerificationStatus();
   if (!enrollmentOnly) loadSessions();
 })();

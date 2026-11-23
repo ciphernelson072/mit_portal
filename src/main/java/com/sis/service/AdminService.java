@@ -25,10 +25,12 @@ import com.sis.repository.ProgramRepository;
 import com.sis.repository.StudentProgramRepository;
 import com.sis.repository.StudentStatusHistoryRepository;
 import com.sis.repository.DepartmentRepository;
+import com.sis.repository.EmailVerificationTokenRepository;
 import com.sis.repository.GradeRepository;
 import com.sis.repository.StudentRepository;
 import com.sis.repository.TeacherRepository;
 import com.sis.repository.UserRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -66,6 +68,8 @@ public class AdminService {
     private final AcademicYearRepository academicYearRepository;
     private final AcademicRecordsService academicRecordsService;
     private final CurriculumCourseRepository curriculumCourseRepository;
+    private final ApplicationEventPublisher eventPublisher;
+    private final EmailVerificationTokenRepository emailVerificationTokenRepository;
 
     public AdminService(UserRepository userRepository, StudentRepository studentRepository,
                          TeacherRepository teacherRepository, CourseRepository courseRepository,
@@ -77,7 +81,9 @@ public class AdminService {
                          ProgramRepository programRepository,
                          AcademicYearRepository academicYearRepository,
                          AcademicRecordsService academicRecordsService,
-                         CurriculumCourseRepository curriculumCourseRepository) {
+                         CurriculumCourseRepository curriculumCourseRepository,
+                         ApplicationEventPublisher eventPublisher,
+                         EmailVerificationTokenRepository emailVerificationTokenRepository) {
         this.userRepository = userRepository;
         this.studentRepository = studentRepository;
         this.teacherRepository = teacherRepository;
@@ -92,6 +98,8 @@ public class AdminService {
         this.academicYearRepository = academicYearRepository;
         this.academicRecordsService = academicRecordsService;
         this.curriculumCourseRepository = curriculumCourseRepository;
+        this.eventPublisher = eventPublisher;
+        this.emailVerificationTokenRepository = emailVerificationTokenRepository;
     }
 
     // ===== MAPPING HELPERS =====
@@ -101,6 +109,7 @@ public class AdminService {
             user.getId(),
             user.getUsername(),
             user.getEmail(),
+            user.isEmailVerified(),
             user.getPhone(),
             user.getRole() != null ? user.getRole().name() : null,
             Boolean.TRUE.equals(user.getIsActive())
@@ -154,7 +163,21 @@ public class AdminService {
     }
 
     private String normalizeEmail(String value) {
-        return value == null ? null : value.trim().toLowerCase(Locale.ROOT);
+        return value == null || value.isBlank() ? null : value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private void requestEmailVerification(User user, String email) {
+        user.setEmailVerified(false);
+        if (email != null) {
+            emailVerificationTokenRepository.findByEmailIgnoreCase(email)
+                    .filter(token -> !Boolean.TRUE.equals(token.getVerified())
+                            && !java.util.Objects.equals(token.getUser().getId(), user.getId()))
+                    .ifPresent(token -> {
+                        throw new IllegalArgumentException(
+                                "Email is already pending verification for another user");
+                    });
+            eventPublisher.publishEvent(new UserEmailVerificationRequestedEvent(user.getId(), email));
+        }
     }
 
     // ===== USER MANAGEMENT =====
@@ -196,10 +219,13 @@ public class AdminService {
 
         User user = new User(normalizedUsername, passwordEncoder.encode(request.getPassword()), request.getRole());
         user.setEmail(normalizedEmail);
+        user.setEmailVerified(false);
         user.setPhone(request.getPhone());
         user.setIsActive(true);
         user.setPasswordChangeRequired(request.getRole() == Role.STUDENT);
-        return toUserDto(userRepository.save(user));
+        User savedUser = userRepository.save(user);
+        requestEmailVerification(savedUser, normalizedEmail);
+        return toUserDto(savedUser);
     }
 
     public UserDto updateUser(Long id, UpdateUserRequest request) {
@@ -211,14 +237,18 @@ public class AdminService {
             throw new IllegalArgumentException("The last active administrator cannot be demoted");
         }
 
-        String normalizedEmail = normalizeEmail(request.getEmail());
-        if (normalizedEmail != null && !normalizedEmail.equalsIgnoreCase(user.getEmail() == null ? "" : user.getEmail())) {
-            if (userRepository.findByEmailIgnoreCase(normalizedEmail)
-                    .filter(existing -> !existing.getId().equals(user.getId())).isPresent()) {
-                throw new IllegalArgumentException("Email is already associated with another user");
+        if (request.getEmail() != null) {
+            String normalizedEmail = normalizeEmail(request.getEmail());
+            String currentEmail = normalizeEmail(user.getEmail());
+            if (!java.util.Objects.equals(normalizedEmail, currentEmail)) {
+                if (normalizedEmail != null && userRepository.findByEmailIgnoreCase(normalizedEmail)
+                        .filter(existing -> !existing.getId().equals(user.getId())).isPresent()) {
+                    throw new IllegalArgumentException("Email is already associated with another user");
+                }
+                user.setEmail(normalizedEmail);
+                requestEmailVerification(user, normalizedEmail);
             }
         }
-        user.setEmail(normalizedEmail);
         user.setPhone(request.getPhone());
 
         boolean credentialsChanged = false;
@@ -492,9 +522,11 @@ public class AdminService {
 
         User user = new User(normalizedUsername, passwordEncoder.encode(request.getPassword()), com.sis.entity.Role.STUDENT);
         user.setEmail(normalizedEmail);
+        user.setEmailVerified(false);
         user.setPhone(request.getPhone());
         user.setPasswordChangeRequired(true);
         user = userRepository.save(user);
+        requestEmailVerification(user, normalizedEmail);
 
         Student student = new Student(user, request.getFullName(), request.getClassName());
         student.setEmail(normalizedEmail);
@@ -671,8 +703,10 @@ public class AdminService {
 
         User user = new User(normalizedUsername, passwordEncoder.encode(request.getPassword()), com.sis.entity.Role.TEACHER);
         user.setEmail(normalizedEmail);
+        user.setEmailVerified(false);
         user.setPasswordChangeRequired(true);
         user = userRepository.save(user);
+        requestEmailVerification(user, normalizedEmail);
 
         Teacher teacher = new Teacher(user, request.getFullName());
         teacher.setEmail(normalizedEmail);

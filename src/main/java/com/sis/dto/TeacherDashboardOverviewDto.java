@@ -2,6 +2,7 @@ package com.sis.dto;
 
 public class TeacherDashboardOverviewDto {
     private Long assignedCourseCount;
+    private Long assignedCourseUnitCount;
     private Long enrolledStudentCount;
     private Long pendingGradeCount;
     private Long upcomingAssignmentCount;
@@ -22,6 +23,11 @@ public class TeacherDashboardOverviewDto {
 
     public Long getAssignedCourseCount() { return assignedCourseCount; }
     public void setAssignedCourseCount(Long assignedCourseCount) { this.assignedCourseCount = assignedCourseCount; }
+
+    public Long getAssignedCourseUnitCount() { return assignedCourseUnitCount; }
+    public void setAssignedCourseUnitCount(Long assignedCourseUnitCount) {
+        this.assignedCourseUnitCount = assignedCourseUnitCount;
+    }
 
     public Long getEnrolledStudentCount() { return enrolledStudentCount; }
     public void setEnrolledStudentCount(Long enrolledStudentCount) { this.enrolledStudentCount = enrolledStudentCount; }

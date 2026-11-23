@@ -113,7 +113,6 @@ function openModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
         modal.classList.add('show');
-        modal.style.display = 'flex';
     }
 }
 
@@ -125,7 +124,6 @@ function closeModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
         modal.classList.remove('show');
-        modal.style.display = 'none';
     }
 }
 
@@ -199,7 +197,7 @@ async function loadStudents() {
         const tbody = document.getElementById('studentsTableBody');
         
         if (!students || students.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No students found</td></tr>';
+            tbody.innerHTML = '<tr><td class="csp-inline-fb5ec070f2bf" colspan="7">No students found</td></tr>';
             return;
         }
 
@@ -213,9 +211,9 @@ async function loadStudents() {
                 <td>${student.phone || '-'}</td>
                 <td>
                     <div class="action-buttons">
-                        <button class="btn btn-info" onclick="viewStudentCGPA(${student.id}, '${student.fullName}')">CGPA</button>
-                        <button class="btn btn-warning" onclick="editStudent(${student.id})">Edit</button>
-                        <button class="btn btn-danger" onclick="confirmRemoveStudent(${student.id})">Remove</button>
+                        <button class="btn btn-info" data-csp-action="viewStudentCGPA" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(student.id),('${student.fullName}')]))}">CGPA</button>
+                        <button class="btn btn-warning" data-csp-action="editStudent" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(student.id)]))}">Edit</button>
+                        <button class="btn btn-danger" data-csp-action="confirmRemoveStudent" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(student.id)]))}">Remove</button>
                     </div>
                 </td>
             </tr>
@@ -353,7 +351,7 @@ async function viewStudentCGPA(studentId, studentName) {
         const cgpaDetails = document.getElementById('cgpaDetails');
         cgpaDetails.innerHTML = `
             <p><strong>Student:</strong> ${response.fullName}</p>
-            <p><strong>CGPA:</strong> <span style="font-size: 1.5rem; color: #3498db;">${response.cgpa.toFixed(2)}</span></p>
+            <p><strong>CGPA:</strong> <span class="csp-inline-76df5234e943">${response.cgpa.toFixed(2)}</span></p>
         `;
         
         openModal('viewCGPAModal');
@@ -375,7 +373,7 @@ async function loadTeachers() {
         const tbody = document.getElementById('teachersTableBody');
         
         if (!teachers || teachers.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No teachers found</td></tr>';
+            tbody.innerHTML = '<tr><td class="csp-inline-fb5ec070f2bf" colspan="7">No teachers found</td></tr>';
             return;
         }
 
@@ -389,8 +387,8 @@ async function loadTeachers() {
                 <td>${teacher.phone || '-'}</td>
                 <td>
                     <div class="action-buttons">
-                        <button class="btn btn-warning" onclick="editTeacher(${teacher.id})">Edit</button>
-                        <button class="btn btn-danger" onclick="confirmRemoveTeacher(${teacher.id})">Remove</button>
+                        <button class="btn btn-warning" data-csp-action="editTeacher" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(teacher.id)]))}">Edit</button>
+                        <button class="btn btn-danger" data-csp-action="confirmRemoveTeacher" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(teacher.id)]))}">Remove</button>
                     </div>
                 </td>
             </tr>
@@ -453,7 +451,7 @@ async function editTeacher(teacherId) {
         const html = `
             <div id="editTeacherModal" class="modal show">
                 <div class="modal-content">
-                    <span class="modal-close" onclick="closeModal('editTeacherModal')">&times;</span>
+                    <span class="modal-close" data-csp-action="closeModal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([('editTeacherModal')]))}">&times;</span>
                     <h2>Edit Teacher</h2>
                     <form id="editTeacherForm" class="form-container">
                         <input type="hidden" id="editTeacherId" name="id" value="${teacher.id}">
@@ -567,7 +565,7 @@ async function loadUsers() {
         const tbody = document.getElementById('usersTableBody');
         
         if (!users || users.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No users found</td></tr>';
+            tbody.innerHTML = '<tr><td class="csp-inline-fb5ec070f2bf" colspan="6">No users found</td></tr>';
             return;
         }
 
@@ -577,11 +575,11 @@ async function loadUsers() {
                 <td>${user.username}</td>
                 <td><span class="badge badge-${user.role.toLowerCase()}">${user.role}</span></td>
                 <td>${user.email || '-'}</td>
-                <td>${user.isActive ? '<span style="color: green;">Active</span>' : '<span style="color: red;">Inactive</span>'}</td>
+                <td>${user.isActive ? '<span class="csp-inline-97c57cc5749f">Active</span>' : '<span class="csp-inline-6414e3e511cb">Inactive</span>'}</td>
                 <td>
                     <div class="action-buttons">
-                        ${!user.isActive ? `<button class="btn btn-success" onclick="restoreUser(${user.id})">Restore</button>` : ''}
-                        <button class="btn btn-danger" onclick="confirmRemoveUser(${user.id})">Remove</button>
+                        ${!user.isActive ? `<button class="btn btn-success" data-csp-action="restoreUser" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(user.id)]))}">Restore</button>` : ''}
+                        <button class="btn btn-danger" data-csp-action="confirmRemoveUser" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(user.id)]))}">Remove</button>
                     </div>
                 </td>
             </tr>

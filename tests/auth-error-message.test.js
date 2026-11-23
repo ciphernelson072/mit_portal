@@ -9,12 +9,18 @@ const authSource = fs.readFileSync(
   'utf8',
 );
 
+const document = {
+  addEventListener() {},
+  createElement: () => ({ dataset: {} }),
+  head: { appendChild() {} },
+  querySelector: () => null,
+};
 const context = {
   URL,
   Request,
   FormData,
   navigator: {},
-  document: {},
+  document,
   localStorage: {},
   window: {
     location: { href: 'https://portal.example/index.html' },

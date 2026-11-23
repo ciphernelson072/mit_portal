@@ -33,6 +33,20 @@
       <p>Set up an authenticator app to add a six-digit verification step at sign-in. Students, teachers, and administrators can enroll; institution-wide enforcement requires MFA for every account.</p>
     </section>
 
+    <section class="security-section" id="emailVerificationSection">
+      <h3>Email address verification</h3>
+      <div class="security-card">
+        <p id="emailVerificationStatus" role="status">Checking email status...</p>
+        <p class="security-hint">You can continue signing in while verification is pending. Password recovery is available after the address is verified.</p>
+        <p id="emailVerificationMessage" role="status" aria-live="polite"></p>
+        <div class="security-actions">
+          <button class="btn-secondary" id="resendEmailVerificationButton" type="button" hidden>
+            Resend verification link
+          </button>
+        </div>
+      </div>
+    </section>
+
     <section class="security-section" id="mfaSecuritySection">
       <h3>Authenticator two-factor authentication</h3>
       <div class="security-card">
@@ -46,7 +60,7 @@
         </div>
         <div id="mfaRecoveryCodes" class="mfa-enrollment" hidden>
           <p><strong>Save these one-time recovery codes now.</strong></p>
-          <pre id="mfaRecoveryCodeList" style="white-space: pre-wrap;"></pre>
+          <pre class="csp-inline-ee488c67b751" id="mfaRecoveryCodeList"></pre>
           <p class="security-hint">Each code can be used once if your authenticator is unavailable. Store them separately and securely.</p>
         </div>
         <div class="form-group" id="mfaPasswordGroup">

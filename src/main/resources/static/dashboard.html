@@ -64,7 +64,7 @@
             <div class="dropdown-header">Messages</div>
             <div class="message-list"></div>
             <a href="messages.html" class="dropdown-footer">📨 View All Messages →</a>
-            <button type="button" class="dropdown-footer" onclick="composeMessage()">✉ Compose Message</button>
+            <button type="button" class="dropdown-footer" data-csp-action="composeMessage" data-csp-event="click" data-csp-args="%5B%5D">✉ Compose Message</button>
           </div>
         </div>
 
@@ -94,7 +94,7 @@
             <a href="profile.html#preferences" class="menu-link">⚙️ Settings</a>
             <a href="account-security.html" class="menu-link">🔐 Account Security &amp; MFA</a>
             <hr class="menu-divider">
-            <button class="menu-link logout-btn" onclick="handleLogoutClick()">🚪 Logout</button>
+            <button class="menu-link logout-btn" data-csp-action="handleLogoutClick" data-csp-event="click" data-csp-args="%5B%5D">🚪 Logout</button>
           </div>
         </div>
 

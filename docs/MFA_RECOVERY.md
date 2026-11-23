@@ -1,11 +1,16 @@
 # MFA Recovery Procedure
 
-MFA uses an encrypted TOTP seed and is disabled by default. Enabling it requires
+MFA uses an encrypted TOTP seed. Generic development defaults keep it opt-in. Production requires MFA for
+privileged accounts (administrators and accounts with active finance
+permissions), while other users may enroll optionally. This policy requires
 an approved institution policy and a persistent Base64-encoded 32-byte
-`MFA_ENCRYPTION_KEY`; the application must reject startup when MFA is enabled
-without a valid key. `MFA_REQUIRED_FOR_PRIVILEGED` is a separate, default-off
-switch for enforcing enrollment on administrator accounts and accounts with
-active finance permissions. It cannot be enabled unless `MFA_ENABLED=true`.
+`MFA_ENCRYPTION_KEY`; production startup rejects a missing/invalid key and
+rejects attempts to disable privileged MFA. Users may enroll from Account
+Security; enrolled users must verify MFA when signing in. Set
+`MFA_REQUIRED_FOR_ALL=true` only when the institution explicitly chooses
+mandatory enrollment for every user. It requires every role to enroll and
+complete MFA before portal access. It also requires
+`MFA_ENABLED=true` and a valid persistent encryption key.
 
 ## Staged rollout
 
@@ -15,13 +20,16 @@ active finance permissions. It cannot be enabled unless `MFA_ENABLED=true`.
 3. Back up the key through the institution's normal encrypted secret-rotation
    process and verify that a replacement environment can decrypt a test seed
    with the backed-up key.
-4. Deploy with `MFA_ENABLED=true` and `MFA_REQUIRED_FOR_PRIVILEGED=false`.
-   Privileged users can then enroll at Account Security without changing their
-   existing sign-in policy.
-5. Confirm that every administrator and finance-privileged account is enrolled,
-   verify that sign-in and refresh require a completed MFA challenge, and
-   rehearse the approved recovery process. Only then set
-   `MFA_REQUIRED_FOR_PRIVILEGED=true`.
+4. Before production rollout, confirm every privileged account has a working
+   authenticator or can complete enrollment at sign-in. Production deploys
+   require `MFA_ENABLED=true`, `MFA_REQUIRED_FOR_PRIVILEGED=true`, and
+   `MFA_REQUIRED_FOR_ALL=false` by default.
+5. Confirm that representative student, teacher, administrator, and
+   finance-privileged accounts are enrolled. Verify that sign-in and refresh
+   require a completed MFA challenge and rehearse the approved recovery process.
+   Keep `MFA_REQUIRED_FOR_ALL=false` unless institution-wide enforcement is
+   explicitly approved. Production cannot disable privileged-account
+   enforcement.
 6. Users who are not enrolled when enforcement is activated receive a
    short-lived, enrollment-only session. It can reach only MFA status/setup/
    verification, logout, and (when required) password change; it cannot reach
@@ -32,10 +40,13 @@ active finance permissions. It cannot be enabled unless `MFA_ENABLED=true`.
    credentials. Recovery codes require separate persistent storage, hashing,
    one-time consumption, and replay/audit controls before being enabled.
 
-The application does not currently issue recovery codes or provide an
-administrator self-service reset. Do not promise recovery-code support until
-that workflow has been implemented and tested. A required privileged account
-cannot disable MFA through its own account-security page.
+The application issues ten hashed, one-time recovery codes after MFA verification.
+Plaintext codes are shown once and are never stored in the database. Codes can be
+used only for MFA sign-in, are consumed atomically, and are revoked when MFA is
+disabled or set up again. The login screen accepts either a six-digit authenticator
+code or a saved recovery code. Administrators may still use support-assisted
+recovery for a lost authenticator; a required privileged or universally enforced
+account cannot disable MFA through its own account-security page.
 
 ## Locked-account recovery
 

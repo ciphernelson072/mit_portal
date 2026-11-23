@@ -5,7 +5,77 @@ the phased runbook for closing these items and deploying to Render. This
 checklist records evidence; do not mark an item complete until verified in the
 actual target environment.
 
+## Security hardening release (23 November 2026)
+
+- [x] Local source hardening implemented for file signatures, cookie-backed
+  CSRF, strict CSP, and fail-closed privileged MFA. Focused Java tests passed
+  (121 tests); frontend tests passed (26 tests); JavaScript validation passed
+  for 41 static files.
+- [x] Live Render service returned HTTP 200 for `/` and `/admin-login.html`
+  after cold start.
+- [ ] Publish and deploy the reviewed image. The active image still serves the
+  legacy permissive CSP; verify `script-src-attr 'none'` and
+  `style-src-attr 'none'`, absence of `'unsafe-inline'`/jsDelivr, and no inline
+  markup after deployment.
+- [ ] Verify the active Render secret environment contains the persistent MFA
+  encryption key without exposing its value; test privileged enrollment,
+  sign-in, and recovery with synthetic accounts.
+
+See [Security hardening and release checks](./SECURITY_HARDENING.md) for the
+verification procedure and current Render evidence.
+
 ## Verification records
+
+### Render automation and migration-recovery release (20 November 2026)
+
+- [x] GitHub Actions run
+  [44744430275](https://github.com/ciphernelson072/mit_portal/actions/runs/44744430275)
+  passed the release checks, including backend, MySQL migration, frontend,
+  browser, and image-build validation.
+- [x] Render deployed immutable image
+  `docker.io/ciphernelson/mit-portal:sha-682553db36256d08a93362e22b069776c8c2a096`
+  for commit `682553db36256d08a93362e22b069776c8c2a096`, deployment
+  `dep-dc04tdqjnfac738vi3sg`.
+- [x] `/actuator/health` and `/actuator/health/readiness` reported `UP`.
+  `/portal-login.html`, `/admin-login.html`, `/admissions.html`, and
+  `/public/admissions.html` returned HTTP 200.
+- [x] The release includes the automation, single-session enforcement,
+  admission-document, fee-approval, and email-retry changes. The V57 recovery
+  fix handles the exact failed/missing-failed migration-history state; the
+  successful deployment followed a failed attempt that had rolled back.
+- [x] Refreshed source-backed illustrative student, teacher, administrator,
+  mobile, and admissions screenshots on 20 November under `docs/screenshots/`
+  and in the presentation pack. They contain synthetic values, not live or
+  authenticated account data.
+- [x] Added optional Cloudflare Turnstile server-side verification for public
+  admissions submission and status lookup; the integration defaults off.
+- [ ] Configure free-plan test keys for an approved test domain and validate
+  success, rejection, expiry, action mismatch, and provider outage before
+  enabling admissions bot protection.
+- [ ] Verify authenticated student, teacher, and administrator workflows,
+  including course auto-assignment and session revocation, on approved test
+  accounts in the target service.
+- [ ] Verify inbox delivery, retry/exhaustion reporting, database migration
+  history, and upload/restart behavior in the target service.
+- [ ] Complete the production data, backup/restore, durable-storage, and
+  institutional acceptance gates in
+  [REMAINING_WORK_AND_DEPLOYMENT.md](./REMAINING_WORK_AND_DEPLOYMENT.md).
+
+### Render Brevo and campus-login image deployment (17 November 2026)
+
+- [x] Render deployed
+  `docker.io/ciphernelson/mit-portal:sha-3f700083123ad845ad67d580a7eb49c10e496e2e`
+  for commit `3f700083123ad845ad67d580a7eb49c10e496e2e`; Render reported the
+  service live ([deployment details](https://dashboard.render.com/web/srv-dbgdds6tlv9c73dveld0/deploys/dep-dbuctc2fngtc73cdiumg)).
+- [x] `/actuator/health` returned HTTP 200 with status `UP`.
+- [x] Visually checked that the sign-in page displays the campus background.
+- [ ] Verify a successful test-account sign-in and sign-out.
+- [ ] Rotate the Brevo API key in Brevo and update the Render secret, then
+  verify a controlled test email is received. Deployment and health checks do
+  not prove mail delivery.
+- [ ] Complete the production data, backup/restore, durable-storage, and
+  institutional acceptance gates in
+  [REMAINING_WORK_AND_DEPLOYMENT.md](./REMAINING_WORK_AND_DEPLOYMENT.md).
 
 ### Disposable MySQL and TiDB schema validation (11 November 2026)
 
@@ -45,9 +115,9 @@ actual target environment.
   backup and restore rehearsal, institution-approved public content, verified
   provider behavior, and target-topology user acceptance before production.
 
-The sitemap and documentation updates made after `9c212d4` are not part of the
-deployed image. They require their own passing CI and deployment before being
-marked live.
+At the time of this 10 November record, sitemap and documentation changes
+after `9c212d4` were not part of that image. See the 20 November record above
+for the current deployed image.
 
 ### Teacher result-publication notification (10 November 2026)
 
@@ -188,11 +258,13 @@ marked live.
   dashboard routes, identifies the password as one-time, and requires a
   password change. Admin feedback reports email delivery state without
   returning the temporary password; focused backend and browser checks pass.
-- [ ] Decide whether service requests, attendance disputes, grade appeals, or
-  grade corrections need transactional email; these currently use in-portal
-  notifications only. Staff leave submissions and reviews also notify through
-  in-portal alerts, not email. Do not change these channels without an approved
-  notification and consent policy.
+- [x] Service-request, attendance-dispute, grade-appeal, grade-correction, and
+  staff-leave alerts use the shared retryable email queue when a recipient has
+  enabled email notifications. Grade-result and announcement messages retain
+  profile-contact delivery without duplicate account-email queue messages.
+- [ ] Verify request, leave, appeal, and dispute notification delivery with
+  synthetic recipients in the approved test service. Provider acceptance does
+  not establish inbox delivery; confirm retries and final delivery status.
 - [ ] Verify password-reset, email-verification, admission, hiring, announcement,
   grade, and administrator campaign delivery in the approved target environment.
   Provider acceptance is not evidence of inbox delivery; record bounce,
@@ -413,11 +485,13 @@ See the full UI/backend/provider inventory in [INTEGRATION_GAPS.md](./INTEGRATIO
   [Privacy, retention, hosting, and recovery gates](./PRIVACY_RETENTION_AND_RECOVERY.md).
 - [ ] Flutterwave provider code is present, but keep live payments disabled until
   sandbox checkout, webhook/retry, settlement reconciliation, and target
-  environment acceptance are complete. Keep other online channels disabled
+  environment acceptance are complete. Late verified successes after attempt
+  closure are persisted in a Finance review queue and re-verified before manual
+  confirmation; webhook receipt alone does not credit the fee. Keep other online channels disabled
   until their provider-specific flows are implemented and tested. Confirm the
   bank-transfer reconciliation operating procedure. Focused Flutterwave
-  service/controller tests pass, including duplicate completed webhook
-  handling, but live sandbox acceptance remains blocked until matching test
+  tests cover late-event idempotency, provider mismatch rejection, and manual
+  re-verification. Live sandbox acceptance remains blocked until matching test
   credentials and HTTPS webhook configuration are supplied.
 - [ ] Do not use legacy teacher grade update/delete endpoints to correct
   approved results until the controlled correction workflow is implemented and
@@ -430,7 +504,9 @@ See the full UI/backend/provider inventory in [INTEGRATION_GAPS.md](./INTEGRATIO
 - [ ] Decide persistent/shared file storage and off-host scheduled backup
   integrations for the actual topology. Local database/upload scripts pass
   checksum and restore paths, but production scheduling, off-host copies,
-  missed-backup alerting, and an actual restore rehearsal remain required.
+  missed-backup alerting remain required. The upload-only restore rehearsal
+  script and synthetic test pass; a real disposable-database plus upload
+  restore rehearsal must be run against the actual target database/backup.
 - [ ] Add full-stack MySQL-backed tests for critical UI-to-controller/service/database flows; mocked Playwright API fixtures alone do not provide this evidence.
 - [ ] Decide whether SSO, SMS, CAPTCHA/bot management, generative AI, LMS/HR/finance/SIS synchronization, and automated deployment are in launch scope; document approved exclusions or implementation evidence. Deployment automation also requires protected branches, migration/rollback gates, backup-before-migration, post-deploy smoke tests, and named rollback owners.
 

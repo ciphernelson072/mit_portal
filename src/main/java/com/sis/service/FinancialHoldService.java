@@ -46,7 +46,7 @@ public class FinancialHoldService {
         return holds.findByStudentIdAndActiveTrueOrderByCreatedAtDesc(studentId);
     }
 
-    public void release(Long id, String releasedBy) {
+    public Long release(Long id, String releasedBy) {
         FinancialHold hold = holds.findById(id).orElseThrow(() -> new IllegalArgumentException("Financial hold not found"));
         if (!Boolean.TRUE.equals(hold.getActive())) throw new IllegalStateException("Financial hold is already released");
         hold.setActive(false);
@@ -54,6 +54,7 @@ public class FinancialHoldService {
         FinancialHold saved = holds.save(hold);
         audit(releasedBy, "FINANCIAL_HOLD_RELEASED", "Hold #" + saved.getId() + " released for student #"
                 + saved.getStudent().getId());
+        return saved.getStudent().getId();
     }
 
     @Transactional(readOnly = true)

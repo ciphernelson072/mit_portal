@@ -1,10 +1,14 @@
 package com.sis.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Size;
 
 public class CreateSupplierRequest {
     @NotBlank private String supplierCode;
     @NotBlank private String name;
+    @Email(message = "Email must be valid")
+    @Size(max = 254, message = "Email must not exceed 254 characters")
     private String email;
     private String phone;
     public String getSupplierCode() { return supplierCode; }

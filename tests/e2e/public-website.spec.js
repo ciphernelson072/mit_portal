@@ -451,6 +451,17 @@ test('public admissions information reaches the existing application and status 
   await expect(page.locator('#statusResult')).toContainText('Your application is being reviewed.');
 });
 
+test('signed-in students do not see public admissions application calls to action', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('mitRole', 'STUDENT'));
+
+  for (const [path] of publicPages) {
+    await page.goto(path);
+    await expect(page.locator('a[href="/admissions.html#admissionForm"]')).toHaveCount(0);
+    await expect(page.getByRole('navigation', { name: 'Main navigation' })
+      .getByRole('link', { name: 'Admissions' })).toBeVisible();
+  }
+});
+
 test('public application submission shows processing and success feedback', async ({ page }) => {
   await page.route('**/admissions.html', route => route.fulfill({
     status: 200,

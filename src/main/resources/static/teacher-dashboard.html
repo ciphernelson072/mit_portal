@@ -9,8 +9,6 @@
   <link rel="manifest" href="/manifest.json">
   <link rel="stylesheet" href="css/admin-style.css">
   <link rel="stylesheet" href="css/photo-viewer.css">
-  <style>
-  </style>
 </head>
 <body class="teacher-dashboard">
   <aside class="sidebar">
@@ -30,12 +28,10 @@
       <a href="#teacher-requests" class="nav-item"><span class="icon">🎫</span><span>Registrar Requests</span></a>
       <a href="#teacher-leave" class="nav-item"><span class="icon">🗓️</span><span>HR Leave</span></a>
       <a href="messages.html" class="nav-item"><span class="icon">✉️</span><span>Messages</span></a>
-      <a href="operations.html" class="nav-item"><span class="icon">🧭</span><span>Operations Workspace</span></a>
-      <a href="course-catalog.html" class="nav-item"><span class="icon">📖</span><span>Course Catalogue</span></a>
       <a href="account-security.html" class="nav-item"><span class="icon">🔐</span><span>Account Security</span></a>
     </nav>
     <div class="sidebar-footer">
-      <button class="btn-logout" type="button" onclick="teacherLogout()">🚪 Logout</button>
+      <button class="btn-logout" type="button" data-csp-action="teacherLogout" data-csp-event="click" data-csp-args="%5B%5D">🚪 Logout</button>
     </div>
   </aside>
 
@@ -55,8 +51,8 @@
             <button class="theme-option" type="button" data-theme-choice="system">💻 System</button>
           </div>
         </div>
-        <input id="teacherPhotoInput" type="file" accept=".jpg,.jpeg,.png,.gif,image/jpeg,image/png,image/gif" hidden onchange="uploadTeacherPhoto()">
-        <button class="btn-secondary" type="button" onclick="document.getElementById('teacherPhotoInput').click()">Update Photo</button>
+        <input id="teacherPhotoInput" type="file" accept=".jpg,.jpeg,.png,.gif,image/jpeg,image/png,image/gif" hidden data-csp-action="uploadTeacherPhoto" data-csp-event="change" data-csp-args="%5B%5D">
+        <button class="btn-secondary" type="button" data-csp-action="__clickElementById" data-csp-event="click" data-csp-args="%5B%22teacherPhotoInput%22%5D">Update Photo</button>
         <div class="teacher-notifications dropdown" aria-live="polite">
           <button class="btn-icon" id="teacherNotificationBtn" type="button" aria-expanded="false" aria-controls="teacherNotificationList" aria-label="Notifications">🔔<span id="teacherNotificationBadge" hidden>0</span></button>
           <div class="dropdown-menu" id="teacherNotificationList" hidden>Loading notifications...</div>
@@ -70,6 +66,13 @@
         <div class="stat-info">
           <p class="stat-label">Assigned Courses</p>
           <p class="stat-value" data-teacher-stat="assignedCourseCount">Loading...</p>
+        </div>
+      </article>
+      <article class="stat-card">
+        <div class="stat-icon courses" aria-hidden="true">📖</div>
+        <div class="stat-info">
+          <p class="stat-label">Assigned Course Units</p>
+          <p class="stat-value" data-teacher-stat="assignedCourseUnitCount">Loading...</p>
         </div>
       </article>
       <article class="stat-card">
@@ -93,6 +96,13 @@
           <p class="stat-value" data-teacher-stat="upcomingAssignmentCount">Loading...</p>
         </div>
       </article>
+      <article class="stat-card">
+        <div class="stat-icon students" aria-hidden="true">✓</div>
+        <div class="stat-info">
+          <p class="stat-label">Pending Attendance</p>
+          <p class="stat-value" data-teacher-stat="pendingAttendanceCount">Loading...</p>
+        </div>
+      </article>
       <p id="teacherDashboardStatus" class="teacher-status" role="status"></p>
     </section>
 
@@ -100,7 +110,7 @@
       <div class="teacher-card" id="teacher-results">
         <div class="teacher-actions teacher-gradebook-heading">
           <h2>Result publication status</h2>
-          <button class="btn-secondary" type="button" onclick="loadTeacherPublicationStatuses()">Refresh</button>
+          <button class="btn-secondary" type="button" data-csp-action="loadTeacherPublicationStatuses" data-csp-event="click" data-csp-args="%5B%5D">Refresh</button>
         </div>
         <p>Track result progress for students with grades in your assigned courses. This view shows status only, not marks or full reports.</p>
         <div id="teacherPublicationStatus" class="teacher-status" role="status"></div>
@@ -110,20 +120,28 @@
       </div>
 
       <div class="teacher-card" id="teacher-roster">
-        <h2>Assigned Courses</h2>
-        <p>Select a course to view its enrolled students.</p>
+        <h2>Teaching Roster</h2>
+        <p>Student rosters are based on active registrations in your assigned courses and course units.</p>
         <div class="teacher-field">
-          <label for="rosterCourseSelect">Course</label>
+          <label for="rosterCourseSelect">Assigned course</label>
           <select id="rosterCourseSelect"><option value="">Loading courses...</option></select>
         </div>
         <div class="teacher-actions">
-          <button class="btn-primary" type="button" onclick="loadRoster()">View Roster</button>
-          <button id="exportTeacherRoster" class="btn-secondary" type="button" onclick="exportTeacherRoster()" disabled>Export Roster CSV</button>
+          <button class="btn-primary" type="button" data-csp-action="loadRoster" data-csp-event="click" data-csp-args="%5B%5D">View Roster</button>
+          <button id="exportTeacherRoster" class="btn-secondary" type="button" data-csp-action="exportTeacherRoster" data-csp-event="click" data-csp-args="%5B%5D" disabled>Export Roster CSV</button>
         </div>
         <div id="rosterStatus" class="teacher-status" role="status"></div>
+        <div class="teacher-field">
+          <label for="rosterCourseUnitSelect">Assigned course unit</label>
+          <select id="rosterCourseUnitSelect"><option value="">Loading course units...</option></select>
+        </div>
+        <div class="teacher-actions">
+          <button class="btn-primary" type="button" data-csp-action="loadCourseUnitRoster" data-csp-event="click" data-csp-args="%5B%5D">View Unit Roster</button>
+        </div>
+        <div id="courseUnitRosterStatus" class="teacher-status" role="status"></div>
         <div class="roster-wrap">
           <table class="roster-table" id="rosterTable" hidden>
-            <thead><tr><th>Photo</th><th>Student</th><th>Registration No.</th><th>CGPA</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Student</th><th>Registration No.</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
@@ -140,7 +158,7 @@
           <input id="gradeRecordId" type="hidden">
         </form>
         <div id="gradeStatus" class="teacher-status" role="status"></div>
-        <div class="teacher-actions teacher-gradebook-heading"><h3>Course gradebook</h3><button id="exportTeacherGrades" class="btn-secondary" type="button" onclick="exportTeacherGrades()" disabled>Export Grades CSV</button></div>
+        <div class="teacher-actions teacher-gradebook-heading"><h3>Course gradebook</h3><button id="exportTeacherGrades" class="btn-secondary" type="button" data-csp-action="exportTeacherGrades" data-csp-event="click" data-csp-args="%5B%5D" disabled>Export Grades CSV</button></div>
         <div id="teacherGradeList" class="roster-wrap" aria-live="polite"><p>Select a course to load grades.</p></div>
         <div class="teacher-actions teacher-gradebook-heading"><h3>Authorized corrections</h3></div>
         <div id="teacherCorrectionList" class="roster-wrap" aria-live="polite"><p>Loading authorized corrections…</p></div>
@@ -162,8 +180,8 @@
           </table>
         </div>
         <div class="teacher-actions attendance-actions">
-          <button class="btn-primary" type="button" onclick="approveClassAttendance()">Approve Attendance Record</button>
-          <button class="btn-secondary" type="button" onclick="loadAttendanceRoster()">Refresh Students</button>
+          <button class="btn-primary" type="button" data-csp-action="approveClassAttendance" data-csp-event="click" data-csp-args="%5B%5D">Approve Attendance Record</button>
+          <button class="btn-secondary" type="button" data-csp-action="loadAttendanceRoster" data-csp-event="click" data-csp-args="%5B%5D">Refresh Students</button>
         </div>
         <h3>Student Attendance Disputes</h3>
         <div id="attendanceDisputeList" aria-live="polite"><p>Select a course to load disputes.</p></div>

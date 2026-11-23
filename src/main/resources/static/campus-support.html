@@ -26,7 +26,7 @@
         <button type="button" class="search-btn">🔍</button>
       </div>
       <div class="header-icons">
-        <button class="icon-btn" onclick="goToDashboard()" title="Back to Dashboard">⬅️</button>
+        <button class="icon-btn" data-csp-action="goToDashboard" data-csp-event="click" data-csp-args="%5B%5D" title="Back to Dashboard">⬅️</button>
         <div class="icon-wrapper dropdown">
           <button class="icon-btn profile-btn" id="profileBtn">
             <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%231a3a8c'/%3E%3Ccircle cx='50' cy='35' r='15' fill='%23fff'/%3E%3Cpath d='M20 80 Q20 60 50 60 Q80 60 80 80' fill='%23fff'/%3E%3C/svg%3E" alt="Profile" class="profile-avatar">
@@ -35,7 +35,7 @@
             <div class="dropdown-header">Account</div>
             <a href="profile.html" class="menu-link">👤 My Profile</a>
             <a href="profile.html#preferences" class="menu-link">⚙️ Settings</a>
-            <button class="menu-link logout-btn" onclick="handleLogoutClick()">🚪 Logout</button>
+            <button class="menu-link logout-btn" data-csp-action="handleLogoutClick" data-csp-event="click" data-csp-args="%5B%5D">🚪 Logout</button>
           </div>
         </div>
       </div>
@@ -48,13 +48,13 @@
 
   <!-- Navigation Tabs -->
   <div class="module-tabs">
-    <button class="tab-btn active" onclick="switchTab('events')">🎉 Events</button>
-    <button class="tab-btn" onclick="switchTab('clubs')">🎭 Clubs & Societies</button>
-    <button class="tab-btn" onclick="switchTab('hostel')">🏠 Hostel</button>
-    <button class="tab-btn" onclick="switchTab('transport')">🚌 Transport</button>
-    <button class="tab-btn" onclick="switchTab('helpdesk')">🎫 Help Desk</button>
-    <button class="tab-btn" onclick="switchTab('faq')">❓ FAQs</button>
-    <button class="tab-btn" onclick="switchTab('chat')">💬 AI Chat Support</button>
+    <button class="tab-btn active" data-csp-action="switchTab" data-csp-event="click" data-csp-args="%5B%22events%22%5D">🎉 Events</button>
+    <button class="tab-btn" data-csp-action="switchTab" data-csp-event="click" data-csp-args="%5B%22clubs%22%5D">🎭 Clubs & Societies</button>
+    <button class="tab-btn" data-csp-action="switchTab" data-csp-event="click" data-csp-args="%5B%22hostel%22%5D">🏠 Hostel</button>
+    <button class="tab-btn" data-csp-action="switchTab" data-csp-event="click" data-csp-args="%5B%22transport%22%5D">🚌 Transport</button>
+    <button class="tab-btn" data-csp-action="switchTab" data-csp-event="click" data-csp-args="%5B%22helpdesk%22%5D">🎫 Help Desk</button>
+    <button class="tab-btn" data-csp-action="switchTab" data-csp-event="click" data-csp-args="%5B%22faq%22%5D">❓ FAQs</button>
+    <button class="tab-btn" data-csp-action="switchTab" data-csp-event="click" data-csp-args="%5B%22chat%22%5D">💬 AI Chat Support</button>
   </div>
 
   <!-- TAB 1: EVENTS -->
@@ -84,8 +84,8 @@
           <p class="event-description">Celebrate your achievements at MIT's annual graduation ceremony. All 2nd year students proceeding to 3rd year are invited.</p>
         </div>
         <div class="event-actions">
-          <button class="btn-primary" onclick="registerEvent(this)">✓ Registered</button>
-          <button class="btn-secondary" onclick="viewEventDetails(this)">View Details</button>
+          <button class="btn-primary" data-csp-action="registerEvent" data-csp-event="click" data-csp-args="%5B%7B%22%24mitCspArg%22%3A%22element%22%7D%5D">✓ Registered</button>
+          <button class="btn-secondary" data-csp-action="viewEventDetails" data-csp-event="click" data-csp-args="%5B%7B%22%24mitCspArg%22%3A%22element%22%7D%5D">View Details</button>
         </div>
       </div>
 
@@ -105,8 +105,8 @@
           <p class="event-description">Showcase of digital art projects created by IT students. Open to all.</p>
         </div>
         <div class="event-actions">
-          <button class="btn-primary" onclick="registerEvent(this)">Register</button>
-          <button class="btn-secondary" onclick="viewEventDetails(this)">Learn More</button>
+          <button class="btn-primary" data-csp-action="registerEvent" data-csp-event="click" data-csp-args="%5B%7B%22%24mitCspArg%22%3A%22element%22%7D%5D">Register</button>
+          <button class="btn-secondary" data-csp-action="viewEventDetails" data-csp-event="click" data-csp-args="%5B%7B%22%24mitCspArg%22%3A%22element%22%7D%5D">Learn More</button>
         </div>
       </div>
 
@@ -126,8 +126,8 @@
           <p class="event-description">Annual inter-faculty sports competition. Teams from all programs welcome!</p>
         </div>
         <div class="event-actions">
-          <button class="btn-primary" onclick="registerEvent(this)">Register Team</button>
-          <button class="btn-secondary" onclick="viewEventDetails(this)">Details</button>
+          <button class="btn-primary" data-csp-action="registerEvent" data-csp-event="click" data-csp-args="%5B%7B%22%24mitCspArg%22%3A%22element%22%7D%5D">Register Team</button>
+          <button class="btn-secondary" data-csp-action="viewEventDetails" data-csp-event="click" data-csp-args="%5B%7B%22%24mitCspArg%22%3A%22element%22%7D%5D">Details</button>
         </div>
       </div>
 
@@ -148,7 +148,7 @@
           <span>👥 250 Members</span>
           <span>📅 Meets: Every Thursday 3 PM</span>
         </div>
-        <button class="btn-primary" onclick="joinClub('programming')">✓ Member</button>
+        <button class="btn-primary" data-csp-action="joinClub" data-csp-event="click" data-csp-args="%5B%22programming%22%5D">✓ Member</button>
       </div>
 
       <div class="club-card">
@@ -159,7 +159,7 @@
           <span>👥 180 Members</span>
           <span>📅 Meets: Weekends</span>
         </div>
-        <button class="btn-primary" onclick="joinClub('gaming')">Join Club</button>
+        <button class="btn-primary" data-csp-action="joinClub" data-csp-event="click" data-csp-args="%5B%22gaming%22%5D">Join Club</button>
       </div>
 
       <div class="club-card">
@@ -170,7 +170,7 @@
           <span>👥 120 Members</span>
           <span>📅 Meets: Fridays 4 PM</span>
         </div>
-        <button class="btn-primary" onclick="joinClub('music')">Join Club</button>
+        <button class="btn-primary" data-csp-action="joinClub" data-csp-event="click" data-csp-args="%5B%22music%22%5D">Join Club</button>
       </div>
 
       <div class="club-card">
@@ -181,7 +181,7 @@
           <span>👥 95 Members</span>
           <span>📅 Meets: Tuesdays 5 PM</span>
         </div>
-        <button class="btn-primary" onclick="joinClub('debate')">Join Club</button>
+        <button class="btn-primary" data-csp-action="joinClub" data-csp-event="click" data-csp-args="%5B%22debate%22%5D">Join Club</button>
       </div>
 
       <div class="club-card">
@@ -192,7 +192,7 @@
           <span>👥 140 Members</span>
           <span>📅 Meets: Wednesdays 2 PM</span>
         </div>
-        <button class="btn-primary" onclick="joinClub('environment')">Join Club</button>
+        <button class="btn-primary" data-csp-action="joinClub" data-csp-event="click" data-csp-args="%5B%22environment%22%5D">Join Club</button>
       </div>
 
       <div class="club-card">
@@ -203,7 +203,7 @@
           <span>👥 110 Members</span>
           <span>📅 Meets: Mondays 4 PM</span>
         </div>
-        <button class="btn-primary" onclick="joinClub('entrepreneurship')">✓ Member</button>
+        <button class="btn-primary" data-csp-action="joinClub" data-csp-event="click" data-csp-args="%5B%22entrepreneurship%22%5D">✓ Member</button>
       </div>
 
     </div>
@@ -281,7 +281,7 @@
         </div>
       </div>
 
-      <button class="btn-primary" onclick="requestHostel()">Request New Accommodation</button>
+      <button class="btn-primary" data-csp-action="requestHostel" data-csp-event="click" data-csp-args="%5B%5D">Request New Accommodation</button>
     </div>
   </section>
 
@@ -299,7 +299,7 @@
           <p><strong>Schedule:</strong> Every 30 mins</p>
           <p><strong>Time:</strong> 7:00 AM - 6:00 PM</p>
           <p><strong>Cost:</strong> Free (Student Pass)</p>
-          <button class="btn-secondary" onclick="viewRoute(1)">View Map</button>
+          <button class="btn-secondary" data-csp-action="viewRoute" data-csp-event="click" data-csp-args="%5B1%5D">View Map</button>
         </div>
 
         <div class="route-card">
@@ -308,7 +308,7 @@
           <p><strong>Schedule:</strong> Every 15 mins</p>
           <p><strong>Time:</strong> 6:00 AM - 11:00 PM</p>
           <p><strong>Cost:</strong> Free (Student Pass)</p>
-          <button class="btn-secondary" onclick="viewRoute(2)">View Map</button>
+          <button class="btn-secondary" data-csp-action="viewRoute" data-csp-event="click" data-csp-args="%5B2%5D">View Map</button>
         </div>
 
         <div class="route-card">
@@ -317,18 +317,18 @@
           <p><strong>Schedule:</strong> Every 45 mins</p>
           <p><strong>Time:</strong> 8:00 AM - 5:00 PM</p>
           <p><strong>Cost:</strong> Free (Student Pass)</p>
-          <button class="btn-secondary" onclick="viewRoute(3)">View Map</button>
+          <button class="btn-secondary" data-csp-action="viewRoute" data-csp-event="click" data-csp-args="%5B3%5D">View Map</button>
         </div>
 
       </div>
 
-      <h3 style="margin-top: 30px;">Transport Pass Status</h3>
+      <h3 class="csp-inline-203322639169">Transport Pass Status</h3>
       <div class="pass-status">
         <div class="pass-card">
           <p><strong>Pass Type:</strong> Student Semester Pass</p>
           <p><strong>Status:</strong> <span id="transportPassStatus" class="status-badge active-badge">Loading...</span></p>
           <p><strong>Valid Until:</strong> <span id="transportPassValidUntil">Loading...</span></p>
-          <button class="btn-secondary" onclick="renewPass()">Renew Pass</button>
+          <button class="btn-secondary" data-csp-action="renewPass" data-csp-event="click" data-csp-args="%5B%5D">Renew Pass</button>
         </div>
       </div>
     </div>
@@ -342,7 +342,7 @@
       <div class="helpdesk-hero">
         <h3>Need Help?</h3>
         <p>Submit a support ticket and our team will assist you within 24-48 hours.</p>
-        <button class="btn-primary" onclick="submitTicket()">🎫 Create New Ticket</button>
+        <button class="btn-primary" data-csp-action="submitTicket" data-csp-event="click" data-csp-args="%5B%5D">🎫 Create New Ticket</button>
       </div>
 
       <h3>Your Support Tickets</h3>
@@ -364,7 +364,7 @@
             <td>Academic</td>
             <td><span class="status-badge">Open</span></td>
             <td>June 12, 2026</td>
-            <td><button class="btn-secondary small" onclick="viewTicket()">View</button></td>
+            <td><button class="btn-secondary small" data-csp-action="viewTicket" data-csp-event="click" data-csp-args="%5B%5D">View</button></td>
           </tr>
           <tr>
             <td>#TKT-2026-044</td>
@@ -372,7 +372,7 @@
             <td>Technical</td>
             <td><span class="status-badge completed">Resolved</span></td>
             <td>June 8, 2026</td>
-            <td><button class="btn-secondary small" onclick="viewTicket()">View</button></td>
+            <td><button class="btn-secondary small" data-csp-action="viewTicket" data-csp-event="click" data-csp-args="%5B%5D">View</button></td>
           </tr>
           <tr>
             <td>#TKT-2026-043</td>
@@ -380,12 +380,12 @@
             <td>Administration</td>
             <td><span class="status-badge">In Progress</span></td>
             <td>June 5, 2026</td>
-            <td><button class="btn-secondary small" onclick="viewTicket()">View</button></td>
+            <td><button class="btn-secondary small" data-csp-action="viewTicket" data-csp-event="click" data-csp-args="%5B%5D">View</button></td>
           </tr>
         </tbody>
       </table>
 
-      <h3 style="margin-top: 30px;">Contact Information</h3>
+      <h3 class="csp-inline-203322639169">Contact Information</h3>
       <div class="contact-info-box">
         <div class="contact-item">
           <span class="icon">📧</span>
@@ -419,7 +419,7 @@
     <div class="faq-container">
       
       <div class="faq-item">
-        <div class="faq-question" onclick="toggleFAQ(this)">
+        <div class="faq-question" data-csp-action="toggleFAQ" data-csp-event="click" data-csp-args="%5B%7B%22%24mitCspArg%22%3A%22element%22%7D%5D">
           <span>❓ How do I reset my password?</span>
           <span class="faq-arrow">→</span>
         </div>
@@ -429,7 +429,7 @@
       </div>
 
       <div class="faq-item">
-        <div class="faq-question" onclick="toggleFAQ(this)">
+        <div class="faq-question" data-csp-action="toggleFAQ" data-csp-event="click" data-csp-args="%5B%7B%22%24mitCspArg%22%3A%22element%22%7D%5D">
           <span>❓ How do I view my grades?</span>
           <span class="faq-arrow">→</span>
         </div>
@@ -439,7 +439,7 @@
       </div>
 
       <div class="faq-item">
-        <div class="faq-question" onclick="toggleFAQ(this)">
+        <div class="faq-question" data-csp-action="toggleFAQ" data-csp-event="click" data-csp-args="%5B%7B%22%24mitCspArg%22%3A%22element%22%7D%5D">
           <span>❓ How do I pay my fees online?</span>
           <span class="faq-arrow">→</span>
         </div>
@@ -449,7 +449,7 @@
       </div>
 
       <div class="faq-item">
-        <div class="faq-question" onclick="toggleFAQ(this)">
+        <div class="faq-question" data-csp-action="toggleFAQ" data-csp-event="click" data-csp-args="%5B%7B%22%24mitCspArg%22%3A%22element%22%7D%5D">
           <span>❓ How do I request a transcript?</span>
           <span class="faq-arrow">→</span>
         </div>
@@ -459,7 +459,7 @@
       </div>
 
       <div class="faq-item">
-        <div class="faq-question" onclick="toggleFAQ(this)">
+        <div class="faq-question" data-csp-action="toggleFAQ" data-csp-event="click" data-csp-args="%5B%7B%22%24mitCspArg%22%3A%22element%22%7D%5D">
           <span>❓ What's the attendance requirement?</span>
           <span class="faq-arrow">→</span>
         </div>
@@ -469,7 +469,7 @@
       </div>
 
       <div class="faq-item">
-        <div class="faq-question" onclick="toggleFAQ(this)">
+        <div class="faq-question" data-csp-action="toggleFAQ" data-csp-event="click" data-csp-args="%5B%7B%22%24mitCspArg%22%3A%22element%22%7D%5D">
           <span>❓ How do I join clubs or societies?</span>
           <span class="faq-arrow">→</span>
         </div>
@@ -497,15 +497,15 @@
 
       <div class="chat-suggestions">
         <p>Quick questions:</p>
-        <button class="suggestion-btn" onclick="askQuestion('How do I check my grades?')">📊 View my grades</button>
-        <button class="suggestion-btn" onclick="askQuestion('How do I pay fees?')">💳 Pay fees online</button>
-        <button class="suggestion-btn" onclick="askQuestion('What are my pending assignments?')">📝 My assignments</button>
-        <button class="suggestion-btn" onclick="askQuestion('Where is my hostel?')">🏠 Hostel location</button>
+        <button class="suggestion-btn" data-csp-action="askQuestion" data-csp-event="click" data-csp-args="%5B%22How%20do%20I%20check%20my%20grades%3F%22%5D">📊 View my grades</button>
+        <button class="suggestion-btn" data-csp-action="askQuestion" data-csp-event="click" data-csp-args="%5B%22How%20do%20I%20pay%20fees%3F%22%5D">💳 Pay fees online</button>
+        <button class="suggestion-btn" data-csp-action="askQuestion" data-csp-event="click" data-csp-args="%5B%22What%20are%20my%20pending%20assignments%3F%22%5D">📝 My assignments</button>
+        <button class="suggestion-btn" data-csp-action="askQuestion" data-csp-event="click" data-csp-args="%5B%22Where%20is%20my%20hostel%3F%22%5D">🏠 Hostel location</button>
       </div>
 
       <div class="chat-input">
-        <input type="text" id="chatInput" maxlength="5000" placeholder="Type your question here..." onkeypress="handleChatSubmit(event)">
-        <button class="btn-primary" onclick="sendChatMessage()">Send</button>
+        <input type="text" id="chatInput" maxlength="5000" placeholder="Type your question here..." data-csp-action="handleChatSubmit" data-csp-event="keypress" data-csp-args="%5B%7B%22%24mitCspArg%22%3A%22event%22%7D%5D">
+        <button class="btn-primary" data-csp-action="sendChatMessage" data-csp-event="click" data-csp-args="%5B%5D">Send</button>
       </div>
     </div>
   </section>

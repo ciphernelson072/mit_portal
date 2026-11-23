@@ -1,6 +1,6 @@
 # Remaining Work and Render Deployment Runbook
 
-Last reviewed: 11 November 2026
+Last reviewed: 20 November 2026
 
 This document records current release status and remaining production-readiness
 work. Use it with
@@ -10,7 +10,30 @@ the [Render deployment details](./RENDER_DEPLOYMENT.md), the
 The role-by-role cross-workflow findings are recorded in
 [ROLE_WORKFLOW_GAPS.md](./ROLE_WORKFLOW_GAPS.md).
 
-## Verification update (11 November 2026)
+## Current test deployment status (20 November 2026)
+
+Render deployed immutable image
+`docker.io/ciphernelson/mit-portal:sha-682553db36256d08a93362e22b069776c8c2a096`
+for commit `682553db36256d08a93362e22b069776c8c2a096` (deployment
+`dep-dc04tdqjnfac738vi3sg`). GitHub Actions run
+[44744430275](https://github.com/ciphernelson072/mit_portal/actions/runs/44744430275)
+passed. Health and readiness reported `UP`; the public login and admissions
+routes returned HTTP 200. The release includes the current automation,
+session, admission-document, fee-approval, and email-retry changes.
+
+The health and route checks do not establish successful role-based sign-in,
+end-to-end email delivery, full workflow acceptance, or a production database
+migration/restore rehearsal. This remains a controlled Render Free test
+deployment. Uploads use ephemeral `/tmp/uploads`; do not store real student
+records there. The V57 recovery fix is included in this release, but verify
+the target database's migration history and data-preserving upgrade plan before
+any future migration of an existing database.
+
+The dated entries below preserve their historical test results and point-in-
+time status. A statement that source work was pending deployment refers to
+that earlier date unless repeated in the current status above.
+
+## Historical verification update (11 November 2026)
 
 Docker Desktop is responsive (29.8.2). The isolated MySQL 8.0 Testcontainers
 check passed: Flyway applied all 53 migrations through V53 and the Spring
@@ -30,11 +53,28 @@ validation passed for 31 JavaScript files and all 12 unit tests passed.
 These are local disposable-database results, not evidence that migrations
 have been applied to the configured TiDB pilot or any Render/institutional
 database. No existing or production-like database was accessed or changed.
-Deployment remains paused pending a reviewed backup and data-preserving-copy
-check against the intended database, provider and institutional acceptance,
-and the remaining production operations gates below.
+The current Render test-image deployment is recorded above. It does not change
+the production hold: a reviewed backup and data-preserving-copy check against
+the intended database, provider and institutional acceptance, and the
+remaining production operations gates below are still required.
 
-## Current release status (10 November 2026)
+## Previous test deployment status (17 November 2026)
+
+This deployment was superseded by the 20 November release above. Render had
+deployed the immutable image
+`docker.io/ciphernelson/mit-portal:sha-3f700083123ad845ad67d580a7eb49c10e496e2e`
+for commit `3f700083123ad845ad67d580a7eb49c10e496e2e`. Render reported the
+service live; `/actuator/health` returned `UP`, and the sign-in page and campus
+background were visually checked. This did not verify a successful
+administrator/student sign-in, transactional email receipt, restart recovery,
+or the production data/backup gates below. It remains a controlled test
+deployment, not production approval.
+
+Before relying on Brevo mail, rotate the API key in Brevo, update the Render
+secret directly, then send a controlled test message and verify receipt and
+delivery status. Never put the key in source control or chat.
+
+## Historical release status (10 November 2026)
 
 The portal gateway release is live on the Render Free test service at
 [`https://makerere-institute-of-technology.onrender.com/`](https://makerere-institute-of-technology.onrender.com/).
@@ -55,9 +95,6 @@ authenticated end-to-end acceptance against the intended database topology.
 See the [Render deployment details](./RENDER_DEPLOYMENT.md), [release
 checklist](./RELEASE_CHECKLIST.md), and
 [privacy, retention, and recovery gates](./PRIVACY_RETENTION_AND_RECOVERY.md).
-
-The documentation and sitemap corrections now in the working tree are newer
-than deployed commit `9c212d4`; they are not live until a later verified release.
 
 ## Additional source work (10 November 2026)
 
@@ -202,10 +239,14 @@ on disposable MySQL 8.0 and applied to the TiDB pilot. Retake replacement,
 retake credit treatment, and CGPA rounding remain unspecified and are not
 guessed. See the [academic results workflow](./ACADEMIC_RESULTS_WORKFLOW.md).
 
-Flutterwave hosted-checkout and server-side verification code is present.
-Live-provider readiness is not established until sandbox flows, webhook
-registration/retries, settlement reconciliation, and environment-specific
-acceptance are completed. See [payment configuration](./PAYMENT_CONFIGURATION.md).
+Flutterwave hosted-checkout and server-side verification code is present. Late
+verified successes after closure are now visible in a Finance reconciliation
+queue; confirmation re-verifies the transaction and is blocked if the amount
+would exceed the remaining fee balance. No fee is credited automatically from
+the webhook. Live-provider readiness is not established until sandbox flows,
+webhook registration/retries, actual settlement reconciliation, and
+environment-specific acceptance are completed. See
+[payment configuration](./PAYMENT_CONFIGURATION.md).
 
 ## Latest local readiness check
 
@@ -371,16 +412,20 @@ are historical evidence and are superseded where they conflict with the
 
 ## Phased remaining work
 
-### Phase 0 - Prepare the source and external prerequisites
+### Phase 0 - Production and campus-pilot prerequisites
 
-Complete before creating the Render Blueprint:
+The Render Free test image is already deployed. These gates remain
+prerequisites for a production service or campus-user pilot; they are not
+evidence that the current test deployment is production-ready.
 
-- [ ] Publish the prepared `ready-project-2026-10-21` branch to the existing
-  GitHub repository `ciphernelson072/mit_portal` and connect it to Render.
-  The local Git repository and `origin` are configured, but this workspace
-  cannot authenticate the GitHub push. The existing public `main` branch has
-  unrelated history; publish a separate branch and review/merge it with a pull
-  request. Do not force-push or overwrite `main`.
+- [x] The reviewed release commit
+  `682553db36256d08a93362e22b069776c8c2a096` is on `origin/main`, and its
+  GitHub Actions release run passed. The image-based Render service is
+  identified by the immutable tag above; future source pushes alone are not
+  deployment evidence.
+- [ ] Before any future deployment, confirm the intended source/image, CI
+  result, database backup, migration compatibility, operator, and rollback
+  owner. Do not force-push or replace the active Render image without review.
 - [ ] Provision a reachable MySQL-compatible database. Render's managed
   relational database is PostgreSQL and is not compatible with this app's
   MySQL JDBC driver and MySQL-specific Flyway migrations.
@@ -396,6 +441,10 @@ Complete before creating the Render Blueprint:
   Blueprint specifies a paid `starter` web service and a 1 GB persistent disk.
 - [ ] Identify a deployment owner and an administrator who can receive the
   initial account details and perform the acceptance checks.
+- [ ] If enabling admissions bot protection, register the approved test
+  hostname and configure `TURNSTILE_ENABLED`, `TURNSTILE_SITE_KEY`, and
+  `TURNSTILE_SECRET_KEY` as environment settings; keep Turnstile disabled until
+  synthetic end-to-end verification passes.
 
 Do not use real student, finance, or identity data during setup and smoke
 testing.
@@ -466,7 +515,11 @@ allowlist the exact host IP, use only the disposable `_test` database, disable
 external links and email/payments, and shut it down after the session. Such a
 demo is **not** an acceptable substitute for a campus-user pilot over HTTPS.
 
-### Phase 1 - Configure and deploy the Render Blueprint
+### Phase 1 - Configure a separate Render environment if required
+
+The current image-based Free test service is already deployed. Use these
+Blueprint steps only when creating a separate environment; do not replace or
+reconfigure the active service without an approved change.
 
 1. In Render, create a Blueprint from the connected repository and review
    `render.yaml` before applying it. Confirm the service is Docker-based, uses
@@ -487,10 +540,11 @@ demo is **not** an acceptable substitute for a campus-user pilot over HTTPS.
    invalidate active sessions or disrupt signed payment callbacks.
 5. Keep the production safety settings enabled:
    `COOKIE_SECURE=true`, `SAMPLE_DATA_ENABLED=false`,
-   `FLYWAY_BASELINE_ON_MIGRATE=false`, and leave MFA disabled until its key
-   custody and recovery process are verified. During staged enrollment keep
-   `MFA_REQUIRED_FOR_PRIVILEGED=false`; enable it only after the documented
-   enrollment and recovery gates pass. Preserve the
+   `FLYWAY_BASELINE_ON_MIGRATE=false`, `MFA_ENABLED=true`,
+   `MFA_REQUIRED_FOR_ALL=false`, and
+   `MFA_REQUIRED_FOR_PRIVILEGED=true`. Privileged-account MFA is required in
+   production; other roles may enroll optionally.
+   retain a persistent `MFA_ENCRYPTION_KEY` for users who opt in. Preserve the
    Blueprint's proxy setting only behind Render's trusted ingress; do not
    copy forwarded-header trust to a directly reachable server.
 6. For a new empty database only, perform the one-time administrator setup:
@@ -508,10 +562,11 @@ demo is **not** an acceptable substitute for a campus-user pilot over HTTPS.
    email, and password values from Render. Store the administrator credential
    securely and rotate it according to institutional policy.
 
-The initial deployment applies all bundled Flyway migrations (currently
-V1-V49) to an empty database. Validate the complete migration set against the
-selected database engine before deployment. Do not enable bootstrap against a
-populated database or treat it as an account recovery mechanism.
+The current source contains Flyway migrations through V60, including the
+restart-safe Java V57 migration and its narrowly scoped recovery guard.
+Validate the complete migration set against the selected database engine
+before deployment. Do not enable bootstrap against a populated database or
+treat it as an account recovery mechanism.
 
 ### Phase 2 - Verify the deployed test instance
 
@@ -598,9 +653,11 @@ completed and approved.
 
 #### Scope and scale decisions
 
-- [ ] Keep the Render test service to one instance unless rate limiting is
-  moved to a shared store or a trusted gateway. `RateLimitFilter` keeps state
-  in process memory, so its limits are not shared across instances.
+- [x] Production startup is guarded against unsupported replicas:
+  `APP_INSTANCE_COUNT` must remain `1`, `RATE_LIMIT_STORE` must remain
+  `memory`, and `FILE_STORAGE_ADAPTER` must remain `filesystem`. Keep the
+  Render test service on one instance until shared rate-limit and upload
+  storage implementations are added and tested.
 - [ ] Plan file storage before scaling. Current uploads use a filesystem;
   Render's attached disk is single-instance and prevents horizontal scaling
   and zero-downtime deploys. Evaluate object storage or supported shared
@@ -621,13 +678,13 @@ The following items are not made operational merely by deploying the app:
 |---|---|---|
 | Email transport | SMTP and Brevo HTTPS API transports are implemented; local SMTP has been configured and tested, but institutional production approval/delivery monitoring remains. | Confirm an approved Brevo sender, domain authentication where available, delivery/bounce monitoring, and end-to-end tests in the production environment. |
 | Admissions/hiring email | Application receipts, post-enrollment student credentials, and hiring onboarding email are implemented. Student and teacher provisioned accounts require password change. Unrelated grade/announcement notifications and bounce/retry monitoring remain unwired. | Verify production email delivery and forced first-login password change; implement approved bounce/retry monitoring and event-triggered notifications with tests. Never email permanent passwords. |
-| Grade/CGPA/announcement email | Notification methods have no verified application event callers. | Choose notifications, add user preferences/consent and event triggers, and test retries/duplicates. |
-| Online payments | Generic payment records/callback path exist; provider-specific checkout and signature integration are not established. | Provider sandbox, documented signature validation, amount/currency/reference binding, replay/idempotency controls, refunds and reconciliation tests. Keep unavailable until then. |
+| Grade/CGPA/announcement email | Grade-result and announcement email paths use profile/contact preferences where applicable; publication now reports in-app, sent, failed, and skipped recipient counts. | Verify target-inbox delivery and approved bounce/retry monitoring; event-triggered CGPA/grade paths remain subject to test-account acceptance. |
+| Online payments | Flutterwave hosted checkout, signed webhook verification, and a Finance queue for verified late successes are implemented. Late payment confirmation re-verifies provider details and does not exceed the current fee balance. Other provider channels remain disabled. | Verify Flutterwave sandbox checkout, webhook delivery/retries, settlement matching, refunds, and target-environment behavior before enabling live credentials. Keep other channels unavailable until their provider-specific flows are implemented and tested. |
 | Bank transfers | Manual reference/reconciliation path exists. | Document an authorized reconciliation operating procedure or integrate a bank statement source with audit and discrepancy handling. |
 | Prometheus | Spring-managed registry and authenticated `/actuator/prometheus` endpoint are implemented and browser-verified; external monitoring is not configured. | Configure approved-network scraping, dashboards, access controls, and exercised alert delivery. |
-| MFA | TOTP enrollment and privileged enrollment-only enforcement are implemented; enforcement remains off by default. | Configure and back up the production encryption key, enroll privileged accounts, verify recovery, then explicitly enable `MFA_REQUIRED_FOR_PRIVILEGED`. |
+| MFA | Production configuration requires MFA for administrators and users with active finance permissions; other roles may enroll optionally. Startup rejects disabled privileged enforcement or a missing/invalid persistent 32-byte encryption key. | Verify target-environment key custody, privileged enrollment, sign-in, recovery, disable controls, and session revocation with approved synthetic accounts. |
 | Logs/errors | No central export or error-tracking integration is verified. | Select a provider, redact secrets/PII, apply access/retention controls, and test alerting. |
-| Backups | Local backup scripts exist; Render/external production schedule and restore are not set up. | Encrypted off-host database and upload backups, monitoring, retention, and restore rehearsal. |
+| Backups | Local checksum backup/restore scripts and a synthetic upload restore rehearsal exist; a daily database/upload freshness monitor creates deduplicated administrator alerts. | Encrypted off-host schedules, external alert delivery, retention, and a real MySQL/disposable-database restore rehearsal. The application monitor does not replace provider-managed backups. |
 | File storage | Configured filesystem storage; no object/shared-storage adapter found. | Persistent disk for one instance or implement/test shared object storage before scaling. |
 
 Detailed frontend/backend/provider evidence and the optional integration

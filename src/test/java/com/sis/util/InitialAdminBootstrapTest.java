@@ -43,6 +43,7 @@ class InitialAdminBootstrapTest {
         assertEquals("admin@example.edu", captor.getValue().getEmail());
         assertEquals("bcrypt-hash", captor.getValue().getPassword());
         assertEquals(Role.ADMIN, captor.getValue().getRole());
+        assertEquals(false, captor.getValue().isEmailVerified());
     }
 
     @Test
@@ -94,6 +95,6 @@ class InitialAdminBootstrapTest {
                                             String email,
                                             String password) {
         return new InitialAdminBootstrap(userRepository, passwordEncoder, jdbcTemplate,
-                username, email, password);
+                mock(org.springframework.context.ApplicationEventPublisher.class), username, email, password);
     }
 }

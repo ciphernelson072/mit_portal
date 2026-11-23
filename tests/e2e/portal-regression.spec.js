@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { postWithCsrf, routeApiWithCsrf } = require('./csrf');
 
 let authTestClient = 1;
 
@@ -9,7 +10,7 @@ function nextForwardedIp() {
 async function login(page, username, password, adminLogin = false) {
   const role = adminLogin ? (username === 'admin' ? 'ADMIN' : 'TEACHER') : (username === 'admin' ? 'ADMIN' : username === 'teacher1' ? 'TEACHER' : 'STUDENT');
   const forwardedIp = nextForwardedIp();
-  const loginResponse = await page.request.post('/api/auth/login', {
+  const loginResponse = await postWithCsrf(page, '/api/auth/login', {
     data: { username, password },
     headers: { 'x-forwarded-for': forwardedIp },
   });
@@ -157,7 +158,7 @@ test.describe('responsive portal surfaces', () => {
   test('student checkout shows configured channels and submits for verification', async ({ page }) => {
     await login(page, 'student1', 'student123');
     let submittedAttempt;
-    await page.route('**/api/**', async route => {
+    await routeApiWithCsrf(page, async route => {
       const request = route.request();
       const url = new URL(request.url());
       if (url.pathname === '/api/fees') {
@@ -211,7 +212,7 @@ test.describe('responsive portal surfaces', () => {
     ];
     let rejectionPayload;
     let reconciliationRequested = false;
-    await page.route('**/api/**', async route => {
+    await routeApiWithCsrf(page, async route => {
       const request = route.request();
       const url = new URL(request.url());
       if (url.pathname === '/api/admin/fees') {
@@ -261,7 +262,7 @@ test.describe('responsive portal surfaces', () => {
 
   test('student notifications page renders real notification data', async ({ page }) => {
     await login(page, 'student1', 'student123');
-    await page.route('**/api/**', async route => {
+    await routeApiWithCsrf(page, async route => {
       const url = new URL(route.request().url());
       if (url.pathname === '/api/notifications') {
         await route.fulfill({
@@ -285,7 +286,7 @@ test.describe('responsive portal surfaces', () => {
 
   test('student messages page renders real inbox and sent data', async ({ page }) => {
     await login(page, 'student1', 'student123');
-    await page.route('**/api/**', async route => {
+    await routeApiWithCsrf(page, async route => {
       const url = new URL(route.request().url());
       if (url.pathname === '/api/messages/received') {
         await route.fulfill({
@@ -359,7 +360,7 @@ test.describe('responsive portal surfaces', () => {
   test('student assignment submission uses an accessible validated form', async ({ page }) => {
     await login(page, 'student1', 'student123');
     let submittedBody;
-    await page.route('**/api/**', async route => {
+    await routeApiWithCsrf(page, async route => {
       const url = new URL(route.request().url());
       if (url.pathname === '/api/portal/student/assignments/42/submissions') {
         submittedBody = route.request().postDataJSON();
@@ -390,7 +391,7 @@ test.describe('responsive portal surfaces', () => {
 
   test('academics displays course metadata and approved-credit calculations', async ({ page }) => {
     await login(page, 'student1', 'student123');
-    await page.route('**/api/**', async route => {
+    await routeApiWithCsrf(page, async route => {
       const url = new URL(route.request().url());
       let body = [];
       if (url.pathname === '/api/student/grades') {
@@ -431,7 +432,7 @@ test.describe('responsive portal surfaces', () => {
 
   test('student documents page renders real uploaded files and upload form', async ({ page }) => {
     await login(page, 'student1', 'student123');
-    await page.route('**/api/**', async route => {
+    await routeApiWithCsrf(page, async route => {
       const url = new URL(route.request().url());
       if (url.pathname === '/api/student/documents') {
         await route.fulfill({
@@ -456,7 +457,7 @@ test.describe('responsive portal surfaces', () => {
 
   test('student scholarships page renders real scholarship offers', async ({ page }) => {
     await login(page, 'student1', 'student123');
-    await page.route('**/api/**', async route => {
+    await routeApiWithCsrf(page, async route => {
       const url = new URL(route.request().url());
       if (url.pathname === '/api/portal/scholarships') {
         await route.fulfill({
@@ -491,7 +492,7 @@ test.describe('responsive portal surfaces', () => {
 
   test('student support tickets page renders real help desk requests', async ({ page }) => {
     await login(page, 'student1', 'student123');
-    await page.route('**/api/**', async route => {
+    await routeApiWithCsrf(page, async route => {
       const url = new URL(route.request().url());
       if (url.pathname === '/api/student/requests') {
         if (route.request().method() === 'GET') {
@@ -526,7 +527,7 @@ test.describe('responsive portal surfaces', () => {
 
   test('student accommodation and transport page renders real campus service data', async ({ page }) => {
     await login(page, 'student1', 'student123');
-    await page.route('**/api/**', async route => {
+    await routeApiWithCsrf(page, async route => {
       const url = new URL(route.request().url());
       if (url.pathname === '/api/campus/student/hostel') {
         if (route.request().method() === 'GET') {
@@ -569,7 +570,7 @@ test.describe('responsive portal surfaces', () => {
 
   test('student announcements page renders live portal announcements', async ({ page }) => {
     await login(page, 'student1', 'student123');
-    await page.route('**/api/**', async route => {
+    await routeApiWithCsrf(page, async route => {
       const url = new URL(route.request().url());
       if (url.pathname === '/api/announcements') {
         await route.fulfill({
@@ -593,7 +594,7 @@ test.describe('responsive portal surfaces', () => {
 
   test('student library page renders catalog and active loans', async ({ page }) => {
     await login(page, 'student1', 'student123');
-    await page.route('**/api/**', async route => {
+    await routeApiWithCsrf(page, async route => {
       const url = new URL(route.request().url());
       if (url.pathname === '/api/library/catalog') {
         await route.fulfill({
@@ -629,7 +630,7 @@ test.describe('responsive portal surfaces', () => {
   test('student research page renders projects and thesis submission form', async ({ page }) => {
     await login(page, 'student1', 'student123');
     let proposalBody;
-    await page.route('**/api/**', async route => {
+    await routeApiWithCsrf(page, async route => {
       const url = new URL(route.request().url());
       if (url.pathname === '/api/research/projects/mine') {
         await route.fulfill({
@@ -879,7 +880,7 @@ test.describe('responsive portal surfaces', () => {
     ];
 
     for (const roleCase of roleCases) {
-      const loginResponse = await page.request.post('/api/auth/login', {
+      const loginResponse = await postWithCsrf(page, '/api/auth/login', {
         data: { username: roleCase.username, password: roleCase.password },
         headers: { 'x-forwarded-for': nextForwardedIp() },
       });
@@ -977,7 +978,7 @@ test.describe('responsive portal surfaces', () => {
 
   test('research reviewers can load and download pending thesis files', async ({ page }) => {
     await login(page, 'admin', 'admin123', true);
-    await page.route('**/api/**', async route => {
+    await routeApiWithCsrf(page, async route => {
       const url = new URL(route.request().url());
       if (url.pathname === '/api/auth/authorities') {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(['ADMIN', 'PERM_RESEARCH_REVIEW']) });
@@ -1012,7 +1013,7 @@ test.describe('responsive portal surfaces', () => {
     ];
     let rejectionReason;
     let reviewAcknowledged = false;
-    await page.route('**/api/**', async route => {
+    await routeApiWithCsrf(page, async route => {
       const url = new URL(route.request().url());
       if (url.pathname === '/api/admin/grades' && route.request().method() === 'GET') {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(grades) });
@@ -1064,7 +1065,7 @@ test.describe('responsive portal surfaces', () => {
   test('admin configures a course-specific 100-percent assessment structure', async ({ page }) => {
     await login(page, 'admin', 'admin123', true);
     let savedStructure;
-    await page.route('**/api/**', async route => {
+    await routeApiWithCsrf(page, async route => {
       const url = new URL(route.request().url());
       if (url.pathname === '/api/teacher/courses/501/assessment-components' && route.request().method() === 'GET') {
         await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
@@ -1100,7 +1101,7 @@ test.describe('responsive portal surfaces', () => {
     await login(page, 'teacher1', 'teacher123');
     let submittedMarks;
     let grades = [];
-    await page.route('**/api/**', async route => {
+    await routeApiWithCsrf(page, async route => {
       const url = new URL(route.request().url());
       if (url.pathname === '/api/teacher/my-courses') {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([{ id: 2, courseCode: 'CSC201', name: 'Computer Science' }]) });
@@ -1138,7 +1139,7 @@ test.describe('responsive portal surfaces', () => {
     const grades = [
       { id: 103, studentId: 9, studentUsername: 'student3', studentName: 'Chris Student', courseId: 3, courseName: 'Applied Computing', gradeValue: 'B', gpaScore: 3.0, status: 'APPROVED', approvedBy: 'admin' },
     ];
-    await page.route('**/api/**', async route => {
+    await routeApiWithCsrf(page, async route => {
       const url = new URL(route.request().url());
       if (url.pathname === '/api/admin/grades' && route.request().method() === 'GET') {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(grades) });
@@ -1177,7 +1178,7 @@ test.describe('responsive portal surfaces', () => {
 
   test('academics renders transcript and degree audit from the student profile ID', async ({ page }) => {
     await login(page, 'student1', 'student123');
-    await page.route('**/api/**', async route => {
+    await routeApiWithCsrf(page, async route => {
       const url = new URL(route.request().url());
       const responses = {
         '/api/student/courses': [],
@@ -1239,7 +1240,7 @@ test.describe('responsive portal surfaces', () => {
 
   test('student sees pending submissions without unpublished grades or calculations', async ({ page }) => {
     await login(page, 'student1', 'student123');
-    await page.route('**/api/**', async route => {
+    await routeApiWithCsrf(page, async route => {
       const url = new URL(route.request().url());
       const responses = {
         '/api/student/courses': [{ id: 2, courseCode: 'CSC201', name: 'Computer Science', semester: 'Semester 1' }],
@@ -1326,7 +1327,7 @@ test('profile preferences load, save independently, and preserve other settings'
     }),
   };
 
-  await page.route('**/api/**', async route => {
+  await routeApiWithCsrf(page, async route => {
     const request = route.request();
     const url = new URL(request.url());
     if (url.pathname === '/api/student/profile') {
@@ -1393,7 +1394,7 @@ test('profile preferences load, save independently, and preserve other settings'
 
 test('profile displays the contact email rather than an email-shaped username', async ({ page }) => {
   await login(page, 'student1', 'student123');
-  await page.route('**/api/**', async route => {
+  await routeApiWithCsrf(page, async route => {
     const url = new URL(route.request().url());
     if (url.pathname === '/api/student/profile') {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
@@ -1442,7 +1443,7 @@ test('student dashboard does not display the account username as a missing conta
 
 test('profile does not advertise MFA when the deployment has MFA disabled', async ({ page }) => {
   await login(page, 'student1', 'student123');
-  await page.route('**/api/**', async route => {
+  await routeApiWithCsrf(page, async route => {
     const url = new URL(route.request().url());
     if (url.pathname === '/api/student/profile') {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
@@ -1466,7 +1467,7 @@ test('profile does not advertise MFA when the deployment has MFA disabled', asyn
 test('dashboard renders selected quick links and supports deep links into modules', async ({ page }) => {
   await login(page, 'student1', 'student123');
   let settingsJson = JSON.stringify({ quickLinks: [false, true, true, true] });
-  await page.route('**/api/**', async route => {
+  await routeApiWithCsrf(page, async route => {
     const url = new URL(route.request().url());
     if (url.pathname === '/api/portal/preferences') {
       await route.fulfill({
@@ -1498,7 +1499,7 @@ test('dashboard renders selected quick links and supports deep links into module
 test('dashboard notification preferences filter the preview by explicit category', async ({ page }) => {
   await login(page, 'student1', 'student123');
   let settingsJson = JSON.stringify({ notifications: [false, true, false, false] });
-  await page.route('**/api/**', async route => {
+  await routeApiWithCsrf(page, async route => {
     const url = new URL(route.request().url());
     if (url.pathname === '/api/portal/preferences') {
       await route.fulfill({
@@ -1681,7 +1682,7 @@ test('public admissions status lookup requires the application email without exp
 test('admin report approval uses an in-page form instead of a browser prompt', async ({ page }) => {
   await login(page, 'admin', 'admin123', true);
   let approvedStudentId;
-  await page.route('**/api/**', async route => {
+  await routeApiWithCsrf(page, async route => {
     const request = route.request();
     const url = new URL(request.url());
     if (url.pathname === '/api/reports/academic/7/approve' && request.method() === 'POST') {
@@ -1715,7 +1716,7 @@ test('admin report approval uses an in-page form instead of a browser prompt', a
 
 test('admin user management reads the API isActive field accurately', async ({ page }) => {
   await login(page, 'admin', 'admin123', true);
-  await page.route('**/api/**', async route => {
+  await routeApiWithCsrf(page, async route => {
     const pathname = new URL(route.request().url()).pathname;
     if (pathname === '/api/admin/users') {
       await route.fulfill({
@@ -1907,7 +1908,7 @@ test('admin dashboard pending actions link to decision queues and support admiss
   let submittedDecision;
   let submittedEnrollment;
   let createdStudent;
-  await page.route('**/api/**', async route => {
+  await routeApiWithCsrf(page, async route => {
     const request = route.request();
     const url = new URL(request.url());
     if (url.pathname === '/api/admin/grades/pending') {

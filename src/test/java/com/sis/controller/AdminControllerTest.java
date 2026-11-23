@@ -1,19 +1,27 @@
 package com.sis.controller;
 
 import com.sis.dto.AdminDashboardOverviewDto;
+import com.sis.dto.AdminCourseDto;
 import com.sis.dto.AdminFeeDto;
 import com.sis.dto.AdminStatisticsDto;
+import com.sis.dto.AutomaticCourseAssignmentSummary;
 import com.sis.dto.ChangeStudentStatusRequest;
+import com.sis.dto.CreateStudentProgramTransferRequest;
 import com.sis.dto.CreateUserRequest;
 import com.sis.dto.CreateTeacherRequest;
 import com.sis.dto.AdminTeacherDto;
 import com.sis.dto.StudentStatusHistoryDto;
+import com.sis.dto.UpdateCourseRequest;
 import com.sis.dto.UserDto;
 import com.sis.entity.AuditLog;
+import com.sis.entity.Student;
 import com.sis.entity.User;
 import com.sis.repository.AuditLogRepository;
+import com.sis.repository.StudentRepository;
+import com.sis.repository.TeacherRepository;
 import com.sis.entity.StudentLifecycleStatus;
 import com.sis.service.AdminService;
+import com.sis.service.AutomaticCourseAssignmentService;
 import com.sis.service.EmailService;
 import com.sis.service.GradeImportService;
 import com.sis.service.SchoolService;
@@ -28,6 +36,8 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.ArgumentMatchers.any;
@@ -227,14 +237,233 @@ class AdminControllerTest {
                         AuthorityUtils.createAuthorityList("ADMIN")));
 
         try {
-            ResponseEntity<String> response = controller.changeStudentStatus(42L, request);
+            ResponseEntity<Map<String, Object>> response = controller.changeStudentStatus(42L, request);
 
             assertEquals(200, response.getStatusCode().value());
+            assertEquals("Student status updated successfully", response.getBody().get("message"));
+            assertFalse(response.getBody().containsKey("automaticAssignments"));
             verify(adminService).changeStudentLifecycleStatus(42L, 7L, 2026L,
                     StudentLifecycleStatus.SUSPENDED, "Pending review", "admin-user");
         } finally {
             SecurityContextHolder.clearContext();
         }
+    }
+
+    @Test
+    void reactivatingEnrollmentTriggersAssignmentForThatProgramAndYear() {
+        AdminController controller = new AdminController();
+        AdminService adminService = mock(AdminService.class);
+        AutomaticCourseAssignmentService assignments = mock(AutomaticCourseAssignmentService.class);
+        ReflectionTestUtils.setField(controller, "adminService", adminService);
+        ReflectionTestUtils.setField(controller, "automaticCourseAssignments", assignments);
+        ChangeStudentStatusRequest request = new ChangeStudentStatusRequest();
+        request.setProgramId(7L);
+        request.setAcademicYearId(2026L);
+        request.setStatus(StudentLifecycleStatus.ACTIVE);
+        request.setReason("Reinstated after review");
+        AutomaticCourseAssignmentSummary summary =
+                new AutomaticCourseAssignmentSummary(1, 2, 0, 0, List.of());
+        when(assignments.assignStudentForOpenTerms(42L, 7L, 2026L)).thenReturn(summary);
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("admin-user", "n/a",
+                        AuthorityUtils.createAuthorityList("ADMIN")));
+
+        try {
+            ResponseEntity<Map<String, Object>> response = controller.changeStudentStatus(42L, request);
+
+            assertEquals(summary, response.getBody().get("automaticAssignments"));
+            verify(assignments).assignStudentForOpenTerms(42L, 7L, 2026L);
+        } finally {
+            SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
+    void transferTriggersAssignmentForTheDestinationEnrollment() {
+        AdminController controller = new AdminController();
+        AdminService adminService = mock(AdminService.class);
+        AutomaticCourseAssignmentService assignments = mock(AutomaticCourseAssignmentService.class);
+        ReflectionTestUtils.setField(controller, "adminService", adminService);
+        ReflectionTestUtils.setField(controller, "automaticCourseAssignments", assignments);
+        CreateStudentProgramTransferRequest request = new CreateStudentProgramTransferRequest();
+        request.setSourceProgramId(7L);
+        request.setSourceAcademicYearId(2025L);
+        request.setDestinationProgramId(8L);
+        request.setDestinationAcademicYearId(2026L);
+        request.setReason("Approved programme change");
+        AutomaticCourseAssignmentSummary summary =
+                new AutomaticCourseAssignmentSummary(1, 1, 0, 0, List.of());
+        when(assignments.assignStudentForOpenTerms(42L, 8L, 2026L)).thenReturn(summary);
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("admin-user", "n/a",
+                        AuthorityUtils.createAuthorityList("ADMIN")));
+
+        try {
+            ResponseEntity<Map<String, Object>> response = controller.transferStudentProgram(42L, request);
+
+            assertEquals(summary, response.getBody().get("automaticAssignments"));
+            verify(assignments).assignStudentForOpenTerms(42L, 8L, 2026L);
+            verify(adminService).transferStudentProgram(42L, 7L, 2025L, 8L, 2026L,
+                    "Approved programme change", "admin-user");
+        } finally {
+            SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
+    void restoringAnAccountRetriesAssignmentsForItsActiveEnrollments() {
+        AdminController controller = new AdminController();
+        AdminService adminService = mock(AdminService.class);
+        AutomaticCourseAssignmentService assignments = mock(AutomaticCourseAssignmentService.class);
+        ReflectionTestUtils.setField(controller, "adminService", adminService);
+        ReflectionTestUtils.setField(controller, "automaticCourseAssignments", assignments);
+        AutomaticCourseAssignmentSummary summary =
+                new AutomaticCourseAssignmentSummary(1, 1, 0, 0, List.of());
+        when(assignments.assignStudentForOpenTerms(42L)).thenReturn(summary);
+
+        ResponseEntity<Map<String, Object>> response = controller.restoreStudent(42L);
+
+        assertEquals(summary, response.getBody().get("automaticAssignments"));
+        verify(adminService).restoreStudent(42L);
+        verify(assignments).assignStudentForOpenTerms(42L);
+    }
+
+    @Test
+    void genericUserRestoreRetriesAssignmentsForStudentAccounts() {
+        AdminController controller = new AdminController();
+        AdminService adminService = mock(AdminService.class);
+        StudentRepository students = mock(StudentRepository.class);
+        TeacherRepository teachers = mock(TeacherRepository.class);
+        SchoolService schoolService = mock(SchoolService.class);
+        AuditLogRepository auditLogs = mock(AuditLogRepository.class);
+        AutomaticCourseAssignmentService assignments = mock(AutomaticCourseAssignmentService.class);
+        ReflectionTestUtils.setField(controller, "adminService", adminService);
+        ReflectionTestUtils.setField(controller, "studentRepository", students);
+        ReflectionTestUtils.setField(controller, "teacherRepository", teachers);
+        ReflectionTestUtils.setField(controller, "schoolService", schoolService);
+        ReflectionTestUtils.setField(controller, "auditLogRepository", auditLogs);
+        ReflectionTestUtils.setField(controller, "automaticCourseAssignments", assignments);
+        UserDto target = new UserDto(42L, "student", "student@example.edu", null, "STUDENT", false);
+        when(adminService.getUserById(42L)).thenReturn(target);
+        User studentUser = new User("student", "encoded", com.sis.entity.Role.STUDENT);
+        Student student = new Student(studentUser, "Student", "Year 1");
+        student.setId(19L);
+        when(students.findByUserId(42L)).thenReturn(Optional.of(student));
+        User admin = new User("admin", "encoded", com.sis.entity.Role.ADMIN);
+        admin.setId(1L);
+        when(schoolService.getUserByUsername("admin")).thenReturn(Optional.of(admin));
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("admin", "n/a",
+                        AuthorityUtils.createAuthorityList("ADMIN")));
+
+        try {
+            ResponseEntity<String> response = controller.restoreUser(42L);
+
+            assertEquals(200, response.getStatusCode().value());
+            verify(adminService).restoreUser(42L);
+            verify(assignments).assignStudentForOpenTerms(19L);
+            verify(teachers, never()).findByUserId(42L);
+        } finally {
+            SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
+    void genericUserRestoreRetriesAssignmentsForTeacherAccounts() {
+        AdminController controller = new AdminController();
+        AdminService adminService = mock(AdminService.class);
+        StudentRepository students = mock(StudentRepository.class);
+        TeacherRepository teachers = mock(TeacherRepository.class);
+        SchoolService schoolService = mock(SchoolService.class);
+        AuditLogRepository auditLogs = mock(AuditLogRepository.class);
+        AutomaticCourseAssignmentService assignments = mock(AutomaticCourseAssignmentService.class);
+        ReflectionTestUtils.setField(controller, "adminService", adminService);
+        ReflectionTestUtils.setField(controller, "studentRepository", students);
+        ReflectionTestUtils.setField(controller, "teacherRepository", teachers);
+        ReflectionTestUtils.setField(controller, "schoolService", schoolService);
+        ReflectionTestUtils.setField(controller, "auditLogRepository", auditLogs);
+        ReflectionTestUtils.setField(controller, "automaticCourseAssignments", assignments);
+        UserDto target = new UserDto(43L, "teacher", "teacher@example.edu", null, "TEACHER", false);
+        when(adminService.getUserById(43L)).thenReturn(target);
+        com.sis.entity.Teacher teacher = new com.sis.entity.Teacher();
+        teacher.setId(41L);
+        when(teachers.findByUserId(43L)).thenReturn(Optional.of(teacher));
+        User admin = new User("admin", "encoded", com.sis.entity.Role.ADMIN);
+        admin.setId(1L);
+        when(schoolService.getUserByUsername("admin")).thenReturn(Optional.of(admin));
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("admin", "n/a",
+                        AuthorityUtils.createAuthorityList("ADMIN")));
+
+        try {
+            ResponseEntity<String> response = controller.restoreUser(43L);
+
+            assertEquals(200, response.getStatusCode().value());
+            verify(adminService).restoreUser(43L);
+            verify(assignments).assignActiveStudentsForTeacher(41L);
+            verify(students, never()).findByUserId(43L);
+        } finally {
+            SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
+    void restoringTeacherRetriesAssignmentsForRequiredCoursesTheyTeach() {
+        AdminController controller = new AdminController();
+        AdminService adminService = mock(AdminService.class);
+        AutomaticCourseAssignmentService assignments = mock(AutomaticCourseAssignmentService.class);
+        ReflectionTestUtils.setField(controller, "adminService", adminService);
+        ReflectionTestUtils.setField(controller, "automaticCourseAssignments", assignments);
+        AutomaticCourseAssignmentSummary summary =
+                new AutomaticCourseAssignmentSummary(1, 2, 0, 0, List.of());
+        when(assignments.assignActiveStudentsForTeacher(41L)).thenReturn(summary);
+
+        ResponseEntity<Map<String, Object>> response = controller.restoreTeacher(41L);
+
+        assertEquals(summary, response.getBody().get("automaticAssignments"));
+        verify(adminService).restoreTeacher(41L);
+        verify(assignments).assignActiveStudentsForTeacher(41L);
+    }
+
+    @Test
+    void changingCourseInstructorReturnsTheReconciliationSummary() {
+        AdminController controller = new AdminController();
+        SchoolService schoolService = mock(SchoolService.class);
+        AutomaticCourseAssignmentService assignments = mock(AutomaticCourseAssignmentService.class);
+        ReflectionTestUtils.setField(controller, "schoolService", schoolService);
+        ReflectionTestUtils.setField(controller, "automaticCourseAssignments", assignments);
+        UpdateCourseRequest request = new UpdateCourseRequest();
+        request.setTeacherId(41L);
+        AdminCourseDto updated = new AdminCourseDto();
+        when(schoolService.isCourseAssignedToTeacher(31L, 41L)).thenReturn(false);
+        when(schoolService.updateCourseDto(31L, request)).thenReturn(updated);
+        AutomaticCourseAssignmentSummary summary =
+                new AutomaticCourseAssignmentSummary(1, 1, 0, 0, List.of());
+        when(assignments.assignActiveStudentsForCourse(31L)).thenReturn(summary);
+
+        ResponseEntity<AdminCourseDto> response = controller.updateCourse(31L, request);
+
+        assertEquals(summary, response.getBody().getAutomaticAssignments());
+        verify(assignments).assignActiveStudentsForCourse(31L);
+    }
+
+    @Test
+    void unchangedCourseInstructorDoesNotTriggerReconciliation() {
+        AdminController controller = new AdminController();
+        SchoolService schoolService = mock(SchoolService.class);
+        AutomaticCourseAssignmentService assignments = mock(AutomaticCourseAssignmentService.class);
+        ReflectionTestUtils.setField(controller, "schoolService", schoolService);
+        ReflectionTestUtils.setField(controller, "automaticCourseAssignments", assignments);
+        UpdateCourseRequest request = new UpdateCourseRequest();
+        request.setTeacherId(41L);
+        AdminCourseDto updated = new AdminCourseDto();
+        when(schoolService.isCourseAssignedToTeacher(31L, 41L)).thenReturn(true);
+        when(schoolService.updateCourseDto(31L, request)).thenReturn(updated);
+
+        ResponseEntity<AdminCourseDto> response = controller.updateCourse(31L, request);
+
+        assertEquals(null, response.getBody().getAutomaticAssignments());
+        verify(assignments, never()).assignActiveStudentsForCourse(31L);
     }
 
     @Test

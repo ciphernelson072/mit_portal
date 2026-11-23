@@ -1,8 +1,9 @@
 const { test, expect } = require('@playwright/test');
 const fs = require('node:fs/promises');
+const { postWithCsrf } = require('./csrf');
 
 async function loginAdmin(page) {
-  const response = await page.request.post('/api/auth/login', {
+  const response = await postWithCsrf(page, '/api/auth/login', {
     data: { username: 'admin', password: 'admin123' },
     headers: { 'x-forwarded-for': `198.51.100.${Math.floor(Math.random() * 200) + 1}` },
   });

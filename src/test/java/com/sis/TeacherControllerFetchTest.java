@@ -2,8 +2,9 @@ package com.sis;
 
 import com.sis.controller.TeacherController;
 import com.sis.dto.CourseDto;
-import com.sis.dto.StudentProfileDto;
 import com.sis.dto.TeacherResultPublicationStatusDto;
+import com.sis.dto.TeacherStudentRosterDto;
+import com.sis.dto.CourseUnitDto;
 import com.sis.entity.Course;
 import com.sis.entity.Student;
 import com.sis.entity.Teacher;
@@ -40,43 +41,72 @@ class TeacherControllerFetchTest {
         SchoolService schoolService = mock(SchoolService.class);
         Student student = new Student();
         student.setId(17L);
+        student.setFullName("Student Name");
+        student.setRegistrationNumber("MIT-017");
         Teacher teacher = new Teacher();
         teacher.setId(12L);
         CourseDto course = new CourseDto();
         course.setId(9L);
-        StudentProfileDto profile = new StudentProfileDto();
+        TeacherStudentRosterDto rosterEntry =
+                new TeacherStudentRosterDto(17L, "Student Name", "MIT-017");
         when(schoolService.getStudentById(17L)).thenReturn(Optional.of(student));
         when(schoolService.getTeacherByUsername("teacher")).thenReturn(Optional.of(teacher));
         when(schoolService.getCoursesForTeacher(12L)).thenReturn(List.of(course));
         when(schoolService.studentEnrolledInCourse(17L, 9L)).thenReturn(true);
-        when(schoolService.getStudentProfile(17L)).thenReturn(profile);
         authenticateTeacher();
 
         TeacherController controller = new TeacherController(
                 schoolService, mock(AttendanceService.class), mock(GradeRepository.class),
                 mock(AcademicReportService.class));
 
-        assertEquals(profile, controller.getStudentProfile(17L).getBody());
+        assertEquals(rosterEntry, controller.getStudentProfile(17L).getBody());
         verify(schoolService).studentEnrolledInCourse(17L, 9L);
     }
 
     @Test
     void courseUnitRosterAuthorizationDoesNotTraverseDetachedTeacherRelations() {
         SchoolService schoolService = mock(SchoolService.class);
-        StudentProfileDto profile = new StudentProfileDto();
         Student student = new Student();
         student.setId(17L);
+        student.setFullName("Student Name");
+        student.setRegistrationNumber("MIT-017");
         when(schoolService.teacherOwnsCourseUnit("teacher", 23L)).thenReturn(true);
         when(schoolService.listStudentsByCourseUnit(23L)).thenReturn(List.of(student));
-        when(schoolService.getStudentProfile(17L)).thenReturn(profile);
         authenticateTeacher();
 
         TeacherController controller = new TeacherController(
                 schoolService, mock(AttendanceService.class), mock(GradeRepository.class),
                 mock(AcademicReportService.class));
 
-        assertEquals(profile, controller.listStudentsForCourseUnit(23L).getBody().get(0));
+        assertEquals(new TeacherStudentRosterDto(17L, "Student Name", "MIT-017"),
+                controller.listStudentsForCourseUnit(23L).getBody().get(0));
         verify(schoolService).teacherOwnsCourseUnit("teacher", 23L);
+    }
+
+    @Test
+    void courseRosterReturnsOnlyTeachingRosterFieldsToAssignedTeacher() {
+        SchoolService schoolService = mock(SchoolService.class);
+        Course course = new Course();
+        course.setId(9L);
+        Student student = new Student();
+        student.setId(17L);
+        student.setFullName("Student Name");
+        student.setRegistrationNumber("MIT-017");
+        when(schoolService.getCourseById(9L)).thenReturn(Optional.of(course));
+        when(schoolService.teacherOwnsCourse("teacher", course)).thenReturn(true);
+        when(schoolService.listStudentsByCourse(9L)).thenReturn(List.of(student));
+        authenticateTeacher();
+
+        TeacherController controller = new TeacherController(
+                schoolService, mock(AttendanceService.class), mock(GradeRepository.class),
+                mock(AcademicReportService.class));
+
+        var response = controller.listStudentsForCourse(9L);
+
+        assertEquals(200, response.getStatusCode().value());
+        assertEquals(List.of(new TeacherStudentRosterDto(17L, "Student Name", "MIT-017")),
+                response.getBody());
+        verify(schoolService).teacherOwnsCourse("teacher", course);
     }
 
     @Test
@@ -109,7 +139,8 @@ class TeacherControllerFetchTest {
         course.setId(9L);
         when(schoolService.getTeacherByUsername("teacher")).thenReturn(Optional.of(teacher));
         when(schoolService.getCoursesForTeacher(teacher.getId())).thenReturn(List.of(course));
-        when(schoolService.countDistinctStudentsInCourses(List.of(9L))).thenReturn(4L);
+        when(schoolService.getCourseUnitsForTeacher(teacher.getId())).thenReturn(List.of(new CourseUnitDto()));
+        when(schoolService.countDistinctStudentsTaughtByTeacher(teacher.getId())).thenReturn(4L);
         when(schoolService.countPendingGradesInCourses(List.of(9L))).thenReturn(2L);
         when(schoolService.countStudentsWithoutAttendanceInCourses(
                 org.mockito.ArgumentMatchers.eq(List.of(9L)),
@@ -127,6 +158,7 @@ class TeacherControllerFetchTest {
 
         var overview = controller.getDashboardOverview().getBody();
         assertEquals(1L, overview.getAssignedCourseCount());
+        assertEquals(1L, overview.getAssignedCourseUnitCount());
         assertEquals(4L, overview.getEnrolledStudentCount());
         assertEquals(2L, overview.getPendingGradeCount());
         assertEquals(3L, overview.getUpcomingAssignmentCount());

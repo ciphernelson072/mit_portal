@@ -26,7 +26,8 @@ function switchTab(tabName, clickedButton = null) {
   }
 
   // Activate corresponding button
-  const activeButton = clickedButton || document.querySelector(`[onclick="switchTab('${tabName}')"]`);
+  const activeButton = clickedButton || [...document.querySelectorAll('[data-csp-action="switchTab"]')]
+    .find(button => JSON.parse(decodeURIComponent(button.dataset.cspArgs || '%5B%5D'))[0] === tabName);
   if (activeButton) activeButton.classList.add('active');
 }
 
@@ -119,12 +120,12 @@ async function loadCampusData() {
       const eventStarted = !Number.isFinite(startsAt) || startsAt <= Date.now();
       const actionLabel = registration ? 'Cancel registration' : eventStarted ? 'Registration closed' : 'Register';
       const disabled = !registration && eventStarted ? 'disabled' : '';
-      return `<article class="event-card" data-event-id="${event.id}"><div class="event-header"><h3>${escapeHtml(event.title)}</h3></div><div class="event-body"><p class="event-description">${escapeHtml(event.description || '')}</p><p>${escapeHtml(event.startsAt)} · ${escapeHtml(event.venue)}</p></div><div class="event-actions"><button class="${registration ? 'btn-secondary' : 'btn-primary'}" ${disabled} onclick="${registration ? 'cancelEventRegistration' : 'registerEvent'}(this)">${actionLabel}</button><button class="btn-secondary" onclick="viewEventDetails(this)">Details</button></div></article>`;
+      return `<article class="event-card" data-event-id="${event.id}"><div class="event-header"><h3>${escapeHtml(event.title)}</h3></div><div class="event-body"><p class="event-description">${escapeHtml(event.description || '')}</p><p>${escapeHtml(event.startsAt)} · ${escapeHtml(event.venue)}</p></div><div class="event-actions"><button class="${registration ? 'btn-secondary' : 'btn-primary'}" ${disabled} data-csp-action="${registration ? 'cancelEventRegistration' : 'registerEvent'}" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([{"$mitCspArg":"element"}]))}">${actionLabel}</button><button class="btn-secondary" data-csp-action="viewEventDetails" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([{"$mitCspArg":"element"}]))}">Details</button></div></article>`;
     }).join('') : '<p>No campus events are currently published.</p>';
     const routesGrid = document.querySelector('.routes-grid');
-    if (routesGrid) routesGrid.innerHTML = routes.length ? routes.map(route => `<article class="route-card" data-route-id="${route.id}"><div class="route-number">${route.id}</div><h4>${escapeHtml(route.name)}</h4><p>${escapeHtml(route.stops)}</p><button class="btn-secondary" onclick="viewRoute(${route.id})">View Route</button></article>`).join('') : '<p>No transport routes are currently published.</p>';
+    if (routesGrid) routesGrid.innerHTML = routes.length ? routes.map(route => `<article class="route-card" data-route-id="${route.id}"><div class="route-number">${route.id}</div><h4>${escapeHtml(route.name)}</h4><p>${escapeHtml(route.stops)}</p><button class="btn-secondary" data-csp-action="viewRoute" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(route.id)]))}">View Route</button></article>`).join('') : '<p>No transport routes are currently published.</p>';
     const clubsContainer = document.querySelector('.clubs-container');
-    if (clubsContainer) clubsContainer.innerHTML = clubs.length ? clubs.map(club => `<article class="club-card" data-club-id="${club.id}"><div class="club-icon">🎓</div><h3>${escapeHtml(club.name)}</h3><p class="club-description">${escapeHtml(club.description || '')}</p><div class="club-info"><span>👥 ${club.memberCount} Members</span><span>📅 ${escapeHtml(club.meetingInfo || 'Meeting details unavailable')}</span></div><button class="btn-primary" onclick="toggleClubMembership(${club.id}, ${Boolean(club.joined)})">${club.joined ? 'Leave Club' : 'Join Club'}</button></article>`).join('') : '<p>No clubs are currently available.</p>';
+    if (clubsContainer) clubsContainer.innerHTML = clubs.length ? clubs.map(club => `<article class="club-card" data-club-id="${club.id}"><div class="club-icon">🎓</div><h3>${escapeHtml(club.name)}</h3><p class="club-description">${escapeHtml(club.description || '')}</p><div class="club-info"><span>👥 ${club.memberCount} Members</span><span>📅 ${escapeHtml(club.meetingInfo || 'Meeting details unavailable')}</span></div><button class="btn-primary" data-csp-action="toggleClubMembership" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(club.id),(Boolean(club.joined))]))}">${club.joined ? 'Leave Club' : 'Join Club'}</button></article>`).join('') : '<p>No clubs are currently available.</p>';
     const requests = await apiGet('/student/requests');
     window._requestsCache = requests;
     const hostelRequest = requests.find(request => request.type === 'hostel' || request.type === 'HOSTEL');
@@ -227,7 +228,7 @@ async function loadAcademicsData() {
   }
 }
 
-async function loadCourseRegistrationPanel() {
+async function loadCourseRegistrationPanel(assignmentSummary) {
   const registrationsContainer = document.getElementById('myCourseRegistrations');
   const sectionsContainer = document.getElementById('eligibleCourseSections');
   if (!registrationsContainer || !sectionsContainer) return;
@@ -240,7 +241,17 @@ async function loadCourseRegistrationPanel() {
       apiGet('/institution/academic-terms/open'),
     ]);
     const openTermIds = new Set(openTerms.map(term => Number(term.id)));
-    registrationsContainer.innerHTML = registrations.length
+    const assignmentNotice = assignmentSummary
+      ? `<p role="status" class="registration-assignment-status">
+          Required course assignments: ${Number(assignmentSummary.registrationsCreated) || 0} assigned;
+          ${Number(assignmentSummary.alreadyRegistered) || 0} already registered;
+          ${Number(assignmentSummary.skipped) || 0} need review.
+          ${Array.isArray(assignmentSummary.issues) ? assignmentSummary.issues.slice(0, 3)
+            .map(issue => `${escapeHtml(issue.courseCode || `Course #${issue.courseId}`)}: ${escapeHtml(issue.reason)}`)
+            .join('; ') : ''}
+        </p>`
+      : '';
+    registrationsContainer.innerHTML = `${assignmentNotice}${registrations.length
       ? `<div class="roster-wrap"><table class="table"><thead><tr><th>Course</th><th>Term</th><th>Section</th><th>Instructor</th><th>Status</th><th>Action</th></tr></thead><tbody>${
         registrations.map(registration => {
           const canDrop = openTermIds.has(Number(registration.termId));
@@ -256,7 +267,7 @@ async function loadCourseRegistrationPanel() {
           </tr>`;
         }).join('')
       }</tbody></table></div>`
-      : '<p>You are not registered for any course sections.</p>';
+      : '<p>You are not registered for any course sections.</p>'}`;
 
     registrationsContainer.querySelectorAll('[data-drop-registration]').forEach(button => {
       button.addEventListener('click', () => dropCourseRegistration(Number(button.dataset.dropRegistration)));
@@ -300,8 +311,9 @@ async function loadCourseRegistrationPanel() {
 
 async function registerCourseSection(sectionId) {
   try {
-    await apiFetch(`/registration/sections/${sectionId}`, { method: 'POST' });
-    await loadCourseRegistrationPanel();
+    const response = await apiFetch(`/registration/sections/${sectionId}`, { method: 'POST' });
+    const result = await response.json();
+    await loadCourseRegistrationPanel(result.automaticAssignments);
     await refreshStudentTimetableAfterRegistration();
   } catch (error) {
     alert(error.message || 'Unable to register for this course section.');
@@ -342,7 +354,7 @@ async function loadAcademicRecords(studentId) {
   try {
     status = await apiGet(`/reports/academic/${studentId}/status`);
     if (officialStatus) {
-      officialStatus.style.display = 'inline-block';
+      officialStatus.hidden = false;
       officialStatus.className = status?.published ? 'status-badge success'
         : status?.approved ? 'status-badge warning' : 'status-badge muted';
       officialStatus.textContent = status?.published
@@ -423,7 +435,7 @@ function renderExamResults(results, exams) {
 function renderAssignments(assignments) {
   const list = document.querySelector('.assignments-list');
   if (!list) return;
-  list.innerHTML = assignments.length ? assignments.map(assignment => `<article class="assignment-card"><div class="assignment-header"><h3>${escapeHtml(assignment.title)}</h3><span class="assignment-course">Course #${assignment.courseId}</span></div><div class="assignment-body"><p>${escapeHtml(assignment.description || 'No description')}</p><p class="due-date">Due: ${escapeHtml(assignment.dueAt)}</p></div><div class="assignment-actions"><button class="btn-secondary" onclick="viewAssignment(${assignment.id})">View Details</button><button class="btn-primary" onclick="submitAssignment(${assignment.id})">Submit</button></div></article>`).join('') : '<p>No assignments are currently published.</p>';
+  list.innerHTML = assignments.length ? assignments.map(assignment => `<article class="assignment-card"><div class="assignment-header"><h3>${escapeHtml(assignment.title)}</h3><span class="assignment-course">Course #${assignment.courseId}</span></div><div class="assignment-body"><p>${escapeHtml(assignment.description || 'No description')}</p><p class="due-date">Due: ${escapeHtml(assignment.dueAt)}</p></div><div class="assignment-actions"><button class="btn-secondary" data-csp-action="viewAssignment" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(assignment.id)]))}">View Details</button><button class="btn-primary" data-csp-action="submitAssignment" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(assignment.id)]))}">Submit</button></div></article>`).join('') : '<p>No assignments are currently published.</p>';
 }
 
 function renderExams(exams, permits = [], examReadiness = []) {
@@ -436,13 +448,13 @@ function renderExams(exams, permits = [], examReadiness = []) {
     const status = permit?.status || 'NOT_REQUESTED';
     const readiness = readinessByExam[exam.id] || permit?.readiness;
     const action = status === 'NOT_REQUESTED'
-      ? `<button class="btn-secondary" type="button" onclick="requestExamPermit(${exam.id})">Request permit</button>`
+      ? `<button class="btn-secondary" type="button" data-csp-action="requestExamPermit" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(exam.id)]))}">Request permit</button>`
       : `<span class="status-badge">Permit: ${escapeHtml(status)}</span>`;
     const readinessMessage = readiness?.warnings?.length
       ? `<p class="exam-readiness" role="status"><strong>Readiness review:</strong> ${readiness.warnings.map(escapeHtml).join(' ')}</p>`
       : '';
     return `<div class="exam-item"><div class="exam-info"><p class="exam-course"><strong>${escapeHtml(exam.title)}</strong> (Course #${exam.courseId})</p><p class="exam-date">Exam: ${escapeHtml(exam.startsAt)}</p><p class="exam-location">Venue: ${escapeHtml(exam.venue)}</p>${action}${readinessMessage}</div></div>`;
-  }).join('')}</div><button class="btn-secondary" onclick="downloadHallTicket()">Download Hall Tickets</button></div>` : '<p>No examinations are currently scheduled.</p>';
+  }).join('')}</div><button class="btn-secondary" data-csp-action="downloadHallTicket" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([]))}">Download Hall Tickets</button></div>` : '<p>No examinations are currently scheduled.</p>';
 }
 
 async function requestExamPermit(examId) {
@@ -500,7 +512,7 @@ function renderCourseCards(courses, grades) {
   grades.forEach(g => { gradeByCourse[g.courseName] = g; });
 
   if (!courses.length) {
-    grid.innerHTML = `<p style="color:var(--text-secondary,#666); padding:1rem;">You're not enrolled in any courses yet.</p>`;
+    grid.innerHTML = `<p class="csp-inline-4b7b9999c0af">You're not enrolled in any courses yet.</p>`;
     return;
   }
 
@@ -531,7 +543,7 @@ function renderCourseCards(courses, grades) {
             <span class="stat-value">${g ? escapeHtml(g.gradeValue) : 'Not graded yet'}</span>
           </div>
         </div>
-        <button class="btn-primary" type="button" onclick="viewCourseDetails(${c.id}, '${escapeHtml(c.name).replace(/'/g, "\\'")}')">View Details</button>
+        <button class="btn-primary" type="button" data-csp-action="viewCourseDetails" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([Number(c.id), c.name]))}">View Details</button>
       </div>`;
     }).join('')}</div></section>`).join('');
   // Progress bar and Assignments count from the original static cards are omitted
@@ -583,7 +595,7 @@ function renderGradesTable(grades, profile, resultStatus = null, studentStatus =
   if (!tbody) return;
 
   if (!grades.length) {
-    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; color:var(--text-secondary,#666);">${finalized ? 'No published grades are available.' : 'Results are pending administrative approval and publication.'}</td></tr>`;
+    tbody.innerHTML = `<tr><td class="csp-inline-7fdaaa8e1aab" colspan="10">${finalized ? 'No published grades are available.' : 'Results are pending administrative approval and publication.'}</td></tr>`;
     return;
   }
 
@@ -613,7 +625,7 @@ function renderGradesTable(grades, profile, resultStatus = null, studentStatus =
         <td>${finalized && g.id
           ? activeGradeAppeals.has(Number(g.id))
             ? 'Appeal in progress'
-            : `<button class="btn-small" type="button" onclick="openGradeAppeal(${Number(g.id)})">Request review</button>`
+            : `<button class="btn-small" type="button" data-csp-action="openGradeAppeal" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(Number(g.id))]))}">Request review</button>`
           : '—'}</td>
       </tr>`;
   }).join('');
@@ -663,7 +675,7 @@ function renderAnalytics(grades, attendance, profile = null) {
     <div class="analytics-card"><h3>GPA By Course</h3><div class="performance-bars">${graded.length ? graded.map(grade => {
       const score = Number(grade.gpaScore);
       const percentage = Math.max(0, Math.min(100, Math.round((score / maxGpa) * 100)));
-      return `<div class="performance-item"><span class="performance-label">${escapeHtml(grade.courseName)}</span><div class="performance-bar"><div class="performance-fill" style="width:${percentage}%"></div></div><span class="performance-percent">${score.toFixed(2)}</span></div>`;
+      return `<div class="performance-item"><span class="performance-label">${escapeHtml(grade.courseName)}</span><div class="performance-bar"><div class="performance-fill ${meterWidthClass(percentage)}"></div></div><span class="performance-percent">${score.toFixed(2)}</span></div>`;
     }).join('') : '<p>No GPA records are available yet.</p>'}</div></div>
     <div class="analytics-card"><h3>Grades Recorded</h3><div class="performance-bars">${grades.length ? grades.map(grade => `<div class="performance-item"><span class="performance-label">${escapeHtml(grade.courseName)}</span><span class="performance-percent">${escapeHtml(grade.gradeValue)}</span></div>`).join('') : '<p>No grades recorded yet.</p>'}</div></div>
     <div class="analytics-card"><h3>Attendance Records</h3><p>${attendance.length ? `${present} of ${attendance.length} recorded classes attended.` : 'No attendance records yet.'}</p></div>`;
@@ -674,7 +686,7 @@ async function loadAttendanceData() {
   try {
     const records = await apiGet('/student/attendance');
     attendanceRecords = records;
-    const courseFilter = document.querySelector('select[onchange*="filterByCourse"]');
+    const courseFilter = document.querySelector('select[data-csp-action="filterByCourse"]');
     if (courseFilter) {
       const names = [...new Set(records.map(record => record.courseName))];
       courseFilter.innerHTML = '<option value="">All courses</option>' + names.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
@@ -741,7 +753,7 @@ function renderAttendanceOverview(records) {
   const courseNames = Object.keys(byCourse);
 
   if (!courseNames.length) {
-    container.innerHTML = `<p style="color:var(--text-secondary,#666);">No attendance recorded yet.</p>`;
+    container.innerHTML = `<p class="csp-inline-39f61ea0197b">No attendance recorded yet.</p>`;
     return;
   }
 
@@ -756,8 +768,8 @@ function renderAttendanceOverview(records) {
           <div class="attendance-percent">${pct}%</div>
         </div>
         <div class="attendance-breakdown-bar">
-          <div class="present-bar" style="width: ${pct}%"></div>
-          <div class="absent-bar" style="width: ${100 - pct}%"></div>
+          <div class="present-bar ${meterWidthClass(pct)}"></div>
+          <div class="absent-bar ${meterWidthClass(100 - pct)}"></div>
         </div>
         <p class="attendance-detail">${present}/${list.length} attended</p>
       </div>`;
@@ -779,9 +791,15 @@ function renderAttendanceTrend(records) {
   chart.innerHTML = months.length
     ? `<div class="performance-bars">${months.map(([month, value]) => {
         const percentage = Math.round((value.attended / value.total) * 100);
-        return `<div class="performance-item"><span class="performance-label">${escapeHtml(month)}</span><div class="performance-bar"><div class="performance-fill" style="width:${percentage}%"></div></div><span class="performance-percent">${percentage}%</span></div>`;
+        return `<div class="performance-item"><span class="performance-label">${escapeHtml(month)}</span><div class="performance-bar"><div class="performance-fill ${meterWidthClass(percentage)}"></div></div><span class="performance-percent">${percentage}%</span></div>`;
       }).join('')}</div>`
     : '<p>No attendance trend is available yet.</p>';
+}
+
+function meterWidthClass(value) {
+  const percentage = Number(value);
+  const bounded = Number.isFinite(percentage) ? Math.max(0, Math.min(100, Math.round(percentage))) : 0;
+  return `meter-width-${bounded}`;
 }
 
 function renderAttendanceRecords(records) {
@@ -789,7 +807,7 @@ function renderAttendanceRecords(records) {
   if (!tbody) return;
 
   if (!records.length) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-secondary,#666);">No attendance recorded yet.</td></tr>`;
+    tbody.innerHTML = `<tr><td class="csp-inline-7fdaaa8e1aab" colspan="5">No attendance recorded yet.</td></tr>`;
     return;
   }
 
@@ -804,7 +822,7 @@ function renderAttendanceRecords(records) {
       <td>${escapeHtml(r.courseName)}</td>
       <td>${escapeHtml(time)}</td>
       <td><span class="status-badge ${r.present || r.late ? 'present-status' : 'absent-status'}">${status}</span></td>
-      <td>${escapeHtml(r.remarks || '—')}<br><button class="btn-secondary" type="button" onclick="submitAttendanceDispute(${Number(r.id)})">Dispute</button></td>
+      <td>${escapeHtml(r.remarks || '—')}<br><button class="btn-secondary" type="button" data-csp-action="submitAttendanceDispute" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(Number(r.id))]))}">Dispute</button></td>
     </tr>`;
   }).join('');
 }
@@ -911,7 +929,7 @@ function renderInvoices(fees) {
     const amountPaid = Number(fee.amountPaid ?? (fee.paid ? fee.amount : 0));
     const balance = Number(fee.balance ?? (fee.paid ? 0 : fee.amount));
     const status = balance <= 0 ? 'Settled' : amountPaid > 0 ? 'Partially paid' : 'Pending';
-    return `<article class="invoice-item"><div class="invoice-header"><p class="invoice-number">Invoice #${fee.id}</p><span class="invoice-amount">UGX ${Number(fee.amount).toLocaleString()}</span></div><div class="invoice-details"><p>${escapeHtml(fee.description)}</p><p>Due: ${escapeHtml(fee.dueDate || 'Not set')}</p><p>Paid: UGX ${amountPaid.toLocaleString()} · Balance: UGX ${balance.toLocaleString()}</p><p>Status: ${status}</p></div><div class="invoice-actions"><button class="btn-secondary" onclick="viewInvoice(${fee.id})">View</button><button class="btn-secondary" onclick="downloadInvoice(${fee.id})">Download</button>${balance > 0 ? `<button class="btn-primary" onclick="selectPaymentMethod(${fee.id})">Pay balance</button>` : ''}</div></article>`;
+    return `<article class="invoice-item"><div class="invoice-header"><p class="invoice-number">Invoice #${fee.id}</p><span class="invoice-amount">UGX ${Number(fee.amount).toLocaleString()}</span></div><div class="invoice-details"><p>${escapeHtml(fee.description)}</p><p>Due: ${escapeHtml(fee.dueDate || 'Not set')}</p><p>Paid: UGX ${amountPaid.toLocaleString()} · Balance: UGX ${balance.toLocaleString()}</p><p>Status: ${status}</p></div><div class="invoice-actions"><button class="btn-secondary" data-csp-action="viewInvoice" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(fee.id)]))}">View</button><button class="btn-secondary" data-csp-action="downloadInvoice" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(fee.id)]))}">Download</button>${balance > 0 ? `<button class="btn-primary" data-csp-action="selectPaymentMethod" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(fee.id)]))}">Pay balance</button>` : ''}</div></article>`;
   }).join('') : '<p>No invoices found.</p>';
 }
 
@@ -920,7 +938,7 @@ function renderScholarships(scholarships, applications = []) {
   if (!container) return;
   container.innerHTML = scholarships.length ? scholarships.map(item => {
     const application = applications.find(value => value.scholarshipId === item.id);
-    return `<article class="scholarship-card"><div class="scholarship-header"><h3>${escapeHtml(item.name)}</h3><span class="scholarship-badge">${application ? escapeHtml(application.status) : (item.open ? 'Open' : 'Closed')}</span></div><div class="scholarship-body"><p>${escapeHtml(item.description || '')}</p><p>Amount: UGX ${Number(item.amount).toLocaleString()}</p>${application ? '<p>Application submitted.</p>' : (item.open ? `<button class="btn-primary" onclick="applyForScholarship(${item.id})">Apply</button>` : '')}</div></article>`;
+    return `<article class="scholarship-card"><div class="scholarship-header"><h3>${escapeHtml(item.name)}</h3><span class="scholarship-badge">${application ? escapeHtml(application.status) : (item.open ? 'Open' : 'Closed')}</span></div><div class="scholarship-body"><p>${escapeHtml(item.description || '')}</p><p>Amount: UGX ${Number(item.amount).toLocaleString()}</p>${application ? '<p>Application submitted.</p>' : (item.open ? `<button class="btn-primary" data-csp-action="applyForScholarship" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(item.id)]))}">Apply</button>` : '')}</div></article>`;
   }).join('') : '<p>No scholarships available.</p>';
 }
 
@@ -932,7 +950,7 @@ function renderPaymentTransactions(payments) {
     <td>${escapeHtml((payment.createdAt || '').slice(0, 10))}</td>
     <td>${escapeHtml((payment.paymentChannel || 'PORTAL').replaceAll('_', ' '))}</td>
     <td>Fee #${Number(payment.feeId)}${payment.providerReference ? `<br><small>Ref: ${escapeHtml(payment.providerReference)}</small>` : ''}</td>
-    <td><button class="btn-secondary small" onclick="downloadReceipt(${Number(payment.id)})">Download receipt</button></td></tr>`).join('') : '<tr><td colspan="6">No payment transactions found.</td></tr>';
+    <td><button class="btn-secondary small" data-csp-action="downloadReceipt" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(Number(payment.id))]))}">Download receipt</button></td></tr>`).join('') : '<tr><td colspan="6">No payment transactions found.</td></tr>';
 }
 
 function renderFinanceSummary(fees) {
@@ -974,7 +992,7 @@ function renderFinanceSummary(fees) {
   const tbody = document.querySelector('.fees-table tbody');
   if (!tbody) return;
   if (!fees.length) {
-    tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--text-secondary,#666);">No fees on record.</td></tr>`;
+    tbody.innerHTML = `<tr><td class="csp-inline-7fdaaa8e1aab" colspan="3">No fees on record.</td></tr>`;
     return;
   }
   const rows = fees.map(f => `
@@ -998,7 +1016,7 @@ function renderPendingPayments(fees) {
 
   const unpaid = fees.filter(f => Number(f.balance ?? (f.paid ? 0 : f.amount)) > 0);
   if (!unpaid.length) {
-    container.innerHTML = `<p style="color:var(--text-secondary,#666);">No pending payments. You're all caught up.</p>`;
+    container.innerHTML = `<p class="csp-inline-39f61ea0197b">No pending payments. You're all caught up.</p>`;
     return;
   }
 
@@ -1020,7 +1038,7 @@ function renderPendingPayments(fees) {
         <p class="payment-description">Fee ID #${f.id}</p>
       </div>
       <div class="payment-actions">
-        <button class="btn-primary" ${pendingAttempt ? 'disabled' : ''} onclick="selectPaymentMethod(${f.id})">${pendingAttempt ? 'Payment under review' : 'Choose payment method'}</button>
+        <button class="btn-primary" ${pendingAttempt ? 'disabled' : ''} data-csp-action="selectPaymentMethod" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(f.id)]))}">${pendingAttempt ? 'Payment under review' : 'Choose payment method'}</button>
       </div>
     </div>`;
   }).join('');
@@ -1630,7 +1648,7 @@ async function loadDocuments() {
           <p class="document-date">Uploaded: ${escapeHtml((document.uploadedAt || '').slice(0, 10))}</p>
           <p class="document-status">${escapeHtml(document.status)}</p>
         </div>
-          <button class="btn-secondary small" onclick="downloadStudentDocument(${document.id})">📥</button><button class="btn-secondary small" onclick="deleteStudentDocument(${document.id})">🗑</button>
+          <button class="btn-secondary small" data-csp-action="downloadStudentDocument" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(document.id)]))}">📥</button><button class="btn-secondary small" data-csp-action="deleteStudentDocument" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(document.id)]))}">🗑</button>
       </div>`).join('') : '<p class="document-empty">No documents uploaded yet.</p>';
   } catch (err) {
     list.innerHTML = `<p class="document-empty">${escapeHtml(err.message)}</p>`;
@@ -1863,13 +1881,13 @@ async function loadServiceRequests(selector) {
         <tr><td>#REQ-${request.id}</td><td>${escapeHtml(request.subject)}</td>
         <td>${escapeHtml(request.type)}</td><td><span class="status-badge">${escapeHtml(request.status)}</span></td>
         <td>${escapeHtml((request.createdAt || '').slice(0, 10))}</td>
-        <td><button class="btn-secondary small" onclick="viewTicket(${request.id})">View</button></td></tr>`).join('');
+        <td><button class="btn-secondary small" data-csp-action="viewTicket" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(request.id)]))}">View</button></td></tr>`).join('');
     } else {
       tbody.innerHTML = requests.map(request => `
         <tr><td>#REQ-${request.id}</td><td>${escapeHtml(request.subject)}</td>
         <td>${escapeHtml((request.createdAt || '').slice(0, 10))}</td>
         <td><span class="status-badge">${escapeHtml(request.status)}</span></td>
-        <td><button class="btn-secondary small" onclick="trackRequest(${request.id})">Track</button></td></tr>`).join('');
+        <td><button class="btn-secondary small" data-csp-action="trackRequest" data-csp-event="click" data-csp-args="${encodeURIComponent(JSON.stringify([(request.id)]))}">Track</button></td></tr>`).join('');
     }
   } catch (err) {
     tbody.innerHTML = `<tr><td colspan="6">${escapeHtml(err.message)}</td></tr>`;
@@ -1880,9 +1898,8 @@ async function loadServiceRequests(selector) {
 function toggleFAQ(element) {
   const answer = element.nextElementSibling;
   const arrow = element.querySelector('.faq-arrow');
-  
-  answer.style.display = answer.style.display === 'block' ? 'none' : 'block';
-  arrow.style.transform = answer.style.display === 'block' ? 'rotate(90deg)' : 'rotate(0)';
+  const isOpen = answer.classList.toggle('is-open');
+  arrow.classList.toggle('is-open', isOpen);
 }
 
 // ===== CHAT SUPPORT =====
@@ -1940,585 +1957,7 @@ function handleChatSubmit(event) {
   }
 }
 
-// ===== ALERT STYLES =====
-const styleSheet = document.createElement('style');
-styleSheet.textContent = `
-  .chat-container {
-    height: 600px;
-    display: flex;
-    flex-direction: column;
-    background: var(--bg-light);
-    border-radius: 12px;
-    overflow: hidden;
-  }
 
-  .chat-messages {
-    flex: 1;
-    overflow-y: auto;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .chat-message {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    animation: slideIn 0.3s ease;
-  }
-
-  @keyframes slideIn {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  .chat-message.user {
-    align-items: flex-end;
-  }
-
-  .chat-message.bot {
-    align-items: flex-start;
-  }
-
-  .message-content {
-    max-width: 70%;
-    padding: 12px 16px;
-    border-radius: 8px;
-    font-size: 13px;
-    word-break: break-word;
-  }
-
-  .chat-message.user .message-content {
-    background: var(--color-primary);
-    color: white;
-  }
-
-  .chat-message.bot .message-content {
-    background: var(--bg-light-secondary);
-    color: var(--text-dark);
-  }
-
-  .message-time {
-    font-size: 11px;
-    color: var(--text-muted);
-    padding: 0 8px;
-  }
-
-  .chat-suggestions {
-    padding: 16px 20px;
-    border-top: 1px solid var(--border-light);
-    background: var(--bg-light-secondary);
-  }
-
-  .chat-suggestions p {
-    font-size: 12px;
-    color: var(--text-secondary);
-    margin-bottom: 8px;
-    font-weight: 600;
-  }
-
-  .suggestion-btn {
-    display: inline-block;
-    padding: 6px 12px;
-    background: var(--bg-light);
-    border: 1px solid var(--border-light);
-    border-radius: 6px;
-    font-size: 12px;
-    cursor: pointer;
-    margin-right: 8px;
-    margin-bottom: 8px;
-    transition: all 0.2s;
-  }
-
-  .suggestion-btn:hover {
-    border-color: var(--color-primary);
-    background: var(--bg-light);
-  }
-
-  .chat-input {
-    padding: 16px 20px;
-    border-top: 1px solid var(--border-light);
-    display: flex;
-    gap: 8px;
-  }
-
-  .chat-input input {
-    flex: 1;
-    padding: 10px 12px;
-    border: 1px solid var(--border-light);
-    border-radius: 6px;
-    font-size: 13px;
-    outline: none;
-  }
-
-  .chat-input input:focus {
-    border-color: var(--color-primary);
-  }
-
-  .checkbox-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 0;
-    cursor: pointer;
-    font-size: 13px;
-  }
-
-  .checkbox-item input[type="checkbox"],
-  .checkbox-item input[type="radio"] {
-    cursor: pointer;
-    accent-color: var(--color-primary);
-  }
-
-  .faq-item {
-    background: var(--bg-light);
-    border: 1px solid var(--border-light);
-    border-radius: 8px;
-    margin-bottom: 12px;
-    overflow: hidden;
-  }
-
-  .faq-question {
-    padding: 16px;
-    cursor: pointer;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    user-select: none;
-    transition: background 0.2s;
-  }
-
-  .faq-question:hover {
-    background: var(--bg-light-secondary);
-  }
-
-  .faq-arrow {
-    transition: transform 0.3s;
-    font-size: 18px;
-  }
-
-  .faq-answer {
-    display: none;
-    padding: 0 16px 16px;
-    background: var(--bg-light-secondary);
-    border-top: 1px solid var(--border-light);
-    font-size: 13px;
-    color: var(--text-secondary);
-    line-height: 1.6;
-  }
-
-  .contact-info-box {
-    display: grid;
-    gap: 16px;
-    margin-bottom: 20px;
-  }
-
-  .contact-item {
-    display: flex;
-    gap: 16px;
-    padding: 16px;
-    background: var(--bg-light-secondary);
-    border-radius: 8px;
-  }
-
-  .contact-item .icon {
-    font-size: 24px;
-    min-width: 32px;
-  }
-
-  .contact-item p {
-    margin: 4px 0;
-    font-size: 13px;
-  }
-
-  .text-muted {
-    color: var(--text-muted);
-    font-size: 12px;
-  }
-
-  .filter-bar {
-    margin-bottom: 20px;
-  }
-
-  .filter-select {
-    padding: 10px 12px;
-    border: 1px solid var(--border-light);
-    border-radius: 6px;
-    font-size: 13px;
-    background: var(--bg-light);
-    color: var(--text-dark);
-    outline: none;
-    cursor: pointer;
-  }
-
-  .filter-select:focus {
-    border-color: var(--color-primary);
-  }
-
-  .table-pagination {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 20px;
-    background: var(--bg-light-secondary);
-    margin-top: 16px;
-    border-radius: 8px;
-  }
-
-  .preference-select,
-  .preference-options {
-    margin-bottom: 20px;
-  }
-
-  .radio-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 0;
-    cursor: pointer;
-    font-size: 13px;
-  }
-
-  .radio-item input[type="radio"] {
-    cursor: pointer;
-    accent-color: var(--color-primary);
-  }
-
-  .clubs-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 16px;
-  }
-
-  .club-card {
-    background: var(--bg-light);
-    border: 1px solid var(--border-light);
-    border-radius: 12px;
-    padding: 20px;
-    text-align: center;
-    transition: all 0.3s;
-  }
-
-  .club-card:hover {
-    box-shadow: var(--shadow-lg);
-    transform: translateY(-2px);
-  }
-
-  .club-icon {
-    font-size: 32px;
-    margin-bottom: 8px;
-  }
-
-  .club-card h3 {
-    font-size: 14px;
-    margin: 0 0 8px 0;
-  }
-
-  .club-description {
-    font-size: 12px;
-    color: var(--text-secondary);
-    margin-bottom: 12px;
-  }
-
-  .club-info {
-    font-size: 11px;
-    color: var(--text-muted);
-    margin-bottom: 16px;
-    padding-top: 12px;
-    border-top: 1px solid var(--border-light);
-  }
-
-  .club-info span {
-    display: block;
-    margin: 4px 0;
-  }
-
-  .event-card,
-  .route-card {
-    background: var(--bg-light);
-    border: 1px solid var(--border-light);
-    border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 16px;
-    transition: all 0.2s;
-  }
-
-  .event-card.featured {
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px rgba(216, 27, 96, 0.1);
-  }
-
-  .event-header,
-  .route-card .route-number {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-  }
-
-  .event-card h3,
-  .route-card h4 {
-    margin: 0;
-    font-size: 15px;
-  }
-
-  .route-number {
-    background: var(--color-primary);
-    color: white;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-  }
-
-  .event-detail,
-  .payment-detail {
-    font-size: 12px;
-    margin: 8px 0;
-  }
-
-  .detail-label {
-    font-weight: 600;
-    color: var(--text-secondary);
-  }
-
-  .routes-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 16px;
-    margin-bottom: 20px;
-  }
-
-  .event-actions,
-  .assignment-actions,
-  .invoice-actions {
-    display: flex;
-    gap: 8px;
-    margin-top: 12px;
-  }
-
-  .accommodation-card,
-  .pass-status {
-    background: var(--bg-light-secondary);
-    padding: 16px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-  }
-
-  .accommodation-detail {
-    display: flex;
-    justify-content: space-between;
-    padding: 8px 0;
-    border-bottom: 1px solid var(--border-light);
-    font-size: 13px;
-  }
-
-  .accommodation-detail:last-child {
-    border-bottom: none;
-  }
-
-  .rules-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-  }
-
-  .rules-list li {
-    padding: 8px 0;
-    font-size: 13px;
-    color: var(--text-secondary);
-  }
-
-  .rules-list li:before {
-    content: "✓ ";
-    color: var(--color-success);
-    font-weight: 600;
-    margin-right: 8px;
-  }
-
-  .facilities-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 12px;
-    margin: 16px 0;
-  }
-
-  .facility-item {
-    background: var(--bg-light-secondary);
-    padding: 12px;
-    border-radius: 8px;
-    text-align: center;
-    font-size: 13px;
-  }
-
-  .attendance-courses {
-    display: grid;
-    gap: 16px;
-  }
-
-  .course-attendance {
-    background: var(--bg-light);
-    border: 1px solid var(--border-light);
-    border-radius: 8px;
-    padding: 16px;
-  }
-
-  .course-header-att {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-  }
-
-  .course-code {
-    font-weight: 600;
-    color: var(--color-primary);
-    font-size: 12px;
-  }
-
-  .course-name {
-    font-size: 13px;
-    font-weight: 500;
-  }
-
-  .attendance-percent {
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--color-primary);
-  }
-
-  .attendance-breakdown-bar {
-    display: flex;
-    height: 6px;
-    border-radius: 3px;
-    overflow: hidden;
-    margin-bottom: 8px;
-  }
-
-  .present-bar {
-    background: var(--color-success);
-    flex: 1;
-  }
-
-  .absent-bar {
-    background: var(--color-danger);
-    flex: 1;
-  }
-
-  .attendance-detail {
-    font-size: 12px;
-    color: var(--text-secondary);
-  }
-
-  .alerts-container {
-    display: grid;
-    gap: 12px;
-  }
-
-  .alert-box {
-    padding: 16px;
-    border-radius: 8px;
-    display: flex;
-    gap: 12px;
-    border-left: 4px solid;
-  }
-
-  .alert-box.success {
-    background: rgba(67, 160, 71, 0.1);
-    border-left-color: var(--color-success);
-  }
-
-  .alert-box.warning {
-    background: rgba(251, 140, 0, 0.1);
-    border-left-color: var(--color-warning);
-  }
-
-  .alert-icon {
-    font-size: 20px;
-    min-width: 24px;
-  }
-
-  .alert-content {
-    flex: 1;
-  }
-
-  .alert-title {
-    font-weight: 600;
-    font-size: 13px;
-    margin-bottom: 2px;
-  }
-
-  .alert-text {
-    font-size: 12px;
-    color: var(--text-secondary);
-  }
-
-  .payment-card {
-    background: var(--bg-light);
-    border-left: 4px solid var(--border-light);
-    border-radius: 8px;
-    padding: 16px;
-    margin-bottom: 12px;
-  }
-
-  .payment-card.alert {
-    border-left-color: var(--color-danger);
-    background: rgba(229, 57, 53, 0.02);
-  }
-
-  .payment-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid var(--border-light);
-  }
-
-  .payment-header h3 {
-    margin: 0;
-    font-size: 14px;
-  }
-
-  .payment-amount {
-    font-weight: 700;
-    color: var(--color-primary);
-  }
-
-  .payment-actions {
-    display: flex;
-    gap: 8px;
-    margin-top: 12px;
-  }
-
-  .faq-container {
-    max-width: 600px;
-  }
-
-  .helpdesk-hero {
-    background: var(--bg-light-secondary);
-    padding: 20px;
-    border-radius: 8px;
-    text-align: center;
-    margin-bottom: 30px;
-  }
-
-  .helpdesk-hero h3 {
-    margin-top: 0;
-  }
-`;
-
-document.head.appendChild(styleSheet);
 
 // ===== INITIALIZATION =====
 document.addEventListener('DOMContentLoaded', function() {

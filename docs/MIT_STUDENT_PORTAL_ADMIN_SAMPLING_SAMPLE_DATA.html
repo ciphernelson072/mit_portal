@@ -1,0 +1,570 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="author" content="Makerere Institute of Technology">
+  <title>MIT Student Portal | Administrator Sampling Data Workbook</title>
+  <style>
+    :root {
+      --navy: #112b46;
+      --blue: #1769aa;
+      --teal: #138b83;
+      --ink: #243447;
+      --muted: #627285;
+      --line: #d7e0e9;
+      --pale: #f2f6fa;
+      --amber: #fff3d8;
+      --red: #fff0ef;
+      --green: #e7f5ef;
+    }
+    @page { size: A4; margin: 15mm 15mm 16mm; }
+    * { box-sizing: border-box; }
+    body {
+      color: var(--ink);
+      font: 8.9pt/1.36 "Segoe UI", Arial, sans-serif;
+      margin: 0;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    h1, h2, h3 { color: var(--navy); break-after: avoid; }
+    h1 { border-bottom: 2px solid var(--teal); font-size: 22pt; line-height: 1.15; margin: 0 0 12px; padding-bottom: 8px; }
+    h2 { font-size: 14pt; line-height: 1.22; margin: 15px 0 6px; }
+    h3 { font-size: 10.5pt; margin: 10px 0 4px; }
+    p { margin: 5px 0 6px; }
+    ul, ol { margin: 4px 0 7px; padding-left: 19px; }
+    li { margin: 1.5px 0; }
+    table { border-collapse: collapse; font-size: 7.8pt; margin: 6px 0 8px; width: 100%; }
+    thead { display: table-header-group; }
+    tr, .callout, .keep { break-inside: avoid; }
+    th { background: var(--navy); color: #fff; font-weight: 700; text-align: left; }
+    td, th { border: 1px solid var(--line); padding: 4px 5px; vertical-align: top; }
+    tbody tr:nth-child(even) { background: #f6f9fc; }
+    code { background: #eef3f8; border-radius: 2px; color: #173c5b; font: 8pt Consolas, "Courier New", monospace; padding: 1px 3px; }
+    .cover {
+      background: linear-gradient(140deg, #102943 0%, #174e78 70%, #137f82 100%);
+      border-radius: 4px;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 245mm;
+      padding: 22mm 17mm 16mm;
+      break-after: page;
+    }
+    .cover .eyebrow { color: #b7e7e4; font-size: 9pt; font-weight: 700; letter-spacing: 1.8px; text-transform: uppercase; }
+    .cover h1 { border: 0; color: #fff; font-size: 31pt; line-height: 1.08; margin: 0 0 12px; max-width: 150mm; padding: 0; }
+    .cover .subtitle { color: #e0eef8; font-size: 14pt; max-width: 145mm; }
+    .cover .rule { border-top: 3px solid #65d0bf; margin: 12mm 0 7mm; width: 30mm; }
+    .cover .version { color: #e0eef8; font-size: 9pt; line-height: 1.6; }
+    .cover .bottom { color: #d7e7f3; font-size: 8.5pt; }
+    .chapter { break-before: page; }
+    .callout { border-left: 4px solid var(--teal); background: var(--pale); margin: 9px 0; padding: 8px 10px; }
+    .warning { background: var(--amber); border-left-color: #b87700; }
+    .danger { background: var(--red); border-left-color: #b42318; }
+    .success { background: var(--green); border-left-color: #138b58; }
+    .small { color: var(--muted); font-size: 8pt; }
+    .step { border-left: 2px solid var(--line); margin: 8px 0; padding: 1px 0 1px 10px; }
+    .step h3 { margin-top: 5px; }
+    .nowrap { white-space: nowrap; }
+    .end-note { border-top: 1px solid var(--line); color: var(--muted); font-size: 8pt; margin-top: 18px; padding-top: 7px; }
+    @media screen {
+      body { margin: 18px auto; max-width: 900px; padding: 0 22px; }
+      .cover { min-height: 780px; }
+    }
+  </style>
+</head>
+<body>
+  <section class="cover">
+    <div>
+      <p class="eyebrow">MIT Student Portal - Administrator sampling</p>
+      <div class="rule"></div>
+      <h1>Sample Data &amp;<br>Step-by-Step Entry</h1>
+      <p class="subtitle">A synthetic, technology-university dataset for exercising the portal's current administrator and related workflow forms.</p>
+    </div>
+    <div>
+      <p class="version"><strong>Edition:</strong> 20 November 2026<br><strong>Purpose:</strong> Disposable test records only<br><strong>Scope:</strong> Examples mapped to forms reviewed against the current deployed release</p>
+      <p class="bottom">All people, accounts, identifiers, schedules, amounts, and records in this workbook are fictional. They are not approved institutional data.</p>
+    </div>
+  </section>
+
+  <section class="chapter">
+    <h1>1. Read this before entering anything</h1>
+    <div class="callout danger">
+      <strong>Isolated test database only.</strong> Do not enter these examples into production, a shared live database, or a real student/staff record. Use a disposable database and a test-only portal instance. Some actions publish announcements, send email, create finance records, change enrollment, or affect result visibility.
+    </div>
+    <ul>
+      <li>This workbook supplies example values; it does not change application code, configuration, permissions, or the database for you.</li>
+      <li>Use existing records if the test database already has the campus, department, programme, category, or course. Do not create duplicates or reuse a unique code.</li>
+      <li>Use the exact field and selection shown in the live form. The live form and server validation take precedence if a label or option has changed.</li>
+      <li>Enter passwords only into the password field. Generate a unique temporary password privately; never print, screenshot, export, share, or save it in this workbook. Do not enter a real MFA code.</li>
+      <li>Emails use the reserved <code>.invalid</code> domain so examples cannot be delivered. Do not send test messages to them. If a mail-delivery test is needed, use an inbox controlled by the test operator and explicitly approved for that test.</li>
+      <li>Phone values are blank when optional. Where a form requires a phone, use only a non-routable QA placeholder in a disposable database or a test number controlled by your institution; never invent or use a person's number.</li>
+      <li>Numeric IDs are generated by the database. Select the named record in a dropdown, or look up its real generated ID in the test portal before submitting an Operations Workspace form. Never type an example ID from another database.</li>
+    </ul>
+    <h2>Actions to skip unless deliberately testing them</h2>
+    <ul>
+      <li>Do not confirm a payment, refund, or reconciliation against a live provider. Use only a verified sandbox or a local test fixture.</li>
+      <li>Do not create or assign permissions as part of ordinary data entry. Use existing permissions and an authorized test administrator.</li>
+      <li>Do not activate a new academic year, open registration, transfer a student, deactivate an account, approve/publish results, or change a final status on a shared database.</li>
+      <li>Do not open registration, add a required curriculum course, change a student's current semester or lifecycle status to ACTIVE, transfer a student, restore an account, or release a student's final financial hold on a shared database; these actions can trigger automatic required-course assignments.</li>
+      <li>Do not send an announcement or bulk email outside the isolated test instance. Keep the recipient list to QA accounts.</li>
+      <li>Do not run a built-in demo seed as a substitute for this worksheet. Use the portal forms with the synthetic values below.</li>
+    </ul>
+    <h2>Recommended entry order</h2>
+    <ol>
+      <li>Campus &gt; faculty &gt; department &gt; programme; academic year &gt; terms; required curriculum courses.</li>
+      <li>Course categories &gt; teacher account/profile &gt; courses &gt; course units &gt; assessment structure.</li>
+      <li>Sections &gt; timetable &gt; examinations.</li>
+      <li>Student account/profile or public admission &gt; programme enrollment &gt; open registration window &gt; review automatic course-assignment summary.</li>
+      <li>HR, attendance, marks, fees, requests, accommodation, library, scholarship, and other optional workflows.</li>
+      <li>Reports and exports last, after sample records exist.</li>
+    </ol>
+  </section>
+
+  <section class="chapter">
+    <h1>2. Foundation records</h1>
+    <p>Open <strong>Admin Dashboard &gt; Academic Operations</strong>. Create parent records first so dependent dropdowns can load. Codes below are synthetic and should be unique within the test database.</p>
+    <h2>Campus, faculty, department, programme</h2>
+    <table>
+      <thead><tr><th>Step / form</th><th>Field</th><th>Sample value</th></tr></thead>
+      <tbody>
+        <tr><td>1 - Campus</td><td>Campus code</td><td><code>QA-CAMPUS</code></td></tr>
+        <tr><td>1 - Campus</td><td>Campus name</td><td>Technology Campus (Synthetic)</td></tr>
+        <tr><td>2 - Faculty</td><td>Campus</td><td>Select Technology Campus (Synthetic)</td></tr>
+        <tr><td>2 - Faculty</td><td>Faculty code</td><td><code>QA-COMP</code></td></tr>
+        <tr><td>2 - Faculty</td><td>Faculty name</td><td>School of Computing (Synthetic)</td></tr>
+        <tr><td>3 - Department</td><td>Faculty</td><td>Select School of Computing (Synthetic)</td></tr>
+        <tr><td>3 - Department</td><td>Department code</td><td><code>QA-CS</code></td></tr>
+        <tr><td>3 - Department</td><td>Department name</td><td>Computer Science (Sample)</td></tr>
+        <tr><td>4 - Programme</td><td>Department</td><td>Select Computer Science (Sample)</td></tr>
+        <tr><td>4 - Programme</td><td>Programme code</td><td><code>QA-BSSE</code></td></tr>
+        <tr><td>4 - Programme</td><td>Programme name</td><td>BSc Software Engineering (Sample)</td></tr>
+        <tr><td>4 - Programme</td><td>Award title</td><td>Bachelor of Science in Software Engineering</td></tr>
+        <tr><td>4 - Programme</td><td>Award classification type</td><td><code>BACHELOR</code></td></tr>
+        <tr><td>4 - Programme</td><td>Duration (years)</td><td><code>4</code></td></tr>
+        <tr><td>5 - Programme (optional)</td><td>Department</td><td>Select Computer Science (Sample)</td></tr>
+        <tr><td>5 - Programme (optional)</td><td>Programme code</td><td><code>QA-DNET</code></td></tr>
+        <tr><td>5 - Programme (optional)</td><td>Programme name</td><td>Diploma in Network Engineering (Sample)</td></tr>
+        <tr><td>5 - Programme (optional)</td><td>Award title</td><td>Diploma in Network Engineering</td></tr>
+        <tr><td>5 - Programme (optional)</td><td>Award classification type</td><td><code>DIPLOMA</code></td></tr>
+        <tr><td>5 - Programme (optional)</td><td>Duration (years)</td><td><code>2</code></td></tr>
+      </tbody>
+    </table>
+    <p class="small">The current Campus form has code and name only; Faculty, Department, and Programme forms use parent selectors. Do not add a campus address or other field that the form does not show.</p>
+    <h2>Academic year and terms</h2>
+    <table>
+      <thead><tr><th>Form</th><th>Field</th><th>Sample value</th></tr></thead>
+      <tbody>
+        <tr><td>Academic year</td><td>Year code / name</td><td><code>QA-2026-27</code> / QA Academic Year 2026/2027</td></tr>
+        <tr><td>Academic year</td><td>Start / end date</td><td><code>2026-08-31</code> / <code>2027-06-25</code></td></tr>
+        <tr><td>Academic year</td><td>Activation</td><td>Check only in an empty disposable test database; otherwise keep the existing active year.</td></tr>
+        <tr><td>Term 1</td><td>Academic year / code / name</td><td>Select QA Academic Year 2026/2027 / <code>QA-2026-T1</code> / QA Term 1</td></tr>
+        <tr><td>Term 1</td><td>Start / end date</td><td><code>2026-08-31</code> / <code>2026-12-18</code></td></tr>
+        <tr><td>Term 1</td><td>Registration window</td><td>Open only while intentionally testing registration in the disposable database.</td></tr>
+        <tr><td>Term 1</td><td>Grade submission deadline</td><td><code>2026-12-11</code>; leave blank if not testing automated grade reminders.</td></tr>
+        <tr><td>Term 2 (optional)</td><td>Academic year / code / name</td><td>Select QA Academic Year 2026/2027 / <code>QA-2027-T2</code> / QA Term 2</td></tr>
+        <tr><td>Term 2 (optional)</td><td>Start / end date</td><td><code>2027-01-11</code> / <code>2027-05-21</code></td></tr>
+        <tr><td>Term 2 (optional)</td><td>Registration window</td><td>Keep closed unless testing course registration.</td></tr>
+      </tbody>
+    </table>
+    <div class="callout warning"><strong>State-changing setting:</strong> only one year can be active, and activating a year affects which year public admissions uses. Opening a term's registration window triggers required-course assignment for eligible active students in that year. The example "active" value is for a disposable database only.</div>
+  </section>
+
+  <section class="chapter">
+    <h1>3. Staff and student accounts</h1>
+    <h2>Create a teacher (Staff Management &gt; Add Staff Member)</h2>
+    <table>
+      <thead><tr><th>Field</th><th>Sample value</th><th>Entry note</th></tr></thead>
+      <tbody>
+        <tr><td>Full name</td><td>Alex Example</td><td>Synthetic test identity.</td></tr>
+        <tr><td>Username</td><td><code>qa.teacher01</code></td><td>Must be unique; use at least 3 characters.</td></tr>
+        <tr><td>Password</td><td>Set a unique temporary password privately in the form.</td><td>Do not include it in this workbook or share it.</td></tr>
+        <tr><td>Home department</td><td>Select Computer Science (Sample).</td><td>Required active department.</td></tr>
+        <tr><td>Years of experience</td><td><code>3</code></td><td>Zero or greater.</td></tr>
+        <tr><td>Subject specialization</td><td>Software Engineering (QA)</td><td>Shown as the teacher's department/specialization text.</td></tr>
+        <tr><td>Qualification</td><td>Sample qualification for QA workflow</td><td>Do not represent this as a real credential.</td></tr>
+        <tr><td>Account email</td><td><code>qa.teacher01@example.invalid</code></td><td>Reserved non-deliverable example address.</td></tr>
+        <tr><td>Phone</td><td>Leave blank.</td><td>Optional in this form.</td></tr>
+      </tbody>
+    </table>
+    <p>For <strong>Edit Staff Member</strong>, use Full Name, Home Department, Years of Experience, Subject Specialization, Qualification, Contact Email, and Phone. Username/password are not edit fields there. Account email and profile contact email are distinct concepts in the portal.</p>
+    <h2>Create a direct-admit student (Students &gt; Admit New Student)</h2>
+    <table>
+      <thead><tr><th>Field</th><th>Sample value</th></tr></thead>
+      <tbody>
+        <tr><td>Full name</td><td>Riley Sample</td></tr>
+        <tr><td>Username</td><td><code>qa.student01</code></td></tr>
+        <tr><td>Password</td><td>Set a separate unique temporary password privately; do not record it.</td></tr>
+        <tr><td>Account email</td><td><code>qa.student01@example.invalid</code></td></tr>
+        <tr><td>Phone</td><td>Leave blank.</td></tr>
+        <tr><td>Class / Program</td><td>Year 1 - BSc Software Engineering (Sample)</td></tr>
+      </tbody>
+    </table>
+    <p>Student profile editing also includes Full Name, Class/Program, Contact Email, Phone, and Address. Use <code>QA-only test address</code> for Address. No date of birth or gender fields are shown in this admin student form.</p>
+    <p>For workflows that require a real programme enrollment (such as curriculum, registration, transfer, or academic records), use an accepted applicant enrolled through the admissions workflow, or another supported enrollment already present in the test database. The direct-admit Class/Program text field is not a substitute for selecting an enrollment.</p>
+    <h2>Generic User Management form</h2>
+    <p>Use the generic Add User/Edit form only for a separately planned test account; do not create duplicate student/teacher accounts instead of using their dedicated workflows.</p>
+    <table>
+      <thead><tr><th>Field</th><th>Example</th></tr></thead>
+      <tbody>
+        <tr><td>Username</td><td><code>qa.user02</code></td></tr>
+        <tr><td>Password</td><td>For a new test account, set a unique temporary password in the form. Password is optional when editing.</td></tr>
+        <tr><td>Role</td><td><code>STUDENT</code> (only if this test account is meant to have this role)</td></tr>
+        <tr><td>Account Email</td><td><code>qa.user02@example.invalid</code></td></tr>
+        <tr><td>Phone</td><td>Leave blank.</td></tr>
+      </tbody>
+    </table>
+    <div class="callout"><strong>Generated values:</strong> usernames must be unique. The system generates database IDs and may generate a registration number or temporary password in specific admission flows. Do not invent IDs or manually replace generated credentials.</div>
+  </section>
+
+  <section class="chapter">
+    <h1>4. Admissions and enrollment</h1>
+    <h2>Configure application document requirements</h2>
+    <p>In <strong>Admissions Review &gt; Application document requirements</strong>, add only synthetic requirements needed for the test. The form fields are Document name, Description, Display order, and Required; use the row action to activate or deactivate a requirement.</p>
+    <table>
+      <thead><tr><th>Field</th><th>Required example</th><th>Optional example</th></tr></thead>
+      <tbody>
+        <tr><td>Document name</td><td>QA academic record (synthetic)</td><td>QA portfolio (synthetic)</td></tr>
+        <tr><td>Description</td><td>Content-free placeholder for upload validation; not an official transcript.</td><td>Optional synthetic work sample; no real student work.</td></tr>
+        <tr><td>Display order</td><td><code>1</code></td><td><code>2</code></td></tr>
+        <tr><td>Required</td><td>Checked</td><td>Unchecked</td></tr>
+        <tr><td>Status</td><td>Activate only for the isolated QA run.</td><td>Activate only when intentionally testing optional uploads.</td></tr>
+      </tbody>
+    </table>
+    <p>Use a self-created content-free PDF or common image under the configured upload-size limit. Active required files must accompany the application; missing files block submission but do not automatically accept or reject an application. Reviewers download documents from the application queue. Never upload real identity or academic documents during sampling.</p>
+    <h2>Submit a synthetic public application</h2>
+    <p>Open the public Admissions page. The application form does not create a portal login; the administrator reviews it first.</p>
+    <table>
+      <thead><tr><th>Application field</th><th>Sample value</th></tr></thead>
+      <tbody>
+        <tr><td>Applicant name</td><td>Casey Example</td></tr>
+        <tr><td>Email</td><td><code>qa.applicant01@example.invalid</code></td></tr>
+        <tr><td>Phone (optional)</td><td>Leave blank.</td></tr>
+        <tr><td>Programme</td><td>Select BSc Software Engineering (Sample).</td></tr>
+        <tr><td>Academic year</td><td>Select QA Academic Year 2026/2027.</td></tr>
+      </tbody>
+    </table>
+    <p>Save the application number displayed by the portal in a private test run sheet, not in this published workbook. To check status, enter that generated application number and the exact same synthetic email.</p>
+    <h2>Review and decide (Admin Dashboard &gt; Admissions)</h2>
+    <ol>
+      <li>Find the application by its generated application number and confirm the sample name, email, programme, and year.</li>
+      <li>Choose <strong>Accept</strong> or <strong>Reject</strong>. Enter reviewer notes such as <code>QA-only review of synthetic application.</code> The notes are optional and limited to 2,000 characters.</li>
+      <li>For an accepted record, use <strong>Enroll student</strong>. Select an existing eligible student account whose profile contact email matches the application's email, or create a new account through the guided enrollment form.</li>
+    </ol>
+    <p>The new-account enrollment form takes Full Name, Username, Account Email, and optional Phone; the portal generates a secure temporary password for this path. Use <code>Casey Example</code>, <code>qa.applicant01</code>, <code>qa.applicant01@example.invalid</code>, and blank phone. Do not capture or publish the one-time credentials shown for private handoff.</p>
+    <p>When the accepted applicant is enrolled, the portal attempts to register them in required courses for their current programme semester in each open term for that academic year. Review the success message's created, already-registered, and skipped counts and resolve listed issues; this is not a guarantee that every course was assigned.</p>
+    <h2>Student lifecycle and transfer (optional, state-changing)</h2>
+    <table>
+      <thead><tr><th>Workflow field</th><th>Example</th></tr></thead>
+      <tbody>
+        <tr><td>Programme enrollment</td><td>Select the student's existing active BSc Software Engineering (Sample) / QA Academic Year 2026/2027 row.</td></tr>
+        <tr><td>New status</td><td>Choose only a transition offered by the form for the selected current status.</td></tr>
+        <tr><td>Reason</td><td><code>QA scenario only; synthetic student lifecycle validation.</code></td></tr>
+        <tr><td>Transfer current enrollment</td><td>Select the student's active BSc Software Engineering (Sample) enrollment.</td></tr>
+        <tr><td>Destination programme / year</td><td>Select Diploma in Network Engineering (Sample) / QA Academic Year 2026/2027.</td></tr>
+        <tr><td>Transfer reason</td><td><code>QA-only test of programme transfer; revert by resetting the disposable database.</code></td></tr>
+      </tbody>
+    </table>
+    <div class="callout warning">A transfer closes the source enrollment as transferred and creates a new active enrollment. Status transitions and transfers are not harmless sample fields; run them last and only in a database you can reset.</div>
+  </section>
+
+  <section class="chapter">
+    <h1>5. Courses, sections, and assessment</h1>
+    <h2>Course categories</h2>
+    <table>
+      <thead><tr><th>Form field</th><th>Sample value A</th><th>Sample value B</th></tr></thead>
+      <tbody>
+        <tr><td>Code</td><td><code>QA-COMP</code></td><td><code>QA-SEC</code></td></tr>
+        <tr><td>Name</td><td>Computing (Sample)</td><td>Cybersecurity (Sample)</td></tr>
+      </tbody>
+    </table>
+    <h2>Course (Add New Course)</h2>
+    <table>
+      <thead><tr><th>Field</th><th>Sample value</th></tr></thead>
+      <tbody>
+        <tr><td>Course Name</td><td>Programming Foundations (Sample)</td></tr>
+        <tr><td>Course Code</td><td><code>QA-CS101</code></td></tr>
+        <tr><td>Category</td><td>Select Computing (Sample).</td></tr>
+        <tr><td>Semester</td><td>QA Term 1</td></tr>
+        <tr><td>Course Units (credits)</td><td><code>3</code></td></tr>
+        <tr><td>Core course unit</td><td>Checked for this test course.</td></tr>
+        <tr><td>Instructor</td><td>Select Alex Example (<code>qa.teacher01</code>).</td></tr>
+      </tbody>
+    </table>
+    <p>For a second course, use <code>QA-CY201</code>, Cyber Safety and Secure Systems (Sample), Cybersecurity (Sample), QA Term 1, 3 credits, not core, and select the intended QA teacher. Keep each code unique. Automatic registration uses the active instructor already assigned to the course; the portal does not choose an instructor.</p>
+    <h2>Course Unit</h2>
+    <table>
+      <thead><tr><th>Field</th><th>Sample value</th></tr></thead>
+      <tbody>
+        <tr><td>Unit code</td><td><code>QA-CS101-U1</code></td></tr>
+        <tr><td>Unit name</td><td>Programming Concepts (Sample)</td></tr>
+        <tr><td>Course</td><td>Select <code>QA-CS101</code> - Programming Foundations (Sample).</td></tr>
+        <tr><td>Instructor</td><td>Select Alex Example.</td></tr>
+      </tbody>
+    </table>
+    <h2>Assessment structure</h2>
+    <p>Open the course assessment structure and enter these two component rows. The weights must total exactly 100%. Do this before teachers submit any marks; the structure is locked after marks exist.</p>
+    <table>
+      <thead><tr><th>Component code</th><th>Name</th><th>Type</th><th>Weight (%)</th><th>Maximum score</th></tr></thead>
+      <tbody>
+        <tr><td><code>QA-CW</code></td><td>Coursework (Sample)</td><td><code>COURSEWORK</code></td><td><code>40</code></td><td><code>40</code></td></tr>
+        <tr><td><code>QA-FINAL</code></td><td>Final paper (Sample)</td><td><code>FINAL_PAPER</code></td><td><code>60</code></td><td><code>60</code></td></tr>
+      </tbody>
+    </table>
+    <p>Other supported component types are <code>OTHER</code>. A sample mark pair of 35/40 and 49.5/60 yields 84.5% and is a grade-band A under the current five-point policy. The teacher enters the component marks; the server computes the result.</p>
+  </section>
+
+  <section class="chapter">
+    <h1>6. Academic operations</h1>
+    <h2>Course section and timetable</h2>
+    <table>
+      <thead><tr><th>Form</th><th>Field</th><th>Sample value</th></tr></thead>
+      <tbody>
+        <tr><td>Course section</td><td>Academic term</td><td>Select QA Term 1.</td></tr>
+        <tr><td>Course section</td><td>Course</td><td>Select <code>QA-CS101</code>.</td></tr>
+        <tr><td>Course section</td><td>Section code</td><td><code>QA-CS101-A</code></td></tr>
+        <tr><td>Course section</td><td>Seat capacity</td><td><code>25</code></td></tr>
+        <tr><td>Timetable</td><td>Academic term / course</td><td>QA Term 1 / select <code>QA-CS101</code>.</td></tr>
+        <tr><td>Timetable</td><td>Day</td><td><code>MONDAY</code></td></tr>
+        <tr><td>Timetable</td><td>Starts / ends</td><td><code>09:00</code> / <code>10:30</code></td></tr>
+        <tr><td>Timetable</td><td>Venue</td><td>QA Computing Lab 01 (Synthetic)</td></tr>
+      </tbody>
+    </table>
+    <p>Registration can be tested only after the term registration window is intentionally open. Use the student account to select the section. Avoid registering the same student twice or creating timetable conflicts.</p>
+    <h2>Automatic required-course assignment and progression</h2>
+    <ol>
+      <li>In Operations Workspace, create curriculum rows for QA-BSSE and the required QA courses. Use semester <code>1</code> and required <code>true</code> for QA-CS101; optional courses should be explicitly marked optional.</li>
+      <li>Confirm each required course has an active instructor and at least one active section in QA Term 1. Registration also requires an active programme enrollment, an open registration window, available capacity, and no financial hold.</li>
+      <li>Open the QA Term 1 registration window only in this disposable database. The portal attempts assignments for eligible active students in that academic year and reports assignments already present, new registrations, skipped items, and issues. Check the Admin Dashboard message/summary and correct missing instructor, section, capacity, or eligibility problems.</li>
+      <li>New admissions begin in semester <code>1</code>. Use the student-programme lifecycle controls to check the progression recommendation against approved passing results. A registrar must approve progression before staff update the current semester; the portal does not advance students automatically.</li>
+      <li>After a semester update, the portal attempts required-course assignment for any open term in the same academic year. Review the returned issue summary instead of assuming every course was assigned.</li>
+    </ol>
+    <div class="callout warning">Opening registration and updating a semester create course registrations. Do not test either action against shared or real student records.</div>
+    <h2>Examination and result record</h2>
+    <table>
+      <thead><tr><th>Field</th><th>Sample value</th></tr></thead>
+      <tbody>
+        <tr><td>Course</td><td>Select <code>QA-CS101</code>.</td></tr>
+        <tr><td>Title</td><td>QA-CS101 Midterm (Sample)</td></tr>
+        <tr><td>Date and time</td><td><code>2026-12-04T09:00</code></td></tr>
+        <tr><td>Venue</td><td>QA Computing Lab 01 (Synthetic)</td></tr>
+        <tr><td>Examination (result form)</td><td>Select QA-CS101 Midterm (Sample).</td></tr>
+        <tr><td>Student (result form)</td><td>Select Riley Sample (or the matching QA applicant enrolled above).</td></tr>
+        <tr><td>Score / maximum score</td><td><code>84.50</code> / <code>100</code></td></tr>
+        <tr><td>Remarks</td><td><code>QA-only examination record.</code></td></tr>
+      </tbody>
+    </table>
+    <h2>Grades, approvals, and academic reports</h2>
+    <ul>
+      <li>For a normal workflow, the assigned teacher creates a draft, submits every required assessment component, and sends it for review. The administrator checks the marks, acknowledges the assessment review, and then approves.</li>
+      <li>A rejected grade requires a reason. Corrections to approved results require a separate authorization reason; retakes create a separate attempt and keep the original.</li>
+      <li>Academic report approval and publication are distinct actions. Publish only the exact approved results version; the workflow affects what the student can see.</li>
+      <li>For exceptional batch import only, download the portal's CSV template first. Its columns are <code>studentId</code>, <code>courseId</code>, <code>gradeValue</code>, <code>gpaScore</code>, and <code>remarks</code>. Use the actual generated student/course IDs and the current grade policy. Imported grades remain pending and are not the routine teacher-marking path.</li>
+      <li>A student grade appeal has a selected grade (hidden ID) and a required reason, for example <code>QA-only request for teacher consultation on the synthetic result.</code> The administrator records a required decision note. Approval of an appeal does not itself change a grade.</li>
+    </ul>
+  </section>
+
+  <section class="chapter">
+    <h1>7. HR, finance, and communications</h1>
+    <h2>HR Staff Records</h2>
+    <table>
+      <thead><tr><th>Field</th><th>Sample value</th></tr></thead>
+      <tbody>
+        <tr><td>Account</td><td>Select the existing QA teacher account (or another eligible test account).</td></tr>
+        <tr><td>Employee number</td><td><code>QA-EMP-001</code></td></tr>
+        <tr><td>Full name</td><td>Alex Example</td></tr>
+        <tr><td>Job title</td><td>QA Instructor (Synthetic)</td></tr>
+        <tr><td>Department ID (optional)</td><td>Enter the actual generated numeric ID for the Computer Science test department; leave blank if not needed.</td></tr>
+        <tr><td>Hire date</td><td><code>2026-09-01</code></td></tr>
+      </tbody>
+    </table>
+    <h2>Leave request and review</h2>
+    <p>Submit as the test administrator/teacher account, then review from the HR queue.</p>
+    <table>
+      <thead><tr><th>Field</th><th>Sample value</th></tr></thead>
+      <tbody>
+        <tr><td>Start date</td><td><code>2026-12-14</code></td></tr>
+        <tr><td>End date</td><td><code>2026-12-15</code></td></tr>
+        <tr><td>Reason</td><td><code>QA-only leave workflow test.</code></td></tr>
+        <tr><td>Review status</td><td>Choose <code>APPROVED</code> or <code>REJECTED</code> only in a disposable database.</td></tr>
+      </tbody>
+    </table>
+    <h2>Finance: create a fee</h2>
+    <p>Admin Dashboard &gt; Finance &gt; Create Fee asks for Student ID, Fee description, Amount, and Due date. Use the actual generated QA student ID shown by the portal; do not copy an ID from this example.</p>
+    <table>
+      <thead><tr><th>Prompt</th><th>Sample value</th></tr></thead>
+      <tbody>
+        <tr><td>Student ID</td><td>Select/lookup the ID for Riley Sample in the test database.</td></tr>
+        <tr><td>Fee description</td><td><code>QA laboratory access fee (synthetic; not payable)</code></td></tr>
+        <tr><td>Amount</td><td><code>1000</code> (test units only)</td></tr>
+        <tr><td>Due date</td><td><code>2026-12-01</code></td></tr>
+      </tbody>
+    </table>
+    <p>New finance-created fees start as <code>DRAFT</code>. Have a Finance-authorized test administrator approve the draft only after checking the synthetic student, description, amount, and due date; only approved active fees appear in student balances, reminders, and payment workflows. Never mark this record paid or connect it to a real payment. The student payment form accepts a selected fee, payment channel, amount, and provider reference; use only a local sandbox and a fake reference if specifically testing that path.</p>
+    <h2>Announcements and messages</h2>
+    <table>
+      <thead><tr><th>Workflow field</th><th>Sample value</th></tr></thead>
+      <tbody>
+        <tr><td>Announcement title</td><td>QA system exercise (not an institutional notice)</td></tr>
+        <tr><td>Announcement content</td><td>This is a synthetic announcement for a disposable test portal. No real dates or instructions.</td></tr>
+        <tr><td>Audience (dashboard publish form)</td><td><code>STUDENT</code>; other choices shown are <code>ALL</code>, <code>ADMIN</code>, and <code>TEACHER</code>.</td></tr>
+        <tr><td>Direct-message recipient username</td><td><code>qa.student01</code></td></tr>
+        <tr><td>Message subject</td><td>QA portal message</td></tr>
+        <tr><td>Message content</td><td>Synthetic communication test only. No action is required.</td></tr>
+      </tbody>
+    </table>
+    <div class="callout danger">Publishing an announcement or using "Email all users" can affect real users and send external mail. Test only with QA accounts and mail delivery disabled or routed to a controlled test inbox. Do not send to <code>.invalid</code> examples.</div>
+  </section>
+
+  <section class="chapter">
+    <h1>8. Operations Workspace: academic and student services</h1>
+    <p>Open the Operations Workspace as an authorized test administrator. For fields ending in <code>Id</code>, first create or find the referenced sample record and use its actual test-database ID. Read-only list/search actions need no example input.</p>
+    <h2>Curriculum and registration</h2>
+    <table>
+      <thead><tr><th>Action / fields</th><th>Sample values or procedure</th></tr></thead>
+      <tbody>
+        <tr><td>Create curriculum course<br><code>programId, courseId, semesterNumber, required</code></td><td>Select the generated IDs for QA-BSSE and QA-CS101; semester <code>1</code>; required <code>true</code>. During open registration, this reconciles active students in that programme and semester; review the returned assignment summary and issues.</td></tr>
+        <tr><td>Create prerequisite<br><code>courseId, prerequisiteCourseId</code></td><td>Use the actual course IDs for QA-CS101 and QA-CY201, with QA-CS101 as the prerequisite to QA-CY201. Do not create a course as its own prerequisite.</td></tr>
+        <tr><td>Create section<br><code>courseId, academicTermId, sectionCode, capacity</code></td><td>QA-CS101 ID; QA Term 1 ID; <code>QA-CS101-B</code> only if no duplicate section exists; <code>25</code>. The Admin Academic Operations form can create the same kind of section; do not duplicate it.</td></tr>
+        <tr><td>Student registration</td><td>Sign in as the sample student and register for the one available QA section. This operation has no request-body fields in the workspace; the section ID is part of the route. Successful registration also retries required-course assignments for the student's active enrollments; review the summary returned by the student registration UI/API.</td></tr>
+        <tr><td>Withdrawal</td><td>Use only on a registration created for this test and only if intentionally testing withdrawal.</td></tr>
+      </tbody>
+    </table>
+    <h2>Accommodation</h2>
+    <table>
+      <thead><tr><th>Action / fields</th><th>Sample values or procedure</th></tr></thead>
+      <tbody>
+        <tr><td>Student accommodation request<br><code>details</code></td><td><code>QA-only request: synthetic two-bed room preference for one term; no real accessibility or personal details.</code></td></tr>
+        <tr><td>Create room<br><code>roomCode, building, capacity</code></td><td><code>QA-RM-01</code>; QA Residence (Synthetic); <code>2</code>.</td></tr>
+        <tr><td>Create allocation<br><code>applicationId, hostelRoomId</code></td><td>Select an application ID shown by the accommodation workflow's own pending-application list and the QA-RM-01 room ID. The student Campus Services request may be a separate record; do not assume it creates this application. Allocate only in the disposable database.</td></tr>
+      </tbody>
+    </table>
+    <h2>Student requests and exam permits</h2>
+    <table>
+      <thead><tr><th>Action / fields</th><th>Sample values or procedure</th></tr></thead>
+      <tbody>
+        <tr><td>Create service request<br><code>type, subject, details</code></td><td><code>ACADEMIC</code>; QA transcript workflow test; <code>QA-only request for a synthetic transcript record.</code> If using the student portal's service-request modal, its type is selected by the request button and the editable fields are Subject and Details.</td></tr>
+        <tr><td>Update service request status<br><code>status</code></td><td>Select one QA request and choose <code>IN_PROGRESS</code>, <code>APPROVED</code>, <code>REJECTED</code>, or <code>COMPLETED</code>. Other supported values include <code>OPEN</code>.</td></tr>
+        <tr><td>Exam permit</td><td>Use an existing sample permit only. Approve with the action button or reject with reason <code>QA-only permit review; synthetic test record.</code> Recorded attendance below 75% adds a staff-review warning; it does not automatically block the permit.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="chapter">
+    <h1>9. Operations Workspace: finance, funding, and library</h1>
+    <h2>Finance extensions</h2>
+    <table>
+      <thead><tr><th>Action / fields</th><th>Sample values or procedure</th></tr></thead>
+      <tbody>
+        <tr><td>Create student fee<br><code>studentId, description, amount, dueDate</code></td><td>Actual Riley Sample ID; QA laboratory access fee (synthetic; not payable); <code>1000</code>; <code>2026-12-01</code>.</td></tr>
+        <tr><td>Submit fee waiver<br><code>feeId, amount, reason</code></td><td>Actual QA fee ID; <code>100</code>; <code>QA-only waiver workflow exercise; no real financial adjustment.</code></td></tr>
+        <tr><td>Create financial hold<br><code>studentId, reason</code></td><td>Actual QA student ID; <code>QA-only hold workflow test; clear/reset the test record afterward.</code></td></tr>
+        <tr><td>Release financial hold</td><td>Choose only the hold created for the QA student; the release action has no extra body fields. Clearing the final active hold retries required-course assignments for open terms; review the returned summary.</td></tr>
+        <tr><td>Create refund<br><code>paymentAttemptId, amount, reason</code></td><td>Use only an existing sandbox/local QA payment attempt; <code>100</code>; <code>QA-only refund workflow; no payout authorized.</code></td></tr>
+        <tr><td>Create reconciliation entry<br><code>providerReference, statementAmount, statementDate</code></td><td><code>QA-NOT-A-REAL-REFERENCE</code>; <code>1000</code>; <code>2026-11-18</code>. Do not reconcile against a live provider statement.</td></tr>
+        <tr><td>Start student payment attempt<br><code>feeId, amount, paymentChannel, providerReference</code></td><td>Actual QA fee ID; <code>1000</code>; <code>BANK_TRANSFER</code> only if the local/verified sandbox supports it; <code>QA-NOT-A-REAL-REFERENCE</code>. Never enter a PIN, card number, password, or one-time code.</td></tr>
+        <tr><td>Confirm payment attempt</td><td>Skip unless the record is a verified sandbox attempt and the test specifically checks confirmation.</td></tr>
+      </tbody>
+    </table>
+    <div class="callout danger">All monetary values above are fake test units. Do not confirm, settle, refund, reconcile, or submit a live payment using these examples.</div>
+    <h2>Scholarships</h2>
+    <table>
+      <thead><tr><th>Action / fields</th><th>Sample values</th></tr></thead>
+      <tbody>
+        <tr><td>Create scholarship<br><code>name, description, amount</code></td><td>QA Computing Award (Synthetic); <code>Test-only funding record. Not an offer or financial commitment.</code>; <code>500</code> test units.</td></tr>
+        <tr><td>Open/close applications</td><td>Set open only in the disposable database; the action uses an <code>open</code> true/false setting.</td></tr>
+        <tr><td>Student application</td><td>Sign in as the QA student and press Apply for this QA award. The application action has no additional input fields.</td></tr>
+        <tr><td>Review application</td><td>Choose <code>APPROVED</code> or <code>REJECTED</code> for the QA application only.</td></tr>
+      </tbody>
+    </table>
+    <h2>Library</h2>
+    <table>
+      <thead><tr><th>Action / fields</th><th>Sample values</th></tr></thead>
+      <tbody>
+        <tr><td>Add library item<br><code>isbn, title, author, totalCopies</code></td><td><code>QA-ISBN-00001</code> (synthetic catalog code); Introduction to Secure Computing (Sample); QA Faculty Team; <code>2</code>.</td></tr>
+        <tr><td>Create loan<br><code>studentId, libraryItemId, dueDate</code></td><td>Actual QA student ID; actual ID of the QA catalog item; <code>2026-12-18</code>.</td></tr>
+        <tr><td>Return loan</td><td>Use only the loan just created; return action has no extra fields.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="chapter">
+    <h1>10. Operations Workspace: procurement, research, quality</h1>
+    <h2>Procurement and assets</h2>
+    <table>
+      <thead><tr><th>Action / fields</th><th>Sample values</th></tr></thead>
+      <tbody>
+        <tr><td>Create supplier<br><code>supplierCode, name, email, phone</code></td><td><code>QA-SUP-001</code>; QA Office Supplies (Synthetic); <code>supplier01@example.invalid</code>; <code>+00000000000</code> (non-routable placeholder; test database only).</td></tr>
+        <tr><td>Create procurement request<br><code>description, estimatedAmount, supplierId</code></td><td><code>QA-only request for synthetic lab stationery; not a purchase order.</code>; <code>250</code> test units; select the actual QA-SUP-001 ID.</td></tr>
+        <tr><td>Review request<br><code>status</code></td><td>Choose <code>APPROVED</code> or <code>REJECTED</code> only for the synthetic request.</td></tr>
+        <tr><td>Create asset<br><code>assetTag, name, description, purchaseValue, purchaseDate, assignedToUserId</code></td><td><code>QA-ASSET-001</code>; QA test laptop record; <code>Synthetic inventory row; no physical asset is represented.</code>; <code>500</code> test units; <code>2026-10-15</code>; select the actual QA teacher user ID.</td></tr>
+      </tbody>
+    </table>
+    <h2>Research and thesis</h2>
+    <table>
+      <thead><tr><th>Workflow field</th><th>Sample value</th></tr></thead>
+      <tbody>
+        <tr><td>Project title</td><td>Testing a Synthetic Campus Network (QA Sample)</td></tr>
+        <tr><td>Supervisor</td><td>Select Alex Example if a supervisor is needed; otherwise leave the optional selection empty.</td></tr>
+        <tr><td>Abstract</td><td>This fictional proposal exercises project review and thesis submission. It reports no real research, participants, or findings.</td></tr>
+        <tr><td>Thesis project</td><td>Select the approved QA project created above.</td></tr>
+        <tr><td>Thesis PDF</td><td>Use a self-created, content-free QA PDF placeholder (PDF only, maximum 10 MB). Do not upload a real student's work or copyrighted material.</td></tr>
+        <tr><td>Notes</td><td><code>QA-only thesis upload validation.</code></td></tr>
+        <tr><td>Review project</td><td>Choose <code>APPROVED</code> or <code>REJECTED</code> only for the QA project.</td></tr>
+        <tr><td>Review thesis</td><td>Choose <code>APPROVED</code>, <code>REVISION_REQUIRED</code>, or <code>REJECTED</code> only for the QA thesis.</td></tr>
+      </tbody>
+    </table>
+    <h2>Quality and accreditation</h2>
+    <table>
+      <thead><tr><th>Action / fields</th><th>Sample values</th></tr></thead>
+      <tbody>
+        <tr><td>Create programme outcome<br><code>programId, code, description</code></td><td>Actual QA-BSSE program ID; <code>QA-PO-01</code>; <code>QA-only outcome: demonstrate a synthetic software design exercise.</code></td></tr>
+        <tr><td>Create accreditation record<br><code>programId, accreditingBody, certificateReference, validFrom, validUntil, evidencePath</code></td><td>Actual QA-BSSE ID; QA Test Review Body (Synthetic); <code>QA-CERT-001</code>; <code>2026-09-01</code>; <code>2027-08-31</code>; use the real relative path of a QA-only evidence file if uploaded. Do not assert real accreditation.</td></tr>
+        <tr><td>Review accreditation</td><td>Choose <code>ACCREDITED</code> or <code>CONDITIONAL</code> only for the QA record. This is not a real accreditation decision.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="chapter">
+    <h1>11. System controls, exports, and final checklist</h1>
+    <h2>What the Admin System Settings screen actually provides</h2>
+    <ul>
+      <li>Navigation to Academic Operations and Finance; the forms in those modules contain the academic and fee fields documented above.</li>
+      <li>Admin data export and CSV exports for Statistics, Users, Students, Teachers, Courses, Grades, Fees, and Audit.</li>
+      <li>An Email Configuration information card and a Send Test Email action. The card states email delivery is configured on the portal host, not in the browser. It is not a form for entering a key.</li>
+      <li>System health indicators for database, API, email, database backup, and upload backup. These are status displays, not sample-data fields.</li>
+      <li>Email Delivery Activity lists queued/recent notification attempts and exhausted failures. Failed delivery retries after 1, 5, and 30 minutes following the initial failure; email preferences still apply, and a successful provider response is not proof of inbox receipt.</li>
+    </ul>
+    <p>Fee/grade deadline reminders run daily at 09:00; attendance-risk alerts run at 09:30 using <code>APP_AUTOMATION_TIME_ZONE</code> (default <code>Africa/Nairobi</code>). Set the grade submission deadline on a term only when testing reminders, use a controlled QA inbox for any opted-in email, and review in-app notifications and delivery status. Do not expect a reminder email without the applicable user preference and a verified mail service.</p>
+    <div class="callout warning"><strong>Keep secrets out of the workbook and browser forms.</strong> Never put a mail API key, database password, payment key, JWT secret, MFA seed, or production URL in sample data, chat, exported test fixtures, or screenshots. Host environment settings are operational configuration and are outside the sample records requested here.</div>
+    <p>For a test-email action, type only an approved QA-controlled inbox. The <code>.invalid</code> sample addresses in this guide are deliberately non-deliverable and should not be used as recipients.</p>
+    <h2>Other related sample inputs</h2>
+    <table>
+      <thead><tr><th>Screen / input</th><th>Safe sample or procedure</th></tr></thead>
+      <tbody>
+        <tr><td>Student document upload</td><td>Name: <code>QA sample document</code>. Use a self-created synthetic PDF/JPG/PNG/GIF under 10 MB. Do not upload identity documents or real records.</td></tr>
+        <tr><td>File Management search / inspect</td><td>Search or inspect only the actual relative path of a QA upload. File deletion is irreversible for that file; do not delete files referenced by records.</td></tr>
+        <tr><td>Attendance</td><td>Use the assigned teacher workflow with an enrolled QA student, QA-CS101, a test class date, status, and a QA-only remark. The admin screen is a report/review view; it does not offer a general create-attendance form.</td></tr>
+        <tr><td>Attendance dispute</td><td>Create only from a QA attendance record using the student workflow; review the resulting dispute from the admin view. Do not create a dispute against a real attendance entry.</td></tr>
+        <tr><td>Admin leave / decision prompts</td><td>Use only the dates/reasons in the HR section. Review prompts use the status values shown by the workflow.</td></tr>
+        <tr><td>Bulk email campaign</td><td>Restrict recipients to QA accounts; Subject: <code>QA-only message test</code>; Content: <code>Synthetic message for a disposable portal test.</code> Do not click Send in a shared/live deployment.</td></tr>
+        <tr><td>Permissions<br><code>code, description, role, permissionId</code></td><td>Normally skip permission writes. If a separate test is approved, create <code>QA_PERMISSION_SAMPLE</code> with description <code>QA-only test permission; no production access.</code> In the same disposable database only, use role <code>TEACHER</code> and the generated permission ID to test assignment/removal. Do not reassign existing permissions or broaden access. Reset the database after the test.</td></tr>
+      </tbody>
+    </table>
+    <h2>Completion and cleanup checklist</h2>
+    <ul>
+      <li>[ ] Confirm the portal is connected to the disposable test database before each state-changing step.</li>
+      <li>[ ] Use unique QA codes and usernames; select generated record IDs from this same test database.</li>
+      <li>[ ] Keep passwords, MFA codes, API keys, and real student/staff details out of this guide and out of exported files.</li>
+      <li>[ ] Leave payment, refund, email, permission, and result publication side effects disabled unless the isolated test explicitly needs them.</li>
+      <li>[ ] Record any generated application number or ID only in a controlled, temporary QA run sheet.</li>
+      <li>[ ] Verify each sample role sees only its intended test records; remove or reset the disposable database after sampling.</li>
+      <li>[ ] Test sign-out and a second sign-in for one account; the new sign-in should invalidate its previous session. Never share a test account across users.</li>
+      <li>[ ] Confirm automatic course assignments use the configured course instructor and required curriculum, then review and resolve every skipped assignment before considering the test complete.</li>
+      <li>[ ] Treat exports as sensitive even though the records are synthetic; store them only in approved test storage and remove them after validation.</li>
+    </ul>
+    <p class="end-note">Prepared as a source-aligned example workbook for administrator sampling. Example data are fictional and not institution-approved. Reviewed against the portal forms and Operations Workspace definitions in the 20 November 2026 release.</p>
+  </section>
+</body>
+</html>

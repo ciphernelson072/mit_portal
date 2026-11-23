@@ -86,6 +86,9 @@
     margin-top: 0.25rem;
     display: none;
 }
+.form-error[hidden] {
+    display: none !important;
+}
 
 .form-group input.error ~ .form-error,
 .form-group textarea.error ~ .form-error,

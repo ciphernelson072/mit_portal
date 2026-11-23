@@ -154,21 +154,49 @@ test('service worker precaches public pages but not authenticated dashboard page
   for (const asset of ['./dashboard.html', './admin-dashboard.html', './teacher-dashboard.html']) {
     assert.ok(!coreAssets.includes(asset), `${asset} requires authentication and must not be precached for anonymous users`);
   }
-  assert.match(serviceWorkerSource, /const CACHE_NAME = 'mit-portal-cache-v30';/);
+  assert.match(serviceWorkerSource, /const CACHE_NAME = 'mit-portal-cache-v36';/);
+  assert.ok(coreAssets.includes('./js/pwa-update.js'), 'update support should be available offline');
+});
+
+test('service worker waits for the user to request an update', async () => {
+  const listeners = {};
+  let skipWaitingCalled = false;
+  const cache = { addAll: async () => {} };
+  const self = {
+    location: { origin: 'https://portal.example' },
+    addEventListener: (name, handler) => { listeners[name] = handler; },
+    skipWaiting: async () => { skipWaitingCalled = true; },
+  };
+  const caches = { open: async () => cache };
+  vm.runInNewContext(serviceWorkerSource, { self, caches, fetch: async () => {}, URL });
+
+  let installPromise;
+  listeners.install({ waitUntil: promise => { installPromise = promise; } });
+  await installPromise;
+  assert.equal(skipWaitingCalled, false);
+
+  let updatePromise;
+  listeners.message({
+    data: { type: 'SKIP_WAITING' },
+    waitUntil: promise => { updatePromise = promise; },
+  });
+  await updatePromise;
+  assert.equal(skipWaitingCalled, true);
 });
 
 test('admin login loads shared assets from the site root and keeps its initial alert hidden', () => {
   const staticRoot = path.join(__dirname, '../src/main/resources/static');
   const loginPage = fs.readFileSync(path.join(staticRoot, 'admin-login.html'), 'utf8');
+  const adminLoginScript = fs.readFileSync(path.join(staticRoot, 'js/admin-login.js'), 'utf8');
   const studentLoginScript = fs.readFileSync(path.join(staticRoot, 'js/script.js'), 'utf8');
 
   assert.match(loginPage, /href="\/css\/auth\.css"/);
   assert.match(loginPage, /src="\/js\/deployment-config\.js"/);
   assert.match(loginPage, /src="\/js\/auth\.js"/);
   assert.match(loginPage, /id="alert"[^>]*\shidden(?:\s|>)/);
-  assert.match(loginPage, /alert\.hidden = false/);
-  assert.match(loginPage, /alert\.hidden = true/);
-  assert.match(loginPage, /Do not redirect based only on the localStorage role hint/);
+  assert.match(adminLoginScript, /alert\.hidden = false/);
+  assert.match(adminLoginScript, /alert\.hidden = true/);
+  assert.match(adminLoginScript, /Do not redirect based only on the localStorage role hint/);
   assert.doesNotMatch(loginPage, /if\s*\(\s*getRole\(\)\s*===\s*'(?:ADMIN|TEACHER)'\s*\)/);
   assert.doesNotMatch(studentLoginScript, /if\s*\(\s*getRole\(\)\s*===\s*'STUDENT'\s*\)/);
 });

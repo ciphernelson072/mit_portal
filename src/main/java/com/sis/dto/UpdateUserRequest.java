@@ -7,6 +7,7 @@ import com.sis.entity.Role;
 public class UpdateUserRequest {
 
     @Email(message = "Email must be valid")
+    @Size(max = 254, message = "Email must not exceed 254 characters")
     private String email;
 
     private String phone;

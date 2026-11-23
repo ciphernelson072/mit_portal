@@ -403,3 +403,6 @@ html[data-theme='light'] .staff-auth-page input::placeholder {
     padding: 24px 20px;
   }
 }
+.is-error {
+  color: var(--danger, #b42318);
+}

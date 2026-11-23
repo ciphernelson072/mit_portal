@@ -6,7 +6,7 @@ const resendForm = document.getElementById('resendResetForm');
 
 function setResetStatus(message, isError = false) {
   resetStatus.textContent = message;
-  resetStatus.style.color = isError ? 'var(--danger, #b42318)' : '';
+  resetStatus.classList.toggle('is-error', isError);
 }
 
 async function validateResetToken() {

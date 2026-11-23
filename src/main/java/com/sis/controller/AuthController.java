@@ -4,6 +4,7 @@ import com.sis.dto.AuthRequest;
 import com.sis.dto.AuthResponse;
 import com.sis.dto.ChangePasswordRequest;
 import com.sis.dto.EmailRequest;
+import com.sis.dto.EmailVerificationStatusDto;
 import com.sis.dto.MfaSetupResponse;
 import com.sis.dto.MfaSetupRequest;
 import com.sis.dto.MfaDisableRequest;
@@ -623,6 +624,15 @@ public class AuthController {
     public ResponseEntity<String> verifyEmail(@Valid @RequestBody ResetTokenRequest request) {
         authenticationService.confirmEmail(request.getToken());
         return ResponseEntity.ok("Email verified successfully");
+    }
+
+    @GetMapping("/email-status")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<EmailVerificationStatusDto> emailVerificationStatus() {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = schoolService.getUserByUsername(username)
+                .orElseThrow(() -> new IllegalStateException("Authenticated account could not be loaded"));
+        return ResponseEntity.ok(authenticationService.getEmailVerificationStatus(user));
     }
 
     @PostMapping("/validate-email-token")

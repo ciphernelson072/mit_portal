@@ -1,11 +1,12 @@
 const { test, expect } = require('@playwright/test');
 const fs = require('node:fs/promises');
 const path = require('node:path');
+const { postWithCsrf, routeApiWithCsrf } = require('./csrf');
 
 let authTestClient = 100;
 
 async function loginTeacher(page) {
-  return page.request.post('/api/auth/login', {
+  return postWithCsrf(page, '/api/auth/login', {
     data: { username: 'teacher1', password: 'teacher123' },
     headers: { 'x-forwarded-for': `198.51.100.${authTestClient++}` },
   });
@@ -21,9 +22,55 @@ test('teacher dashboard has independent course selectors', async ({ page }) => {
   });
   await page.goto('/teacher-dashboard.html');
   await expect(page.locator('#rosterCourseSelect')).toHaveCount(1);
+  await expect(page.locator('#rosterCourseUnitSelect')).toHaveCount(1);
   await expect(page.locator('#attendanceCourseSelect')).toHaveCount(1);
+  await expect(page.locator('a[href="course-catalog.html"]')).toHaveCount(0);
+  await expect(page.locator('a[href="operations.html"]')).toHaveCount(0);
   await expect(page.locator('#courseSelect')).toHaveCount(0);
   await expect(page.locator('#attendanceStudent')).toHaveCount(0);
+});
+
+test('unit roster displays only student name and registration number', async ({ page }) => {
+  const loginResponse = await loginTeacher(page);
+  expect(loginResponse.ok()).toBeTruthy();
+
+  await page.addInitScript(() => {
+    localStorage.setItem('mitRole', 'TEACHER');
+    localStorage.setItem('mitUsername', 'teacher1');
+  });
+  await routeApiWithCsrf(page, async route => {
+    const url = new URL(route.request().url());
+    const payload = url.pathname === '/api/teacher/course-units'
+      ? [{ id: 23, unitCode: 'CSC101A', name: 'Programming', courseCode: 'CSC101' }]
+      : url.pathname === '/api/teacher/course-units/23/students'
+        ? [{ id: 17, fullName: 'Student Name', registrationNumber: 'MIT-017' }]
+        : url.pathname === '/api/teacher/dashboard'
+          ? {
+              assignedCourseCount: 0,
+              assignedCourseUnitCount: 1,
+              enrolledStudentCount: 1,
+              pendingGradeCount: 0,
+              upcomingAssignmentCount: 0,
+              pendingAttendanceCount: 0,
+            }
+          : [];
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(payload),
+    });
+  });
+
+  await page.goto('/teacher-dashboard.html');
+  await page.locator('#rosterCourseUnitSelect').selectOption('23');
+  await page.getByRole('button', { name: 'View Unit Roster' }).click();
+
+  const row = page.locator('#rosterTable tbody tr');
+  await expect(row).toHaveCount(1);
+  await expect(row).toContainText('Student Name');
+  await expect(row).toContainText('MIT-017');
+  await expect(page.locator('#rosterTable thead th')).toHaveCount(2);
+  await expect(page.locator('#gradeForm button[type="submit"]')).toBeDisabled();
 });
 
 test('teacher leave history shows the actual server error', async ({ page }) => {
@@ -34,7 +81,7 @@ test('teacher leave history shows the actual server error', async ({ page }) => 
     localStorage.setItem('mitRole', 'TEACHER');
     localStorage.setItem('mitUsername', 'teacher1');
   });
-  await page.route('**/api/**', async route => {
+  await routeApiWithCsrf(page, async route => {
     const url = new URL(route.request().url());
     if (url.pathname === '/api/hr/leave/mine') {
       await route.fulfill({
@@ -66,7 +113,7 @@ test('teacher request stays confirmed when refreshing the request list fails', a
     localStorage.setItem('mitUsername', 'teacher1');
   });
   let requestListReads = 0;
-  await page.route('**/api/**', async route => {
+  await routeApiWithCsrf(page, async route => {
     const request = route.request();
     const url = new URL(request.url());
     if (url.pathname === '/api/student/requests' && request.method() === 'GET') {
@@ -129,7 +176,7 @@ test('teacher leave request stays confirmed when refreshing leave history fails'
     localStorage.setItem('mitUsername', 'teacher1');
   });
   let leaveHistoryReads = 0;
-  await page.route('**/api/**', async route => {
+  await routeApiWithCsrf(page, async route => {
     const request = route.request();
     const url = new URL(request.url());
     if (url.pathname === '/api/hr/leave/mine' && request.method() === 'GET') {
@@ -275,7 +322,7 @@ test('teacher approves a complete present and absent class roster', async ({ pag
   });
 
   let submittedAttendance;
-  await page.route('**/api/**', async route => {
+  await routeApiWithCsrf(page, async route => {
     const url = new URL(route.request().url());
     if (url.pathname === '/api/teacher/me') {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 3, fullName: 'Ruth Nakato' }) });
@@ -334,7 +381,7 @@ test('teacher can review published assignments', async ({ page }) => {
     localStorage.setItem('mitRole', 'TEACHER');
     localStorage.setItem('mitUsername', 'teacher1');
   });
-  await page.route('**/api/**', async route => {
+  await routeApiWithCsrf(page, async route => {
     const url = new URL(route.request().url());
     if (url.pathname === '/api/teacher/me') {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 3, fullName: 'Ruth Nakato' }) });
@@ -372,7 +419,7 @@ test('teacher can select a course grade and submit it for approval', async ({ pa
 
   let submittedGradeId;
   let submittedMarks;
-  await page.route('**/api/**', async route => {
+  await routeApiWithCsrf(page, async route => {
     const url = new URL(route.request().url());
     if (url.pathname === '/api/teacher/me') {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 3, fullName: 'Ruth Nakato' }) });
@@ -439,7 +486,7 @@ test('teacher can review materials across assigned courses', async ({ page }) =>
   let courseTwoMaterials = [
     { id: 41, title: 'Graph Lab Notes', description: 'Week 4 reference', fileUrl: 'courses/2/graph-notes.pdf', uploadedAt: '2026-10-01T09:30:00', uploadedBy: 'teacher1' },
   ];
-  await page.route('**/api/**', async route => {
+  await routeApiWithCsrf(page, async route => {
     const url = new URL(route.request().url());
     if (url.pathname === '/api/teacher/me') {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 3, fullName: 'Ruth Nakato' }) });

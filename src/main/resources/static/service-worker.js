@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mit-portal-cache-v30';
+const CACHE_NAME = 'mit-portal-cache-v36';
 const CORE_ASSETS = [
   './',
   './home.html',
@@ -24,6 +24,9 @@ const CORE_ASSETS = [
   './css/account-security.css',
   './css/course-catalog.css',
   './css/operations-style.css',
+  './css/csp-inline-styles.css',
+  './css/request-feedback.css',
+  './css/unauthorized.css',
   './icons/background.webp',
   './icons/campus-login.png',
   './icons/campus-login.svg',
@@ -33,6 +36,11 @@ const CORE_ASSETS = [
   './icons/pwa-512.png',
   './manifest.json',
   './js/auth.js',
+  './js/home.js',
+  './js/admin-login.js',
+  './js/reset-password-token.js',
+  './js/verify-email-token.js',
+  './js/unauthorized.js',
   './js/account-security.js',
   './js/course-catalog.js',
   './js/admin-script.js',
@@ -57,6 +65,7 @@ const CORE_ASSETS = [
   './js/theme.js',
   './js/script.js',
   './js/portal-login.js',
+  './js/pwa-update.js',
   './js/support-tickets.js',
   './js/teacher-script.js',
   './js/verify-email.js',
@@ -74,7 +83,13 @@ const CORE_ASSETS = [
 ];
 
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(CORE_ASSETS)).then(() => self.skipWaiting()));
+  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(CORE_ASSETS)));
+});
+
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    event.waitUntil(self.skipWaiting());
+  }
 });
 
 self.addEventListener('activate', event => {

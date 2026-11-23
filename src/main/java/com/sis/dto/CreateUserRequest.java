@@ -26,6 +26,7 @@ public class CreateUserRequest {
     private Role role;
 
     @Email(message = "Email must be valid")
+    @Size(max = 254, message = "Email must not exceed 254 characters")
     private String email;
 
     private String phone;

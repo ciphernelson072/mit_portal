@@ -19,7 +19,7 @@ async function loadDocuments() {
           <p class="document-date">Uploaded: ${escapeHtml((document.uploadedAt || '').slice(0, 10))}</p>
           <p class="document-status">${escapeHtml(document.status || 'PENDING')}</p>
         </div>
-        <div style="display:flex; gap:8px;">
+        <div class="csp-inline-b887bfd5436e">
           <button class="btn-secondary small" type="button" data-document-id="${document.id}" data-action="download">📥</button>
           <button class="btn-secondary small" type="button" data-document-id="${document.id}" data-action="delete">🗑</button>
         </div>

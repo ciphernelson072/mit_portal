@@ -15,6 +15,15 @@ service. Its homepage is a portal gateway:
 - `/admin-login.html` — employee and administrator sign-in.
 - `/public/index.html` — public institutional information.
 
+On 23 November 2026, Render reported deployment
+`dep-dc1se1nf3r2c73dko37g` live for image/commit
+`sha-8b0cdf94e173861aa314326176127529a0427253`. The homepage and employee
+login returned HTTP 200 after the Free instance woke. A live response check
+found that this image still serves the earlier permissive CSP; the security
+hardening in the current working tree is not yet deployed. See
+[Security hardening and release checks](docs/SECURITY_HARDENING.md) and do not
+treat the live service as having the updated policy until its image is replaced.
+
 The tested Render Free instance uses `UPLOAD_DIR=/tmp/uploads`. This storage is
 ephemeral: uploaded files may be lost when the service restarts or redeploys.
 Use only approved test accounts and data there. Confirm the Render service is
@@ -29,9 +38,17 @@ restore procedures, and institution-approved operating controls first.
   databases. The current migrations target MySQL; Render PostgreSQL is not a
   drop-in replacement.
 - Static HTML, CSS, and vanilla JavaScript under
-  `src/main/resources/static/`.
+  `src/main/resources/static/`, with the MIT logo used as the favicon across
+  the portal pages.
 - JWT-backed authentication, role- and ownership-checked APIs, refresh-token
   revocation, rate limiting, and a service worker/PWA.
+- One active session per user, with session revocation controls; automatic
+  required-course registration for eligible students when admission is
+  completed, a term registration window opens, or the Registrar updates a
+  programme semester; registrar-reviewed
+  progression recommendations; queued notification-email retries; scheduled
+  fee/grade reminders and attendance-risk alerts; finance approval for new fee
+  charges; and configurable admission-document requirements.
 - Local H2-based tests, disposable MySQL migration validation, JavaScript unit
   tests, and Playwright browser tests run in CI.
 
@@ -74,24 +91,42 @@ and test database. For release evidence and the latest deployment record, see
 
 ## Render deployment
 
-The existing Render service uses the published Docker image
-`docker.io/ciphernelson/mit-portal:latest`. GitHub Actions runs backend,
-migration, frontend, browser, and image-build checks before publishing that
-tag from the configured branches. Render Free may sleep while idle. The current
-test deployment's uploads are temporary; do not assume the paid Blueprint's
-persistent disk is attached to this Free service.
+For a step-by-step installation, administration, security, and recovery
+handbook, see the [Complete Setup and Operations Guide](docs/MIT_STUDENT_PORTAL_COMPLETE_SETUP_OPERATIONS_GUIDE.pdf)
+and its [editable HTML source](docs/MIT_STUDENT_PORTAL_COMPLETE_SETUP_OPERATIONS_GUIDE.html).
+The guide was reviewed against the repository and recorded deployment on
+20 November 2026; verify live settings and approvals before operational use.
+For synthetic admin-only sampling steps, use the
+[Admin Sampling Sample Data PDF](docs/MIT_STUDENT_PORTAL_ADMIN_SAMPLING_SAMPLE_DATA.pdf)
+or its [editable HTML source](docs/MIT_STUDENT_PORTAL_ADMIN_SAMPLING_SAMPLE_DATA.html).
+The sample data is for a disposable test database only.
+For a concise five-minute Student Information System overview, see the
+[presentation PDF](docs/MIT_SIS_FIVE_MINUTE_PRESENTATION/MIT_SIS_Five_Minute_Presentation.pdf),
+[editable slide source](docs/MIT_SIS_FIVE_MINUTE_PRESENTATION/index.html), and
+[PNG slide exports](docs/MIT_SIS_FIVE_MINUTE_PRESENTATION/images/).
+
+GitHub Actions runs backend, migration, frontend, browser, and image-build
+checks before publishing Docker Hub's `latest` and commit-specific tags. The
+current deployment uses
+`docker.io/ciphernelson/mit-portal:sha-8b0cdf94e173861aa314326176127529a0427253`.
+Render Free may sleep while idle. The current test deployment's uploads are
+temporary; do not assume the paid Blueprint's persistent disk is attached to
+this Free service.
 
 See [Render deployment](docs/RENDER_DEPLOYMENT.md) for the current test-service
 details, required database configuration, deployment flow, and production
-gates. The root `render.yaml` describes the paid persistent-disk configuration;
+gates. The [security hardening release checks](docs/SECURITY_HARDENING.md)
+cover the required CSP, CSRF, upload, and privileged-MFA verification. The
+root `render.yaml` describes the paid persistent-disk configuration;
 `render.free.yaml` is a separate Free test-service template. Neither file
 provisions an external MySQL database or supplies secret values.
 
 ## Security and production-readiness boundaries
 
-- The Free Blueprint defaults MFA enrollment and privileged-role enforcement
-  off. Verify the active Render settings; follow [MFA recovery](docs/MFA_RECOVERY.md)
-  before enabling enforcement.
+- The Free Blueprint enables MFA and requires it for privileged roles, while
+  keeping universal enrollment optional. The active image-based service's
+  settings must still be verified; follow [MFA recovery](docs/MFA_RECOVERY.md)
+  before enabling broader access.
 - Configure and verify the institution-approved email sender before relying
   on transactional mail or account recovery.
 - The public pages still require institution-approved admissions, contact,

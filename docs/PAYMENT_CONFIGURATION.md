@@ -36,6 +36,10 @@ Set the same random secret hash in Flutterwave's webhook settings. The endpoint 
 
 The browser return is only a prompt to verify. The portal calls Flutterwave's transaction-verification API from the server before updating the payment attempt. If a checkout expires while still pending, finance must close that attempt before a new checkout can be opened. Any verified charge arriving after an attempt has been closed is left for finance reconciliation.
 
+Late verified successes are persisted on the failed attempt with the provider transaction ID and a review note, and appear in the Finance module's **Late Flutterwave reconciliation** queue. Active administrators and users with `FINANCE_PAYMENT_CONFIRM` receive an idempotent in-app notification; optional email follows each user's existing email preference. The webhook does not change the fee balance. Finance must compare the provider settlement, then use **Re-verify & confirm**; the server verifies the transaction again and rejects confirmation if it is no longer successful, no longer matches the reference/amount/currency, or would exceed the outstanding fee balance. Successful confirmation is audited. The API routes are `GET /api/finance/payments/attempts/reconciliation` and `POST /api/finance/payments/attempts/{id}/reconcile`, both restricted to payment-confirmation permission.
+
+This workflow provides application-level exception handling, not provider settlement acceptance. Keep live payments disabled until sandbox checkout, webhook delivery/retries, settlement matching, refunds, and the intended deployment environment have been tested.
+
 Recommended Flutterwave setup sequence:
 
 1. Create a Flutterwave merchant account and obtain test credentials from its API settings.

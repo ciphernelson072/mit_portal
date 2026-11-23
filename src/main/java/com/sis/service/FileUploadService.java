@@ -16,7 +16,9 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.Arrays;
 import java.util.logging.Logger;
 
 /**
@@ -55,57 +57,16 @@ public class FileUploadService {
         if (applicationId == null || applicationId <= 0) {
             throw new IllegalArgumentException("Invalid application identifier");
         }
-        validateAdmissionDocument(file);
         return uploadDocument(file, "documents/admissions/" + applicationId);
-    }
-
-    private void validateAdmissionDocument(MultipartFile file) throws IOException {
-        if (file == null || file.isEmpty()) throw new IllegalArgumentException("File is empty");
-        if (file.getSize() > maxFileSize) throw new IllegalArgumentException("File size exceeds maximum limit");
-        String originalFilename = file.getOriginalFilename();
-        String extension = originalFilename == null ? "" : getFileExtension(originalFilename).toLowerCase();
-        byte[] expectedSignature = switch (extension) {
-            case "pdf" -> new byte[] {'%', 'P', 'D', 'F', '-'};
-            case "png" -> new byte[] {(byte) 0x89, 'P', 'N', 'G', 0x0d, 0x0a, 0x1a, 0x0a};
-            case "jpg", "jpeg" -> new byte[] {(byte) 0xff, (byte) 0xd8, (byte) 0xff};
-            case "gif" -> new byte[] {'G', 'I', 'F', '8'};
-            default -> throw new IllegalArgumentException("Only PDF and image documents are allowed");
-        };
-        try (var input = file.getInputStream()) {
-            byte[] signature = input.readNBytes(expectedSignature.length);
-            if (!java.util.Arrays.equals(signature, expectedSignature)) {
-                throw new IllegalArgumentException("The uploaded file content does not match its file type.");
-            }
-        }
-        String contentType = file.getContentType();
-        if (contentType != null && !contentType.isBlank()
-                && !contentType.equalsIgnoreCase(admissionContentType(extension))) {
-            throw new IllegalArgumentException("The uploaded content type does not match its file type.");
-        }
-    }
-
-    private String admissionContentType(String extension) {
-        return switch (extension) {
-            case "pdf" -> "application/pdf";
-            case "png" -> "image/png";
-            case "jpg", "jpeg" -> "image/jpeg";
-            case "gif" -> "image/gif";
-            default -> throw new IllegalArgumentException("Only PDF and image documents are allowed");
-        };
     }
 
     private String uploadDocument(MultipartFile file, String relativeDirectory) throws IOException {
         if (file == null || file.isEmpty()) throw new IllegalArgumentException("File is empty");
         if (file.getSize() > maxFileSize) throw new IllegalArgumentException("File size exceeds maximum limit");
 
-        String originalFilename = file.getOriginalFilename();
-        String contentType = file.getContentType();
-        String extension = originalFilename == null ? "" : getFileExtension(originalFilename).toLowerCase();
-        boolean isAllowedDocument = isAllowedDocumentType(originalFilename, contentType);
-
-        if (!isAllowedDocument) {
-            throw new IllegalArgumentException("Only PDF and image documents are allowed");
-        }
+        String extension = validateDocumentContent(file,
+                Set.of("pdf", "png", "jpg", "jpeg", "gif"),
+                "Only PDF and image documents are allowed");
 
         Path root = resolveUploadRoot();
         Path directory = root.resolve(relativeDirectory).normalize();
@@ -125,13 +86,7 @@ public class FileUploadService {
         if (originalFilename == null || !getFileExtension(originalFilename).equalsIgnoreCase("pdf")) {
             throw new IllegalArgumentException("Thesis submissions must be PDF files");
         }
-        try (var input = file.getInputStream()) {
-            byte[] signature = input.readNBytes(5);
-            if (signature.length != 5 || signature[0] != '%' || signature[1] != 'P'
-                    || signature[2] != 'D' || signature[3] != 'F' || signature[4] != '-') {
-                throw new IllegalArgumentException("The uploaded file is not a valid PDF document");
-            }
-        }
+        validateDocumentContent(file, Set.of("pdf"), "Thesis submissions must be PDF files");
 
         Path directory = resolveUploadRoot().resolve("research").resolve(String.valueOf(studentId)).normalize();
         if (!directory.startsWith(resolveUploadRoot())) throw new IllegalArgumentException("Invalid student identifier");
@@ -144,11 +99,9 @@ public class FileUploadService {
     public String uploadCourseMaterial(MultipartFile file, Long courseId) throws IOException {
         if (file == null || file.isEmpty()) throw new IllegalArgumentException("File is empty");
         if (file.getSize() > maxFileSize) throw new IllegalArgumentException("File size exceeds maximum limit");
-        String originalFilename = file.getOriginalFilename();
-        if (!isAllowedDocumentType(originalFilename, file.getContentType())) {
-            throw new IllegalArgumentException("Only PDF and image documents are allowed");
-        }
-        String extension = getFileExtension(originalFilename).toLowerCase();
+        String extension = validateDocumentContent(file,
+                Set.of("pdf", "png", "jpg", "jpeg", "gif"),
+                "Only PDF and image documents are allowed");
         Path directory = resolveUploadRoot().resolve("materials").resolve(String.valueOf(courseId)).normalize();
         if (!Files.exists(directory)) Files.createDirectories(directory);
         String filename = UUID.randomUUID() + (extension.isEmpty() ? "" : "." + extension);
@@ -156,15 +109,46 @@ public class FileUploadService {
         return "materials/" + courseId + "/" + filename;
     }
 
-    private boolean isAllowedDocumentType(String originalFilename, String contentType) {
-        if (originalFilename == null || originalFilename.isBlank()) return false;
-        String extension = getFileExtension(originalFilename).toLowerCase();
-        if (extension.equals("pdf") || extension.equals("png") || extension.equals("jpg") || extension.equals("jpeg") || extension.equals("gif")) {
-            return true;
+    private String validateDocumentContent(
+            MultipartFile file, Set<String> allowedExtensions, String unsupportedTypeMessage) throws IOException {
+        String originalFilename = file.getOriginalFilename();
+        String extension = originalFilename == null ? "" : getFileExtension(originalFilename).toLowerCase();
+        if (!allowedExtensions.contains(extension)) {
+            throw new IllegalArgumentException(unsupportedTypeMessage);
         }
-        if (contentType == null) return false;
-        String normalizedType = contentType.toLowerCase();
-        return normalizedType.equals("application/pdf") || normalizedType.startsWith("image/");
+
+        String expectedContentType = switch (extension) {
+            case "pdf" -> "application/pdf";
+            case "png" -> "image/png";
+            case "jpg", "jpeg" -> "image/jpeg";
+            case "gif" -> "image/gif";
+            default -> throw new IllegalArgumentException(unsupportedTypeMessage);
+        };
+        String declaredContentType = file.getContentType();
+        if (declaredContentType == null || !expectedContentType.equalsIgnoreCase(declaredContentType.trim())) {
+            throw new IllegalArgumentException("The uploaded content type does not match its file extension.");
+        }
+
+        byte[] expectedSignature = switch (extension) {
+            case "pdf" -> new byte[] {'%', 'P', 'D', 'F', '-'};
+            case "png" -> new byte[] {(byte) 0x89, 'P', 'N', 'G', 0x0d, 0x0a, 0x1a, 0x0a};
+            case "jpg", "jpeg" -> new byte[] {(byte) 0xff, (byte) 0xd8, (byte) 0xff};
+            case "gif" -> new byte[] {'G', 'I', 'F', '8'};
+            default -> throw new IllegalArgumentException(unsupportedTypeMessage);
+        };
+        try (var input = file.getInputStream()) {
+            byte[] signature = input.readNBytes(expectedSignature.length);
+            boolean validSignature = Arrays.equals(signature, expectedSignature);
+            if ("gif".equals(extension) && validSignature) {
+                byte[] gifVersion = input.readNBytes(2);
+                validSignature = Arrays.equals(gifVersion, new byte[] {'7', 'a'})
+                        || Arrays.equals(gifVersion, new byte[] {'9', 'a'});
+            }
+            if (!validSignature) {
+                throw new IllegalArgumentException("The uploaded file content does not match its file type.");
+            }
+        }
+        return extension;
     }
 
     private String uploadProfileImage(MultipartFile file, String directory, Long userId) throws IOException {
@@ -175,10 +159,8 @@ public class FileUploadService {
             throw new IllegalArgumentException("File size exceeds maximum limit: " + maxFileSize + " bytes");
         }
 
-        String originalFilename = file.getOriginalFilename();
-        if (originalFilename == null || !isAllowedFileType(originalFilename)) {
-            throw new IllegalArgumentException("File type not allowed. Allowed types: jpg, jpeg, png, gif");
-        }
+        String fileExtension = validateDocumentContent(
+                file, Set.of(ALLOWED_EXTENSIONS), "File type not allowed. Allowed types: jpg, jpeg, png, gif");
 
         Path targetDirectory = resolveUploadRoot().resolve(directory).normalize();
         if (!Files.exists(targetDirectory)) {
@@ -188,7 +170,6 @@ public class FileUploadService {
 
         // Filename is always server-generated (never the client-supplied name), so
         // there's nothing here for a client to inject a path-traversal sequence into.
-        String fileExtension = getFileExtension(originalFilename);
         String filename = userId + "_" + UUID.randomUUID() + "." + fileExtension;
 
         Path filepath = targetDirectory.resolve(filename);
@@ -196,16 +177,6 @@ public class FileUploadService {
         logger.info("File uploaded successfully: " + filepath);
 
         return directory + "/" + filename;
-    }
-
-    private boolean isAllowedFileType(String filename) {
-        String extension = getFileExtension(filename).toLowerCase();
-        for (String allowed : ALLOWED_EXTENSIONS) {
-            if (extension.equals(allowed)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private String getFileExtension(String filename) {

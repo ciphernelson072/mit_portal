@@ -41,7 +41,7 @@ public interface EmailVerificationTokenRepository extends JpaRepository<EmailVer
      * @param user the user
      * @return optional token entity
      */
-    Optional<EmailVerificationToken> findByUserAndVerifiedFalse(User user);
+    Optional<EmailVerificationToken> findFirstByUserAndVerifiedFalseOrderByCreatedAtDesc(User user);
 
     /**
      * Find token by email address

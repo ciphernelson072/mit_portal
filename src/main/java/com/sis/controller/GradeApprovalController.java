@@ -1,6 +1,7 @@
 package com.sis.controller;
 
 import com.sis.dto.AdminGradeDto;
+import com.sis.dto.AutomaticCourseAssignmentSummary;
 import com.sis.dto.GradeDto;
 import com.sis.dto.RejectionRequest;
 import com.sis.entity.Course;
@@ -10,10 +11,12 @@ import com.sis.entity.Student;
 import com.sis.exception.ResourceNotFoundException;
 import com.sis.repository.GradeRepository;
 import com.sis.service.GradeApprovalService;
+import com.sis.service.AutomaticCourseAssignmentService;
 import com.sis.service.SchoolService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
@@ -27,12 +30,15 @@ public class GradeApprovalController {
     private final GradeApprovalService gradeApprovalService;
     private final SchoolService schoolService;
     private final GradeRepository gradeRepository;
+    private final AutomaticCourseAssignmentService automaticCourseAssignments;
 
     public GradeApprovalController(GradeApprovalService gradeApprovalService, SchoolService schoolService,
-                                   GradeRepository gradeRepository) {
+                                   GradeRepository gradeRepository,
+                                   AutomaticCourseAssignmentService automaticCourseAssignments) {
         this.gradeApprovalService = gradeApprovalService;
         this.schoolService = schoolService;
         this.gradeRepository = gradeRepository;
+        this.automaticCourseAssignments = automaticCourseAssignments;
     }
 
     @PostMapping("/teacher/grades/{gradeId}/submit")
@@ -50,10 +56,15 @@ public class GradeApprovalController {
 
     @PostMapping("/admin/grades/{gradeId}/approve")
     @PreAuthorize("@permissionSecurity.canReviewGradeApprovals()")
+    @Transactional
     public ResponseEntity<GradeDto> approve(@PathVariable Long gradeId) {
         String admin = SecurityContextHolder.getContext().getAuthentication().getName();
         Grade approved = gradeApprovalService.approve(gradeId, admin);
-        return ResponseEntity.ok(schoolService.toGradeDto(approved));
+        GradeDto response = schoolService.toGradeDto(approved);
+        AutomaticCourseAssignmentSummary assignments =
+                automaticCourseAssignments.assignStudentForOpenTerms(approved.getStudent().getId());
+        response.setAutomaticAssignments(assignments);
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/admin/grades/{gradeId}/review")

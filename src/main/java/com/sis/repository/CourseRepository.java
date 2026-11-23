@@ -21,6 +21,7 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
 
     List<Course> findByTeacherId(Long teacherId);
     Optional<Course> findByCourseCode(String courseCode);
+    boolean existsByIdAndTeacher_Id(Long id, Long teacherId);
 
     boolean existsByIdAndTeacherUserUsername(Long courseId, String username);
 

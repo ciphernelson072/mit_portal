@@ -4,6 +4,7 @@ import com.sis.entity.Course;
 import com.sis.entity.CourseCategory;
 import com.sis.entity.CourseRegistration;
 import com.sis.entity.CourseSection;
+import com.sis.entity.CourseUnit;
 import com.sis.entity.AcademicTerm;
 import com.sis.entity.AcademicYear;
 import com.sis.entity.Exam;
@@ -54,6 +55,9 @@ class CourseEnrollmentRepositoryTest {
     private CourseRegistrationRepository registrations;
 
     @Autowired
+    private CourseUnitRepository courseUnits;
+
+    @Autowired
     private ExamRepository exams;
 
     @Test
@@ -78,12 +82,18 @@ class CourseEnrollmentRepositoryTest {
     }
 
     @Test
-    void sectionRegistrationCountsAsCourseEnrollmentForAcademicEligibility() {
+    void courseRosterCombinesExistingAssignmentsAndActiveRegistrations() {
         Student student = newStudent("registered-course-member", "MIT/2026/ENR02");
+        Student existingStudent = newStudent("existing-course-member", "MIT/2026/ENR04");
         Teacher teacher = newTeacher();
         CourseCategory category = categories.saveAndFlush(new CourseCategory("REN", "Registered Enrollment"));
         Course course = saveCourse("Registered Enrollment Course", "REN101", teacher, category);
+        course.setStudents(new HashSet<>(Set.of(existingStudent)));
+        course = courses.saveAndFlush(course);
         CourseSection section = saveSection(course, saveTerm("REN-AY", "REN-T1"));
+
+        assertThat(students.findByCourseIdIncludingRegistrations(course.getId()))
+                .extracting(Student::getId).containsExactly(existingStudent.getId());
 
         CourseRegistration registration = new CourseRegistration();
         registration.setStudent(student);
@@ -93,18 +103,60 @@ class CourseEnrollmentRepositoryTest {
 
         assertThat(courses.existsEnrolledStudent(course.getId(), student.getId())).isTrue();
         assertThat(students.findByCourseIdIncludingRegistrations(course.getId()))
-                .extracting(Student::getId).containsExactly(student.getId());
-        assertThat(courses.countDistinctStudentsByCourseIds(List.of(course.getId()))).isEqualTo(1);
+                .extracting(Student::getId).containsExactlyInAnyOrder(student.getId(), existingStudent.getId());
+        assertThat(courses.countDistinctStudentsByCourseIds(List.of(course.getId()))).isEqualTo(2);
         assertThat(courses.countStudentsWithoutAttendanceByCourseIdsAndDate(
-                List.of(course.getId()), LocalDate.of(2026, 3, 1))).isEqualTo(1);
+                List.of(course.getId()), LocalDate.of(2026, 3, 1))).isEqualTo(2);
 
         registration.setStatus(RegistrationStatus.DROPPED);
         registrations.saveAndFlush(registration);
         assertThat(courses.existsEnrolledStudent(course.getId(), student.getId())).isFalse();
-        assertThat(students.findByCourseIdIncludingRegistrations(course.getId())).isEmpty();
-        assertThat(courses.countDistinctStudentsByCourseIds(List.of(course.getId()))).isZero();
+        assertThat(students.findByCourseIdIncludingRegistrations(course.getId()))
+                .extracting(Student::getId).containsExactly(existingStudent.getId());
+        assertThat(courses.countDistinctStudentsByCourseIds(List.of(course.getId()))).isEqualTo(1);
         assertThat(courses.countStudentsWithoutAttendanceByCourseIdsAndDate(
-                List.of(course.getId()), LocalDate.of(2026, 3, 1))).isZero();
+                List.of(course.getId()), LocalDate.of(2026, 3, 1))).isEqualTo(1);
+    }
+
+    @Test
+    void courseUnitLecturerRosterIncludesRegisteredStudentsAndCountsDistinctStudents() {
+        Student registeredStudent = newStudent("unit-registered-member", "MIT/2026/UNIT01");
+        Student manuallyAssignedStudent = newStudent("unit-manual-member", "MIT/2026/UNIT02");
+        Student droppedStudent = newStudent("unit-dropped-member", "MIT/2026/UNIT03");
+        Teacher courseTeacher = newTeacher();
+        Teacher unitTeacher = teachers.saveAndFlush(
+                new Teacher(new User("unit-teacher", "encoded", Role.TEACHER), "Unit Teacher"));
+        CourseCategory category = categories.saveAndFlush(new CourseCategory("UNI", "Unit Roster"));
+        Course course = saveCourse("Unit Roster Course", "UNI101", courseTeacher, category);
+        AcademicTerm term = saveTerm("UNI-AY", "UNI-T1");
+        CourseSection section = saveSection(course, term);
+
+        CourseUnit unit = new CourseUnit();
+        unit.setUnitCode("UNI101A");
+        unit.setName("Unit A");
+        unit.setCourse(course);
+        unit.setTeacher(unitTeacher);
+        unit.getStudents().add(manuallyAssignedStudent);
+        unit = courseUnits.saveAndFlush(unit);
+
+        assertThat(courseUnits.findRosterStudentsByUnitId(unit.getId()))
+                .extracting(Student::getId).containsExactly(manuallyAssignedStudent.getId());
+        registrations.saveAllAndFlush(List.of(
+                registration(registeredStudent, section, RegistrationStatus.REGISTERED),
+                registration(droppedStudent, section, RegistrationStatus.DROPPED)));
+
+        assertThat(courseUnits.findByTeacherIdWithCourse(unitTeacher.getId()))
+                .extracting(CourseUnit::getId).containsExactly(unit.getId());
+        assertThat(courseUnits.findRosterStudentsByUnitId(unit.getId()))
+                .extracting(Student::getId)
+                .containsExactlyInAnyOrder(registeredStudent.getId(), manuallyAssignedStudent.getId());
+        assertThat(courseUnits.existsRosterStudentForTeacher("unit-teacher", registeredStudent.getId())).isTrue();
+        assertThat(courseUnits.existsRosterStudentForTeacher("unit-teacher", droppedStudent.getId())).isFalse();
+        assertThat(courseUnits.existsRosterStudentForTeacher("course-teacher", registeredStudent.getId())).isFalse();
+        assertThat(courseUnits.existsAssignedToTeacherForCourse(unit.getId(), "unit-teacher")).isTrue();
+        assertThat(courseUnits.existsAssignedToTeacherForCourse(unit.getId(), "course-teacher")).isFalse();
+        assertThat(students.countDistinctStudentsTaughtByTeacher(unitTeacher.getId())).isEqualTo(2);
+        assertThat(students.countDistinctStudentsTaughtByTeacher(courseTeacher.getId())).isEqualTo(1);
     }
 
     @Test

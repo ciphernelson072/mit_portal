@@ -1,0 +1,76 @@
+# Security hardening and release checks
+
+Updated 23 November 2026. This document describes the security changes in the
+current working tree and the checks required before relying on them in Render.
+
+## Changes
+
+- **Uploads:** document, thesis, course-material, and profile-image uploads are
+  checked against allowed extensions, declared MIME types, and file signatures.
+  Non-image downloads use attachment disposition and `nosniff`.
+- **CSRF:** unsafe requests authenticated by ambient access-token cookies
+  require the cookie-backed CSRF token and `X-XSRF-TOKEN` header. The shared
+  browser fetch wrapper obtains tokens from `/api/auth/csrf`. Bearer-only API
+  clients remain compatible; Origin validation remains an additional check.
+- **Content Security Policy:** scripts and styles are same-origin, except for
+  the explicit Cloudflare Turnstile origins. Inline scripts, event-handler
+  attributes, and inline styles are disallowed; the jsDelivr allowance has been
+  removed. The shared action dispatcher uses a fixed allowlist and does not
+  evaluate code. Continue escaping/sanitizing all untrusted values inserted
+  into HTML templates; the dispatcher is not an HTML sanitizer.
+- **Privileged MFA:** production requires MFA for administrators and users
+  with active finance permissions. Startup fails if enforcement is disabled
+  or if `MFA_ENCRYPTION_KEY` is missing or is not a Base64-encoded 32-byte key.
+  Keep the key stable, private, and recoverable from the approved encrypted
+  backup process. Users outside the privileged scope may enroll optionally.
+- **Account email verification:** account emails are format-checked in request
+  DTOs and browser forms. New accounts and account-email changes receive a
+  one-time verification link; signing in remains available while verification
+  is pending, but password recovery is sent only to verified account emails.
+  The account-security page provides verification status and resend controls.
+  Existing accounts are grandfathered as verified by the schema migration to
+  avoid interrupting existing recovery access.
+
+See [MFA recovery](./MFA_RECOVERY.md) for enrollment and support-recovery
+requirements. Recovery controls and production key custody still require
+target-environment acceptance.
+
+## Render status and release gate
+
+The Render dashboard showed deployment
+`dep-dc1se1nf3r2c73dko37g` as `Deploy succeeded | Live`, using image/commit
+`sha-8b0cdf94e173861aa314326176127529a0427253`. On 23 November, the live
+homepage and `/admin-login.html` returned HTTP 200 after the Free instance
+woke. The live login response still contained `'unsafe-inline'`,
+`https://cdn.jsdelivr.net`, inline scripts, event handlers, and style
+attributes. Therefore that active image does **not** contain the CSP hardening
+described above. The working-tree changes are not live until a verified image
+is published and Render reports that image deployed.
+
+Before enabling users on the updated release:
+
+1. Confirm the intended commit and change scope; run the repository CI gates
+   and build the Docker image from that exact commit.
+2. Verify the Render secret environment contains `MFA_ENABLED=true`,
+   `MFA_REQUIRED_FOR_PRIVILEGED=true`, and a persistent valid
+   `MFA_ENCRYPTION_KEY`. Do not copy secret values into source, logs, or chat.
+3. Confirm the image tag/digest and commit shown in Render match the reviewed
+   release. A successful Git push alone is not deployment evidence.
+4. Confirm Render health reports `UP`. A sleeping Free instance may return
+   503 while waking; wait for startup and then retry once rather than
+   interpreting the interstitial as application readiness.
+5. From the live service, inspect `/admin-login.html`. The CSP must include
+   `script-src-attr 'none'` and `style-src-attr 'none'`; it must not include
+   `'unsafe-inline'` or `cdn.jsdelivr.net`. The page and generated markup must
+   contain no inline script blocks, event-handler attributes, or style
+   attributes.
+6. Confirm `GET /api/auth/csrf` returns a token and sets the CSRF cookie; verify
+   cookie-authenticated unsafe requests without the matching token are
+   rejected. Do not paste token values into logs or reports.
+7. Test privileged MFA enrollment, sign-in, recovery, and session revocation
+   with approved synthetic accounts before broader access.
+
+Render's image-based release publishes through the CI workflow on its configured
+release branches. Review [Render deployment](./RENDER_DEPLOYMENT.md) before
+publishing; the Render service may consume a Docker image rather than build the
+uncommitted local working tree.

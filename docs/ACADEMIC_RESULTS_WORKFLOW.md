@@ -1,12 +1,24 @@
 # Academic Results, Approval, and Publication
 
-Last reviewed: 31 October 2026
+Last reviewed: 20 November 2026
 
-This guide describes the result workflow implemented in the source tree. It
-does not certify a live deployment. Migration V44 adds the five-point policy
-version, course core-module flag, retake-required state, and programme award
-type. Migration V45 persists administrator review acknowledgments against a
-fingerprint of the exact assessment/result state. V43-V45 were applied and
+## Academic year and term date setup
+
+Academic year and term dates must use four-digit `YYYY-MM-DD` values between
+1900-01-01 and 2100-12-31. The end date must not precede the start date.
+Academic terms must start and end inside their selected academic year. For a
+third semester or any later term, select the dates from the same academic-year
+window or configure the next academic year first. An optional grade-submission
+deadline must be on or after the term start and on or before the term end.
+The browser and backend validate these boundaries before saving.
+
+This guide describes the result workflow implemented in the source tree. The
+20 November release includes these paths, but deployment health does not certify
+authenticated result workflows against the target database. Migration V44 adds
+the five-point policy version, course core-module flag, retake-required state,
+and programme award type. Migration V45 persists administrator review
+acknowledgments against a fingerprint of the exact assessment/result state.
+V43-V45 were applied and
 verified on the TiDB pilot after a fresh backup. Live assigned-teacher
 correction-to-republication acceptance remains separate from source and migration validation.
 
@@ -203,10 +215,11 @@ rule. Retake-attempt treatment remains blocked rather than guessed: approved
 retake attempts continue to block CGPA finalization until the institute defines
 the attempt-treatment rule. Correction and result-reopening procedure, along
 with appeal deadlines and escalation, still require institutional sign-off.
-The appeal implementation is local source only until target-database
-validation and release gates pass.
+The appeal implementation is included in the 20 November deployed release.
+Target-database migration and authenticated workflow acceptance, plus
+institutional policy sign-off, remain required before real-data use.
 
-## Required validation before release
+## Required validation before institutional use
 
 - V41-V44 and V51 were applied with Hibernate schema validation on disposable
   MySQL 8.0 and TiDB v8.5.0 on 11 November 2026; the complete current set of

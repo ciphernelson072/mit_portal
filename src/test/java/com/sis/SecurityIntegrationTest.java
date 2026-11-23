@@ -80,6 +80,7 @@ import com.sis.repository.RefreshTokenRepository;
 import com.sis.security.OriginValidationFilter;
 import com.sis.security.JwtAuthenticationFilter;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -98,6 +99,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.security.web.FilterChainProxy;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -197,6 +199,37 @@ class SecurityIntegrationTest {
 
     @Autowired
     private AuditLogRepository auditLogRepository;
+
+    @BeforeEach
+    void configureCsrfForBrowserStyleTestRequests() {
+        var interceptors = restTemplate.getRestTemplate().getInterceptors();
+        interceptors.removeIf(SecurityIntegrationCsrfInterceptor.class::isInstance);
+        interceptors.add(new SecurityIntegrationCsrfInterceptor());
+    }
+
+    private final class SecurityIntegrationCsrfInterceptor implements ClientHttpRequestInterceptor {
+        @Override
+        public org.springframework.http.client.ClientHttpResponse intercept(
+                org.springframework.http.HttpRequest request,
+                byte[] body,
+                org.springframework.http.client.ClientHttpRequestExecution execution) throws java.io.IOException {
+            String testOverride = request.getHeaders().getFirst("X-Test-Skip-CSRF");
+            if (testOverride != null) {
+                request.getHeaders().remove("X-Test-Skip-CSRF");
+            } else if (!java.util.Set.of("GET", "HEAD", "TRACE", "OPTIONS")
+                    .contains(request.getMethod().name().toUpperCase(java.util.Locale.ROOT))) {
+                ResponseEntity<Map> tokenResponse = restTemplate.getForEntity("/api/auth/csrf", Map.class);
+                String token = (String) tokenResponse.getBody().get("token");
+                String setCookie = tokenResponse.getHeaders().getFirst(HttpHeaders.SET_COOKIE);
+                String csrfCookie = setCookie.substring(0, setCookie.indexOf(';'));
+                String existingCookie = request.getHeaders().getFirst(HttpHeaders.COOKIE);
+                request.getHeaders().set(HttpHeaders.COOKIE,
+                        existingCookie == null ? csrfCookie : existingCookie + "; " + csrfCookie);
+                request.getHeaders().set("X-XSRF-TOKEN", token);
+            }
+            return execution.execute(request, body);
+        }
+    }
 
     @Autowired
     private FeeRepository feeRepository;
@@ -716,6 +749,46 @@ class SecurityIntegrationTest {
     }
 
     @Test
+    void staticPagesUseStrictContentSecurityPolicy() {
+        ResponseEntity<String> response = restTemplate.getForEntity("/index.html", String.class);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+
+        String contentSecurityPolicy = response.getHeaders().getFirst("Content-Security-Policy");
+        assertNotNull(contentSecurityPolicy);
+        assertTrue(contentSecurityPolicy.contains("script-src-attr 'none'"));
+        assertTrue(contentSecurityPolicy.contains("style-src-attr 'none'"));
+        assertFalse(contentSecurityPolicy.contains("'unsafe-inline'"));
+        assertFalse(contentSecurityPolicy.contains("cdn.jsdelivr.net"));
+    }
+
+    @Test
+    void cookieAuthenticatedUnsafeRequestsRequireCsrfToken() {
+        ResponseEntity<Map> tokenResponse = restTemplate.getForEntity("/api/auth/csrf", Map.class);
+        assertEquals(HttpStatus.OK, tokenResponse.getStatusCode());
+        assertNotNull(tokenResponse.getBody());
+        String csrfToken = (String) tokenResponse.getBody().get("token");
+        String setCookie = tokenResponse.getHeaders().getFirst(HttpHeaders.SET_COOKIE);
+        assertNotNull(csrfToken);
+        assertNotNull(setCookie);
+        String csrfCookie = setCookie.substring(0, setCookie.indexOf(';'));
+
+        HttpHeaders missingTokenHeaders = new HttpHeaders();
+        missingTokenHeaders.add(HttpHeaders.COOKIE, "access_token=invalid-token");
+        missingTokenHeaders.set("X-Test-Skip-CSRF", "true");
+        ResponseEntity<Void> missingToken = restTemplate.exchange(
+                "/api/auth/logout", HttpMethod.POST, new HttpEntity<>(missingTokenHeaders), Void.class);
+        assertEquals(HttpStatus.FORBIDDEN, missingToken.getStatusCode());
+
+        HttpHeaders validTokenHeaders = new HttpHeaders();
+        validTokenHeaders.add(HttpHeaders.COOKIE, "access_token=invalid-token; " + csrfCookie);
+        validTokenHeaders.set("X-XSRF-TOKEN", csrfToken);
+        validTokenHeaders.set("X-Test-Skip-CSRF", "true");
+        ResponseEntity<Void> validToken = restTemplate.exchange(
+                "/api/auth/logout", HttpMethod.POST, new HttpEntity<>(validTokenHeaders), Void.class);
+        assertEquals(HttpStatus.OK, validToken.getStatusCode());
+    }
+
+    @Test
     void originValidationFilterIsRegisteredForApiRequests() {
         assertTrue(securityFilterChain.getFilters("/api/auth/login").stream()
                 .anyMatch(OriginValidationFilter.class::isInstance));
@@ -1063,23 +1136,31 @@ class SecurityIntegrationTest {
         User recoveryUser = new User("recovery-" + java.util.UUID.randomUUID(), "encoded", Role.STUDENT);
         recoveryUser.setEmail(recoveryEmail);
         recoveryUser = userRepository.saveAndFlush(recoveryUser);
+        String verificationEmail = "verification-" + java.util.UUID.randomUUID() + "@example.test";
+        User verificationUser = new User("verification-" + java.util.UUID.randomUUID(), "encoded", Role.STUDENT);
+        verificationUser.setEmail(verificationEmail);
+        verificationUser.setEmailVerified(false);
+        verificationUser = userRepository.saveAndFlush(verificationUser);
 
         doThrow(new EmailDeliveryException("provider unavailable"))
                 .when(emailService).sendPasswordReset(eq(recoveryEmail), anyString(), eq(recoveryUser.getUsername()));
         doThrow(new EmailDeliveryException("provider unavailable"))
-                .when(emailService).sendEmailVerification(eq(recoveryEmail), anyString(), eq(recoveryUser.getUsername()));
+                .when(emailService).sendEmailVerification(
+                        eq(verificationEmail), anyString(), eq(verificationUser.getUsername()));
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        HttpEntity<String> body = new HttpEntity<>("{\"email\":\"" + recoveryEmail + "\"}", headers);
+        HttpEntity<String> resetBody = new HttpEntity<>("{\"email\":\"" + recoveryEmail + "\"}", headers);
+        HttpEntity<String> verificationBody =
+                new HttpEntity<>("{\"email\":\"" + verificationEmail + "\"}", headers);
 
         try {
             ResponseEntity<String> forgot = restTemplate.postForEntity(
-                    "/api/auth/forgot-password", body, String.class);
+                    "/api/auth/forgot-password", resetBody, String.class);
             ResponseEntity<String> resetResend = restTemplate.postForEntity(
-                    "/api/auth/resend-password-reset", body, String.class);
+                    "/api/auth/resend-password-reset", resetBody, String.class);
             ResponseEntity<String> verificationResend = restTemplate.postForEntity(
-                    "/api/auth/resend-email-verification", body, String.class);
+                    "/api/auth/resend-email-verification", verificationBody, String.class);
 
             assertEquals(HttpStatus.OK, forgot.getStatusCode());
             assertEquals(HttpStatus.OK, resetResend.getStatusCode());
@@ -1089,15 +1170,19 @@ class SecurityIntegrationTest {
             assertEquals("If the account exists, a verification email has been sent.",
                     verificationResend.getBody());
             assertFalse(passwordResetTokenRepository.findByUser(recoveryUser).isPresent());
-            assertFalse(emailVerificationTokenRepository.findByEmailIgnoreCase(recoveryEmail).isPresent());
+            assertFalse(emailVerificationTokenRepository.findByEmailIgnoreCase(verificationEmail).isPresent());
             verify(emailService, org.mockito.Mockito.times(2))
                     .sendPasswordReset(eq(recoveryEmail), anyString(), eq(recoveryUser.getUsername()));
             verify(emailService)
-                    .sendEmailVerification(eq(recoveryEmail), anyString(), eq(recoveryUser.getUsername()));
+                    .sendEmailVerification(
+                            eq(verificationEmail), anyString(), eq(verificationUser.getUsername()));
         } finally {
             passwordResetTokenRepository.deleteByUser(recoveryUser);
             emailVerificationTokenRepository.deleteByUser(recoveryUser);
             userRepository.delete(recoveryUser);
+            passwordResetTokenRepository.deleteByUser(verificationUser);
+            emailVerificationTokenRepository.deleteByUser(verificationUser);
+            userRepository.delete(verificationUser);
         }
     }
 
@@ -1893,9 +1978,10 @@ class SecurityIntegrationTest {
         assertEquals(HttpStatus.CREATED, created.getStatusCode());
         Long holdId = objectMapper.readTree(created.getBody()).get("id").asLong();
 
-        assertEquals(HttpStatus.NO_CONTENT,
-            exchangeAs("admin", "admin123", "/api/finance/holds/" + holdId + "/release",
-                HttpMethod.POST, null).getStatusCode());
+        ResponseEntity<String> released = exchangeAs("admin", "admin123",
+                "/api/finance/holds/" + holdId + "/release", HttpMethod.POST, null);
+        assertEquals(HttpStatus.OK, released.getStatusCode());
+        assertTrue(objectMapper.readTree(released.getBody()).has("automaticAssignments"));
 
         List<AuditLog> events = auditLogRepository.findAll().stream()
             .filter(event -> adminId.equals(event.getUserId()))
@@ -2528,7 +2614,7 @@ class SecurityIntegrationTest {
     }
 
             @Test
-            void academicReportsAreLimitedToStudentSelfTeacherAssignmentsOrAdmin() {
+            void academicReportsAreLimitedToStudentSelfOrAuthorizedInstitutionalReports() {
             Student assignedStudent = studentRepository.findByUserUsername("student1").orElseThrow();
             Student unassignedStudent = studentRepository.findByUserUsername("student2").orElseThrow();
             Teacher teacher = teacherRepository.findByUserUsername("teacher1").orElseThrow();
@@ -2543,7 +2629,7 @@ class SecurityIntegrationTest {
             assertEquals(HttpStatus.OK,
                 exchangeAs("student1", "student123", "/api/reports/academic/" + assignedStudent.getId(), HttpMethod.GET, null)
                     .getStatusCode());
-            assertEquals(HttpStatus.OK,
+            assertEquals(HttpStatus.FORBIDDEN,
                 exchangeAs("teacher1", "teacher123", "/api/reports/academic/" + assignedStudent.getId(), HttpMethod.GET, null)
                     .getStatusCode());
             assertEquals(HttpStatus.FORBIDDEN,

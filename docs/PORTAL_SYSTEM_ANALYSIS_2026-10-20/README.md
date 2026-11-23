@@ -1,6 +1,7 @@
 # Student Portal — System Analysis Presentation Pack
 
 **Prepared:** 20 October 2026  
+**Dashboard screenshots refreshed:** 20 November 2026<br>
 **Audience:** project presentation, system analysis, and design review  
 **Scope:** current portal code and configured pilot architecture; diagrams are
 deliberately bounded views, not an exhaustive inventory of every feature or
@@ -8,6 +9,8 @@ database table.
 
 ## Start here
 
+- `..\MIT_SIS_FIVE_MINUTE_PRESENTATION\MIT_SIS_Five_Minute_Presentation.pdf` —
+  concise six-slide SIS overview designed for a five-minute presentation.
 - `Student_Portal_System_Analysis_With_Dashboard_Screenshots.pptx` —
   presentation deck with dashboard screenshots.
 - `Student_Portal_System_Analysis_With_Dashboard_Screenshots.docx` — editable
@@ -15,7 +18,8 @@ database table.
 - `diagrams\` — high-resolution PNGs for inserting into other documents.
 - `screenshots\` — current student, teacher, and administrator dashboard
   layouts captured with clearly labeled illustrative mock data; these are not
-  authenticated captures or live account data.
+  authenticated captures or live account data. The folder also includes the
+  refreshed `student-mobile-390x844.png` and `admissions-intake.png` examples.
 - `sources\` — editable SVG, Mermaid source, and local regeneration scripts.
 
 The diagrams were checked against the Spring/JPA entities, Flyway/schema SQL,
@@ -111,9 +115,10 @@ node .\docs\PORTAL_SYSTEM_ANALYSIS_2026-10-20\sources\render-office.js
 project; the script compiles a temporary Java helper and leaves the final
 PowerPoint and Word documents in this pack. `capture-dashboards.js` uses the
 current dashboard HTML and CSS while disabling application scripts and inserting
-synthetic examples; it does not log in or call the portal API. The teacher
-snapshot uses a capture-only section sizing adjustment so its summary and
-workspace appear together. No application source or database is changed by
+synthetic examples; it writes the presentation images and dated evidence copies
+under `docs/screenshots/`. It does not log in or call the portal API. The
+teacher snapshot uses a capture-only section sizing adjustment so its summary
+and workspace appear together. No application source or database is changed by
 these presentation scripts.
 
 The original diagram-only Office files are retained if they are already open in

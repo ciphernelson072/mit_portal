@@ -568,6 +568,10 @@ end about a mid-session environment reset that required redoing part of this wor
   Chart.js from a CDN), `X-Frame-Options: DENY`. Documented `style-src 'unsafe-inline'`
   as a known, deliberate gap (the pages use inline `style=""` throughout) rather than
   silently dropping the header to avoid the tradeoff.
+  **Superseded 23 November 2026:** the inline allowance and jsDelivr source have
+  since been removed; inline scripts, event handlers, and styles were externalized.
+  The updated policy remains pending deployment to the active Render image.
+  See [Security hardening and release checks](./SECURITY_HARDENING.md).
 - **Database indexes**: found and fixed three real gaps - `courses.teacher_id` had no
   index at all despite being the exact column the new `findByTeacherId*` queries
   filter on; `course_students` only had a composite PK covering course-id-first

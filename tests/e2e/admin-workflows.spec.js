@@ -1,7 +1,8 @@
 const { test, expect } = require('@playwright/test');
+const { postWithCsrf, routeApiWithCsrf } = require('./csrf');
 
 async function loginAdmin(page) {
-  const response = await page.request.post('/api/auth/login', {
+  const response = await postWithCsrf(page, '/api/auth/login', {
     data: { username: 'admin', password: 'admin123' },
     headers: { 'x-forwarded-for': `198.51.100.${Math.floor(Math.random() * 200) + 1}` },
   });
@@ -15,7 +16,7 @@ async function loginAdmin(page) {
 
 test('admin sidebar buttons open their matching modules and external workspaces', async ({ page }) => {
   await loginAdmin(page);
-  await page.route('**/api/**', route => route.fulfill({
+  await routeApiWithCsrf(page, route => route.fulfill({
     status: 200,
     contentType: 'application/json',
     body: '[]',
@@ -48,7 +49,7 @@ test('admin can create a user account from user management', async ({ page }) =>
   const users = [{ id: 1, username: 'admin', role: 'ADMIN', isActive: true }];
   let submittedUser;
 
-  await page.route('**/api/**', async route => {
+  await routeApiWithCsrf(page, async route => {
     const request = route.request();
     const url = new URL(request.url());
     if (url.pathname === '/api/admin/users' && request.method() === 'GET') {
@@ -80,7 +81,7 @@ test('admin can create a user account from user management', async ({ page }) =>
 
 test('cancelling announcement audience prompt does not publish to everyone', async ({ page }) => {
   await loginAdmin(page);
-  await page.route('**/api/**', route => route.fulfill({
+  await routeApiWithCsrf(page, route => route.fulfill({
     status: 200,
     contentType: 'application/json',
     body: '[]',
@@ -114,7 +115,7 @@ test('admin can admit a student and refresh the student roster', async ({ page }
   const students = [];
   let submittedStudent;
 
-  await page.route('**/api/**', async route => {
+  await routeApiWithCsrf(page, async route => {
     const request = route.request();
     const url = new URL(request.url());
     if (url.pathname === '/api/admin/students' && request.method() === 'GET') {
@@ -157,7 +158,7 @@ test('admin can admit a student and refresh the student roster', async ({ page }
 
 test('admission enrollment identifies the matched profile contact email', async ({ page }) => {
   await loginAdmin(page);
-  await page.route('**/api/**', async route => {
+  await routeApiWithCsrf(page, async route => {
     const url = new URL(route.request().url());
     if (url.pathname === '/api/admissions/applications' && route.request().method() === 'GET') {
       await route.fulfill({
@@ -197,7 +198,7 @@ test('admin can hire a teacher and see the staff roster update', async ({ page }
   const teachers = [];
   let submittedTeacher;
 
-  await page.route('**/api/**', async route => {
+  await routeApiWithCsrf(page, async route => {
     const request = route.request();
     const url = new URL(request.url());
     if (url.pathname === '/api/admin/teachers' && request.method() === 'GET') {
@@ -268,7 +269,7 @@ test('admin is told when a teacher account is created but sign-in email failed',
   await loginAdmin(page);
   const teachers = [];
 
-  await page.route('**/api/**', async route => {
+  await routeApiWithCsrf(page, async route => {
     const request = route.request();
     const url = new URL(request.url());
     if (url.pathname === '/api/admin/teachers' && request.method() === 'GET') {
@@ -318,7 +319,7 @@ test('admin can create a course with category and teacher assignment', async ({ 
   const teacher = { id: 9, fullName: 'Test Lecturer' };
   let submittedCourse;
 
-  await page.route('**/api/**', async route => {
+  await routeApiWithCsrf(page, async route => {
     const request = route.request();
     const url = new URL(request.url());
     if (url.pathname === '/api/admin/courses' && request.method() === 'GET') {
@@ -376,7 +377,7 @@ test('admin can create a course with category and teacher assignment', async ({ 
 
 test('admin course category filter uses the categories returned by the server', async ({ page }) => {
   await loginAdmin(page);
-  await page.route('**/api/**', async route => {
+  await routeApiWithCsrf(page, async route => {
     const url = new URL(route.request().url());
     if (url.pathname === '/api/admin/courses') {
       await route.fulfill({
@@ -437,7 +438,7 @@ test('admin settings direct calendar and fees to their real operational modules'
 
 test('academic operations selects existing courses, examinations, and students by name', async ({ page }) => {
   await loginAdmin(page);
-  await page.route('**/api/**', async route => {
+  await routeApiWithCsrf(page, async route => {
     const pathname = new URL(route.request().url()).pathname;
     if (pathname === '/api/admin/courses') {
       await route.fulfill({
@@ -483,7 +484,7 @@ test('admin can update and inspect a student service request', async ({ page }) 
   let submittedStatus;
   let submittedAssignment;
 
-  await page.route('**/api/**', async route => {
+  await routeApiWithCsrf(page, async route => {
     const request = route.request();
     const url = new URL(request.url());
     if (url.pathname === '/api/student/requests/admin' && request.method() === 'GET') {
@@ -539,7 +540,7 @@ test('admin can create a student fee and review the finance row', async ({ page 
   let promptIndex = 0;
   page.on('dialog', dialog => dialog.accept(prompts[promptIndex++]));
 
-  await page.route('**/api/**', async route => {
+  await routeApiWithCsrf(page, async route => {
     const request = route.request();
     const url = new URL(request.url());
     if (url.pathname === '/api/admin/fees' && request.method() === 'GET') {
@@ -611,7 +612,7 @@ test('partial email campaign failures stay visible and only failed recipients re
   ];
   let submittedRecipientIds;
 
-  await page.route('**/api/**', async route => {
+  await routeApiWithCsrf(page, async route => {
     const request = route.request();
     const pathname = new URL(request.url()).pathname;
     if (pathname === '/api/auth/authorities') {
@@ -662,7 +663,7 @@ test('campaign clears all selections when a reported failed recipient cannot be 
     { id: 32, username: 'teacher-before-update', role: 'TEACHER', email: 'failed@example.test' },
   ];
 
-  await page.route('**/api/**', async route => {
+  await routeApiWithCsrf(page, async route => {
     const request = route.request();
     const pathname = new URL(request.url()).pathname;
     if (pathname === '/api/auth/authorities') {

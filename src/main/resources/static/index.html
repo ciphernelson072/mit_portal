@@ -24,7 +24,7 @@
       <div class="alert-title" id="alertTitle">Error</div>
       <div class="alert-text" id="alertText">Please check your input and try again.</div>
     </div>
-    <button class="alert-close" onclick="dismissAlert()">×</button>
+    <button class="alert-close" data-csp-action="dismissAlert" data-csp-event="click" data-csp-args="%5B%5D">×</button>
   </div>
 
   <!-- Login Card -->
@@ -43,7 +43,7 @@
 
     <!-- Card Body - Steps Container -->
     <div class="card-body">
-      <form id="studentLoginForm" autocomplete="on" onsubmit="handleLogin(event)">
+      <form id="studentLoginForm" autocomplete="on" data-csp-action="handleLogin" data-csp-event="submit" data-csp-args="%5B%7B%22%24mitCspArg%22%3A%22event%22%7D%5D">
       <div class="step active" id="step1">
         <div class="step-header">
           <h2>Welcome Back</h2>
@@ -73,7 +73,7 @@
             autocomplete="current-password"
             required
           />
-          <button type="button" class="toggle-password" onclick="togglePasswordVisibility()" aria-label="Show password">👁️</button>
+          <button type="button" class="toggle-password" data-csp-action="togglePasswordVisibility" data-csp-event="click" data-csp-args="%5B%5D" aria-label="Show password">👁️</button>
         </div>
         <div class="input-wrap" id="otpGroup" hidden>
           <span class="icon">🔐</span>
@@ -90,7 +90,7 @@
           SIGN IN <span class="arrow">›</span>
         </button>
         <div class="form-links">
-          <a href="#" class="forgot-link" onclick="requestPasswordReset(event)">Forgot Password?</a>
+          <a href="#" class="forgot-link" data-csp-action="requestPasswordReset" data-csp-event="click" data-csp-args="%5B%7B%22%24mitCspArg%22%3A%22event%22%7D%5D">Forgot Password?</a>
         </div>
       </div>
       </form>
@@ -101,7 +101,7 @@
   <!-- Footer -->
   <div class="card-footer">
     <p class="terms">By logging in, I agree to the <a href="terms.html">Terms &amp; Conditions</a></p>
-    <p class="help-text">New student? <a href="admissions.html">Apply for admission</a>. A portal login is created after administrator approval and enrollment.</p>
+    <p class="help-text">Prospective applicant? <a href="admissions.html">Apply for admission</a>. A portal login is created after administrator approval and enrollment.</p>
     <p class="help-text"><strong>Need Help?</strong> Contact Support at <a href="tel:+256769234213">+256 769 234213</a></p>
   </div>
 

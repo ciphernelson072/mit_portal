@@ -66,6 +66,66 @@ class FileUploadServiceTest {
     }
 
     @Test
+    void studentDocumentsRequireMatchingExtensionMimeTypeAndSignature() throws Exception {
+        FileUploadService service = service(1024);
+        byte[] pdf = "%PDF-1.7 content".getBytes();
+        MockMultipartFile valid = new MockMultipartFile(
+                "file", "transcript.pdf", "application/pdf", pdf);
+        MockMultipartFile mismatchedMime = new MockMultipartFile(
+                "file", "transcript.pdf", "image/png", pdf);
+        MockMultipartFile forged = new MockMultipartFile(
+                "file", "transcript.pdf", "application/pdf", "not a pdf".getBytes());
+        MockMultipartFile unsupported = new MockMultipartFile(
+                "file", "transcript.svg", "application/pdf", pdf);
+
+        String path = service.uploadStudentDocument(valid, 17L);
+
+        assertTrue(path.matches("documents/17/[0-9a-f-]+\\.pdf"));
+        assertArrayEquals(pdf, Files.readAllBytes(uploadRoot.resolve(path)));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.uploadStudentDocument(mismatchedMime, 17L));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.uploadStudentDocument(forged, 17L));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.uploadStudentDocument(unsupported, 17L));
+    }
+
+    @Test
+    void courseMaterialsRequireMatchingExtensionMimeTypeAndSignature() throws Exception {
+        FileUploadService service = service(1024);
+        byte[] png = new byte[] {(byte) 0x89, 'P', 'N', 'G', 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0};
+        MockMultipartFile valid = new MockMultipartFile("file", "diagram.png", "image/png", png);
+        MockMultipartFile forged = new MockMultipartFile(
+                "file", "diagram.png", "image/png", new byte[] {1, 2, 3});
+        MockMultipartFile mismatchedMime = new MockMultipartFile(
+                "file", "diagram.png", "image/jpeg", png);
+
+        String path = service.uploadCourseMaterial(valid, 8L);
+
+        assertTrue(path.matches("materials/8/[0-9a-f-]+\\.png"));
+        assertArrayEquals(png, Files.readAllBytes(uploadRoot.resolve(path)));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.uploadCourseMaterial(forged, 8L));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.uploadCourseMaterial(mismatchedMime, 8L));
+    }
+
+    @Test
+    void profileImagesRequireImageSignatures() throws Exception {
+        FileUploadService service = service(1024);
+        byte[] png = new byte[] {(byte) 0x89, 'P', 'N', 'G', 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0};
+        MockMultipartFile valid = new MockMultipartFile("file", "photo.png", "image/png", png);
+        MockMultipartFile forged = new MockMultipartFile("file", "photo.png", "image/png", new byte[] {1});
+
+        String path = service.uploadStudentProfileImage(valid, 17L);
+
+        assertTrue(path.matches("students/17_[0-9a-f-]+\\.png"));
+        assertArrayEquals(png, Files.readAllBytes(uploadRoot.resolve(path)));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.uploadStudentProfileImage(forged, 17L));
+    }
+
+    @Test
     void fileListingReturnsOnlyRegularFilesAsUploadRelativePaths() throws Exception {
         FileUploadService service = service(1024);
         Path file = uploadRoot.resolve("documents").resolve("17").resolve("test.pdf");

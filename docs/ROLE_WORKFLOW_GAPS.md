@@ -1,8 +1,14 @@
 # Admin, Teacher, and Student Workflow Gap Audit
 
-Last reviewed: 11 November 2026
+Last reviewed: 20 November 2026
 
 This audit compares implemented source paths for the Admin, Teacher, and Student roles. It does not treat a UI control or recorded browser test as proof of production readiness.
+
+The current image, commit `682553db36256d08a93362e22b069776c8c2a096`, was
+deployed to the Render Free test service on 20 November 2026 after CI passed.
+Health/readiness and public login/admissions routes were verified, but
+authenticated role workflows and existing-database acceptance remain open.
+The deployment boundary applies to the implementation-status notes below.
 
 ## Summary
 
@@ -17,19 +23,37 @@ This audit compares implemented source paths for the Admin, Teacher, and Student
 
 ## Confirmed gaps
 
+### Current release behavior (20 November 2026)
+
+- **Admission and registration:** enrolling an accepted applicant or opening
+  term registration attempts required-course assignment for active students
+  using their programme semester, configured curriculum, existing course
+  instructor, and eligible sections. Review the returned issues; the system
+  does not assign instructors.
+- **Progression:** new admissions start in semester 1. The portal recommends
+  progression from approved required-course results, but the Registrar must
+  review and authorize the semester update.
+- **Account security:** each user has one active session; a new login
+  invalidates the previous session, and Profile > Security provides revocation
+  controls.
+- **Operations:** daily fee/grade reminders, attendance-risk alerts, queued
+  notification-email retries, configurable admission documents, and
+  Finance-approved draft fees are available. Live provider delivery and
+  authenticated workflow acceptance still require target-environment testing.
+
 ### 1. Grade rejection notification
 
 - **Files:** [GradeApprovalService.java](../src/main/java/com/sis/service/GradeApprovalService.java), [GradeApprovalController.java](../src/main/java/com/sis/controller/GradeApprovalController.java), [teacher-script.js](../src/main/resources/static/js/teacher-script.js)
 - **Status:** Rejection creates in-app grade-category notifications for both the submitting teacher and the student, including the course and rejection reason. The teacher workflow test now asserts each recipient and message exactly. Rejection does not send email; email remains for approved grades under the existing preference gate.
 - **Correction visibility:** Students can view correction status, reason, and authorization time in Academics. A source-backed browser test covers authorized and submitted states and verifies unsafe text is escaped.
-- **Remaining:** Validate the notification preference/display behavior and correction lifecycle against the target deployment after the current source updates are released.
+- **Remaining:** Validate notification preference/display behavior and the correction lifecycle with authenticated test accounts in the deployed service; health and public-route checks are not user acceptance.
 
 ### 2. Grade appeals and correction lifecycle
 
 - **Files:** [GradeAppealController.java](../src/main/java/com/sis/controller/GradeAppealController.java), [GradeAppealService.java](../src/main/java/com/sis/service/GradeAppealService.java), [modules-script.js](../src/main/resources/static/js/modules-script.js), [admin-script.js](../src/main/resources/static/js/admin-script.js), [teacher-script.js](../src/main/resources/static/js/teacher-script.js), [ACADEMIC_RESULTS_WORKFLOW.md](ACADEMIC_RESULTS_WORKFLOW.md)
 - **Evidence:** Students can appeal only their own approved grades in currently published official results, with at most one active appeal per grade. Staff requests teacher consultation; the assigned teacher can respond in writing, or staff can record a consultation without a written response. An administrator with grade-approval permission records the final decision. Approval does not modify the grade or bypass the separate correction-authorization workflow.
 - **Affected roles:** All roles.
-- **Implementation status:** Implemented locally with migration V51, audit events, notifications, and student/teacher/admin interfaces. Focused persistence tests cover unpublished-grade denial, student ownership, duplicate active appeals, consultation, both written and no-written-response paths, decision gating, and the separation from grade correction. Source-backed Playwright tests exercise all three role interfaces and HTML escaping.
+- **Implementation status:** Included in the 20 November deployed release with migration V51, audit events, notifications, and student/teacher/admin interfaces. Focused persistence tests cover unpublished-grade denial, student ownership, duplicate active appeals, consultation, both written and no-written-response paths, decision gating, and the separation from grade correction. Source-backed Playwright tests exercise all three role interfaces and HTML escaping.
 - **Verification:** V51 passed migration and Hibernate schema validation on disposable MySQL 8.0 and TiDB v8.5.0; source-backed role-flow browser coverage passed. Validate against the reviewed intended-database copy before rollout.
 - **Remaining:** Institutionally define correction expiry, appeal deadlines/escalation, and the formal correction/reopening procedure.
 
@@ -41,7 +65,7 @@ This audit compares implemented source paths for the Admin, Teacher, and Student
 - **Impact:** Teachers can track result lifecycle states and receive notifications for blocked or invalidated results without receiving marks or return reasons.
 - **Implementation status:** Successful-publication notifications and blocked/invalidated status notifications are implemented. Status notifications are deduplicated per teacher, student, state, and results version, including repeated status-feed reads. The feed limits course labels to assigned courses and does not expose marks or full reports. Grade-category visibility preferences continue to control in-app display.
 - **Verification:** `AcademicReportApprovalPersistenceTest` verifies blocked and invalidated notifications and duplicate suppression; `TeacherControllerFetchTest` verifies the feed uses the authenticated teacher account. V52 and V53 passed disposable MySQL 8.0 and TiDB v8.5.0 migration and Hibernate schema validation.
-- **Remaining:** Validate the migrations and role workflows against a reviewed copy of the intended database before deployment.
+- **Remaining:** Validate the migration against a reviewed copy of any existing intended database and complete authenticated role-workflow acceptance before real-data use.
 
 ### 4. Legacy and assessment grading entry can coexist
 
@@ -61,7 +85,7 @@ This audit compares implemented source paths for the Admin, Teacher, and Student
 - **Affected roles:** Teacher, Student, Admin.
 - **Policy:** Students receive in-app notifications when newly marked absent or late, or when attendance changes into one of those states. Unchanged roster resubmissions do not generate duplicate alerts. Teacher submissions remain authoritative; students retain the existing dispute path, and no separate administrator approval is added.
 - **Impact:** Student notices use the `ATTENDANCE` category. The category appears in the notification list by default and can be hidden through the student's notification preferences. Alerts contain course and date, not teacher remarks.
-- **Implementation status:** Implemented locally alongside attendance-linked student disputes, requested corrected presence, teacher course queues, administrator escalation/review, notifications, audit logs, and migration V47. Focused service tests verify absent/late alerts, transitions, and duplicate suppression on repeated submission. Target database acceptance and deployment remain pending.
+- **Implementation status:** Included in the 20 November deployed release alongside attendance-linked student disputes, requested corrected presence, teacher course queues, administrator escalation/review, notifications, audit logs, and migration V47. Focused service tests verify absent/late alerts, transitions, and duplicate suppression on repeated submission. Target database and authenticated workflow acceptance remain pending.
 - **Access-control note:** The shared dispute-list endpoint now scopes teacher results to assigned courses; administrator and attendance-manager results remain institution-wide.
 
 ### 6. Student pre-publication grade visibility
@@ -70,7 +94,7 @@ This audit compares implemented source paths for the Admin, Teacher, and Student
 - **Policy:** Before publication, students may see course and workflow status only (awaiting review, approved but awaiting publication, or returned for revision). Marks, grade values, GPA, and return reasons are not exposed.
 - **Evidence:** `GET /api/student/grade-status` scopes the query to the authenticated student and returns only course code, course name, and workflow status. It returns an empty list after publication; the existing grade endpoint continues to return detailed grades only after publication. Backend contract/role tests and source-backed browser tests cover the minimal payload, escaping, status labels, and published-view hiding.
 - **Affected role:** Student.
-- **Implementation status:** Implemented locally. Target-database acceptance and deployment remain pending.
+- **Implementation status:** Included in the 20 November deployed release. Target-database and authenticated workflow acceptance remain pending.
 
 ### 7. Announcement audience targeting
 
@@ -78,18 +102,18 @@ This audit compares implemented source paths for the Admin, Teacher, and Student
 - **Evidence:** Announcements now support `ALL`, `ADMIN`, `TEACHER`, and `STUDENT` audiences; in-app notifications and email recipients are filtered by role. Cancelling the audience prompt now cancels publication rather than defaulting to `ALL`.
 - **Affected roles:** All roles.
 - **Implementation status:** Role-filtered in-app notices use a distinct `ANNOUNCEMENT` category. Students can hide or show that category through profile preferences; older four- and five-category settings keep their existing index meanings and default announcements to visible. Optional announcement email remains controlled separately by the existing email opt-in. Recipient records are selected once per publication.
-- **Remaining:** Audience selection currently targets all users or one role; programme/course targeting is unsupported. Delivery deduplication and a recipient delivery summary are not established.
-- **Impact:** Programme- and course-specific announcements remain unsupported, and delivery summary/deduplication are not established.
+- **Remaining:** Programme/course targeting is implemented for student announcements; delivery still needs target-environment acceptance.
+- **Impact:** Student announcements can match active programme enrolment and/or legacy/registered course enrolment. Role-audience delivery is deduplicated and publication responses report in-app, sent, failed, and skipped email counts.
 - **Recommendation:** Add narrower target IDs only if required; verify announcement delivery behavior in the supported deployment and test the prompt-cancellation path.
 
 ### 8. Email delivery and request-notification boundaries
 
 - **Files:** [AuthController.java](../src/main/java/com/sis/controller/AuthController.java), [EmailService.java](../src/main/java/com/sis/service/EmailService.java), [AdminEmailCampaignService.java](../src/main/java/com/sis/service/AdminEmailCampaignService.java), [messages.js](../src/main/resources/static/js/messages.js), [INTEGRATION_GAPS.md](./INTEGRATION_GAPS.md)
 - **Evidence:** Password-reset and email-verification resends return generic responses for known and unknown accounts, including when provider delivery fails; provider errors are logged server-side. The failed token-creation transaction rolls back. Administrator campaigns are sent individually to selected active accounts and report partial provider failures.
-- **Implementation status:** Campaign delivery continues after an individual send failure. The UI marks partial delivery as an error and leaves only named failed recipients selected when the returned names map completely to the submitted selection. If names no longer map (for example, an account was renamed during delivery), all selections are cleared and the recipient list must be refreshed before retrying. Request and leave email is not enabled; their current lifecycle alerts are in-app.
+- **Implementation status:** Campaign delivery continues after an individual send failure. The UI marks partial delivery as an error and leaves only named failed recipients selected when the returned names map completely to the submitted selection. If names no longer map (for example, an account was renamed during delivery), all selections are cleared and the recipient list must be refreshed before retrying. Service-request, staff-leave, attendance-dispute, grade-appeal, and grade-correction lifecycle notifications enter the retryable email queue when each recipient has opted in; notification emails use the account email. Grade-result and announcement emails use their dedicated profile-contact delivery and are not duplicated by the generic queue.
 - **Verification:** Two partial-campaign browser regressions pass: identified failures remain selected for retry, while an unmatched failed name clears all selections and prompts a list refresh.
 - **Verification:** `SecurityIntegrationTest` verifies generic responses for known/unknown accounts and confirms failed provider delivery leaves no reset or verification token persisted.
-- **Remaining:** Verify transactional recovery and campaign delivery using approved target-environment test accounts. Decide whether request and leave notifications should also send email before changing that policy.
+- **Remaining:** Verify transactional recovery, lifecycle-notification email, and campaign delivery using approved target-environment test accounts. Provider acceptance does not prove inbox delivery. Administrators can now reset exhausted notification deliveries from the activity panel for one new retry cycle; target-provider recovery and inbox acceptance remain external gates.
 
 ## Additional release-critical gaps requiring acceptance evidence
 
@@ -97,8 +121,8 @@ These are documented in the existing integration and deployment reports and need
 
 1. Flutterwave sandbox checkout, webhook retry, duplicate handling, settlement reconciliation, and refunds.
 2. Production MySQL end-to-end workflows for login, admission provisioning, payments, reports, uploads, role ownership, and notifications.
-3. Admin review of student and teacher service/support requests records current ownership and an append-only status/assignment history; historical changes before V53 cannot be reconstructed. Service requests, staff leave, attendance disputes, grade appeals, and grade corrections use in-app notifications, not email; decide separately whether these events should use transactional email.
-4. Email bounce/retry monitoring and notification preferences for grade, CGPA, and announcement events.
+3. Admin review of student and teacher service/support requests records current ownership and an append-only status/assignment history; historical changes before V53 cannot be reconstructed. Service requests, staff leave, attendance disputes, grade appeals, and grade corrections queue opt-in email notifications through the shared retry system. Verify this behavior with synthetic recipients in the test service.
+4. Email bounce/retry monitoring and notification preferences for grade, CGPA, announcement, request, leave, appeal, and dispute notifications.
 5. Production backup scheduling, encryption, off-host retention, restore rehearsal, and upload durability.
 6. MFA policy, recovery, key rotation, and locked-account support.
 7. Shared-rate-limit storage and shared/object file storage before horizontal scaling.
@@ -107,7 +131,7 @@ These are documented in the existing integration and deployment reports and need
 
 1. Define whether legacy grade imports are migration-only or an approved operational path.
 2. Resolve remaining institutional grade-policy decisions, including correction expiry and appeal deadlines/escalation.
-3. Validate Flyway V51-V53 and current role workflows against a reviewed copy of the intended database.
+3. Validate the current Flyway migration set and role workflows against a reviewed copy of the intended database before migrating existing records.
 4. Add narrower announcement audience targeting only if programme/course targeting is required.
 5. Run target-database end-to-end role tests and verify publication/download ownership.
 6. Complete provider sandbox and production operational acceptance.

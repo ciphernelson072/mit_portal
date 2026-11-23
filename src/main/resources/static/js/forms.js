@@ -141,7 +141,7 @@ class FormValidator {
         // Clear previous errors
         this.form.querySelectorAll('.form-error').forEach(el => {
             el.textContent = '';
-            el.style.display = 'none';
+            el.hidden = true;
         });
 
         // Display current errors
@@ -157,7 +157,7 @@ class FormValidator {
                                 })();
 
                 errorEl.textContent = errorMessage;
-                errorEl.style.display = 'block';
+                errorEl.hidden = false;
                 field.element.classList.add('error');
                 field.element.classList.remove('success');
             }
@@ -268,7 +268,7 @@ function setFieldFeedback(field, isValid, message = '') {
     const errorEl = field.parentElement.querySelector('.form-error');
     if (errorEl) {
         errorEl.textContent = message;
-        errorEl.style.display = isValid ? 'none' : 'block';
+        errorEl.hidden = isValid;
     }
 }
 

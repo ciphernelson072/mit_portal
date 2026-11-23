@@ -104,7 +104,7 @@ public final class OfficePackGenerator {
         addText(slide, "Student Portal", 0.8, 1.4, 11.8, 0.8, 38, true, new Color(23, 50, 77));
         addText(slide, "System Analysis and Design", 0.85, 2.3, 11.6, 0.7, 28, true, new Color(47, 111, 159));
         addText(slide, "Architecture · Data flows · ERDs · UML use cases and sequences", 0.9, 3.3, 11.2, 0.6, 20, false, new Color(64, 87, 107));
-        addText(slide, "Code-informed presentation pack  |  20 October 2026", 0.9, 5.8, 11.2, 0.5, 15, false, new Color(99, 119, 138));
+        addText(slide, "Analysis prepared 20 October 2026  |  screenshots refreshed 20 November 2026", 0.9, 5.8, 11.2, 0.5, 15, false, new Color(99, 119, 138));
         addText(slide, "Selected views · confirm environment and integration readiness before presenting", 0.9, 6.3, 11.2, 0.5, 14, false, new Color(99, 119, 138));
     }
 
@@ -137,7 +137,7 @@ public final class OfficePackGenerator {
             XWPFParagraph subtitle = document.createParagraph();
             subtitle.setAlignment(ParagraphAlignment.CENTER);
             XWPFRun subtitleRun = subtitle.createRun();
-            subtitleRun.setText("Code-informed presentation companion · 20 October 2026");
+            subtitleRun.setText("Analysis prepared 20 October 2026 · dashboard screenshots refreshed 20 November 2026");
             subtitleRun.setFontSize(12);
             subtitleRun.setColor("587087");
 
@@ -154,7 +154,7 @@ public final class OfficePackGenerator {
             paragraph(document, "Use synthetic data. Do not share .env files, secrets, tokens, MFA material, database dumps, real student/staff/applicant information, payment records, internal hostnames, or the temporary tunnel URL as a permanent address. Keep demo access details separate and share them only through an approved secure channel.");
             paragraph(document, "A live health check is not a substitute for authenticated acceptance testing of student, teacher, and administrator workflows. Present optional or partial integrations as such and clearly distinguish current implementation from proposed or pending operational controls.");
 
-            heading(document, "Current dashboards — illustrative mock data", 1);
+            heading(document, "Current dashboards — illustrative mock data (screenshots refreshed 20 November 2026)", 1);
             paragraph(document, "These screenshots use the project's current dashboard HTML and styles, with JavaScript/API calls disabled and clearly synthetic sample values inserted for presentation. They are not authenticated captures and do not show live account or system data.");
             for (int i = 0; i < FILES.length; i++) {
                 document.createParagraph().createRun().addBreak(BreakType.PAGE);

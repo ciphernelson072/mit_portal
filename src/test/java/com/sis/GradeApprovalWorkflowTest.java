@@ -103,7 +103,9 @@ class GradeApprovalWorkflowTest {
         GradeApprovalService gradeApprovalService = Mockito.mock(GradeApprovalService.class);
         SchoolService schoolService = Mockito.mock(SchoolService.class);
 
-        GradeApprovalController controller = new GradeApprovalController(gradeApprovalService, schoolService, gradeRepository);
+        GradeApprovalController controller = new GradeApprovalController(
+                gradeApprovalService, schoolService, gradeRepository,
+                Mockito.mock(com.sis.service.AutomaticCourseAssignmentService.class));
 
         ResponseEntity<List<AdminGradeDto>> response = controller.pendingGrades();
 

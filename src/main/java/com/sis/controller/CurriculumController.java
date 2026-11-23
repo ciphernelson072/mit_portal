@@ -4,6 +4,7 @@ import com.sis.dto.CreateCurriculumCourseRequest;
 import com.sis.dto.CreatePrerequisiteRequest;
 import com.sis.entity.CoursePrerequisite;
 import com.sis.entity.CurriculumCourse;
+import com.sis.service.AutomaticCourseAssignmentService;
 import com.sis.service.CurriculumService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -20,13 +21,24 @@ import java.util.Map;
 @PreAuthorize("isAuthenticated()")
 public class CurriculumController {
     private final CurriculumService curriculumService;
+    private final AutomaticCourseAssignmentService automaticCourseAssignments;
 
-    public CurriculumController(CurriculumService curriculumService) { this.curriculumService = curriculumService; }
+    public CurriculumController(CurriculumService curriculumService,
+                                AutomaticCourseAssignmentService automaticCourseAssignments) {
+        this.curriculumService = curriculumService;
+        this.automaticCourseAssignments = automaticCourseAssignments;
+    }
 
     @PostMapping("/courses")
     @PreAuthorize("@permissionSecurity.canManageRegistration()")
     public ResponseEntity<Map<String, Object>> addCourse(@Valid @RequestBody CreateCurriculumCourseRequest request) {
-        return ResponseEntity.status(201).body(courseResponse(curriculumService.addCourse(request)));
+        CurriculumCourse course = curriculumService.addCourse(request);
+        Map<String, Object> response = courseResponse(course);
+        if (Boolean.TRUE.equals(course.getRequired())) {
+            response.put("automaticAssignments", automaticCourseAssignments.assignActiveStudentsForProgramSemester(
+                    course.getProgram().getId(), course.getSemesterNumber()));
+        }
+        return ResponseEntity.status(201).body(response);
     }
 
     @PostMapping("/prerequisites")

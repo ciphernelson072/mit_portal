@@ -6,7 +6,7 @@ import com.sis.dto.AttendanceDisputeDto;
 import com.sis.dto.ReviewAttendanceDisputeRequest;
 import com.sis.dto.CourseDto;
 import com.sis.dto.CourseUnitDto;
-import com.sis.dto.StudentProfileDto;
+import com.sis.dto.TeacherStudentRosterDto;
 import com.sis.dto.TeacherDashboardOverviewDto;
 import com.sis.dto.TeacherProfileDto;
 import com.sis.dto.TeacherGradeDto;
@@ -134,7 +134,7 @@ public class TeacherController {
 
 
     @GetMapping("/students/{studentId}/profile")
-    public ResponseEntity<StudentProfileDto> getStudentProfile(@PathVariable Long studentId) {
+    public ResponseEntity<TeacherStudentRosterDto> getStudentProfile(@PathVariable Long studentId) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         Student student = schoolService.getStudentById(studentId).orElse(null);
         if (student == null) {
@@ -144,13 +144,15 @@ public class TeacherController {
                 .map(teacher -> schoolService.getCoursesForTeacher(teacher.getId()).stream()
                         .anyMatch(course -> schoolService.studentEnrolledInCourse(student.getId(), course.getId())))
                 .orElse(false);
-        return assignedCourseEnrollment
-                ? ResponseEntity.ok(schoolService.getStudentProfile(studentId))
+        boolean assignedCourseUnitEnrollment =
+                schoolService.teacherHasStudentInCourseUnit(username, studentId);
+        return assignedCourseEnrollment || assignedCourseUnitEnrollment
+                ? ResponseEntity.ok(toTeacherRosterDto(student))
                 : ResponseEntity.notFound().build();
     }
 
     @GetMapping("/courses/{courseId}/students")
-    public ResponseEntity<List<StudentProfileDto>> listStudentsForCourse(@PathVariable Long courseId) {
+    public ResponseEntity<List<TeacherStudentRosterDto>> listStudentsForCourse(@PathVariable Long courseId) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         Course course = schoolService.getCourseById(courseId)
             .orElseThrow(() -> new ResourceNotFoundException("Course not found with id: " + courseId));
@@ -158,19 +160,24 @@ public class TeacherController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
         return ResponseEntity.ok(schoolService.listStudentsByCourse(courseId).stream()
-                .map(student -> schoolService.getStudentProfile(student.getId()))
+                .map(TeacherController::toTeacherRosterDto)
                 .collect(Collectors.toList()));
     }
 
     @GetMapping("/course-units/{unitId}/students")
-    public ResponseEntity<List<StudentProfileDto>> listStudentsForCourseUnit(@PathVariable Long unitId) {
+    public ResponseEntity<List<TeacherStudentRosterDto>> listStudentsForCourseUnit(@PathVariable Long unitId) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         if (!schoolService.teacherOwnsCourseUnit(username, unitId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
         return ResponseEntity.ok(schoolService.listStudentsByCourseUnit(unitId).stream()
-                .map(student -> schoolService.getStudentProfile(student.getId()))
+                .map(TeacherController::toTeacherRosterDto)
                 .collect(Collectors.toList()));
+    }
+
+    private static TeacherStudentRosterDto toTeacherRosterDto(Student student) {
+        return new TeacherStudentRosterDto(
+                student.getId(), student.getFullName(), student.getRegistrationNumber());
     }
 
     @GetMapping("/courses/{courseId}/attendance")
@@ -194,9 +201,10 @@ public class TeacherController {
                 .orElseThrow(() -> new ResourceNotFoundException("Teacher not found for user: " + username));
 
         List<CourseDto> courses = schoolService.getCoursesForTeacher(teacher.getId());
+        List<CourseUnitDto> courseUnits = schoolService.getCourseUnitsForTeacher(teacher.getId());
         List<Long> courseIds = courses.stream().map(CourseDto::getId).toList();
 
-        long studentCount = schoolService.countDistinctStudentsInCourses(courseIds);
+        long studentCount = schoolService.countDistinctStudentsTaughtByTeacher(teacher.getId());
         long pendingGradeCount = schoolService.countPendingGradesInCourses(courseIds);
         long upcomingAssignmentCount = schoolService.countUpcomingAssignmentsInCourses(
                 courseIds, java.time.LocalDateTime.now());
@@ -210,6 +218,7 @@ public class TeacherController {
                 pendingGradeCount,
                 upcomingAssignmentCount,
                 pendingAttendanceCount);
+        overview.setAssignedCourseUnitCount((long) courseUnits.size());
         return ResponseEntity.ok(overview);
     }
 

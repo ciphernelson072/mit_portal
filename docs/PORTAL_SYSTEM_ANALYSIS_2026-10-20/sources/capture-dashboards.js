@@ -6,15 +6,18 @@ const { chromium } = require('playwright');
 const projectRoot = path.resolve(__dirname, '..', '..', '..');
 const staticRoot = path.join(projectRoot, 'src', 'main', 'resources', 'static');
 const outputRoot = path.resolve(__dirname, '..', 'screenshots');
+const evidenceRoot = path.join(projectRoot, 'docs', 'screenshots');
 const roles = [
-  { route: '/dashboard.html', output: 'student-dashboard.png', fill: fillStudent, height: 900 },
-  { route: '/teacher-dashboard.html', output: 'teacher-dashboard.png', fill: fillTeacher, height: 900 },
-  { route: '/admin-dashboard.html', output: 'administrator-dashboard.png', fill: fillAdmin, height: 900 },
+  { route: '/dashboard.html', output: 'student-dashboard.png', evidenceOutput: 'student-dashboard-2026-11-20.png', fill: fillStudent, width: 1600, height: 900 },
+  { route: '/teacher-dashboard.html', output: 'teacher-dashboard.png', evidenceOutput: 'teacher-dashboard-2026-11-20.png', fill: fillTeacher, width: 1600, height: 900 },
+  { route: '/admin-dashboard.html', output: 'administrator-dashboard.png', evidenceOutput: 'admin-dashboard-2026-11-20.png', fill: fillAdmin, width: 1600, height: 900 },
+  { route: '/dashboard.html', output: 'student-mobile-390x844.png', evidenceOutput: 'student-mobile-390x844-2026-11-20.png', fill: fillStudent, width: 390, height: 844, fullPage: true },
+  { route: '/admissions.html', output: 'admissions-intake.png', evidenceOutput: 'admissions-intake-2026-11-20.png', fill: fillAdmissions, width: 1440, height: 1100 },
 ];
 
 function fillStudent() {
   document.querySelector('.student-name').textContent = 'Demo Learner';
-  document.querySelector('#currentDate').textContent = 'Tuesday, 20 October 2026 · Semester 1';
+  document.querySelector('#currentDate').textContent = 'Friday, 20 November 2026 · Semester 1';
   const stats = document.querySelectorAll('.quick-stats .stat-value');
   ['3.72', '94%', '48', 'Semester 1'].forEach((value, index) => { stats[index].textContent = value; });
   const profile = document.querySelector('.program-info');
@@ -24,17 +27,29 @@ function fillStudent() {
     '<ul><li>Database Systems <span>CS 2201</span></li><li>Web Application Development <span>CS 2204</span></li><li>Systems Analysis <span>CS 2207</span></li></ul>',
     '<ul><li>Database Systems <strong>A−</strong></li><li>Discrete Mathematics <strong>B+</strong></li></ul>',
     '<p><strong>94%</strong> attendance across 32 recorded classes</p>',
-    '<ul><li>Systems Analysis · project brief <span>23 Oct</span></li><li>Database Systems · lab report <span>27 Oct</span></li></ul>',
-    '<p>Tuition balance: <strong>UGX 450,000</strong></p><p>Next due date: 30 October 2026</p>',
-    '<p><strong>Registration window open</strong></p><p>Semester 1 course registration is available until 31 October.</p>',
+    '<ul><li>Systems Analysis · project brief <span>23 Nov</span></li><li>Database Systems · lab report <span>27 Nov</span></li></ul>',
+    '<p>Tuition balance: <strong>UGX 450,000</strong></p><p>Next due date: 30 November 2026</p>',
+    '<p><strong>Registration window open</strong></p><p>Required Semester 1 courses are assigned automatically. Review My Courses before 30 November.</p>',
   ];
   cards.forEach((card, index) => { card.innerHTML = content[index]; });
   const links = document.querySelector('#personalQuickLinksList');
   if (links) links.innerHTML = '<a class="module-card" href="#"><div class="module-icon">📅</div><h3>My timetable</h3><p>Today · 2 scheduled classes</p></a>';
 }
 
+function fillAdmissions() {
+  const programme = document.querySelector('#programId');
+  programme.innerHTML = '<option value="sample-program" selected>BSc Information Technology · sample</option>';
+  programme.disabled = false;
+  const year = document.querySelector('#academicYearId');
+  year.innerHTML = '<option value="sample-year" selected>2026/2027 academic year · sample</option>';
+  year.disabled = false;
+  document.querySelector('#admissionDocumentChecklist').innerHTML = '<ul><li>Sample required document: identity document</li><li>Sample optional document: academic transcript</li></ul>';
+  document.querySelector('#submitAdmissionButton').disabled = false;
+}
+
 function fillTeacher() {
   document.querySelector('#teacherWelcome').textContent = 'Welcome, Demo Lecturer · School of Computing';
+  document.querySelector('#teacherPublicationStatusList').innerHTML = '<p>Live result data is not loaded in this synthetic capture.</p>';
   const stats = {
     assignedCourseCount: '4',
     enrolledStudentCount: '126',
@@ -82,6 +97,7 @@ function fillAdmin() {
   }
   const email = document.querySelector('#adminProfileEmail');
   if (email) email.textContent = 'admin.demo@example.invalid';
+  document.querySelector('#emailDeliveryActivity').innerHTML = '<p>Live delivery activity is not loaded; inbox delivery is not verified.</p>';
 }
 
 function startStaticServer() {
@@ -116,31 +132,35 @@ function startStaticServer() {
 
 async function main() {
   fs.mkdirSync(outputRoot, { recursive: true });
+  fs.mkdirSync(evidenceRoot, { recursive: true });
   const server = await startStaticServer();
   const address = server.address();
   const browser = await chromium.launch({ headless: true });
   try {
     const page = await browser.newPage({ viewport: { width: 1600, height: 900 }, deviceScaleFactor: 1 });
     for (const role of roles) {
-      await page.setViewportSize({ width: 1600, height: role.height });
+      await page.setViewportSize({ width: role.width, height: role.height });
       await page.goto(`http://127.0.0.1:${address.port}${role.route}`, { waitUntil: 'networkidle' });
       if (role.route === '/teacher-dashboard.html') {
         await page.addStyleTag({ content: '.teacher-content > section { flex: 0 0 auto; overflow: visible; } .teacher-summary #teacherDashboardStatus:empty { display: none; }' });
       }
       await page.evaluate(role.fill);
-      await page.evaluate(() => {
+      await page.evaluate(fullPage => {
         window.scrollTo(0, 0);
         document.documentElement.scrollTop = 0;
         document.body.scrollTop = 0;
         document.querySelector('.teacher-content')?.scrollTo(0, 0);
         const label = document.createElement('div');
-        label.textContent = 'ILLUSTRATIVE MOCK DATA · NOT A LIVE USER ACCOUNT';
-        label.style.cssText = 'position:fixed;z-index:99999;right:18px;bottom:14px;padding:9px 13px;border-radius:7px;background:#17324d;color:#fff;font:700 12px Segoe UI,Arial,sans-serif;letter-spacing:.04em;box-shadow:0 3px 12px #0003';
+        label.textContent = 'ILLUSTRATIVE MOCK DATA · NOT AUTHENTICATED OR LIVE';
+        label.style.cssText = fullPage
+          ? 'display:table;margin:16px 18px;padding:9px 13px;border-radius:7px;background:#17324d;color:#fff;font:700 12px Segoe UI,Arial,sans-serif;letter-spacing:.04em;box-shadow:0 3px 12px #0003'
+          : 'position:fixed;z-index:99999;right:18px;bottom:14px;padding:9px 13px;border-radius:7px;background:#17324d;color:#fff;font:700 12px Segoe UI,Arial,sans-serif;letter-spacing:.04em;box-shadow:0 3px 12px #0003';
         document.body.append(label);
-      });
+      }, Boolean(role.fullPage));
       const output = path.join(outputRoot, role.output);
-      await page.screenshot({ path: output, fullPage: false, animations: 'disabled' });
-      console.log(`Captured ${role.output}`);
+      await page.screenshot({ path: output, fullPage: Boolean(role.fullPage), animations: 'disabled' });
+      fs.copyFileSync(output, path.join(evidenceRoot, role.evidenceOutput));
+      console.log(`Captured ${role.output} and ${role.evidenceOutput}`);
     }
   } finally {
     await browser.close();

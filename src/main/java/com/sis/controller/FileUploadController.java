@@ -20,6 +20,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.ContentDisposition;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -147,14 +148,22 @@ public class FileUploadController {
     @PreAuthorize("hasAuthority('ADMIN') or @fileAccessService.isOwnFile(#filePath)")
     public ResponseEntity<Resource> downloadFile(@RequestParam String filePath) {
         try {
-            byte[] fileContent = fileUploadService.getFileAsBytes(filePath);
-            
-            String filename = filePath.substring(filePath.lastIndexOf("/") + 1);
-            String contentType = getContentType(filename);
-
-            return ResponseEntity.ok()
-                    .contentType(MediaType.parseMediaType(contentType))
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+            String normalizedPath = fileUploadService.normalizeRelativePath(filePath);
+            byte[] fileContent = fileUploadService.getFileAsBytes(normalizedPath);
+            String filename = normalizedPath.substring(normalizedPath.lastIndexOf("/") + 1);
+            boolean profileImage = isProfileImagePath(normalizedPath, filename);
+            ResponseEntity.BodyBuilder response = ResponseEntity.ok()
+                    .header("X-Content-Type-Options", "nosniff");
+            if (profileImage) {
+                response.contentType(MediaType.parseMediaType(getContentType(filename)))
+                        .header(HttpHeaders.CONTENT_DISPOSITION,
+                                ContentDisposition.inline().filename(filename).build().toString());
+            } else {
+                response.contentType(MediaType.APPLICATION_OCTET_STREAM)
+                        .header(HttpHeaders.CONTENT_DISPOSITION,
+                                ContentDisposition.attachment().filename(filename).build().toString());
+            }
+            return response
                     .body(new InputStreamResource(new org.springframework.core.io.ByteArrayResource(fileContent).getInputStream()));
         } catch (IOException e) {
             logger.severe("Error downloading file: " + e.getMessage());
@@ -233,5 +242,14 @@ public class FileUploadController {
             return "application/pdf";
         }
         return "application/octet-stream";
+    }
+
+    private boolean isProfileImagePath(String path, String filename) {
+        String lowerPath = path.toLowerCase(java.util.Locale.ROOT);
+        String lowerFilename = filename.toLowerCase(java.util.Locale.ROOT);
+        boolean profileDirectory = lowerPath.startsWith("students/") || lowerPath.startsWith("teachers/");
+        boolean image = lowerFilename.endsWith(".jpg") || lowerFilename.endsWith(".jpeg")
+                || lowerFilename.endsWith(".png") || lowerFilename.endsWith(".gif");
+        return profileDirectory && image;
     }
 }

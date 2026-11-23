@@ -20,7 +20,28 @@ Before production traffic:
    database pool usage, and application uptime.
 5. Store alert recipients and escalation contacts outside the application.
 
+The application also publishes non-sensitive counters through
+`/actuator/prometheus`: HTTP bad requests, HTTP 5xx errors, authentication
+failures, access denials, consumed MFA recovery codes, and backup-health alerts.
+Counter values contain counts only; they do not include usernames, recovery
+codes, passwords, request bodies, or provider payloads.
+
+The rate-limit implementation remains intentionally single-instance. Production
+startup fails unless `APP_INSTANCE_COUNT=1`, `RATE_LIMIT_STORE=memory`, and
+`FILE_STORAGE_ADAPTER=filesystem`. This is a deployment guard, not distributed
+rate limiting or shared storage. Add a shared store, gateway policy, persistent
+object/shared storage, and cross-instance tests before enabling replicas.
+
 ## Logs and errors
+
+Application console logs use a structured key/value line format and include
+`X-Request-ID`, HTTP method, route, status, and duration for each request.
+The request filter accepts only bounded safe request-ID characters, generating
+a UUID for missing or unsafe values. Logs must not include HTTP bodies or query
+strings; secrets, passwords, OTPs, recovery codes, and provider payloads must
+remain outside application log statements. A centralized log shipper may
+forward stdout/stderr to an approved provider, but provider selection, retention,
+access control, and alerting still require institutional acceptance.
 
 Application logs are not a substitute for centralized logging. Select a hosted
 log/error service, route structured application output there, and test:
@@ -43,6 +64,12 @@ Use these repository scripts:
 - `ops/backup-tidb-dumpling.ps1` and `ops/run-tidb-backups.ps1` for TiDB.
 - `ops/backup-mysql.ps1` and `ops/restore-mysql.ps1` for MySQL.
 - `ops/backup-uploads.ps1` and `ops/restore-uploads.ps1` for uploads.
+- `ops/rehearse-restores.ps1` for a controlled disposable MySQL and upload rehearsal.
+
+The rehearsal script rejects existing database names, requires a disposable name
+matching `*_restore_rehearsal_*`, restores uploads to a temporary directory, and
+verifies Flyway history and application tables after a MySQL restore. Use
+`-DropDisposableDatabaseAfterSuccess` only for explicitly authorized cleanup.
 
 Each restore target must be disposable and the database restore must be
 authorized. Run a restore rehearsal that verifies:
@@ -66,7 +93,40 @@ artifact and its `.sha256` sidecar must be readable by the app process. Set
 `BACKUP_MAX_AGE_HOURS` to the institution's freshness target. A missing marker
 is reported as not configured, not as a successful backup.
 
+A scheduled daily backup-health monitor runs at 08:45 in
+`APP_AUTOMATION_TIME_ZONE`. It verifies database and upload marker evidence,
+artifact checksums, future timestamps, and freshness. It sends one daily
+in-app alert per unhealthy backup kind to active administrators or users with
+the `PORTAL_SETTINGS_MANAGE` permission. Database job locking prevents duplicate
+alerts across application instances. This monitor does not create archives,
+upload backups off-host, or replace an external monitoring/alert service.
+
 ## Portal automations
+
+When an accepted applicant is enrolled, when a term registration window opens,
+after the Registrar updates a student's current programme semester, or when a
+required course is added to a curriculum during open registration, the portal
+attempts to register eligible active students in that programme and semester
+for open terms. A successful student course registration, programme transfer,
+lifecycle reactivation, or restored student account also retries assignment
+for the student's active enrollment(s).
+Restoring an instructor account or changing a course's instructor also retries
+required-course assignment for active enrollments whose current semester
+requires courses taught by that instructor.
+The generic admin account-restore route performs the same role-aware retry for
+student and instructor accounts.
+Releasing the final active financial hold retries assignment; releasing one
+hold while others remain does not. Creating a section during open registration
+retries eligible students previously skipped because no section was available.
+Dropping a course while registration is open retries that course's required
+assignments for active enrollments in the same academic year and term; the
+student who dropped it remains subject to registrar review for that course.
+Approving a prerequisite grade also retries assignments for that student's
+active enrollments in open terms. The portal uses the active instructor
+already assigned to each course and eligible sections; it does not select
+instructors or advance student semesters. Review the assignment summary and
+resolve missing instructors/sections, capacity, financial holds, prior drops,
+and other reported issues.
 
 The daily fee and grade reminders run at 09:00 and attendance-risk alerts at
 09:30 in `APP_AUTOMATION_TIME_ZONE` (default `Africa/Nairobi`). The daily

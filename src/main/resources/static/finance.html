@@ -28,7 +28,7 @@
         <button type="button" class="search-btn">🔍</button>
       </div>
       <div class="header-icons">
-        <button class="icon-btn" onclick="goToDashboard()" title="Back to Dashboard">⬅️</button>
+        <button class="icon-btn" data-csp-action="goToDashboard" data-csp-event="click" data-csp-args="%5B%5D" title="Back to Dashboard">⬅️</button>
         <div class="icon-wrapper dropdown">
           <button class="icon-btn profile-btn" id="profileBtn">
             <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%231a3a8c'/%3E%3Ccircle cx='50' cy='35' r='15' fill='%23fff'/%3E%3Cpath d='M20 80 Q20 60 50 60 Q80 60 80 80' fill='%23fff'/%3E%3C/svg%3E" alt="Profile" class="profile-avatar">
@@ -37,7 +37,7 @@
             <div class="dropdown-header">Account</div>
             <a href="profile.html" class="menu-link">👤 My Profile</a>
             <a href="profile.html#preferences" class="menu-link">⚙️ Settings</a>
-            <button class="menu-link logout-btn" onclick="handleLogoutClick()">🚪 Logout</button>
+            <button class="menu-link logout-btn" data-csp-action="handleLogoutClick" data-csp-event="click" data-csp-args="%5B%5D">🚪 Logout</button>
           </div>
         </div>
       </div>
@@ -50,11 +50,11 @@
 
   <!-- Navigation Tabs -->
   <div class="module-tabs">
-    <button class="tab-btn active" onclick="switchTab('summary')">💰 Summary</button>
-    <button class="tab-btn" onclick="switchTab('pending')">⏰ Pending Payments</button>
-    <button class="tab-btn" onclick="switchTab('invoices')">📄 Invoices</button>
-    <button class="tab-btn" onclick="switchTab('receipts')">✓ Receipts</button>
-    <button class="tab-btn" onclick="switchTab('scholarships')">🎓 Scholarships</button>
+    <button class="tab-btn active" data-csp-action="switchTab" data-csp-event="click" data-csp-args="%5B%22summary%22%5D">💰 Summary</button>
+    <button class="tab-btn" data-csp-action="switchTab" data-csp-event="click" data-csp-args="%5B%22pending%22%5D">⏰ Pending Payments</button>
+    <button class="tab-btn" data-csp-action="switchTab" data-csp-event="click" data-csp-args="%5B%22invoices%22%5D">📄 Invoices</button>
+    <button class="tab-btn" data-csp-action="switchTab" data-csp-event="click" data-csp-args="%5B%22receipts%22%5D">✓ Receipts</button>
+    <button class="tab-btn" data-csp-action="switchTab" data-csp-event="click" data-csp-args="%5B%22scholarships%22%5D">🎓 Scholarships</button>
   </div>
 
   <!-- TAB 1: SUMMARY -->
@@ -69,7 +69,7 @@
           <p class="card-amount" aria-live="polite">Loading…</p>
           <p class="card-detail">Loading fee records</p>
         </div>
-        <button class="btn-primary small" onclick="initiatePayment()">Pay Now</button>
+        <button class="btn-primary small" data-csp-action="initiatePayment" data-csp-event="click" data-csp-args="%5B%5D">Pay Now</button>
       </div>
 
       <div class="finance-card amount-paid">

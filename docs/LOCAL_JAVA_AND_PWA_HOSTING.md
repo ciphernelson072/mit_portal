@@ -111,7 +111,9 @@ environment before `run-sis.bat run`; never add them to tracked property files.
   `PAYMENT_WEBHOOK_SECRET` and the relevant provider settings only after the
   provider can reach the public HTTPS callback URL. Temporary tunnel URLs are
   unsuitable for dependable payment callbacks.
-- **MFA:** optional; when enabled, configure a persistent `MFA_ENCRYPTION_KEY`.
+- **MFA:** optional in local/development profiles; configure a persistent
+  `MFA_ENCRYPTION_KEY` when enabled. The production profile requires MFA for
+  privileged accounts and refuses to start without a valid persistent key.
 - **Uploads and backups:** `UPLOAD_DIR` and backup marker paths must point to
   writable, backed-up local storage. Copy uploads and database backups to
   separate protected storage regularly; the PWA cache is not a backup.

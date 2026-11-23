@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { routeApiWithCsrf } = require('./csrf');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -21,7 +22,7 @@ async function serveProtectedWorkspace(page, filename) {
 test('student profile photo opens in an accessible full-screen viewer', async ({ page }) => {
   await setRoleHint(page, 'synthetic-student', 'STUDENT');
   await serveProtectedWorkspace(page, 'dashboard.html');
-  await page.route('**/api/**', async route => {
+  await routeApiWithCsrf(page, async route => {
     const url = new URL(route.request().url());
     if (url.pathname === '/api/student/profile') {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
@@ -45,7 +46,7 @@ test('student profile photo opens in an accessible full-screen viewer', async ({
 test('teacher can view their own and assigned student photos, export scoped CSVs, and use workspace menus', async ({ page }) => {
   await setRoleHint(page, 'synthetic-teacher', 'TEACHER');
   await serveProtectedWorkspace(page, 'teacher-dashboard.html');
-  await page.route('**/api/**', async route => {
+  await routeApiWithCsrf(page, async route => {
     const url = new URL(route.request().url());
     const responses = {
       '/api/teacher/me': { id: 3, fullName: 'Ruth Nakato', profileImagePath: 'teachers/3_photo.jpg' },
@@ -98,7 +99,7 @@ test('teacher can view their own and assigned student photos, export scoped CSVs
 test('admin can download JSON and dataset-separated CSV exports', async ({ page }) => {
   await setRoleHint(page, 'synthetic-admin', 'ADMIN');
   await serveProtectedWorkspace(page, 'admin-dashboard.html');
-  await page.route('**/api/**', async route => {
+  await routeApiWithCsrf(page, async route => {
     const url = new URL(route.request().url());
     let body = [];
     if (url.pathname === '/api/admin/statistics') body = { totalStudents: 1, totalTeachers: 1 };

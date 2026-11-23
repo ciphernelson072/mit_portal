@@ -14,6 +14,9 @@ import com.sis.entity.Faculty;
 import com.sis.entity.Program;
 import com.sis.entity.RegistrationStatus;
 import com.sis.entity.Role;
+import com.sis.entity.Student;
+import com.sis.entity.StudentLifecycleStatus;
+import com.sis.entity.StudentProgram;
 import com.sis.entity.Teacher;
 import com.sis.entity.User;
 import org.junit.jupiter.api.Test;
@@ -77,6 +80,9 @@ class RegistrationCurriculumFetchTest {
     private StudentRepository students;
 
     @Autowired
+    private StudentProgramRepository studentPrograms;
+
+    @Autowired
     private EntityManagerFactory entityManagerFactory;
 
     @Test
@@ -125,7 +131,7 @@ class RegistrationCurriculumFetchTest {
         assertThat(students.findByCourseIdIncludingRegistrations(course.getId()))
                 .extracting(com.sis.entity.Student::getId).containsExactly(student.getId());
 
-        Program program = saveProgram();
+        Program program = saveProgram("FETCH");
         CurriculumCourse curriculumCourse = new CurriculumCourse();
         curriculumCourse.setProgram(program);
         curriculumCourse.setCourse(course);
@@ -172,6 +178,60 @@ class RegistrationCurriculumFetchTest {
                 .getPrerequisiteCourse().getCourseCode()).isEqualTo("FETCH100");
     }
 
+    @Test
+    void automaticAssignmentQueryOnlyReturnsStudentsInTheRequestedSemester() {
+        AcademicYear year = new AcademicYear();
+        year.setCode("AUTO-AY");
+        year.setName("Automation Academic Year");
+        year.setStartDate(LocalDate.of(2026, 1, 1));
+        year.setEndDate(LocalDate.of(2026, 12, 31));
+        year = academicYears.saveAndFlush(year);
+        AcademicYear otherYear = new AcademicYear();
+        otherYear.setCode("AUTO-AY-OTHER");
+        otherYear.setName("Other Automation Academic Year");
+        otherYear.setStartDate(LocalDate.of(2027, 1, 1));
+        otherYear.setEndDate(LocalDate.of(2027, 12, 31));
+        otherYear = academicYears.saveAndFlush(otherYear);
+        Program program = saveProgram("AUTO");
+        Student matchingStudent = saveStudent("auto-match");
+        Student otherSemesterStudent = saveStudent("auto-semester");
+        Student otherYearStudent = saveStudent("auto-other-year");
+        saveEnrollment(matchingStudent, program, year, 2);
+        saveEnrollment(otherSemesterStudent, program, year, 3);
+        saveEnrollment(otherYearStudent, program, otherYear, 2);
+        Teacher teacher = teachers.saveAndFlush(
+                new Teacher(new User("auto-assignment-teacher", "encoded", Role.TEACHER), "Automation Teacher"));
+        CourseCategory category = categories.saveAndFlush(new CourseCategory("AUTO", "Automation Category"));
+        Course requiredCourse = saveCourse("AUTO101", "Automation Required Course", teacher, category);
+        CurriculumCourse requiredMapping = new CurriculumCourse();
+        requiredMapping.setProgram(program);
+        requiredMapping.setCourse(requiredCourse);
+        requiredMapping.setSemesterNumber(2);
+        requiredMapping.setRequired(true);
+        curriculum.saveAndFlush(requiredMapping);
+
+        assertThat(studentPrograms.findActiveForAutoAssignmentByProgramIdAndCurrentSemester(
+                program.getId(), 2, StudentLifecycleStatus.ACTIVE))
+                .extracting(enrollment -> enrollment.getStudent().getId())
+                .containsExactlyInAnyOrder(matchingStudent.getId(), otherYearStudent.getId());
+        assertThat(studentPrograms.findActiveForAutoAssignmentByStudentId(
+                matchingStudent.getId(), StudentLifecycleStatus.ACTIVE))
+                .extracting(enrollment -> enrollment.getStudent().getId())
+                .containsExactly(matchingStudent.getId());
+        assertThat(studentPrograms.findActiveForAutoAssignmentByCourseId(
+                requiredCourse.getId(), StudentLifecycleStatus.ACTIVE))
+                .extracting(enrollment -> enrollment.getStudent().getId())
+                .containsExactlyInAnyOrder(matchingStudent.getId(), otherYearStudent.getId());
+        assertThat(studentPrograms.findActiveForAutoAssignmentByTeacherId(
+                teacher.getId(), StudentLifecycleStatus.ACTIVE))
+                .extracting(enrollment -> enrollment.getStudent().getId())
+                .containsExactlyInAnyOrder(matchingStudent.getId(), otherYearStudent.getId());
+        assertThat(studentPrograms.findActiveForAutoAssignmentByCourseIdAndAcademicYearId(
+                requiredCourse.getId(), year.getId(), StudentLifecycleStatus.ACTIVE))
+                .extracting(enrollment -> enrollment.getStudent().getId())
+                .containsExactly(matchingStudent.getId());
+    }
+
     private Course saveCourse(String code, String name, Teacher teacher, CourseCategory category) {
         Course course = new Course(name, teacher);
         course.setCourseCode(code);
@@ -179,30 +239,46 @@ class RegistrationCurriculumFetchTest {
         return courses.saveAndFlush(course);
     }
 
-    private Program saveProgram() {
+    private Program saveProgram(String prefix) {
         Campus campus = new Campus();
-        campus.setCode("FETCH-C");
+        campus.setCode(prefix + "-C");
         campus.setName("Fetch Campus");
         campus = campuses.saveAndFlush(campus);
 
         Faculty faculty = new Faculty();
-        faculty.setCode("FETCH-F");
+        faculty.setCode(prefix + "-F");
         faculty.setName("Fetch Faculty");
         faculty.setCampus(campus);
         faculty = faculties.saveAndFlush(faculty);
 
         Department department = new Department();
-        department.setCode("FETCH-D");
+        department.setCode(prefix + "-D");
         department.setName("Fetch Department");
         department.setFaculty(faculty);
         department = departments.saveAndFlush(department);
 
         Program program = new Program();
-        program.setCode("FETCH-P");
+        program.setCode(prefix + "-P");
         program.setName("Fetch Program");
         program.setAwardTitle("Fetch Award");
         program.setDepartment(department);
         program.setDurationYears(3);
         return programs.saveAndFlush(program);
+    }
+
+    private Student saveStudent(String username) {
+        User user = new User(username, "encoded", Role.STUDENT);
+        user.setIsActive(true);
+        return students.saveAndFlush(new Student(user, "Automation Student", "Year 1"));
+    }
+
+    private void saveEnrollment(Student student, Program program, AcademicYear year, int semester) {
+        StudentProgram enrollment = new StudentProgram();
+        enrollment.setStudent(student);
+        enrollment.setProgram(program);
+        enrollment.setAcademicYear(year);
+        enrollment.setCurrentSemester(semester);
+        enrollment.setStatus(StudentLifecycleStatus.ACTIVE);
+        studentPrograms.saveAndFlush(enrollment);
     }
 }

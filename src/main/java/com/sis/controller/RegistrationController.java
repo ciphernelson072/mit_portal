@@ -1,14 +1,17 @@
 package com.sis.controller;
 
+import com.sis.dto.AutomaticCourseAssignmentSummary;
 import com.sis.dto.CreateCourseSectionRequest;
 import com.sis.entity.CourseRegistration;
 import com.sis.entity.CourseSection;
 import com.sis.entity.Teacher;
+import com.sis.service.AutomaticCourseAssignmentService;
 import com.sis.service.RegistrationService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
@@ -21,9 +24,12 @@ import java.util.Map;
 @PreAuthorize("isAuthenticated()")
 public class RegistrationController {
     private final RegistrationService registrationService;
+    private final AutomaticCourseAssignmentService automaticCourseAssignments;
 
-    public RegistrationController(RegistrationService registrationService) {
+    public RegistrationController(RegistrationService registrationService,
+                                  AutomaticCourseAssignmentService automaticCourseAssignments) {
         this.registrationService = registrationService;
+        this.automaticCourseAssignments = automaticCourseAssignments;
     }
 
     @GetMapping("/sections")
@@ -44,7 +50,17 @@ public class RegistrationController {
     @PostMapping("/sections")
     @PreAuthorize("@permissionSecurity.canManageRegistration()")
     public ResponseEntity<Map<String, Object>> createSection(@Valid @RequestBody CreateCourseSectionRequest request) {
-        return ResponseEntity.status(201).body(sectionResponse(registrationService.createSection(request), 0L));
+        CourseSection section = registrationService.createSection(request);
+        AutomaticCourseAssignmentSummary assignments = null;
+        if (Boolean.TRUE.equals(section.getAcademicTerm().getRegistrationOpen())) {
+            assignments = automaticCourseAssignments.assignActiveStudentsForTerm(
+                    section.getAcademicTerm().getId());
+        }
+        long registeredCount = registrationService.registeredCounts(List.of(section))
+                .getOrDefault(section.getId(), 0L);
+        Map<String, Object> response = sectionResponse(section, registeredCount);
+        if (assignments != null) response.put("automaticAssignments", assignments);
+        return ResponseEntity.status(201).body(response);
     }
 
     @GetMapping("/mine")
@@ -56,15 +72,24 @@ public class RegistrationController {
 
     @PostMapping("/sections/{sectionId}")
     @PreAuthorize("hasAuthority('STUDENT')")
+    @Transactional
     public ResponseEntity<Map<String, Object>> register(@PathVariable Long sectionId) {
-        return ResponseEntity.status(201).body(registrationResponse(
-                registrationService.register(username(), sectionId)));
+        CourseRegistration registration = registrationService.register(username(), sectionId);
+        Map<String, Object> response = registrationResponse(registration);
+        response.put("automaticAssignments",
+                automaticCourseAssignments.assignStudentForOpenTerms(registration.getStudent().getId()));
+        return ResponseEntity.status(201).body(response);
     }
 
     @DeleteMapping("/{registrationId}")
     @PreAuthorize("hasAuthority('STUDENT')")
+    @Transactional
     public ResponseEntity<Void> drop(@PathVariable Long registrationId) {
-        registrationService.drop(username(), registrationId);
+        CourseRegistration droppedRegistration = registrationService.drop(username(), registrationId);
+        automaticCourseAssignments.assignActiveStudentsForCourseInTerm(
+                droppedRegistration.getStudent().getId(),
+                droppedRegistration.getSection().getCourse().getId(),
+                droppedRegistration.getSection().getAcademicTerm().getId());
         return ResponseEntity.noContent().build();
     }
 
