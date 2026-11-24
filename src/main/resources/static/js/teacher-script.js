@@ -408,9 +408,9 @@ function renderTeacherRoster(students) {
   table.querySelector('tbody').innerHTML = students.map(student => {
     const name = escapeHtml(student.fullName);
     const photo = student.profileImagePath
-      ? `<img class="teacher-roster-photo" src="${API}/files/download?filePath=${encodeURIComponent(student.profileImagePath)}" alt="Profile photo of ${name}; activate to view full screen" data-photo-viewer tabindex="0" role="button">`
-      : '—';
-    return `<tr><td>${photo}</td><td>${name}</td><td>${escapeHtml(student.registrationNumber || '—')}</td></tr>`;
+      ? `<img class="teacher-roster-photo" src="${API}/files/download?filePath=${encodeURIComponent(student.profileImagePath)}" alt="Profile photo of ${name}; activate to view full screen" data-photo-viewer tabindex="0" role="button"> `
+      : '';
+    return `<tr><td>${photo}${name}</td><td>${escapeHtml(student.registrationNumber || '—')}</td></tr>`;
   }).join('');
 }
 
@@ -698,19 +698,26 @@ async function submitMaterial(event) {
     form.append('description', document.getElementById('materialDescription').value.trim());
     form.append('file', file);
     await apiFetch('/materials', { method: 'POST', body: form });
-    setStatus('materialStatus', 'Material published successfully.', 'success');
     event.target.reset();
-    await loadTeacherMaterials();
+    const refreshed = await loadTeacherMaterials();
+    if (refreshed) {
+      setStatus('materialStatus', 'Material published successfully.', 'success');
+    } else {
+      const refreshMessage = document.getElementById('materialStatus').textContent.trim();
+      setStatus('materialStatus',
+        `Material published successfully. ${refreshMessage || 'The materials list could not be refreshed.'}`,
+        'warning');
+    }
   } catch (err) { setStatus('materialStatus', err.message, 'error'); }
 }
 
 async function loadTeacherMaterials() {
   const list = document.getElementById('teacherMaterialList');
-  if (!list) return;
+  if (!list) return false;
   const courses = window._teacherCourses || [];
   if (!courses.length) {
     list.innerHTML = '<p>No assigned courses available.</p>';
-    return;
+    return false;
   }
   const results = await Promise.allSettled(courses.map(async course => ({
     course,
@@ -738,12 +745,15 @@ async function loadTeacherMaterials() {
     list.textContent = 'Unable to load published course materials.';
     const firstFailure = failedCourses[0].reason;
     setStatus('materialStatus', firstFailure?.message || 'Unable to load published course materials.', 'error');
+    return false;
   } else if (failedCourses.length) {
     setStatus('materialStatus',
       `Materials loaded for ${courses.length - failedCourses.length} of ${courses.length} courses; some course responses failed.`,
       'warning');
+    return false;
   } else {
     setStatus('materialStatus', '', '');
+    return true;
   }
 }
 
