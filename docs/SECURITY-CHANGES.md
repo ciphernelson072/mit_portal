@@ -1,16 +1,39 @@
 # Security Changes Summary
 
-## Security hardening update (23 November 2026)
+## Security hardening update (23 November 2026, historical checkpoint)
 
 The review confirmed no exploitable vulnerability, but identified four
 hardening gaps. The current working tree now validates upload signatures,
 requires cookie-backed CSRF tokens for unsafe browser requests, rejects inline
 scripts/styles and removes the jsDelivr CSP allowance, and fails production
 startup unless privileged MFA and a valid persistent key are configured.
-Focused backend and frontend checks passed. These changes are not live yet:
-the active Render image still emits the previous permissive CSP. See
-[Security hardening and release checks](./SECURITY_HARDENING.md) for the exact
-release gate and live verification evidence.
+Focused backend and frontend checks passed. At that checkpoint, the active
+Render image still emitted the previous permissive CSP; the 24 November
+deployment superseded that status. See
+[Security hardening and release checks](./SECURITY_HARDENING.md) for the
+verified live headers and remaining acceptance checks.
+
+## MFA enrollment and credential-case fix (24 November 2026)
+
+Commit `e7a6f502caed9e180e9f1451ed267f030ae4d2af` fixes an administrator MFA
+enrollment 403 when a short-lived enrollment token outlives a change from
+required to optional MFA. The filter applies current policy while retaining
+restricted enrollment access when MFA is still enforced. Each new setup
+request replaces an unverified pending TOTP seed. Passwords remain
+case-sensitive; usernames and email matching remain trimmed and
+case-insensitive, with roles and permissions determined server-side.
+
+Regression tests cover the policy transition, seed replacement, all three
+roles, and password casing. CI run
+[133](https://github.com/ciphernelson072/mit_portal/actions/runs/45383385603)
+passed, and the immutable image was deployed to the Render test service.
+Later screenshot review found account-security CSS overriding native hidden
+states, making unavailable MFA buttons visible. Corrective CSS and UI guards,
+a backend 409 response for verify-before-setup, regression tests, and service-
+worker cache v39 are now in the working tree. Focused backend tests (96),
+frontend tests (29), and syntax checks (41 files) passed. Full CI and deployment
+remain pending. Treat the screenshot-exposed pending seed as compromised and
+replace it.
 
 ## Permission model
 

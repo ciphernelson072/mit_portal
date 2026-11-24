@@ -429,6 +429,16 @@ class SecurityIntegrationTest {
             assertEquals(HttpStatus.OK, securityPage.getStatusCode());
             assertTrue(securityPage.getBody().contains("Authenticator two-factor authentication"));
 
+            MfaVerifyRequest verifyBeforeSetup = new MfaVerifyRequest();
+            verifyBeforeSetup.setCurrentPassword("admin123");
+            verifyBeforeSetup.setOtp("123456");
+            ResponseEntity<Map> verifyBeforeSetupResponse = restTemplate.exchange(
+                    "/api/auth/mfa/verify", HttpMethod.POST,
+                    new HttpEntity<>(verifyBeforeSetup, pendingHeaders), Map.class);
+            assertEquals(HttpStatus.CONFLICT, verifyBeforeSetupResponse.getStatusCode());
+            assertEquals("Set up an authenticator before verifying a code.",
+                    verifyBeforeSetupResponse.getBody().get("message"));
+
             MfaSetupRequest setupRequest = new MfaSetupRequest();
             setupRequest.setCurrentPassword("admin123");
             ResponseEntity<MfaSetupResponse> setupResponse = restTemplate.exchange(

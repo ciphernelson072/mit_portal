@@ -9,6 +9,35 @@ enabled until their owner disables MFA with their password and current code.
 Production requires a persistent Base64-encoded 32-byte `MFA_ENCRYPTION_KEY`
 while the feature is enabled.
 
+## Latest release and reported 403 (24 November 2026)
+
+Render reported deployment `dep-dc2nh4mc6qcc73fi3km0` live on image
+`sha-e7a6f502caed9e180e9f1451ed267f030ae4d2af`. The screenshot shows MFA
+reported as disabled while the setup, verify, and disable actions are all
+visible. The root cause in the page is that shared button CSS sets
+`display: inline-flex`, which overrides the browser's default `[hidden]`
+styling. This can expose the disable action while MFA is off and the verify
+action before a setup secret has been generated. The backend's 403 checks for
+enforced MFA and restricted enrollment are intentional security boundaries;
+they must not be removed to hide a UI defect.
+
+The source correction hides all `[hidden]` descendants in the account-security
+page, adds a regression assertion, and bumps the service-worker cache to v39
+so clients receive the corrected UI. Client handlers also refuse verification
+without a locally received setup secret and refuse to send a disable request
+when MFA status is false. The backend returns a clear 409 response if
+verification is attempted before setup; server-side authorization checks stay
+in place. Focused backend tests passed (96 tests), frontend unit tests passed
+(29), and JavaScript syntax validation passed (41 files). CI and deployment for
+this correction are still pending. After it is deployed, refresh/update the
+portal and use the flow shown by the state: generate a setup QR/key first,
+scan it, then submit the current password and a current six-digit code to
+enable MFA. Do not select “Turn off” when status says MFA is disabled. A prior
+pending setup seed appeared in a screenshot; replace it with a fresh setup key
+and do not reuse the exposed one. If the failure persists, capture the failing
+request path and response body without exposing passwords, OTPs, cookies, QR
+codes, or seeds.
+
 ## User enrollment
 
 1. Keep `MFA_ENABLED=true`, `MFA_REQUIRED_FOR_PRIVILEGED=false`, and
@@ -22,7 +51,8 @@ while the feature is enabled.
    password. The portal creates the TOTP QR locally and returns it only in the
    authenticated response; no external QR-code service receives the seed.
    Starting setup again replaces any pending seed, so an exposed setup key can
-   be invalidated before MFA is enabled.
+   be invalidated before MFA is enabled. Replacing a pending seed does not turn
+   off an already-enabled authenticator.
 5. The user scans the QR with an authenticator app, opens the compatible
    `otpauth` link, or enters the manual setup key. Official Google and Microsoft
    app-store links are provided for users who need to install an app.

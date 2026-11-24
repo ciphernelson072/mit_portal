@@ -154,7 +154,7 @@ test('service worker precaches public pages but not authenticated dashboard page
   for (const asset of ['./dashboard.html', './admin-dashboard.html', './teacher-dashboard.html']) {
     assert.ok(!coreAssets.includes(asset), `${asset} requires authentication and must not be precached for anonymous users`);
   }
-  assert.match(serviceWorkerSource, /const CACHE_NAME = 'mit-portal-cache-v38';/);
+  assert.match(serviceWorkerSource, /const CACHE_NAME = 'mit-portal-cache-v39';/);
   assert.ok(coreAssets.includes('./js/pwa-update.js'), 'update support should be available offline');
 });
 
@@ -220,8 +220,15 @@ test('MFA enrollment offers a private QR code and official authenticator downloa
   const staticRoot = path.join(__dirname, '../src/main/resources/static');
   const securityPage = fs.readFileSync(path.join(staticRoot, 'account-security.html'), 'utf8');
   const securityScript = fs.readFileSync(path.join(staticRoot, 'js/profile-security.js'), 'utf8');
+  const securityCss = fs.readFileSync(path.join(staticRoot, 'css/account-security.css'), 'utf8');
 
   assert.match(securityPage, /id="mfaQrCode"[^>]*hidden/);
+  assert.match(securityPage, /id="mfaSetupButton"[^>]*hidden/);
+  assert.match(securityPage, /id="mfaVerifyButton"[^>]*hidden/);
+  assert.match(securityPage, /id="mfaDisableButton"[^>]*hidden/);
+  assert.match(securityCss, /\.account-security-main\s+\[hidden\]\s*\{\s*display:\s*none\s*!important;\s*\}/);
+  assert.match(securityScript, /if \(!\/\^\[A-Z2-7\]\{32\}\$\/\.test\(secret\.textContent\)\)/);
+  assert.match(securityScript, /if \(!enabled\)\s*\{\s*showMessage\('Two-factor authentication is not enabled\./);
   assert.match(securityPage, /play\.google\.com\/store\/apps\/details\?id=com\.google\.android\.apps\.authenticator2/);
   assert.match(securityPage, /apps\.apple\.com\/app\/microsoft-authenticator\/id983156458/);
   assert.match(securityScript, /qrCode\.src = setup\.qrCodeDataUri/);

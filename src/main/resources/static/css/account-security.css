@@ -3,6 +3,10 @@
   margin: 32px auto 48px;
 }
 
+.account-security-main [hidden] {
+  display: none !important;
+}
+
 .account-security-intro {
   margin-bottom: 24px;
 }

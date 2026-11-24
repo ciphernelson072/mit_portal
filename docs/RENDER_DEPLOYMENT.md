@@ -2,16 +2,26 @@
 
 ## Current test deployment
 
-On 23 November 2026, the Render Free test service reported deployment
-`dep-dc1se1nf3r2c73dko37g` live for image/commit
-`sha-8b0cdf94e173861aa314326176127529a0427253`. The public homepage and
-`/admin-login.html` returned HTTP 200 after the Free instance woke. The live
-login response still included `'unsafe-inline'`, `https://cdn.jsdelivr.net`,
-and inline HTML handlers/styles, so the latest local security hardening is not
-in this image. No successful account sign-in or end-to-end email delivery was
-performed. The public service is
+On 24 November 2026, the Render Free test service reported deployment
+`dep-dc2nh4mc6qcc73fi3km0` live for image/commit
+`sha-e7a6f502caed9e180e9f1451ed267f030ae4d2af`. The public homepage and
+`/admin-login.html` returned HTTP 200; `/actuator/health` reported `UP`. The
+live login response used the strict CSP, HSTS, and
+`X-Content-Type-Options: nosniff`; its HTML had no inline scripts, event
+handlers, or style attributes. GitHub Actions run
+[133](https://github.com/ciphernelson072/mit_portal/actions/runs/45383385603)
+passed before image publication. No authenticated account sign-in, MFA
+enrollment/recovery, or end-to-end email delivery was performed. The public
+service is
 [`https://makerere-institute-of-technology.onrender.com/`](https://makerere-institute-of-technology.onrender.com/).
 This is a test deployment, not production approval.
+
+The 23 November observation of the previous image's permissive CSP is
+historical and was superseded by this release. A separate account-security
+hidden-button fix, verify/disable UI guards, and backend verify-before-setup
+response passed focused tests but are not included in the current live image.
+Full CI, publication, and deployment remain pending; see
+[MFA recovery](./MFA_RECOVERY.md).
 
 The active Free service uses `UPLOAD_DIR=/tmp/uploads`; uploads are ephemeral
 and may be lost on restart or redeploy. The Free Blueprint now uses the same
@@ -51,8 +61,8 @@ The Render service consumes a prebuilt Docker Hub image rather than building
 the Git branch directly. The GitHub Actions workflow publishes
 `docker.io/ciphernelson/mit-portal:latest` and a commit-specific tag on pushes
 to `main` and `fix/admin-login-offline-styles`, after the CI gates pass. The
-current 23 November deployment uses
-`docker.io/ciphernelson/mit-portal:sha-8b0cdf94e173861aa314326176127529a0427253`.
+current 24 November deployment uses
+`docker.io/ciphernelson/mit-portal:sha-e7a6f502caed9e180e9f1451ed267f030ae4d2af`.
 A Git push alone is not deployment evidence: confirm the workflow, the
 deployed release, and service health for each release.
 

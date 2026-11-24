@@ -319,7 +319,7 @@ public class AuthController {
 
     @PostMapping("/mfa/verify")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<MfaSetupResponse> verifyMfa(@Valid @RequestBody MfaVerifyRequest request) {
+    public ResponseEntity<?> verifyMfa(@Valid @RequestBody MfaVerifyRequest request) {
         if (!mfaEnabled) return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         if (!verifyCurrentPassword(username, request.getCurrentPassword())) {
@@ -327,6 +327,10 @@ public class AuthController {
         }
         return schoolService.getUserByUsername(username).map(user -> {
             String storedSecret = user.getMfaSecret();
+            if (storedSecret == null || storedSecret.isBlank()) {
+                return ResponseEntity.status(HttpStatus.CONFLICT)
+                        .body(Map.of("message", "Set up an authenticator before verifying a code."));
+            }
             String secret = mfaSecretCipher.decrypt(storedSecret);
             if (!verifyTotp(secret, request.getOtp())) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).<MfaSetupResponse>build();

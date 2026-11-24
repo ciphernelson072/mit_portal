@@ -1,6 +1,6 @@
 # Remaining Work and Render Deployment Runbook
 
-Last reviewed: 20 November 2026
+Last reviewed: 24 November 2026
 
 This document records current release status and remaining production-readiness
 work. Use it with
@@ -10,7 +10,34 @@ the [Render deployment details](./RENDER_DEPLOYMENT.md), the
 The role-by-role cross-workflow findings are recorded in
 [ROLE_WORKFLOW_GAPS.md](./ROLE_WORKFLOW_GAPS.md).
 
-## Current test deployment status (20 November 2026)
+## Current test deployment status (24 November 2026)
+
+Render reported deployment `dep-dc2nh4mc6qcc73fi3km0` live on immutable image
+`docker.io/ciphernelson/mit-portal:sha-e7a6f502caed9e180e9f1451ed267f030ae4d2af`
+for commit `e7a6f502caed9e180e9f1451ed267f030ae4d2af`. GitHub Actions run
+[45383385603](https://github.com/ciphernelson072/mit_portal/actions/runs/45383385603)
+passed. Post-deployment checks returned HTTP 200 for `/` and
+`/admin-login.html`; `/actuator/health` reported `UP`. The live login page
+served the strict CSP with no inline scripts, event handlers, or style
+attributes.
+
+The account-security screenshot then exposed a UI defect: CSS overrode native
+`[hidden]`, showing the “Turn off” action even when MFA was disabled. The
+source now applies a scoped hidden-state rule, adds a regression assertion,
+and increments the service-worker cache to v39. The UI also blocks verification
+before a setup secret exists and disabling when MFA is off; the backend returns
+409 for verification without a setup secret. Focused backend tests (96),
+frontend tests (29), and JavaScript validation (41 files) pass. This fix is
+pending full CI, image publication, and deployment. The backend's 403 checks
+remain in place for enforced MFA and actions not allowed during enrollment.
+Authenticated MFA, email delivery, Render secret configuration, and production
+database acceptance have not been verified. Replace the screenshot-exposed
+pending MFA seed by starting a fresh setup after the correction deploys.
+
+This remains a controlled Render Free test deployment. Uploads use ephemeral
+`/tmp/uploads`; do not store real student records there.
+
+## Previous test deployment status (20 November 2026)
 
 Render deployed immutable image
 `docker.io/ciphernelson/mit-portal:sha-682553db36256d08a93362e22b069776c8c2a096`

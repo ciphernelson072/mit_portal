@@ -7,6 +7,9 @@ actual target environment.
 
 ## Security hardening release (23 November 2026)
 
+This is the historical pre-deployment checkpoint. The 24 November record
+below supersedes its pending-image and permissive-CSP status.
+
 - [x] Local source hardening implemented for file signatures, cookie-backed
   CSRF, strict CSP, and fail-closed privileged MFA. Focused Java tests passed
   (121 tests); frontend tests passed (26 tests); JavaScript validation passed
@@ -23,6 +26,27 @@ actual target environment.
 
 See [Security hardening and release checks](./SECURITY_HARDENING.md) for the
 verification procedure and current Render evidence.
+
+## MFA account-security UI correction (24 November 2026)
+
+- [x] Traced the screenshot to shared button CSS overriding the HTML `hidden`
+  state, causing unavailable MFA actions to appear.
+- [x] Added a scoped hidden-state CSS rule, regression assertion, and
+  service-worker cache version bump to v39. Client-side checks prevent verify
+  before setup and disable while MFA status is false; backend verification
+  before setup returns HTTP 409 with a clear message.
+- [x] Focused backend tests passed (96 tests), frontend unit tests passed
+  (29/29), JavaScript syntax validation passed (41 files), and
+  `git diff --check` passed.
+- [ ] Run full GitHub Actions CI for the fix.
+- [ ] Publish and deploy a new immutable image; verify Render reports it Live.
+- [ ] Recheck account-security display with an approved test account and
+  verify optional MFA enrollment/sign-in/recovery. The current live image does
+  not yet contain this source fix.
+- [ ] Replace the pending MFA setup secret visible in the earlier screenshot.
+
+The backend's 403 response remains in place for policy-enforced MFA disable
+requests and actions outside the restricted enrollment allowlist.
 
 ## Verification records
 

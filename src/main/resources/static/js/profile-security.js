@@ -195,6 +195,10 @@
   });
 
   verifyButton.addEventListener('click', async () => {
+    if (!/^[A-Z2-7]{32}$/.test(secret.textContent)) {
+      showMessage('Set up an authenticator before verifying a code.', true);
+      return;
+    }
     if (!password.value || !/^[0-9]{6}$/.test(otp.value.trim())) {
       showMessage('Enter your current password and the six-digit authenticator code.', true);
       return;
@@ -222,6 +226,10 @@
   });
 
   disableButton.addEventListener('click', async () => {
+    if (!enabled) {
+      showMessage('Two-factor authentication is not enabled. Set it up before trying to turn it off.', true);
+      return;
+    }
     if (!password.value || !/^[0-9]{6}$/.test(otp.value.trim())) {
       showMessage('Enter your current password and the six-digit authenticator code.', true);
       return;

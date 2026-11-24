@@ -8,21 +8,24 @@ separate JavaScript framework build is required.
 ## Current deployment
 
 The Render service is a **test environment**, not a production-ready student
-service. Its homepage is a portal gateway:
+service. On 24 November 2026, Render reported deployment
+`dep-dc2nh4mc6qcc73fi3km0` live on image/commit
+`sha-e7a6f502caed9e180e9f1451ed267f030ae4d2af`. The homepage and
+`/admin-login.html` returned HTTP 200, and `/actuator/health` reported `UP`.
+The live admin-login response uses the strict CSP and contains no inline
+scripts, event-handler attributes, or style attributes. These checks do not
+verify authenticated sign-in, MFA enrollment/recovery, or email delivery.
+The screenshot-driven MFA UI/backend correction is in the working tree and
+awaits full CI and deployment.
+See [Security hardening and release checks](docs/SECURITY_HARDENING.md) for
+the evidence and remaining target-environment checks.
+
+The homepage is a portal gateway:
 
 - `/` — Student, Employee, and Guest choices.
 - `/index.html` — existing student sign-in.
 - `/admin-login.html` — employee and administrator sign-in.
 - `/public/index.html` — public institutional information.
-
-On 23 November 2026, Render reported deployment
-`dep-dc1se1nf3r2c73dko37g` live for image/commit
-`sha-8b0cdf94e173861aa314326176127529a0427253`. The homepage and employee
-login returned HTTP 200 after the Free instance woke. A live response check
-found that this image still serves the earlier permissive CSP; the security
-hardening in the current working tree is not yet deployed. See
-[Security hardening and release checks](docs/SECURITY_HARDENING.md) and do not
-treat the live service as having the updated policy until its image is replaced.
 
 The tested Render Free instance uses `UPLOAD_DIR=/tmp/uploads`. This storage is
 ephemeral: uploaded files may be lost when the service restarts or redeploys.
@@ -108,7 +111,7 @@ For a concise five-minute Student Information System overview, see the
 GitHub Actions runs backend, migration, frontend, browser, and image-build
 checks before publishing Docker Hub's `latest` and commit-specific tags. The
 current deployment uses
-`docker.io/ciphernelson/mit-portal:sha-8b0cdf94e173861aa314326176127529a0427253`.
+`docker.io/ciphernelson/mit-portal:sha-e7a6f502caed9e180e9f1451ed267f030ae4d2af`.
 Render Free may sleep while idle. The current test deployment's uploads are
 temporary; do not assume the paid Blueprint's persistent disk is attached to
 this Free service.

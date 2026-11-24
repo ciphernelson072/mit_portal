@@ -46,20 +46,42 @@ target-environment acceptance.
 
 ## Render status and release gate
 
-The Render dashboard showed deployment
-`dep-dc1se1nf3r2c73dko37g` as `Deploy succeeded | Live`, using image/commit
-`sha-8b0cdf94e173861aa314326176127529a0427253`. On 23 November, the live
-homepage and `/admin-login.html` returned HTTP 200 after the Free instance
-woke. The live login response still contained `'unsafe-inline'`,
-`https://cdn.jsdelivr.net`, inline scripts, event handlers, and style
-attributes. Therefore that active image does **not** contain the CSP hardening
-described above. The working-tree changes are not live until a verified image
-is published and Render reports that image deployed.
+On 24 November 2026, Render reported deployment `dep-dc2nh4mc6qcc73fi3km0`
+as `Deploy succeeded | Live`, using image/commit
+`sha-e7a6f502caed9e180e9f1451ed267f030ae4d2af`. GitHub Actions run
+[133](https://github.com/ciphernelson072/mit_portal/actions/runs/45383385603)
+passed backend, MySQL migration, frontend, browser E2E, image-build, and
+publication checks.
+
+Post-deployment checks confirmed `/` and `/admin-login.html` returned HTTP
+200, `/actuator/health` returned status `UP`, and the login response used the
+strict CSP without `'unsafe-inline'` or `cdn.jsdelivr.net`. The served login
+HTML had no inline scripts, event-handler attributes, or style attributes;
+HSTS and `X-Content-Type-Options: nosniff` were present. The 23 November
+observation of the prior image's permissive CSP is historical and was
+superseded by this release.
+
+An MFA account-security UI defect was subsequently reproduced from the
+provided screenshot: the page's button styles set `display: inline-flex`,
+overriding the browser's default display behavior for `[hidden]`. As a result,
+the “Turn off” action could appear while MFA status was false, and “Verify and
+enable” could appear before a setup secret existed. The server correctly
+retains 403 responses for policy-restricted or enrollment-only actions. The
+source fix scopes `display: none !important` to hidden descendants on the
+account-security page, guards verify/disable actions in the UI, returns a clear
+409 if verification is attempted without a pending setup secret, and bumps the
+service-worker cache. Focused backend tests (96), frontend tests (29), and
+JavaScript validation (41 files) passed; full CI, image publication, and
+deployment remain pending. This explains the screenshot state but does not
+replace testing the precise failed action against the live service.
+
+These public checks do **not** establish authenticated sign-in, MFA enrollment
+or recovery, email delivery, database isolation, or production readiness.
 
 Before enabling users on the updated release:
 
-1. Confirm the intended commit and change scope; run the repository CI gates
-   and build the Docker image from that exact commit.
+1. For future releases, confirm the intended commit and change scope; run the
+   repository CI gates and build the Docker image from that exact commit.
 2. Verify the Render environment contains `MFA_ENABLED=true`,
    `MFA_REQUIRED_FOR_PRIVILEGED=false`, `MFA_REQUIRED_FOR_ALL=false`, and a
    persistent valid `MFA_ENCRYPTION_KEY`. MFA is opt-in per account. Do not
@@ -77,8 +99,10 @@ Before enabling users on the updated release:
 6. Confirm `GET /api/auth/csrf` returns a token and sets the CSRF cookie; verify
    cookie-authenticated unsafe requests without the matching token are
    rejected. Do not paste token values into logs or reports.
-7. Test privileged MFA enrollment, sign-in, recovery, and session revocation
-   with approved synthetic accounts before broader access.
+7. Test optional MFA enrollment, sign-in, recovery, and session revocation
+   with approved synthetic accounts before broader access. The Render private
+   MFA configuration and encryption-key value were not inspected by the
+   unauthenticated checks above.
 
 Render's image-based release publishes through the CI workflow on its configured
 release branches. Review [Render deployment](./RENDER_DEPLOYMENT.md) before
