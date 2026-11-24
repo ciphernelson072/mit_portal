@@ -9,15 +9,13 @@ separate JavaScript framework build is required.
 
 The Render service is a **test environment**, not a production-ready student
 service. On 24 November 2026, Render reported deployment
-`dep-dc2nh4mc6qcc73fi3km0` live on image/commit
-`sha-e7a6f502caed9e180e9f1451ed267f030ae4d2af`. The homepage and
-`/admin-login.html` returned HTTP 200, and `/actuator/health` reported `UP`.
-The live admin-login response uses the strict CSP and contains no inline
-scripts, event-handler attributes, or style attributes. These checks do not
-verify authenticated sign-in, MFA enrollment/recovery, or email delivery.
-The screenshot-driven MFA UI/backend correction passed GitHub Actions run 134
-and its immutable image was published. Render deployment and authenticated
-MFA acceptance remain unverified.
+`dep-dc3117h5efls739467gg` live on image/commit
+`sha-a418a654694006fdadb432cb06ce25161455a8ab`. Render reports
+`Deploy succeeded | Live`. The account-security page, its MFA stylesheet and
+script, and service worker returned HTTP 200; the deployed assets include the
+hidden-state fix and cache v39. Public actuator health requests timed out from
+this environment. Authenticated sign-in, MFA enrollment/recovery, and email
+delivery have not been tested.
 See [Security hardening and release checks](docs/SECURITY_HARDENING.md) for
 the evidence and remaining target-environment checks.
 

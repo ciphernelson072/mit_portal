@@ -32,10 +32,12 @@ states, making unavailable MFA buttons visible. Corrective CSS and UI guards,
 a backend 409 response for verify-before-setup, regression tests, and service-
 worker cache v39 were included in commit
 `05874d1e450c44e6dabcdbcb3132be0ef1e8c6be`. Focused backend tests (96),
-frontend tests (29), syntax checks (41 files), and GitHub Actions run
+frontend tests (29), syntax checks (41 files), and GitHub Actions runs
 [134](https://github.com/ciphernelson072/mit_portal/actions/runs/45484000672)
-passed; the immutable image was published. Render deployment remains pending
-because no deploy hook is configured in this environment. Treat the
+and [135](https://github.com/ciphernelson072/mit_portal/actions/runs/45487818308)
+passed. The immutable image is deployed as Render release
+`dep-dc3117h5efls739467gg` and reports Live. Public MFA assets returned HTTP
+200. Authenticated enrollment/sign-in acceptance remains pending. Treat the
 screenshot-exposed pending seed as compromised and replace it.
 
 ## Permission model

@@ -42,13 +42,16 @@ verification procedure and current Render evidence.
   [134](https://github.com/ciphernelson072/mit_portal/actions/runs/45484000672)
   passed all backend, migration, frontend, E2E, Docker build, and image-publish
   steps for commit `05874d1e450c44e6dabcdbcb3132be0ef1e8c6be`.
-- [ ] Deploy image
-  `docker.io/ciphernelson/mit-portal:sha-05874d1e450c44e6dabcdbcb3132be0ef1e8c6be`
-  and verify Render reports it Live. The deploy hook is not configured in this
-  environment.
-- [ ] Recheck account-security display with an approved test account and
-  verify optional MFA enrollment/sign-in/recovery. The current live image does
-  not yet contain this source fix.
+- [x] Deployed image
+  `docker.io/ciphernelson/mit-portal:sha-a418a654694006fdadb432cb06ce25161455a8ab`;
+  Render deployment `dep-dc3117h5efls739467gg` reports `Deploy succeeded | Live`.
+- [x] Public account-security HTML, stylesheet, profile-security script, and
+  service worker returned HTTP 200; deployed CSS contains the hidden-state fix
+  and service-worker cache is v39. Public actuator probes timed out, although
+  Render's deployment health check succeeded.
+- [ ] With an approved synthetic account, verify account-security display and
+  optional MFA enrollment/sign-in/recovery. No authenticated MFA flow was
+  performed.
 - [ ] Replace the pending MFA setup secret visible in the earlier screenshot.
 
 The backend's 403 response remains in place for policy-enforced MFA disable

@@ -12,14 +12,14 @@ The role-by-role cross-workflow findings are recorded in
 
 ## Current test deployment status (24 November 2026)
 
-Render reported deployment `dep-dc2nh4mc6qcc73fi3km0` live on immutable image
-`docker.io/ciphernelson/mit-portal:sha-e7a6f502caed9e180e9f1451ed267f030ae4d2af`
-for commit `e7a6f502caed9e180e9f1451ed267f030ae4d2af`. GitHub Actions run
-[45383385603](https://github.com/ciphernelson072/mit_portal/actions/runs/45383385603)
-passed. Post-deployment checks returned HTTP 200 for `/` and
-`/admin-login.html`; `/actuator/health` reported `UP`. The live login page
-served the strict CSP with no inline scripts, event handlers, or style
-attributes.
+Render reports deployment `dep-dc3117h5efls739467gg` live on immutable image
+`docker.io/ciphernelson/mit-portal:sha-a418a654694006fdadb432cb06ce25161455a8ab`
+for commit `a418a654694006fdadb432cb06ce25161455a8ab`. GitHub Actions run
+[135](https://github.com/ciphernelson072/mit_portal/actions/runs/45487818308)
+passed. Render reports `Deploy succeeded | Live`. The account-security page,
+its CSS and JavaScript, and the service worker returned HTTP 200; the expected
+hidden-state fix and cache v39 were present. Public actuator requests timed out
+from this environment; authenticated MFA acceptance is still outstanding.
 
 The account-security screenshot then exposed a UI defect: CSS overrode native
 `[hidden]`, showing the “Turn off” action even when MFA was disabled. The
@@ -29,10 +29,9 @@ before a setup secret exists and disabling when MFA is off; the backend returns
 409 for verification without a setup secret. Focused backend tests (96),
 frontend tests (29), and JavaScript validation (41 files) pass. GitHub Actions
 run [134](https://github.com/ciphernelson072/mit_portal/actions/runs/45484000672)
-passed all checks and published image
-`docker.io/ciphernelson/mit-portal:sha-05874d1e450c44e6dabcdbcb3132be0ef1e8c6be`.
-Render deployment remains pending: no deploy hook is configured in this
-environment, and public service probes timed out. The backend's 403 checks
+passed the code change and run [135](https://github.com/ciphernelson072/mit_portal/actions/runs/45487818308)
+passed the follow-up release. The deployed image and public asset checks are
+recorded above. The backend's 403 checks
 remain in place for enforced MFA and actions not allowed during enrollment.
 Authenticated MFA, email delivery, Render secret configuration, and production
 database acceptance have not been verified. Replace the screenshot-exposed

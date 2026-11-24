@@ -3,29 +3,26 @@
 ## Current test deployment
 
 On 24 November 2026, the Render Free test service reported deployment
-`dep-dc2nh4mc6qcc73fi3km0` live for image/commit
-`sha-e7a6f502caed9e180e9f1451ed267f030ae4d2af`. The public homepage and
-`/admin-login.html` returned HTTP 200; `/actuator/health` reported `UP`. The
-live login response used the strict CSP, HSTS, and
-`X-Content-Type-Options: nosniff`; its HTML had no inline scripts, event
-handlers, or style attributes. GitHub Actions run
-[133](https://github.com/ciphernelson072/mit_portal/actions/runs/45383385603)
-passed before image publication. No authenticated account sign-in, MFA
-enrollment/recovery, or end-to-end email delivery was performed. The public
+`dep-dc3117h5efls739467gg` live for image/commit
+`sha-a418a654694006fdadb432cb06ce25161455a8ab`. Render reports
+`Deploy succeeded | Live`. The account-security page, its CSS and JavaScript,
+and the service worker returned HTTP 200; the expected hidden-state rule and
+cache v39 were present. Public actuator requests timed out from this
+environment. No authenticated sign-in, MFA enrollment/recovery, or end-to-end
+email delivery was performed. The public
 service is
 [`https://makerere-institute-of-technology.onrender.com/`](https://makerere-institute-of-technology.onrender.com/).
 This is a test deployment, not production approval.
 
 The 23 November observation of the previous image's permissive CSP is
 historical and was superseded by this release. A separate account-security
-hidden-button fix, verify/disable UI guards, and backend verify-before-setup
-response passed focused tests and GitHub Actions run
-[134](https://github.com/ciphernelson072/mit_portal/actions/runs/45484000672).
-The workflow published
-`docker.io/ciphernelson/mit-portal:sha-05874d1e450c44e6dabcdbcb3132be0ef1e8c6be`;
-Render deployment is not confirmed because no deploy hook is configured in
-this environment. Public service probes timed out. See
-[MFA recovery](./MFA_RECOVERY.md).
+The account-security hidden-button fix, verify/disable UI guards, and backend
+verify-before-setup response passed focused tests and GitHub Actions runs
+[134](https://github.com/ciphernelson072/mit_portal/actions/runs/45484000672)
+and [135](https://github.com/ciphernelson072/mit_portal/actions/runs/45487818308).
+The deployed image is
+`docker.io/ciphernelson/mit-portal:sha-a418a654694006fdadb432cb06ce25161455a8ab`.
+See [MFA recovery](./MFA_RECOVERY.md).
 
 The active Free service uses `UPLOAD_DIR=/tmp/uploads`; uploads are ephemeral
 and may be lost on restart or redeploy. The Free Blueprint now uses the same

@@ -46,18 +46,18 @@ target-environment acceptance.
 
 ## Render status and release gate
 
-On 24 November 2026, Render reported deployment `dep-dc2nh4mc6qcc73fi3km0`
+On 24 November 2026, Render reported deployment `dep-dc3117h5efls739467gg`
 as `Deploy succeeded | Live`, using image/commit
-`sha-e7a6f502caed9e180e9f1451ed267f030ae4d2af`. GitHub Actions run
-[133](https://github.com/ciphernelson072/mit_portal/actions/runs/45383385603)
+`sha-a418a654694006fdadb432cb06ce25161455a8ab`. GitHub Actions run
+[135](https://github.com/ciphernelson072/mit_portal/actions/runs/45487818308)
 passed backend, MySQL migration, frontend, browser E2E, image-build, and
 publication checks.
 
-Post-deployment checks confirmed `/` and `/admin-login.html` returned HTTP
-200, `/actuator/health` returned status `UP`, and the login response used the
-strict CSP without `'unsafe-inline'` or `cdn.jsdelivr.net`. The served login
-HTML had no inline scripts, event-handler attributes, or style attributes;
-HSTS and `X-Content-Type-Options: nosniff` were present. The 23 November
+Post-deployment checks confirmed the account-security HTML, stylesheet,
+profile-security script, and service worker returned HTTP 200. The served CSS
+contains the hidden-state rule, and the service worker uses cache v39. Render
+reports its internal health check passed and deployment Live; public actuator
+requests timed out from this environment. The 23 November
 observation of the prior image's permissive CSP is historical and was
 superseded by this release.
 
@@ -73,11 +73,11 @@ account-security page, guards verify/disable actions in the UI, returns a clear
 service-worker cache. Focused backend tests (96), frontend tests (29), and
 JavaScript validation (41 files) passed. GitHub Actions run
 [134](https://github.com/ciphernelson072/mit_portal/actions/runs/45484000672)
-passed and published the immutable image for commit
-`05874d1e450c44e6dabcdbcb3132be0ef1e8c6be`. Render deployment remains
-unconfirmed because no deploy hook is configured in this environment and
-public service probes timed out. This explains the screenshot state but does
-not replace testing the precise failed action against the live service.
+passed the functional change; run
+[135](https://github.com/ciphernelson072/mit_portal/actions/runs/45487818308)
+passed the follow-up release and its image is Live. This explains the
+screenshot state but does not replace authenticated testing of the precise
+MFA flow.
 
 These public checks do **not** establish authenticated sign-in, MFA enrollment
 or recovery, email delivery, database isolation, or production readiness.

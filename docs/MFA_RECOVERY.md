@@ -11,8 +11,9 @@ while the feature is enabled.
 
 ## Latest release and reported 403 (24 November 2026)
 
-Render reported deployment `dep-dc2nh4mc6qcc73fi3km0` live on image
-`sha-e7a6f502caed9e180e9f1451ed267f030ae4d2af`. The screenshot shows MFA
+Render reported deployment `dep-dc3117h5efls739467gg` live on image
+`sha-a418a654694006fdadb432cb06ce25161455a8ab` (commit
+`a418a654694006fdadb432cb06ce25161455a8ab`). The screenshot shows MFA
 reported as disabled while the setup, verify, and disable actions are all
 visible. The root cause in the page is that shared button CSS sets
 `display: inline-flex`, which overrides the browser's default `[hidden]`
@@ -32,10 +33,14 @@ in place. Focused backend tests passed (96 tests), frontend unit tests passed
 [134](https://github.com/ciphernelson072/mit_portal/actions/runs/45484000672)
 passed and published image
 `docker.io/ciphernelson/mit-portal:sha-05874d1e450c44e6dabcdbcb3132be0ef1e8c6be`.
-Render deployment and authenticated MFA acceptance remain pending; this
-environment has no configured Render deploy hook, and public service probes
-timed out. After it is deployed, refresh/update the portal and use the flow
-shown by the state: generate a setup QR/key first,
+The follow-up documentation commit passed run
+[135](https://github.com/ciphernelson072/mit_portal/actions/runs/45487818308)
+and was published as the deployed image above. Render reports
+`Deploy succeeded | Live`; the account-security page, CSS, profile-security
+script, and service worker returned HTTP 200, with the expected hidden-state
+rule and cache v39 present. Public actuator health probes timed out from this
+environment. Authenticated MFA acceptance remains pending. Refresh/update the
+portal and use the flow shown by the state: generate a setup QR/key first,
 scan it, then submit the current password and a current six-digit code to
 enable MFA. Do not select “Turn off” when status says MFA is disabled. A prior
 pending setup seed appeared in a screenshot; replace it with a fresh setup key
