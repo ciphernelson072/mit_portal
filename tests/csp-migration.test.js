@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+const vm = require('node:vm');
 
 const staticRoot = path.join(__dirname, '../src/main/resources/static');
 
@@ -44,6 +45,52 @@ test('CSP action markup is restricted to registered handlers', () => {
       assert.ok(allowlist.has(action), `CSP action "${action}" should be registered`);
     }
   }
+});
+
+test('CSP dispatcher resolves the argument sentinel used by rendered markup', () => {
+  const authSource = fs.readFileSync(path.join(staticRoot, 'js/auth.js'), 'utf8');
+  const listeners = new Map();
+  const documentElement = {};
+  class TestElement {
+    constructor() {
+      this.dataset = {
+        cspAction: 'switchModule',
+        cspEvent: 'click',
+        cspArgs: encodeURIComponent(JSON.stringify(['grades', { $mitCspArg: 'element' }])),
+      };
+      this.parentElement = documentElement;
+      this.value = 'selected';
+      this.checked = true;
+    }
+  }
+  const element = new TestElement();
+  let received;
+  const context = {
+    Element: TestElement,
+    URL,
+    console,
+    document: {
+      documentElement,
+      addEventListener: (type, listener) => listeners.set(type, listener),
+      querySelector: () => null,
+      createElement: () => ({ dataset: {} }),
+      head: { appendChild() {} },
+    },
+    navigator: {},
+    window: {
+      location: { href: 'http://localhost/' },
+      switchModule: (...args) => { received = args; },
+      fetch: async () => ({}),
+      setTimeout,
+      clearTimeout,
+    },
+  };
+
+  vm.runInNewContext(authSource, context);
+  listeners.get('click')({ target: element, type: 'click', preventDefault() {} });
+
+  assert.equal(received[0], 'grades');
+  assert.strictEqual(received[1], element);
 });
 
 test('generated performance report uses its external stylesheet', () => {

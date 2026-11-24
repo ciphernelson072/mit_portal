@@ -34,10 +34,11 @@ function dispatchCspAction(event) {
         return;
       }
       const args = JSON.parse(decodeURIComponent(element.dataset.cspArgs || '%5B%5D')).map(argument => {
-        if (argument?.__mitCspArg === 'element') return element;
-        if (argument?.__mitCspArg === 'event') return event;
-        if (argument?.__mitCspArg === 'value') return element.value;
-        if (argument?.__mitCspArg === 'checked') return element.checked;
+        const argumentType = argument?.__mitCspArg || argument?.$mitCspArg;
+        if (argumentType === 'element') return element;
+        if (argumentType === 'event') return event;
+        if (argumentType === 'value') return element.value;
+        if (argumentType === 'checked') return element.checked;
         return argument;
       });
       const action = actionName === '__clickElementById'

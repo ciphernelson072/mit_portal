@@ -8,7 +8,9 @@ async function serveStaticApp(page, handleApi) {
   await page.route('**/*', async route => {
     const url = new URL(route.request().url());
     if (url.pathname.startsWith('/api/')) {
-      const { payload = [], status = 200 } = await handleApi(route, url) || {};
+      const { payload = [], status = 200 } = url.pathname === '/api/auth/csrf'
+        ? { payload: { token: 'test-csrf-token' } }
+        : await handleApi(route, url) || {};
       await route.fulfill({
         status,
         contentType: 'application/json',
@@ -91,6 +93,7 @@ test('student can submit one appeal for a published grade and track its status',
   await page.getByLabel('Explain why you are requesting a review').fill('Please verify the assessment total.');
   await page.getByRole('button', { name: 'Submit appeal' }).click();
 
+  await expect.poll(() => appeals).toHaveLength(1);
   await expect(page.locator('#studentGradeAppealList')).toContainText('OPEN');
   await expect(page.locator('#studentGradeAppealList')).toContainText('Please verify the assessment total.');
   await expect(page.locator('.grades-table tbody')).toContainText('Appeal in progress');
@@ -217,6 +220,7 @@ test('teacher can send an optional written consultation response safely', async 
   await expect(appealList.locator('img, script')).toHaveCount(0);
   await page.getByLabel('Optional response to the administrator').fill('Assessment records were checked.');
   await page.getByRole('button', { name: 'Send response to administrator' }).click();
+  await expect.poll(() => appeal.status).toBe('READY_FOR_DECISION');
   await expect(appealList).toContainText('No grade appeals currently require teacher review.');
   expect(appeal.teacherResponse).toBe('Assessment records were checked.');
 });
@@ -262,6 +266,7 @@ test('administrator consults the teacher, records the decision, and keeps conten
   await expect(page.locator('#adminGradeAppealList')).toContainText('<img src=x onerror=alert(1)>');
   await expect(page.locator('#adminGradeAppealList')).toContainText('<script>alert(1)</script>');
   await page.getByRole('button', { name: 'Request teacher consultation' }).click();
+  await expect.poll(() => appeal.status).toBe('TEACHER_REVIEW');
   await page.once('dialog', dialog => dialog.accept());
   await page.getByRole('button', { name: 'Confirm consulted; no written response' }).click();
   await expect(page.locator('#adminGradeAppealList')).toContainText('READY_FOR_DECISION');
