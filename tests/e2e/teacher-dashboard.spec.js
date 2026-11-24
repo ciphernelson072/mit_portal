@@ -528,6 +528,7 @@ test('teacher can review materials across assigned courses', async ({ page }) =>
   await expect(materials.getByRole('link', { name: 'Download' })).toHaveCount(2);
   await expect(materials.getByRole('link', { name: 'Download' }).first()).toHaveAttribute('href', '/api/materials/41/download');
   expect(materialRequests.sort()).toEqual(['/api/materials/course/2', '/api/materials/course/3']);
+  await expect(page.locator('#rosterCourseSelect')).toHaveValue('2');
 
   await page.locator('#materialTitle').fill('Week 5 Slides');
   await page.locator('#materialDescription').fill('Lecture slides');

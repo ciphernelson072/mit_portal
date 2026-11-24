@@ -405,9 +405,13 @@ function selectedTeacherCourse(selectId = 'rosterCourseSelect') {
 function renderTeacherRoster(students) {
   const table = document.getElementById('rosterTable');
   table.hidden = !students.length;
-  table.querySelector('tbody').innerHTML = students.map(student =>
-    `<tr><td>${escapeHtml(student.fullName)}</td><td>${escapeHtml(student.registrationNumber || '—')}</td></tr>`
-  ).join('');
+  table.querySelector('tbody').innerHTML = students.map(student => {
+    const name = escapeHtml(student.fullName);
+    const photo = student.profileImagePath
+      ? `<img class="teacher-roster-photo" src="${API}/files/download?filePath=${encodeURIComponent(student.profileImagePath)}" alt="Profile photo of ${name}; activate to view full screen" data-photo-viewer tabindex="0" role="button">`
+      : '—';
+    return `<tr><td>${photo}</td><td>${name}</td><td>${escapeHtml(student.registrationNumber || '—')}</td></tr>`;
+  }).join('');
 }
 
 function resetTeacherGradeWorkspace(message = 'Select a course to load grades.') {

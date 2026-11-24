@@ -70,6 +70,7 @@ test('teacher can view their own and assigned student photos, export scoped CSVs
   await expect(page.locator('#photoViewerDialog')).toBeVisible();
   await page.locator('[data-photo-viewer-close]').click();
 
+  await expect(page.locator('#rosterCourseSelect')).toHaveValue('2');
   const rosterPhoto = page.locator('#rosterTable tbody img[data-photo-viewer]');
   await expect(rosterPhoto).toHaveAttribute('src', /students%2F7_photo\.jpg/);
   await rosterPhoto.click();

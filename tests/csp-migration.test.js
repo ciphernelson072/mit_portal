@@ -80,6 +80,7 @@ test('CSP dispatcher resolves the argument sentinel used by rendered markup', ()
     window: {
       location: { href: 'http://localhost/' },
       switchModule: (...args) => { received = args; },
+      submitStudentReportApproval: (...args) => { received = args; },
       fetch: async () => ({}),
       setTimeout,
       clearTimeout,
@@ -91,6 +92,21 @@ test('CSP dispatcher resolves the argument sentinel used by rendered markup', ()
 
   assert.equal(received[0], 'grades');
   assert.strictEqual(received[1], element);
+
+  element.dataset.cspAction = 'submitStudentReportApproval';
+  element.dataset.cspEvent = 'submit';
+  element.dataset.cspArgs = encodeURIComponent(JSON.stringify([{ $mitCspArg: 'event' }]));
+  const submitEvent = {
+    target: element,
+    currentTarget: documentElement,
+    type: 'submit',
+    preventDefault() { this.defaultPrevented = true; },
+  };
+  listeners.get('submit')(submitEvent);
+
+  assert.strictEqual(received[0].currentTarget, element);
+  received[0].preventDefault();
+  assert.equal(submitEvent.defaultPrevented, true);
 });
 
 test('generated performance report uses its external stylesheet', () => {

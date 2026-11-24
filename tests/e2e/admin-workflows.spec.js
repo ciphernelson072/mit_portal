@@ -520,10 +520,10 @@ test('admin can update and inspect a student service request', async ({ page }) 
   await expect(requestRow).toContainText('Test Student');
   await requestRow.getByLabel('Administrator owner for request 71').selectOption('15');
   await expect(requestRow.getByLabel('Administrator owner for request 71')).toHaveValue('15');
-  expect(submittedAssignment).toEqual({ assigneeId: 15 });
+  await expect.poll(() => submittedAssignment).toEqual({ assigneeId: 15 });
   await requestRow.getByLabel('Status for request 71').selectOption('IN_PROGRESS');
   await expect(requestRow.getByLabel('Status for request 71')).toHaveValue('IN_PROGRESS');
-  expect(submittedStatus).toEqual({ status: 'IN_PROGRESS' });
+  await expect.poll(() => submittedStatus).toEqual({ status: 'IN_PROGRESS' });
 
   await requestRow.getByRole('button', { name: 'View' }).click();
   await expect(page.locator('#modalBox')).toContainText('Please correct the name');

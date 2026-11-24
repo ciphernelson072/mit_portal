@@ -714,7 +714,9 @@ test.describe('responsive portal surfaces', () => {
     await page.route('**/api/auth/**', async route => {
       const request = route.request();
       const path = new URL(request.url()).pathname;
-      if (path === '/api/auth/login') {
+      if (path === '/api/auth/csrf') {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ token: 'test-csrf-token' }) });
+      } else if (path === '/api/auth/login') {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
           role: 'STUDENT', username: 'new-student', passwordChangeRequired: true,
         }) });
@@ -1165,7 +1167,7 @@ test.describe('responsive portal surfaces', () => {
     const row = page.locator('#gradesModule table tbody tr').filter({ hasText: 'Chris Student' });
     await expect(row.getByRole('button', { name: 'Authorize correction' })).toBeVisible();
     await row.getByRole('button', { name: 'Authorize correction' }).click();
-    expect(correctionRequest).toEqual({ reason: 'Approved coursework mark needs correction' });
+    await expect.poll(() => correctionRequest).toEqual({ reason: 'Approved coursework mark needs correction' });
   });
 
   test('teacher sees leave workflow but not admin-only HR actions', async ({ page }) => {
@@ -1708,6 +1710,7 @@ test('admin report approval uses an in-page form instead of a browser prompt', a
   await page.locator('#approveStudentReportId').fill('7');
   await page.getByRole('button', { name: 'Approve current version' }).click();
 
+  await expect.poll(() => approvedStudentId).toBe(7);
   await expect(page.locator('#approveStudentReportMessage')).toContainText(
     'Version version-7 approved. Students cannot see it until you publish this exact version.',
   );
@@ -1965,6 +1968,10 @@ test('admin dashboard pending actions link to decision queues and support admiss
   await expect(page.getByRole('heading', { name: 'Accept application' })).toBeVisible();
   await page.locator('#adminInputValue').fill('Verified eligibility and documents.');
   await page.getByRole('button', { name: 'Confirm' }).click();
+  await expect.poll(() => submittedDecision).toEqual({
+    status: 'ACCEPTED',
+    reviewerNotes: 'Verified eligibility and documents.',
+  });
   await expect(page.locator('#admissionQueueStatus')).toContainText('Application accepted.');
   await expect(page.locator('#admissionsTable tbody')).toContainText('ACCEPTED');
   await expect(page.locator('#pendingTaskCount')).toHaveText('1');

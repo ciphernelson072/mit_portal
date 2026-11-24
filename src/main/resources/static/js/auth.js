@@ -33,12 +33,21 @@ function dispatchCspAction(event) {
         console.error(`Blocked unregistered portal action: ${actionName}`);
         return;
       }
+      const actionElement = element;
       const args = JSON.parse(decodeURIComponent(element.dataset.cspArgs || '%5B%5D')).map(argument => {
         const argumentType = argument?.__mitCspArg || argument?.$mitCspArg;
-        if (argumentType === 'element') return element;
-        if (argumentType === 'event') return event;
-        if (argumentType === 'value') return element.value;
-        if (argumentType === 'checked') return element.checked;
+        if (argumentType === 'element') return actionElement;
+        if (argumentType === 'event') {
+          return new Proxy(event, {
+            get(target, property) {
+              if (property === 'currentTarget') return actionElement;
+              const value = Reflect.get(target, property, target);
+              return typeof value === 'function' ? value.bind(target) : value;
+            },
+          });
+        }
+        if (argumentType === 'value') return actionElement.value;
+        if (argumentType === 'checked') return actionElement.checked;
         return argument;
       });
       const action = actionName === '__clickElementById'
@@ -52,8 +61,8 @@ function dispatchCspAction(event) {
         console.error(`Registered portal action is unavailable: ${actionName}`);
         return;
       }
-      const result = action.apply(element, args);
-      if (result === false || element.dataset.cspPreventDefault === 'true') {
+      const result = action.apply(actionElement, args);
+      if (result === false || actionElement.dataset.cspPreventDefault === 'true') {
         event.preventDefault();
       }
     }
