@@ -142,6 +142,38 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
+    void enrollmentTokenRemainsUsableWhenMfaEnforcementBecomesOptional()
+            throws ServletException, IOException {
+        ReflectionTestUtils.setField(filter, "mfaRequiredForAll", false);
+        ReflectionTestUtils.setField(filter, "mfaRequiredForPrivileged", false);
+        when(jwtService.validateToken("enrollment-token")).thenReturn(true);
+        when(jwtService.getUsername("enrollment-token")).thenReturn("admin");
+        when(jwtService.getCredentialVersion("enrollment-token")).thenReturn(0);
+        when(jwtService.isMfaEnrollmentToken("enrollment-token")).thenReturn(true);
+        when(jwtService.isMfaRequired("enrollment-token")).thenReturn(true);
+        when(jwtService.isMfaVerified("enrollment-token")).thenReturn(false);
+        when(userDetailsService.loadUserByUsername("admin"))
+                .thenReturn(User.withUsername("admin").password("encoded").authorities("ADMIN").build());
+        when(userDetailsService.getCredentialVersion("admin")).thenReturn(Optional.of(0));
+
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/auth/mfa/verify");
+        request.setRequestURI("/api/auth/mfa/verify");
+        request.setCookies(new Cookie(JwtAuthenticationFilter.ACCESS_TOKEN_COOKIE, "enrollment-token"));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        filter.doFilter(request, response, chain);
+
+        assertEquals(200, response.getStatus());
+        assertEquals(request, chain.getRequest());
+        assertTrue(SecurityContextHolder.getContext().getAuthentication().isAuthenticated());
+        assertTrue(SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
+                .anyMatch(authority -> "ADMIN".equals(authority.getAuthority())));
+        assertTrue(SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
+                .noneMatch(authority -> "MFA_ENROLLMENT".equals(authority.getAuthority())));
+    }
+
+    @Test
     void enforcedMfaEnrollmentTokenCanStillReachStaffLogin() throws ServletException, IOException {
         ReflectionTestUtils.setField(filter, "mfaRequiredForAll", true);
         when(jwtService.validateToken("enrollment-token")).thenReturn(true);

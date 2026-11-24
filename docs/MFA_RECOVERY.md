@@ -14,13 +14,15 @@ while the feature is enabled.
 1. Keep `MFA_ENABLED=true`, `MFA_REQUIRED_FOR_PRIVILEGED=false`, and
    `MFA_REQUIRED_FOR_ALL=false` for an optional, user-controlled rollout.
 2. Store the encryption key in the deployment secret manager. Never place it in
-   source control, logs, browser output, or a database backup alone.
+   source control, server logs, browser console output, or a database backup alone.
 3. Back up the key through the institution's normal encrypted secret-rotation
    process and verify that a replacement environment can decrypt a test seed
    with the backed-up key.
 4. The user starts setup from Account Security and confirms their current
    password. The portal creates the TOTP QR locally and returns it only in the
    authenticated response; no external QR-code service receives the seed.
+   Starting setup again replaces any pending seed, so an exposed setup key can
+   be invalidated before MFA is enabled.
 5. The user scans the QR with an authenticator app, opens the compatible
    `otpauth` link, or enters the manual setup key. Official Google and Microsoft
    app-store links are provided for users who need to install an app.

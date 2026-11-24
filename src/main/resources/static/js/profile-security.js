@@ -155,6 +155,11 @@
       password.focus();
       return;
     }
+    const replacingSetup = Boolean(secret.textContent);
+    if (replacingSetup
+        && !window.confirm('Replace the pending setup key? The previous QR code and key will stop working.')) {
+      return;
+    }
     setupButton.disabled = true;
     try {
       const response = await apiFetch('/auth/mfa/setup', {
@@ -174,10 +179,14 @@
       otpUri.hidden = false;
       enrollment.hidden = false;
       otpGroup.hidden = false;
-      setupButton.hidden = true;
+      setupButton.textContent = 'Replace setup key';
+      setupButton.hidden = false;
       verifyButton.hidden = false;
+      otp.value = '';
       otp.focus();
-      showMessage('Scan or enter the secret, then enter a current code to finish setup.');
+      showMessage(replacingSetup
+        ? 'A new setup key was generated. Scan it before entering a current code.'
+        : 'Scan or enter the secret, then enter a current code to finish setup. Use the setup button again to replace an unverified key.');
     } catch (error) {
       showMessage(error.message || 'Could not set up an authenticator.', true);
     } finally {
@@ -202,6 +211,8 @@
         recoveryCodesSection.hidden = false;
       }
       showMessage('Two-factor authentication enabled. Sign in again to continue.');
+      setupButton.hidden = true;
+      verifyButton.hidden = true;
       setTimeout(logout, 15000);
     } catch (error) {
       showMessage(error.message || 'The authenticator code could not be verified.', true);

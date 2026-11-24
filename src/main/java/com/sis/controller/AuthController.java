@@ -306,13 +306,7 @@ public class AuthController {
             if (Boolean.TRUE.equals(user.getMfaEnabled())) {
                 return ResponseEntity.status(HttpStatus.CONFLICT).<MfaSetupResponse>build();
             }
-            String storedSecret = user.getMfaSecret();
-            String secret = storedSecret == null || storedSecret.isBlank()
-                    ? null
-                    : mfaSecretCipher.decrypt(storedSecret);
-            if (!isValidTotpSecret(secret)) {
-                secret = generateTotpSecret();
-            }
+            String secret = generateTotpSecret();
             String otpUri = buildOtpauthUri(username, secret);
             String qrCodeDataUri = mfaQrCodeService.generateDataUri(otpUri);
             user.setMfaSecret(mfaSecretCipher.encrypt(secret));
@@ -481,17 +475,6 @@ public class AuthController {
             }
         }
         return false;
-    }
-
-    private boolean isValidTotpSecret(String secret) {
-        if (secret == null || !secret.matches("[A-Z2-7]{32}")) {
-            return false;
-        }
-        try {
-            return decodeBase32(secret).length == 20;
-        } catch (IllegalArgumentException ex) {
-            return false;
-        }
     }
 
     private String generateTotpSecret() {

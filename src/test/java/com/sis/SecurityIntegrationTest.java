@@ -2,6 +2,7 @@ package com.sis;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.sis.controller.AuthController;
@@ -337,10 +338,19 @@ class SecurityIntegrationTest {
                 user.setMfaSecret(null);
                 userRepository.saveAndFlush(user);
                 try {
+                    ResponseEntity<Map> wrongCasePassword = restTemplate.postForEntity(
+                            "/api/auth/login",
+                            new HttpEntity<>(Map.of(
+                                    "username", credentials.getKey().toUpperCase(java.util.Locale.ROOT),
+                                    "password", credentials.getValue().toUpperCase(java.util.Locale.ROOT)), headers),
+                            Map.class);
+                    assertEquals(HttpStatus.UNAUTHORIZED, wrongCasePassword.getStatusCode(),
+                            credentials.getKey() + " password case");
+
                     ResponseEntity<Map> login = restTemplate.postForEntity(
                             "/api/auth/login",
                             new HttpEntity<>(Map.of(
-                                    "username", credentials.getKey(),
+                                    "username", credentials.getKey().toUpperCase(java.util.Locale.ROOT),
                                     "password", credentials.getValue()), headers),
                             Map.class);
 
@@ -427,7 +437,14 @@ class SecurityIntegrationTest {
             assertEquals(HttpStatus.OK, setupResponse.getStatusCode());
             assertEquals("no-store", setupResponse.getHeaders().getFirst(HttpHeaders.CACHE_CONTROL));
             assertTrue(setupResponse.getBody().getQrCodeDataUri().startsWith("data:image/png;base64,"));
-            String secret = setupResponse.getBody().getSecret();
+            String previousSecret = setupResponse.getBody().getSecret();
+            ResponseEntity<MfaSetupResponse> replacementSetup = restTemplate.exchange(
+                    "/api/auth/mfa/setup", HttpMethod.POST,
+                    new HttpEntity<>(setupRequest, pendingHeaders), MfaSetupResponse.class);
+            assertEquals(HttpStatus.OK, replacementSetup.getStatusCode());
+            assertEquals("no-store", replacementSetup.getHeaders().getFirst(HttpHeaders.CACHE_CONTROL));
+            assertNotEquals(previousSecret, replacementSetup.getBody().getSecret());
+            String secret = replacementSetup.getBody().getSecret();
 
             String otp = ReflectionTestUtils.invokeMethod(authController, "generateTotp",
                     secret, java.time.Instant.now().getEpochSecond() / 30L);

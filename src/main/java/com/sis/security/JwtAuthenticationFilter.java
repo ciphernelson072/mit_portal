@@ -108,6 +108,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authenticationToken);
                 } else if (userDetails.isEnabled() && credentialsAreCurrent
+                        && jwtService.isMfaEnrollmentToken(token)
+                        && !mfaRequiredForUser) {
+                    // A policy change can leave a short-lived enrollment token in the browser.
+                    UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
+                            userDetails, null, userDetails.getAuthorities());
+                    authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+                } else if (userDetails.isEnabled() && credentialsAreCurrent
                         && (mfaRequiredForAll
                                 || jwtService.isMfaRequired(token)
                                 || (mfaRequiredForPrivileged
