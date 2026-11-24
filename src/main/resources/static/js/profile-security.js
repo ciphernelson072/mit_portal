@@ -46,7 +46,7 @@
         resendEmailButton.hidden = true;
       } else if (emailToVerify) {
         emailStatus.textContent = `Email verification is pending for ${emailToVerify}. Sign-in remains available.`;
-        resendEmailButton.hidden = false;
+        resendEmailButton.hidden = enrollmentOnly;
       } else {
         emailStatus.textContent = 'No account email is set. Ask an administrator to add one.';
         resendEmailButton.hidden = true;

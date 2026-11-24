@@ -37,7 +37,7 @@ body {
 .forced-auth-page {
   background-color: #dfe5ec;
   background-image: linear-gradient(rgba(8, 25, 45, .06), rgba(8, 25, 45, .06)),
-    url('../icons/campus-login.svg');
+    url('../icons/campus-login.png');
   background-position: center;
   background-size: cover;
   background-repeat: no-repeat;

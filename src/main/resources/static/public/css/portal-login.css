@@ -1,7 +1,13 @@
 .portal-login-page {
   min-height: 100vh;
   color: var(--brand-ink);
-  background: #f2f5f7;
+  background-color: #10243b;
+  background-image: linear-gradient(rgba(8, 25, 45, .28), rgba(8, 25, 45, .28)),
+    url('/icons/campus-login.png');
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
 }
 
 .portal-login-header {

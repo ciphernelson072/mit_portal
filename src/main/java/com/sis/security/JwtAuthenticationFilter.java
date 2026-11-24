@@ -178,6 +178,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
         if ("GET".equalsIgnoreCase(request.getMethod())) {
             return "/api/auth/mfa/status".equals(path)
+                    || "/api/auth/email-status".equals(path)
                     || "/account-security.html".equals(path)
                     || "/".equals(path)
                     || "/index.html".equals(path)

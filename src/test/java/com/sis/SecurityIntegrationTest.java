@@ -406,6 +406,10 @@ class SecurityIntegrationTest {
             assertEquals(HttpStatus.OK, mfaStatus.getStatusCode());
             assertFalse(Boolean.TRUE.equals(mfaStatus.getBody()));
 
+            ResponseEntity<String> emailStatus = restTemplate.exchange(
+                    "/api/auth/email-status", HttpMethod.GET, new HttpEntity<>(pendingHeaders), String.class);
+            assertEquals(HttpStatus.OK, emailStatus.getStatusCode());
+
             ResponseEntity<String> deniedPortalApi = restTemplate.exchange(
                     "/api/auth/authorities", HttpMethod.GET, new HttpEntity<>(pendingHeaders), String.class);
             assertEquals(HttpStatus.FORBIDDEN, deniedPortalApi.getStatusCode());

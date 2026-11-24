@@ -154,7 +154,7 @@ test('service worker precaches public pages but not authenticated dashboard page
   for (const asset of ['./dashboard.html', './admin-dashboard.html', './teacher-dashboard.html']) {
     assert.ok(!coreAssets.includes(asset), `${asset} requires authentication and must not be precached for anonymous users`);
   }
-  assert.match(serviceWorkerSource, /const CACHE_NAME = 'mit-portal-cache-v36';/);
+  assert.match(serviceWorkerSource, /const CACHE_NAME = 'mit-portal-cache-v37';/);
   assert.ok(coreAssets.includes('./js/pwa-update.js'), 'update support should be available offline');
 });
 
@@ -199,4 +199,19 @@ test('admin login loads shared assets from the site root and keeps its initial a
   assert.match(adminLoginScript, /Do not redirect based only on the localStorage role hint/);
   assert.doesNotMatch(loginPage, /if\s*\(\s*getRole\(\)\s*===\s*'(?:ADMIN|TEACHER)'\s*\)/);
   assert.doesNotMatch(studentLoginScript, /if\s*\(\s*getRole\(\)\s*===\s*'STUDENT'\s*\)/);
+});
+
+test('all login forms use the supplied campus background image', () => {
+  const staticRoot = path.join(__dirname, '../src/main/resources/static');
+  const authCss = fs.readFileSync(path.join(staticRoot, 'css/auth.css'), 'utf8');
+  const portalLoginCss = fs.readFileSync(path.join(staticRoot, 'public/css/portal-login.css'), 'utf8');
+  const portalLoginPage = fs.readFileSync(path.join(staticRoot, 'portal-login.html'), 'utf8');
+  const studentLoginPage = fs.readFileSync(path.join(staticRoot, 'index.html'), 'utf8');
+  const adminLoginPage = fs.readFileSync(path.join(staticRoot, 'admin-login.html'), 'utf8');
+
+  assert.match(authCss, /url\(['"]?\.\.\/icons\/campus-login\.png['"]?\)/);
+  assert.match(studentLoginPage, /class="portal-auth-page student-auth-page"/);
+  assert.match(adminLoginPage, /class="staff-auth-page"/);
+  assert.match(portalLoginCss, /url\(['"]?\/icons\/campus-login\.png['"]?\)/);
+  assert.match(portalLoginPage, /src="\/icons\/campus-login\.png"/);
 });
