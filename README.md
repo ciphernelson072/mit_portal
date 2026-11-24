@@ -15,8 +15,9 @@ service. On 24 November 2026, Render reported deployment
 The live admin-login response uses the strict CSP and contains no inline
 scripts, event-handler attributes, or style attributes. These checks do not
 verify authenticated sign-in, MFA enrollment/recovery, or email delivery.
-The screenshot-driven MFA UI/backend correction is in the working tree and
-awaits full CI and deployment.
+The screenshot-driven MFA UI/backend correction passed GitHub Actions run 134
+and its immutable image was published. Render deployment and authenticated
+MFA acceptance remain unverified.
 See [Security hardening and release checks](docs/SECURITY_HARDENING.md) for
 the evidence and remaining target-environment checks.
 

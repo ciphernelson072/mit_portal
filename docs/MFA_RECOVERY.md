@@ -28,9 +28,14 @@ without a locally received setup secret and refuse to send a disable request
 when MFA status is false. The backend returns a clear 409 response if
 verification is attempted before setup; server-side authorization checks stay
 in place. Focused backend tests passed (96 tests), frontend unit tests passed
-(29), and JavaScript syntax validation passed (41 files). CI and deployment for
-this correction are still pending. After it is deployed, refresh/update the
-portal and use the flow shown by the state: generate a setup QR/key first,
+(29), and JavaScript syntax validation passed (41 files). GitHub Actions run
+[134](https://github.com/ciphernelson072/mit_portal/actions/runs/45484000672)
+passed and published image
+`docker.io/ciphernelson/mit-portal:sha-05874d1e450c44e6dabcdbcb3132be0ef1e8c6be`.
+Render deployment and authenticated MFA acceptance remain pending; this
+environment has no configured Render deploy hook, and public service probes
+timed out. After it is deployed, refresh/update the portal and use the flow
+shown by the state: generate a setup QR/key first,
 scan it, then submit the current password and a current six-digit code to
 enable MFA. Do not select “Turn off” when status says MFA is disabled. A prior
 pending setup seed appeared in a screenshot; replace it with a fresh setup key

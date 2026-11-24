@@ -71,9 +71,13 @@ source fix scopes `display: none !important` to hidden descendants on the
 account-security page, guards verify/disable actions in the UI, returns a clear
 409 if verification is attempted without a pending setup secret, and bumps the
 service-worker cache. Focused backend tests (96), frontend tests (29), and
-JavaScript validation (41 files) passed; full CI, image publication, and
-deployment remain pending. This explains the screenshot state but does not
-replace testing the precise failed action against the live service.
+JavaScript validation (41 files) passed. GitHub Actions run
+[134](https://github.com/ciphernelson072/mit_portal/actions/runs/45484000672)
+passed and published the immutable image for commit
+`05874d1e450c44e6dabcdbcb3132be0ef1e8c6be`. Render deployment remains
+unconfirmed because no deploy hook is configured in this environment and
+public service probes timed out. This explains the screenshot state but does
+not replace testing the precise failed action against the live service.
 
 These public checks do **not** establish authenticated sign-in, MFA enrollment
 or recovery, email delivery, database isolation, or production readiness.

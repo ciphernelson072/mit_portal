@@ -38,8 +38,14 @@ verification procedure and current Render evidence.
 - [x] Focused backend tests passed (96 tests), frontend unit tests passed
   (29/29), JavaScript syntax validation passed (41 files), and
   `git diff --check` passed.
-- [ ] Run full GitHub Actions CI for the fix.
-- [ ] Publish and deploy a new immutable image; verify Render reports it Live.
+- [x] GitHub Actions run
+  [134](https://github.com/ciphernelson072/mit_portal/actions/runs/45484000672)
+  passed all backend, migration, frontend, E2E, Docker build, and image-publish
+  steps for commit `05874d1e450c44e6dabcdbcb3132be0ef1e8c6be`.
+- [ ] Deploy image
+  `docker.io/ciphernelson/mit-portal:sha-05874d1e450c44e6dabcdbcb3132be0ef1e8c6be`
+  and verify Render reports it Live. The deploy hook is not configured in this
+  environment.
 - [ ] Recheck account-security display with an approved test account and
   verify optional MFA enrollment/sign-in/recovery. The current live image does
   not yet contain this source fix.

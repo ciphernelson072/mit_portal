@@ -30,10 +30,13 @@ passed, and the immutable image was deployed to the Render test service.
 Later screenshot review found account-security CSS overriding native hidden
 states, making unavailable MFA buttons visible. Corrective CSS and UI guards,
 a backend 409 response for verify-before-setup, regression tests, and service-
-worker cache v39 are now in the working tree. Focused backend tests (96),
-frontend tests (29), and syntax checks (41 files) passed. Full CI and deployment
-remain pending. Treat the screenshot-exposed pending seed as compromised and
-replace it.
+worker cache v39 were included in commit
+`05874d1e450c44e6dabcdbcb3132be0ef1e8c6be`. Focused backend tests (96),
+frontend tests (29), syntax checks (41 files), and GitHub Actions run
+[134](https://github.com/ciphernelson072/mit_portal/actions/runs/45484000672)
+passed; the immutable image was published. Render deployment remains pending
+because no deploy hook is configured in this environment. Treat the
+screenshot-exposed pending seed as compromised and replace it.
 
 ## Permission model
 

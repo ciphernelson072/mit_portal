@@ -27,8 +27,12 @@ source now applies a scoped hidden-state rule, adds a regression assertion,
 and increments the service-worker cache to v39. The UI also blocks verification
 before a setup secret exists and disabling when MFA is off; the backend returns
 409 for verification without a setup secret. Focused backend tests (96),
-frontend tests (29), and JavaScript validation (41 files) pass. This fix is
-pending full CI, image publication, and deployment. The backend's 403 checks
+frontend tests (29), and JavaScript validation (41 files) pass. GitHub Actions
+run [134](https://github.com/ciphernelson072/mit_portal/actions/runs/45484000672)
+passed all checks and published image
+`docker.io/ciphernelson/mit-portal:sha-05874d1e450c44e6dabcdbcb3132be0ef1e8c6be`.
+Render deployment remains pending: no deploy hook is configured in this
+environment, and public service probes timed out. The backend's 403 checks
 remain in place for enforced MFA and actions not allowed during enrollment.
 Authenticated MFA, email delivery, Render secret configuration, and production
 database acceptance have not been verified. Replace the screenshot-exposed

@@ -19,8 +19,12 @@ This is a test deployment, not production approval.
 The 23 November observation of the previous image's permissive CSP is
 historical and was superseded by this release. A separate account-security
 hidden-button fix, verify/disable UI guards, and backend verify-before-setup
-response passed focused tests but are not included in the current live image.
-Full CI, publication, and deployment remain pending; see
+response passed focused tests and GitHub Actions run
+[134](https://github.com/ciphernelson072/mit_portal/actions/runs/45484000672).
+The workflow published
+`docker.io/ciphernelson/mit-portal:sha-05874d1e450c44e6dabcdbcb3132be0ef1e8c6be`;
+Render deployment is not confirmed because no deploy hook is configured in
+this environment. Public service probes timed out. See
 [MFA recovery](./MFA_RECOVERY.md).
 
 The active Free service uses `UPLOAD_DIR=/tmp/uploads`; uploads are ephemeral
