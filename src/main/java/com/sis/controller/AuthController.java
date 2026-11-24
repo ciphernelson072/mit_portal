@@ -19,6 +19,7 @@ import com.sis.security.MfaPolicy;
 import com.sis.service.JwtService;
 import com.sis.service.MfaSecretCipher;
 import com.sis.service.MfaRecoveryCodeService;
+import com.sis.service.MfaQrCodeService;
 import com.sis.service.RefreshTokenService;
 import com.sis.service.SchoolService;
 import com.sis.service.AuthenticationService;
@@ -28,6 +29,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.CacheControl;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -107,6 +109,9 @@ public class AuthController {
 
     @Autowired
     private MfaRecoveryCodeService mfaRecoveryCodes;
+
+    @Autowired
+    private MfaQrCodeService mfaQrCodeService;
 
     @PostConstruct
     public void validateCookiePolicy() {
@@ -308,9 +313,13 @@ public class AuthController {
             if (!isValidTotpSecret(secret)) {
                 secret = generateTotpSecret();
             }
+            String otpUri = buildOtpauthUri(username, secret);
+            String qrCodeDataUri = mfaQrCodeService.generateDataUri(otpUri);
             user.setMfaSecret(mfaSecretCipher.encrypt(secret));
             schoolService.saveUser(user);
-            return ResponseEntity.ok(new MfaSetupResponse(secret, buildOtpauthUri(username, secret)));
+            return ResponseEntity.ok()
+                    .cacheControl(CacheControl.noStore())
+                    .body(new MfaSetupResponse(secret, otpUri, qrCodeDataUri));
         }).orElse(ResponseEntity.notFound().build());
     }
 
@@ -333,7 +342,9 @@ public class AuthController {
             List<String> recoveryCodes = mfaRecoveryCodes.replaceCodes(user);
             revokeSessionsAfterMfaChange(user);
             schoolService.saveUser(user);
-            return ResponseEntity.ok(new MfaSetupResponse(secret, buildOtpauthUri(username, secret), recoveryCodes));
+            return ResponseEntity.ok()
+                    .cacheControl(CacheControl.noStore())
+                    .body(new MfaSetupResponse(secret, buildOtpauthUri(username, secret), recoveryCodes));
         }).orElse(ResponseEntity.notFound().build());
     }
 

@@ -154,7 +154,7 @@ test('service worker precaches public pages but not authenticated dashboard page
   for (const asset of ['./dashboard.html', './admin-dashboard.html', './teacher-dashboard.html']) {
     assert.ok(!coreAssets.includes(asset), `${asset} requires authentication and must not be precached for anonymous users`);
   }
-  assert.match(serviceWorkerSource, /const CACHE_NAME = 'mit-portal-cache-v37';/);
+  assert.match(serviceWorkerSource, /const CACHE_NAME = 'mit-portal-cache-v38';/);
   assert.ok(coreAssets.includes('./js/pwa-update.js'), 'update support should be available offline');
 });
 
@@ -214,4 +214,16 @@ test('all login forms use the supplied campus background image', () => {
   assert.match(adminLoginPage, /class="staff-auth-page"/);
   assert.match(portalLoginCss, /url\(['"]?\/icons\/campus-login\.png['"]?\)/);
   assert.match(portalLoginPage, /src="\/icons\/campus-login\.png"/);
+});
+
+test('MFA enrollment offers a private QR code and official authenticator downloads', () => {
+  const staticRoot = path.join(__dirname, '../src/main/resources/static');
+  const securityPage = fs.readFileSync(path.join(staticRoot, 'account-security.html'), 'utf8');
+  const securityScript = fs.readFileSync(path.join(staticRoot, 'js/profile-security.js'), 'utf8');
+
+  assert.match(securityPage, /id="mfaQrCode"[^>]*hidden/);
+  assert.match(securityPage, /play\.google\.com\/store\/apps\/details\?id=com\.google\.android\.apps\.authenticator2/);
+  assert.match(securityPage, /apps\.apple\.com\/app\/microsoft-authenticator\/id983156458/);
+  assert.match(securityScript, /qrCode\.src = setup\.qrCodeDataUri/);
+  assert.match(securityScript, /data:image\\\/png;base64/);
 });

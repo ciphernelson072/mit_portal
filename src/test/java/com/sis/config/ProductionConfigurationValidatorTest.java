@@ -95,7 +95,7 @@ class ProductionConfigurationValidatorTest {
     }
 
     @Test
-    void shouldRejectProductionWhenPrivilegedMfaIsDisabled() {
+    void shouldAllowOptionalMfaInProduction() {
         contextRunner
                 .withPropertyValues(
                         "spring.profiles.active=prod",
@@ -115,9 +115,8 @@ class ProductionConfigurationValidatorTest {
                         "app.security.mfa.encryption-key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
                 )
                 .run(context -> {
-                    assertThat(context).hasFailed();
-                    assertThat(context.getStartupFailure())
-                            .hasStackTraceContaining("MFA_REQUIRED_FOR_PRIVILEGED must be true in production");
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).hasSingleBean(ProductionConfigurationValidator.class);
                 });
     }
 

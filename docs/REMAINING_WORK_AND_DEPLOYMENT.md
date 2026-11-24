@@ -542,9 +542,9 @@ reconfigure the active service without an approved change.
    `COOKIE_SECURE=true`, `SAMPLE_DATA_ENABLED=false`,
    `FLYWAY_BASELINE_ON_MIGRATE=false`, `MFA_ENABLED=true`,
    `MFA_REQUIRED_FOR_ALL=false`, and
-   `MFA_REQUIRED_FOR_PRIVILEGED=true`. Privileged-account MFA is required in
-   production; other roles may enroll optionally.
-   retain a persistent `MFA_ENCRYPTION_KEY` for users who opt in. Preserve the
+   `MFA_REQUIRED_FOR_PRIVILEGED=false`. MFA is optional for every role;
+   users may enable or disable it for their own accounts. Keep a persistent
+   `MFA_ENCRYPTION_KEY` for enrolled users. Preserve the
    Blueprint's proxy setting only behind Render's trusted ingress; do not
    copy forwarded-header trust to a directly reachable server.
 6. For a new empty database only, perform the one-time administrator setup:

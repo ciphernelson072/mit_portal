@@ -62,7 +62,7 @@ public class ProductionConfigurationValidator {
     @Value("${app.security.mfa.enabled:true}")
     private boolean mfaEnabled;
 
-    @Value("${app.security.mfa.required-for-privileged:true}")
+    @Value("${app.security.mfa.required-for-privileged:false}")
     private boolean mfaRequiredForPrivileged;
 
     @Value("${app.security.mfa.required-for-all:false}")
@@ -147,10 +147,6 @@ public class ProductionConfigurationValidator {
         if (mfaRequiredForPrivileged && !mfaEnabled) {
             throw new IllegalStateException(
                     "MFA_REQUIRED_FOR_PRIVILEGED=true requires MFA_ENABLED=true.");
-        }
-        if (!mfaRequiredForPrivileged) {
-            throw new IllegalStateException(
-                    "MFA_REQUIRED_FOR_PRIVILEGED must be true in production.");
         }
         if (mfaEnabled || mfaRequiredForAll || mfaRequiredForPrivileged) {
             requireConfigured("MFA_ENCRYPTION_KEY", mfaEncryptionKey);

@@ -55,6 +55,34 @@
   overflow-wrap: anywhere;
 }
 
+.mfa-qr-code {
+  display: block;
+  width: min(100%, 256px);
+  height: auto;
+  margin: 14px auto;
+  padding: 10px;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  background: #fff;
+  image-rendering: pixelated;
+}
+
+.mfa-qr-code[hidden] {
+  display: none;
+}
+
+.authenticator-downloads {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 12px 0;
+}
+
+.authenticator-downloads a {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
 .mfa-secret {
   margin: 10px 0;
   font-size: 16px;

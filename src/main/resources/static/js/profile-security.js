@@ -16,6 +16,7 @@
   const otpGroup = document.getElementById('mfaOtpGroup');
   const enrollment = document.getElementById('mfaEnrollment');
   const secret = document.getElementById('mfaSecret');
+  const qrCode = document.getElementById('mfaQrCode');
   const otpUri = document.getElementById('mfaOtpUri');
   const recoveryCodesSection = document.getElementById('mfaRecoveryCodes');
   const recoveryCodeList = document.getElementById('mfaRecoveryCodeList');
@@ -161,10 +162,14 @@
         body: JSON.stringify({ currentPassword: password.value }),
       });
       const setup = await response.json();
-      if (!/^[A-Z2-7]{32}$/.test(setup.secret) || !setup.otpUri.startsWith('otpauth://')) {
+      if (!/^[A-Z2-7]{32}$/.test(setup.secret)
+          || !setup.otpUri.startsWith('otpauth://totp/')
+          || !/^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/.test(setup.qrCodeDataUri)) {
         throw new Error('The server returned invalid authenticator setup data.');
       }
       secret.textContent = setup.secret;
+      qrCode.src = setup.qrCodeDataUri;
+      qrCode.hidden = false;
       otpUri.href = setup.otpUri;
       otpUri.hidden = false;
       enrollment.hidden = false;

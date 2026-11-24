@@ -313,7 +313,7 @@ npm run test:unit
         <tr><td><code>UPLOAD_DIR</code></td><td>Current Free: <code>/tmp/uploads</code>; paid template: <code>/var/data/uploads</code>.</td><td>Free storage is temporary; the disk template is not the active service automatically</td></tr>
         <tr><td><code>MAIL_PROVIDER</code>, <code>MAIL_ENABLED</code></td><td>Blueprint defaults to <code>brevo</code> and enabled. Confirm the active service's actual values.</td><td>Provider choice is not delivery proof</td></tr>
         <tr><td><code>BREVO_API_KEY</code>, <code>MAIL_FROM_EMAIL</code></td><td>Key and sender address for Brevo HTTPS API.</td><td>Key is secret; sender must be verified; rotate the previously exposed key</td></tr>
-        <tr><td><code>MFA_ENABLED</code>, <code>MFA_REQUIRED_FOR_PRIVILEGED</code>, <code>MFA_ENCRYPTION_KEY</code></td><td>Production requires MFA for privileged accounts. Securely provision/back up a persistent 32-byte Base64 key and verify enrollment and recovery readiness.</td><td>Production startup fails if the key is missing or privileged enforcement is disabled.</td></tr>
+        <tr><td><code>MFA_ENABLED</code>, <code>MFA_REQUIRED_FOR_PRIVILEGED</code>, <code>MFA_REQUIRED_FOR_ALL</code>, <code>MFA_ENCRYPTION_KEY</code></td><td>MFA is available as an opt-in for every account. Keep both required flags false unless the institution separately approves an enforcement policy. Securely provision/back up the persistent 32-byte Base64 key.</td><td>Production startup fails if MFA is enabled and the encryption key is missing or invalid.</td></tr>
         <tr><td><code>INITIAL_ADMIN_BOOTSTRAP_*</code></td><td>Only for first startup on a truly empty database; disable and remove credentials immediately after creation.</td><td>Never use as account recovery or on a populated database</td></tr>
       </tbody>
     </table>
@@ -510,7 +510,7 @@ npm run test:unit
       <li>Approve the scope (administrators/finance-privileged accounts), enrollment schedule, helpdesk identity proof, independent approval, incident logging, and lost-device recovery.</li>
       <li>Generate and store a persistent Base64-encoded 32-byte <code>MFA_ENCRYPTION_KEY</code> in the secret manager. Back it up using the institution's encrypted key-custody process and test decrypting a non-production seed.</li>
       <li>Enable MFA first without mandatory enforcement. Enroll privileged users; verify login, challenge, refresh, session revocation, key restore and recovery.</li>
-      <li>Production requires <code>MFA_REQUIRED_FOR_PRIVILEGED=true</code>; verify privileged-account enrollment and the approved support recovery process before rollout. Never promise recovery paths not supported by the source.</li>
+      <li>Production defaults to optional MFA with <code>MFA_REQUIRED_FOR_PRIVILEGED=false</code> and <code>MFA_REQUIRED_FOR_ALL=false</code>. Each user may enable it in Account Security; existing enrolled accounts remain protected until they disable it. Never promise recovery paths not supported by the source.</li>
     </ol>
     <h2>Privacy and student records</h2>
     <ul>

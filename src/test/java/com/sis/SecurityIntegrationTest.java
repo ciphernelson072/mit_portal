@@ -425,6 +425,8 @@ class SecurityIntegrationTest {
                     "/api/auth/mfa/setup", HttpMethod.POST,
                     new HttpEntity<>(setupRequest, pendingHeaders), MfaSetupResponse.class);
             assertEquals(HttpStatus.OK, setupResponse.getStatusCode());
+            assertEquals("no-store", setupResponse.getHeaders().getFirst(HttpHeaders.CACHE_CONTROL));
+            assertTrue(setupResponse.getBody().getQrCodeDataUri().startsWith("data:image/png;base64,"));
             String secret = setupResponse.getBody().getSecret();
 
             String otp = ReflectionTestUtils.invokeMethod(authController, "generateTotp",
@@ -436,6 +438,7 @@ class SecurityIntegrationTest {
                     "/api/auth/mfa/verify", HttpMethod.POST,
                     new HttpEntity<>(verifyRequest, pendingHeaders), Void.class);
             assertEquals(HttpStatus.OK, verifyResponse.getStatusCode());
+            assertEquals("no-store", verifyResponse.getHeaders().getFirst(HttpHeaders.CACHE_CONTROL));
 
             ResponseEntity<String> staleEnrollmentApi = restTemplate.exchange(
                     "/api/auth/authorities", HttpMethod.GET, new HttpEntity<>(pendingHeaders), String.class);
