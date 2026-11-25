@@ -2,31 +2,32 @@
 
 ## Current test deployment
 
-On 24 November 2026, the Render Free test service reported deployment
-`dep-dc3117h5efls739467gg` live for image/commit
-`sha-a418a654694006fdadb432cb06ce25161455a8ab`. Render reports
-`Deploy succeeded | Live`. The account-security page, its CSS and JavaScript,
-and the service worker were checked; the expected hidden-state rule and cache
-v39 were present. On 25 November 2026, `/actuator/health` and
-`/actuator/health/readiness` returned HTTP 200 with status `UP`. An
-unauthenticated request to `/account-security.html` redirected to
-`/unauthorized.html?reason=login`, which returned HTTP 200. On 25 November an
-approved test-account sign-in succeeded and MFA setup returned a QR, but
-verification returned HTTP 403, so enrollment is not confirmed. The likely
-cause and local source correction are documented in [MFA recovery](./MFA_RECOVERY.md);
-CI and deployment are pending. End-to-end email delivery was not tested. The
-public service is
+On 25 November 2026, Render reported deployment
+`dep-dc3ibj15efls73bv6t6g` live for image/commit
+`sha-e9c590abf6072214ea734a7659ae81f66799ea7b` (`Deploy succeeded | Live`).
+Render's deployment logs show `/actuator/health/readiness` returning HTTP 200.
+The deployment includes the unauthenticated-session 401 correction documented
+in [MFA recovery](./MFA_RECOVERY.md). The earlier approved test-account flow
+reached MFA setup but returned HTTP 403 during verification; enrollment has not
+yet been re-tested against this release. The 90-test `SecurityIntegrationTest`
+run passed locally; the GitHub Actions run status was not independently
+verified during deployment. A direct public probe from the deployment
+environment failed DNS resolution, so external availability was not
+independently confirmed. End-to-end email delivery was not tested. The public
+service is
 [`https://makerere-institute-of-technology.onrender.com/`](https://makerere-institute-of-technology.onrender.com/).
 This is a test deployment, not production approval.
 
 The 23 November observation of the previous image's permissive CSP is
-historical and was superseded by this release. The account-security
+historical and was superseded by the earlier release. The account-security
 hidden-button fix, verify/disable UI guards, and backend
 verify-before-setup response passed focused tests and GitHub Actions runs
 [134](https://github.com/ciphernelson072/mit_portal/actions/runs/45484000672)
 and [135](https://github.com/ciphernelson072/mit_portal/actions/runs/45487818308).
-The deployed image is
-`docker.io/ciphernelson/mit-portal:sha-a418a654694006fdadb432cb06ce25161455a8ab`.
+The 24 November image
+`docker.io/ciphernelson/mit-portal:sha-a418a654694006fdadb432cb06ce25161455a8ab`
+was superseded by the 25 November image
+`docker.io/ciphernelson/mit-portal:sha-e9c590abf6072214ea734a7659ae81f66799ea7b`.
 See [MFA recovery](./MFA_RECOVERY.md).
 
 The active Free service uses `UPLOAD_DIR=/tmp/uploads`; uploads are ephemeral
@@ -67,8 +68,9 @@ The Render service consumes a prebuilt Docker Hub image rather than building
 the Git branch directly. The GitHub Actions workflow publishes
 `docker.io/ciphernelson/mit-portal:latest` and a commit-specific tag on pushes
 to `main` and `fix/admin-login-offline-styles`, after the CI gates pass. The
-current 24 November deployment uses
-`docker.io/ciphernelson/mit-portal:sha-e7a6f502caed9e180e9f1451ed267f030ae4d2af`.
+current 25 November deployment uses
+`docker.io/ciphernelson/mit-portal:sha-e9c590abf6072214ea734a7659ae81f66799ea7b`
+and is recorded as deployment `dep-dc3ibj15efls73bv6t6g`.
 A Git push alone is not deployment evidence: confirm the workflow, the
 deployed release, and service health for each release.
 
