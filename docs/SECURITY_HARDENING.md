@@ -1,6 +1,6 @@
 # Security hardening and release checks
 
-Updated 24 November 2026. This document describes the security changes in the
+Updated 25 November 2026. This document describes the security changes in the
 current working tree and the checks required before relying on them in Render.
 
 ## Changes
@@ -53,11 +53,14 @@ as `Deploy succeeded | Live`, using image/commit
 passed backend, MySQL migration, frontend, browser E2E, image-build, and
 publication checks.
 
-Post-deployment checks confirmed the account-security HTML, stylesheet,
+Post-deployment checks confirmed the account-security route redirects
+unauthenticated requests to the login-required response. The stylesheet,
 profile-security script, and service worker returned HTTP 200. The served CSS
 contains the hidden-state rule, and the service worker uses cache v39. Render
-reports its internal health check passed and deployment Live; public actuator
-requests timed out from this environment. The 23 November
+reports its internal health check passed and deployment Live. On 25 November,
+public `/actuator/health` and `/actuator/health/readiness` returned HTTP 200
+with status `UP`; unauthenticated account-security access redirected to a
+login-required response. The 23 November
 observation of the prior image's permissive CSP is historical and was
 superseded by this release.
 

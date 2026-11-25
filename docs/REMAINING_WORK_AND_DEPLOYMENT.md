@@ -1,6 +1,6 @@
 # Remaining Work and Render Deployment Runbook
 
-Last reviewed: 24 November 2026
+Last reviewed: 25 November 2026
 
 This document records current release status and remaining production-readiness
 work. Use it with
@@ -10,7 +10,7 @@ the [Render deployment details](./RENDER_DEPLOYMENT.md), the
 The role-by-role cross-workflow findings are recorded in
 [ROLE_WORKFLOW_GAPS.md](./ROLE_WORKFLOW_GAPS.md).
 
-## Current test deployment status (24 November 2026)
+## Current test deployment status (25 November 2026)
 
 Render reports deployment `dep-dc3117h5efls739467gg` live on immutable image
 `docker.io/ciphernelson/mit-portal:sha-a418a654694006fdadb432cb06ce25161455a8ab`
@@ -18,8 +18,10 @@ for commit `a418a654694006fdadb432cb06ce25161455a8ab`. GitHub Actions run
 [135](https://github.com/ciphernelson072/mit_portal/actions/runs/45487818308)
 passed. Render reports `Deploy succeeded | Live`. The account-security page,
 its CSS and JavaScript, and the service worker returned HTTP 200; the expected
-hidden-state fix and cache v39 were present. Public actuator requests timed out
-from this environment; authenticated MFA acceptance is still outstanding.
+hidden-state fix and cache v39 were present. On 25 November, `/actuator/health`
+and `/actuator/health/readiness` returned HTTP 200 with status `UP`. The
+unauthenticated account-security page redirects to a login-required response;
+authenticated MFA acceptance is still outstanding.
 
 The account-security screenshot then exposed a UI defect: CSS overrode native
 `[hidden]`, showing the “Turn off” action even when MFA was disabled. The

@@ -37,10 +37,12 @@ The follow-up documentation commit passed run
 [135](https://github.com/ciphernelson072/mit_portal/actions/runs/45487818308)
 and was published as the deployed image above. Render reports
 `Deploy succeeded | Live`; the account-security page, CSS, profile-security
-script, and service worker returned HTTP 200, with the expected hidden-state
-rule and cache v39 present. Public actuator health probes timed out from this
-environment. Authenticated MFA acceptance remains pending. Refresh/update the
-portal and use the flow shown by the state: generate a setup QR/key first,
+script, and service worker were checked. The CSS contains the hidden-state
+rule and the service worker uses cache v39. On 25 November 2026, both public
+actuator health endpoints returned HTTP 200 with status `UP`. An unauthenticated
+request to the account-security page redirected to the login-required response;
+authenticated MFA acceptance remains pending. Refresh/update the portal and
+use the flow shown by the state: generate a setup QR/key first,
 scan it, then submit the current password and a current six-digit code to
 enable MFA. Do not select “Turn off” when status says MFA is disabled. A prior
 pending setup seed appeared in a screenshot; replace it with a fresh setup key

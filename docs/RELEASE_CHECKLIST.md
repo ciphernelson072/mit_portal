@@ -46,9 +46,10 @@ verification procedure and current Render evidence.
   `docker.io/ciphernelson/mit-portal:sha-a418a654694006fdadb432cb06ce25161455a8ab`;
   Render deployment `dep-dc3117h5efls739467gg` reports `Deploy succeeded | Live`.
 - [x] Public account-security HTML, stylesheet, profile-security script, and
-  service worker returned HTTP 200; deployed CSS contains the hidden-state fix
-  and service-worker cache is v39. Public actuator probes timed out, although
-  Render's deployment health check succeeded.
+  service worker were checked; the protected page redirects unauthenticated
+  requests to the login-required response. CSS contains the hidden-state fix
+  and service-worker cache is v39. On 25 November 2026, public `/actuator/health`
+  and `/actuator/health/readiness` returned HTTP 200 with status `UP`.
 - [ ] With an approved synthetic account, verify account-security display and
   optional MFA enrollment/sign-in/recovery. No authenticated MFA flow was
   performed.

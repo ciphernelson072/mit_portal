@@ -11,10 +11,13 @@ The Render service is a **test environment**, not a production-ready student
 service. On 24 November 2026, Render reported deployment
 `dep-dc3117h5efls739467gg` live on image/commit
 `sha-a418a654694006fdadb432cb06ce25161455a8ab`. Render reports
-`Deploy succeeded | Live`. The account-security page, its MFA stylesheet and
-script, and service worker returned HTTP 200; the deployed assets include the
-hidden-state fix and cache v39. Public actuator health requests timed out from
-this environment. Authenticated sign-in, MFA enrollment/recovery, and email
+`Deploy succeeded | Live`. The MFA stylesheet, profile-security script, and
+service worker returned HTTP 200; the deployed assets include the hidden-state
+fix and cache v39. On 25 November 2026, `/actuator/health` and
+`/actuator/health/readiness` both returned HTTP 200 with status `UP`. The
+unauthenticated account-security request redirected to
+`/unauthorized.html?reason=login` (HTTP 200 after redirect), as expected for a
+protected page. Authenticated sign-in, MFA enrollment/recovery, and email
 delivery have not been tested.
 See [Security hardening and release checks](docs/SECURITY_HARDENING.md) for
 the evidence and remaining target-environment checks.

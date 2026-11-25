@@ -6,17 +6,19 @@ On 24 November 2026, the Render Free test service reported deployment
 `dep-dc3117h5efls739467gg` live for image/commit
 `sha-a418a654694006fdadb432cb06ce25161455a8ab`. Render reports
 `Deploy succeeded | Live`. The account-security page, its CSS and JavaScript,
-and the service worker returned HTTP 200; the expected hidden-state rule and
-cache v39 were present. Public actuator requests timed out from this
-environment. No authenticated sign-in, MFA enrollment/recovery, or end-to-end
-email delivery was performed. The public
-service is
+and the service worker were checked; the expected hidden-state rule and cache
+v39 were present. On 25 November 2026, `/actuator/health` and
+`/actuator/health/readiness` returned HTTP 200 with status `UP`. An
+unauthenticated request to `/account-security.html` redirected to
+`/unauthorized.html?reason=login`, which returned HTTP 200. No authenticated
+sign-in, MFA enrollment/recovery, or end-to-end email delivery was performed.
+The public service is
 [`https://makerere-institute-of-technology.onrender.com/`](https://makerere-institute-of-technology.onrender.com/).
 This is a test deployment, not production approval.
 
 The 23 November observation of the previous image's permissive CSP is
-historical and was superseded by this release. A separate account-security
-The account-security hidden-button fix, verify/disable UI guards, and backend
+historical and was superseded by this release. The account-security
+hidden-button fix, verify/disable UI guards, and backend
 verify-before-setup response passed focused tests and GitHub Actions runs
 [134](https://github.com/ciphernelson072/mit_portal/actions/runs/45484000672)
 and [135](https://github.com/ciphernelson072/mit_portal/actions/runs/45487818308).
