@@ -50,6 +50,26 @@ and do not reuse the exposed one. If the failure persists, capture the failing
 request path and response body without exposing passwords, OTPs, cookies, QR
 codes, or seeds.
 
+### Follow-up verification failure (25 November 2026)
+
+An approved test-account sign-in succeeded and the setup endpoint returned a
+QR, but clicking “Verify and enable” returned HTTP 403. The TOTP verification
+controller returns 401 for a wrong code and has no 403 response; the denial
+therefore occurs before TOTP verification. The browser session had been open
+for over an hour, matching the default one-hour access-token lifetime. The
+likely cause is an expired access token reaching method-level authorization,
+which mapped anonymous denial to 403 and prevented the frontend's 401
+refresh-and-retry flow. The response body and authentication cookie were not
+inspected, so expiry remains a likely cause rather than a proven fact.
+
+The source now maps anonymous or unauthenticated access-denied exceptions to
+401, allowing the existing refresh-and-retry flow to run; authenticated
+authorization denials remain 403. All 90 `SecurityIntegrationTest` tests pass,
+including the MFA enrollment-policy test. This correction has not yet passed
+CI or been deployed. Do not treat the account as MFA-enabled. After deployment,
+sign in again, replace the pending setup key with a fresh one, and verify using
+a current code. Never share the QR, secret, password, or OTP.
+
 ## User enrollment
 
 1. Keep `MFA_ENABLED=true`, `MFA_REQUIRED_FOR_PRIVILEGED=false`, and

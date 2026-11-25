@@ -10,9 +10,12 @@ and the service worker were checked; the expected hidden-state rule and cache
 v39 were present. On 25 November 2026, `/actuator/health` and
 `/actuator/health/readiness` returned HTTP 200 with status `UP`. An
 unauthenticated request to `/account-security.html` redirected to
-`/unauthorized.html?reason=login`, which returned HTTP 200. No authenticated
-sign-in, MFA enrollment/recovery, or end-to-end email delivery was performed.
-The public service is
+`/unauthorized.html?reason=login`, which returned HTTP 200. On 25 November an
+approved test-account sign-in succeeded and MFA setup returned a QR, but
+verification returned HTTP 403, so enrollment is not confirmed. The likely
+cause and local source correction are documented in [MFA recovery](./MFA_RECOVERY.md);
+CI and deployment are pending. End-to-end email delivery was not tested. The
+public service is
 [`https://makerere-institute-of-technology.onrender.com/`](https://makerere-institute-of-technology.onrender.com/).
 This is a test deployment, not production approval.
 

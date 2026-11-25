@@ -17,8 +17,11 @@ fix and cache v39. On 25 November 2026, `/actuator/health` and
 `/actuator/health/readiness` both returned HTTP 200 with status `UP`. The
 unauthenticated account-security request redirected to
 `/unauthorized.html?reason=login` (HTTP 200 after redirect), as expected for a
-protected page. Authenticated sign-in, MFA enrollment/recovery, and email
-delivery have not been tested.
+protected page. An approved test-account sign-in succeeded and MFA setup
+returned a QR, but verification returned HTTP 403, so enrollment is not
+confirmed. A source correction for expired-session status handling passes
+focused tests; CI and deployment are pending. Email delivery has not been
+tested.
 See [Security hardening and release checks](docs/SECURITY_HARDENING.md) for
 the evidence and remaining target-environment checks.
 

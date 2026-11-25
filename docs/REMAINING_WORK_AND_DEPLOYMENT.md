@@ -33,11 +33,17 @@ frontend tests (29), and JavaScript validation (41 files) pass. GitHub Actions
 run [134](https://github.com/ciphernelson072/mit_portal/actions/runs/45484000672)
 passed the code change and run [135](https://github.com/ciphernelson072/mit_portal/actions/runs/45487818308)
 passed the follow-up release. The deployed image and public asset checks are
-recorded above. The backend's 403 checks
-remain in place for enforced MFA and actions not allowed during enrollment.
-Authenticated MFA, email delivery, Render secret configuration, and production
-database acceptance have not been verified. Replace the screenshot-exposed
-pending MFA seed by starting a fresh setup after the correction deploys.
+recorded above. On 25 November, an approved test-account sign-in succeeded and
+setup returned a QR, but verification returned HTTP 403; MFA is not confirmed
+enabled. The likely cause is an expired one-hour access token being treated as
+an authenticated access denial, so the browser's 401 refresh/retry did not run.
+The response body and authentication cookie were not inspected. A local fix
+now returns 401 for anonymous/unauthenticated authorization failures while
+preserving 403 for authenticated denials; all 90 security integration tests
+pass. CI and deployment of this correction are pending. After deployment, sign
+in again, replace the pending setup key, and rerun MFA enrollment/sign-in
+acceptance. Policy restrictions remain in place. Email delivery, Render secret
+configuration, and production database acceptance have not been verified.
 
 This remains a controlled Render Free test deployment. Uploads use ephemeral
 `/tmp/uploads`; do not store real student records there.

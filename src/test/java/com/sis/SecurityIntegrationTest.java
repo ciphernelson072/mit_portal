@@ -313,6 +313,23 @@ class SecurityIntegrationTest {
     }
 
     @Test
+    void unauthenticatedMfaVerificationReturnsUnauthorizedForSessionRefresh() {
+        MfaVerifyRequest request = new MfaVerifyRequest();
+        request.setCurrentPassword("test-password");
+        request.setOtp("000000");
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/auth/mfa/verify",
+                HttpMethod.POST,
+                new HttpEntity<>(request, headers),
+                String.class);
+
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+    }
+
+    @Test
     void usersInEveryRoleCanSignInWithoutEnrollingWhenMfaIsOptional() {
         boolean originalMfaEnabledSetting = (boolean) ReflectionTestUtils.getField(authController, "mfaEnabled");
         boolean originalAllRequired =
@@ -469,7 +486,7 @@ class SecurityIntegrationTest {
 
             ResponseEntity<String> staleEnrollmentApi = restTemplate.exchange(
                     "/api/auth/authorities", HttpMethod.GET, new HttpEntity<>(pendingHeaders), String.class);
-            assertEquals(HttpStatus.FORBIDDEN, staleEnrollmentApi.getStatusCode());
+            assertEquals(HttpStatus.UNAUTHORIZED, staleEnrollmentApi.getStatusCode());
 
             otp = ReflectionTestUtils.invokeMethod(authController, "generateTotp",
                     secret, java.time.Instant.now().getEpochSecond() / 30L);
@@ -500,6 +517,14 @@ class SecurityIntegrationTest {
                     new HttpEntity<>(refreshedAccessHeaders), String.class);
             assertEquals(HttpStatus.OK, refreshedPrivilegedApi.getStatusCode());
 
+            MfaDisableRequest disableRequest = new MfaDisableRequest();
+            disableRequest.setCurrentPassword("admin123");
+            disableRequest.setOtp(otp);
+            ResponseEntity<Void> disableResponse = restTemplate.exchange(
+                    "/api/auth/mfa/disable", HttpMethod.POST,
+                    new HttpEntity<>(disableRequest, refreshedAccessHeaders), Void.class);
+            assertEquals(HttpStatus.FORBIDDEN, disableResponse.getStatusCode());
+
             String unverifiedRefreshToken =
                     refreshTokenService.startSingleSession(user.getId(), false).getRefreshToken();
             HttpHeaders unverifiedRefreshHeaders = new HttpHeaders();
@@ -509,14 +534,6 @@ class SecurityIntegrationTest {
                     "/api/auth/refresh", HttpMethod.POST,
                     new HttpEntity<>(unverifiedRefreshHeaders), String.class);
             assertEquals(HttpStatus.UNAUTHORIZED, unverifiedRefresh.getStatusCode());
-
-            MfaDisableRequest disableRequest = new MfaDisableRequest();
-            disableRequest.setCurrentPassword("admin123");
-            disableRequest.setOtp(otp);
-            ResponseEntity<Void> disableResponse = restTemplate.exchange(
-                    "/api/auth/mfa/disable", HttpMethod.POST,
-                    new HttpEntity<>(disableRequest, refreshedAccessHeaders), Void.class);
-            assertEquals(HttpStatus.FORBIDDEN, disableResponse.getStatusCode());
         } finally {
             refreshTokenService.revokeAllForUser(user.getId());
             user.setMfaEnabled(originalMfaEnabled);

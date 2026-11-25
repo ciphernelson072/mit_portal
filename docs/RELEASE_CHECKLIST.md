@@ -51,12 +51,26 @@ verification procedure and current Render evidence.
   and service-worker cache is v39. On 25 November 2026, public `/actuator/health`
   and `/actuator/health/readiness` returned HTTP 200 with status `UP`.
 - [ ] With an approved synthetic account, verify account-security display and
-  optional MFA enrollment/sign-in/recovery. No authenticated MFA flow was
-  performed.
-- [ ] Replace the pending MFA setup secret visible in the earlier screenshot.
+  optional MFA enrollment/sign-in/recovery. On 25 November, sign-in succeeded
+  and setup returned a QR, but verification returned HTTP 403; MFA is not
+  confirmed enabled.
+- [ ] Deploy the 25 November unauthenticated-session 401 correction, then
+  replace the pending setup key and complete verification/sign-in acceptance.
 
 The backend's 403 response remains in place for policy-enforced MFA disable
 requests and actions outside the restricted enrollment allowlist.
+
+## MFA verification stale-session 403 correction (25 November 2026)
+
+- [x] Traced the likely cause to a one-hour access token expiring before
+  verification; anonymous method-level authorization was mapped to 403,
+  preventing the browser's 401 refresh-and-retry flow.
+- [x] Updated the exception handler to return 401 for anonymous or
+  unauthenticated access while preserving 403 for authenticated access denials.
+- [x] All 90 `SecurityIntegrationTest` tests pass, including the dedicated
+  unauthenticated MFA verification and valid-token MFA-policy checks.
+- [ ] CI, image publication, Render deployment, and authenticated MFA
+  enrollment/sign-in acceptance are pending.
 
 ## Verification records
 

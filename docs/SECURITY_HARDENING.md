@@ -82,6 +82,16 @@ passed the follow-up release and its image is Live. This explains the
 screenshot state but does not replace authenticated testing of the precise
 MFA flow.
 
+On 25 November, an approved test-account sign-in succeeded and the MFA setup
+request returned a QR, but verification returned HTTP 403. The likely cause is
+an expired one-hour access token whose anonymous authorization denial was
+mapped to 403 instead of 401, preventing the browser's refresh/retry behavior;
+the failed response and cookie were not inspected, so this is not confirmed.
+The source correction returns 401 for anonymous/unauthenticated access-denied
+exceptions while preserving 403 for authenticated authorization failures. All
+90 security integration tests pass. CI, image publication, deployment, and
+authenticated MFA re-test remain pending.
+
 These public checks do **not** establish authenticated sign-in, MFA enrollment
 or recovery, email delivery, database isolation, or production readiness.
 
