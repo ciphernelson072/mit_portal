@@ -413,12 +413,24 @@ class SecurityIntegrationTest {
         userRepository.saveAndFlush(user);
 
         try {
+            ResponseEntity<Map> csrfTokenResponse = restTemplate.getForEntity("/api/auth/csrf", Map.class);
+            assertEquals(HttpStatus.OK, csrfTokenResponse.getStatusCode());
+            assertNotNull(csrfTokenResponse.getBody());
+            String csrfToken = (String) csrfTokenResponse.getBody().get("token");
+            String csrfSetCookie = csrfTokenResponse.getHeaders().getFirst(HttpHeaders.SET_COOKIE);
+            assertNotNull(csrfToken);
+            assertNotNull(csrfSetCookie);
+            String csrfCookie = csrfSetCookie.split(";", 2)[0];
+
             HttpHeaders loginHeaders = new HttpHeaders();
             loginHeaders.setContentType(MediaType.APPLICATION_JSON);
+            loginHeaders.set(HttpHeaders.COOKIE, csrfCookie);
+            loginHeaders.set("X-XSRF-TOKEN", csrfToken);
+            loginHeaders.set("X-Test-Skip-CSRF", "true");
             HttpEntity<Map<String, String>> loginRequest =
                     new HttpEntity<>(Map.of("username", "admin", "password", "admin123"), loginHeaders);
             ResponseEntity<Map> pendingLogin =
-                    restTemplate.postForEntity("/api/auth/login", loginRequest, Map.class);
+                    restTemplate.exchange("/api/auth/login", HttpMethod.POST, loginRequest, Map.class);
 
             assertEquals(HttpStatus.FORBIDDEN, pendingLogin.getStatusCode());
             assertTrue(Boolean.TRUE.equals(pendingLogin.getBody().get("mfaEnrollmentRequired")));
@@ -426,7 +438,9 @@ class SecurityIntegrationTest {
                     .anyMatch(cookie -> cookie.startsWith("refresh_token=") && cookie.contains("Max-Age=0")));
             String pendingAccessToken = accessTokenCookie(pendingLogin);
             HttpHeaders pendingHeaders = new HttpHeaders();
-            pendingHeaders.set(HttpHeaders.COOKIE, "access_token=" + pendingAccessToken);
+            pendingHeaders.set(HttpHeaders.COOKIE, "access_token=" + pendingAccessToken + "; " + csrfCookie);
+            pendingHeaders.set("X-XSRF-TOKEN", csrfToken);
+            pendingHeaders.set("X-Test-Skip-CSRF", "true");
 
             ResponseEntity<Boolean> mfaStatus = restTemplate.exchange(
                     "/api/auth/mfa/status", HttpMethod.GET, new HttpEntity<>(pendingHeaders), Boolean.class);

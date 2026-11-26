@@ -195,6 +195,9 @@ function installRequestFeedback() {
       }
       return response;
     } finally {
+      if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+        csrfTokenPromise = null;
+      }
       activeRequests = Math.max(0, activeRequests - 1);
       if (activeRequests === 0) {
         window.clearTimeout(showProcessingTimer);
