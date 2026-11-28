@@ -1,4 +1,5 @@
 let teacherRosterRequestVersion = 0;
+let teacherCourseUnitRosterRequestVersion = 0;
 let teacherAttendanceRequestVersion = 0;
 let teacherGradeRequestVersion = 0;
 let teacherAssessmentRequestVersion = 0;
@@ -15,6 +16,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     String(today.getDate()).padStart(2, '0'),
   ].join('-');
   document.getElementById('rosterCourseSelect').addEventListener('change', loadRoster);
+  document.getElementById('rosterCourseUnitSelect').addEventListener('change', loadCourseUnitRoster);
   document.getElementById('gradeStudent').addEventListener('change', () => {
     document.getElementById('gradeRecordId').value = '';
   });
@@ -390,8 +392,10 @@ async function loadCourses() {
       : '<option value="">No assigned course units</option>';
     setStatus('courseUnitRosterStatus', courseUnits.length
       ? '' : 'No course units are currently assigned to your account.', courseUnits.length ? '' : 'warning');
+    await loadCourseUnitRoster();
   } else {
     unitSelect.innerHTML = '<option value="">Unable to load course units</option>';
+    renderTeacherCourseUnitRoster([]);
     setStatus('courseUnitRosterStatus',
       unitResult.reason?.message || 'Unable to load assigned course units.', 'error');
   }
@@ -412,6 +416,14 @@ function renderTeacherRoster(students) {
       : '';
     return `<tr><td>${photo}${name}</td><td>${escapeHtml(student.registrationNumber || '—')}</td></tr>`;
   }).join('');
+}
+
+function renderTeacherCourseUnitRoster(students) {
+  const table = document.getElementById('teacherCourseUnitRosterTable');
+  table.hidden = !students.length;
+  table.querySelector('tbody').innerHTML = students.map(student =>
+    `<tr><td>${escapeHtml(student.fullName)}</td><td>${escapeHtml(student.registrationNumber || '—')}</td></tr>`
+  ).join('');
 }
 
 function resetTeacherGradeWorkspace(message = 'Select a course to load grades.') {
@@ -461,27 +473,30 @@ async function loadRoster() {
 async function loadCourseUnitRoster() {
   const unitId = document.getElementById('rosterCourseUnitSelect').value;
   const status = document.getElementById('courseUnitRosterStatus');
-  const requestVersion = ++teacherRosterRequestVersion;
+  const requestVersion = ++teacherCourseUnitRosterRequestVersion;
+  renderTeacherCourseUnitRoster([]);
   status.textContent = '';
   status.className = 'teacher-status';
-  teacherGradeRequestVersion++;
-  teacherAssessmentRequestVersion++;
-  resetTeacherGradeWorkspace('Course-unit rosters are view-only; select an assigned course for grade entry');
-  document.getElementById('exportTeacherRoster').disabled = true;
-  window._teacherRoster = [];
-  renderTeacherRoster([]);
-  if (!unitId) return;
+  if (!unitId) {
+    status.textContent = 'Select an assigned course unit to view its students.';
+    status.className = 'teacher-status warning';
+    return;
+  }
+  status.textContent = 'Loading students for the selected course unit…';
+  status.className = 'teacher-status';
   try {
     const students = requireResponseArray(
       await apiGet(`/teacher/course-units/${unitId}/students`), 'course-unit roster');
-    if (requestVersion !== teacherRosterRequestVersion
+    if (requestVersion !== teacherCourseUnitRosterRequestVersion
         || document.getElementById('rosterCourseUnitSelect').value !== unitId) return;
-    window._teacherRoster = students;
-    renderTeacherRoster(students);
-    status.textContent = `${students.length} enrolled student${students.length === 1 ? '' : 's'} in this course unit.`;
+    window._teacherUnitRoster = students;
+    renderTeacherCourseUnitRoster(students);
+    status.textContent = students.length
+      ? `${students.length} enrolled student${students.length === 1 ? '' : 's'} in this course unit.`
+      : 'No students are currently registered in this course unit.';
     status.className = 'teacher-status success';
   } catch (err) {
-    if (requestVersion !== teacherRosterRequestVersion) return;
+    if (requestVersion !== teacherCourseUnitRosterRequestVersion) return;
     setStatus('courseUnitRosterStatus', err.message || 'Unable to load the course-unit roster.', 'error');
   }
 }

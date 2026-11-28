@@ -30,7 +30,7 @@ test('teacher dashboard has independent course selectors', async ({ page }) => {
   await expect(page.locator('#attendanceStudent')).toHaveCount(0);
 });
 
-test('unit roster displays only student name and registration number', async ({ page }) => {
+test('unit roster loads automatically and follows the selected unit', async ({ page }) => {
   const loginResponse = await loginTeacher(page);
   expect(loginResponse.ok()).toBeTruthy();
 
@@ -41,9 +41,14 @@ test('unit roster displays only student name and registration number', async ({ 
   await routeApiWithCsrf(page, async route => {
     const url = new URL(route.request().url());
     const payload = url.pathname === '/api/teacher/course-units'
-      ? [{ id: 23, unitCode: 'CSC101A', name: 'Programming', courseCode: 'CSC101' }]
+      ? [
+          { id: 23, unitCode: 'CSC101A', name: 'Programming', courseCode: 'CSC101' },
+          { id: 24, unitCode: 'CSC101B', name: 'Databases', courseCode: 'CSC101' },
+        ]
       : url.pathname === '/api/teacher/course-units/23/students'
         ? [{ id: 17, fullName: 'Student Name', registrationNumber: 'MIT-017' }]
+        : url.pathname === '/api/teacher/course-units/24/students'
+          ? [{ id: 18, fullName: 'Second Student', registrationNumber: 'MIT-018' }]
         : url.pathname === '/api/teacher/dashboard'
           ? {
               assignedCourseCount: 0,
@@ -62,14 +67,17 @@ test('unit roster displays only student name and registration number', async ({ 
   });
 
   await page.goto('/teacher-dashboard.html');
-  await page.locator('#rosterCourseUnitSelect').selectOption('23');
-  await page.getByRole('button', { name: 'View Unit Roster' }).click();
 
-  const row = page.locator('#rosterTable tbody tr');
+  const row = page.locator('#teacherCourseUnitRosterTable tbody tr');
   await expect(row).toHaveCount(1);
   await expect(row).toContainText('Student Name');
   await expect(row).toContainText('MIT-017');
-  await expect(page.locator('#rosterTable thead th')).toHaveCount(2);
+  await expect(page.locator('#teacherCourseUnitRosterTable thead th')).toHaveCount(2);
+
+  await page.locator('#rosterCourseUnitSelect').selectOption('24');
+  await expect(page.locator('#teacherCourseUnitRosterTable tbody tr'))
+    .toContainText('Second Student');
+  await expect(page.locator('#rosterTable tbody tr')).toHaveCount(0);
   await expect(page.locator('#gradeForm button[type="submit"]')).toBeDisabled();
 });
 

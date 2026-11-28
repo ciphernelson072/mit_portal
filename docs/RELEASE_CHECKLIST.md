@@ -5,6 +5,33 @@ the phased runbook for closing these items and deploying to Render. This
 checklist records evidence; do not mark an item complete until verified in the
 actual target environment.
 
+## Current MFA release and deployment (26 November 2026)
+
+- [x] GitHub Actions run
+  [141](https://github.com/ciphernelson072/mit_portal/actions/runs/45782376626)
+  passed backend, MySQL migration, frontend, browser E2E, image-build, and
+  image-publication checks for commit
+  `4a3f1c1b63ab664704268e61774b15d9ac76a501`.
+- [x] Render deployment `dep-dc3utlt6e07s73dm37vg` is Live on image
+  `docker.io/ciphernelson/mit-portal:sha-4a3f1c1b63ab664704268e61774b15d9ac76a501`.
+- [x] Public `/actuator/health` returned HTTP 200 with status `UP`; Render's
+  deployment log recorded `/actuator/health/readiness` returning HTTP 200.
+  Public assets show service-worker cache v40 and the CSRF-token invalidation
+  after state-changing requests.
+- [x] The administrator reports the login/MFA flow now works; the supplied
+  screenshot shows admin-dashboard access. The earlier failed MFA request was
+  not captured with a filter-level trace, so the exact cause of the 403 is not
+  confirmed and account enrollment status was not independently inspected.
+- [x] Follow-up inspection of the active dashboard showed the metrics and
+  recent registrations rendered and the pending-actions panel reported no
+  pending items. The supplied screenshot captured the page while requests were
+  still processing.
+- [ ] Recheck dashboard loading after a Render Free idle/cold start to detect
+  any intermittent delay or failure state.
+- [ ] Review the Render private MFA configuration, email delivery, database
+  isolation, and account recovery with approved synthetic accounts before any
+  production or campus-user use.
+
 ## Security hardening release (23 November 2026)
 
 This is the historical pre-deployment checkpoint. The 24 November record
@@ -27,7 +54,11 @@ below supersedes its pending-image and permissive-CSP status.
 See [Security hardening and release checks](./SECURITY_HARDENING.md) for the
 verification procedure and current Render evidence.
 
-## MFA account-security UI correction (24 November 2026)
+## Historical MFA account-security UI correction (24 November 2026)
+
+The pending items in this historical section describe the status at that
+checkpoint; see the current release evidence above for subsequent deployment
+and user-reported verification.
 
 - [x] Traced the screenshot to shared button CSS overriding the HTML `hidden`
   state, causing unavailable MFA actions to appear.
@@ -60,17 +91,21 @@ verification procedure and current Render evidence.
 The backend's 403 response remains in place for policy-enforced MFA disable
 requests and actions outside the restricted enrollment allowlist.
 
-## MFA verification stale-session 403 correction (25 November 2026)
+## Historical MFA verification stale-session 403 correction (25 November 2026)
 
-- [x] Traced the likely cause to a one-hour access token expiring before
-  verification; anonymous method-level authorization was mapped to 403,
-  preventing the browser's 401 refresh-and-retry flow.
+The pending items in this historical section were superseded by the 26
+November CI run, image publication, and Render deployment recorded above.
+The expired-token explanation below was a hypothesis, not a confirmed
+root-cause finding; the original failing request was not captured.
+
 - [x] Updated the exception handler to return 401 for anonymous or
   unauthenticated access while preserving 403 for authenticated access denials.
 - [x] All 90 `SecurityIntegrationTest` tests pass, including the dedicated
   unauthenticated MFA verification and valid-token MFA-policy checks.
-- [ ] CI, image publication, Render deployment, and authenticated MFA
-  enrollment/sign-in acceptance are pending.
+- [x] CI, image publication, and Render deployment subsequently completed as
+  recorded in the current-release section above.
+- [x] The administrator subsequently reported that login/MFA works; this is
+  user-reported acceptance, not independent account-state verification.
 
 ## Verification records
 

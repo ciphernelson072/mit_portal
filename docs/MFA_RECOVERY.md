@@ -9,7 +9,24 @@ enabled until their owner disables MFA with their password and current code.
 Production requires a persistent Base64-encoded 32-byte `MFA_ENCRYPTION_KEY`
 while the feature is enabled.
 
-## Latest release and reported 403 (24 November 2026)
+## Current release and reported verification (26 November 2026)
+
+Render reports deployment `dep-dc3utlt6e07s73dm37vg` Live on image/commit
+`sha-4a3f1c1b63ab664704268e61774b15d9ac76a501`. GitHub Actions run
+[141](https://github.com/ciphernelson072/mit_portal/actions/runs/45782376626)
+passed backend, MySQL migration, frontend, browser, image-build, and
+publication checks. The release includes the unauthenticated-session 401
+handling correction, fresh CSRF-token retrieval after state-changing requests,
+and service-worker cache v40. Render health and readiness returned HTTP 200;
+the public health endpoint reported `UP`. The administrator reports that the
+login/MFA flow now works and shared a screenshot showing admin-dashboard
+access. That screenshot does not show MFA enrollment state, and the exact
+filter that rejected the earlier 403 was not captured. Treat the outcome as
+user-reported success after deployment, not a proven diagnosis of the original
+403. Do not reuse the setup seed previously exposed in a screenshot; if it is
+still pending, replace it with a fresh seed before enrollment.
+
+## Historical account-security UI correction (24 November 2026)
 
 Render reported deployment `dep-dc3117h5efls739467gg` live on image
 `sha-a418a654694006fdadb432cb06ce25161455a8ab` (commit
@@ -39,16 +56,12 @@ and was published as the deployed image above. Render reports
 `Deploy succeeded | Live`; the account-security page, CSS, profile-security
 script, and service worker were checked. The CSS contains the hidden-state
 rule and the service worker uses cache v39. On 25 November 2026, both public
-actuator health endpoints returned HTTP 200 with status `UP`. An unauthenticated
-request to the account-security page redirected to the login-required response;
-authenticated MFA acceptance remains pending. Refresh/update the portal and
-use the flow shown by the state: generate a setup QR/key first,
-scan it, then submit the current password and a current six-digit code to
-enable MFA. Do not select “Turn off” when status says MFA is disabled. A prior
-pending setup seed appeared in a screenshot; replace it with a fresh setup key
-and do not reuse the exposed one. If the failure persists, capture the failing
-request path and response body without exposing passwords, OTPs, cookies, QR
-codes, or seeds.
+actuator health endpoints returned HTTP 200 with status `UP`. At that time,
+authenticated MFA acceptance was pending; that status was superseded by the
+26 November release and user report above. Do not select “Turn off” when status
+says MFA is disabled. If a failure reappears, capture the failing request path
+and response status without exposing passwords, OTPs, cookies, QR codes, or
+seeds.
 
 ### Follow-up verification failure (25 November 2026)
 
@@ -62,13 +75,16 @@ which mapped anonymous denial to 403 and prevented the frontend's 401
 refresh-and-retry flow. The response body and authentication cookie were not
 inspected, so expiry remains a likely cause rather than a proven fact.
 
-The source now maps anonymous or unauthenticated access-denied exceptions to
-401, allowing the existing refresh-and-retry flow to run; authenticated
-authorization denials remain 403. All 90 `SecurityIntegrationTest` tests pass,
-including the MFA enrollment-policy test. This correction has not yet passed
-CI or been deployed. Do not treat the account as MFA-enabled. After deployment,
-sign in again, replace the pending setup key with a fresh one, and verify using
-a current code. Never share the QR, secret, password, or OTP.
+The source maps anonymous or unauthenticated access-denied exceptions to 401,
+allowing the existing refresh-and-retry flow to run; authenticated
+authorization denials remain 403. The browser also invalidates its cached
+CSRF-token promise after each state-changing request, and the service-worker
+cache was bumped so clients receive that asset. All 90 `SecurityIntegrationTest`
+tests passed locally; CI run 141 and the Render deployment are now complete.
+The administrator reports the flow works, but the original failed request was
+not captured with enough evidence to prove which filter rejected it. Check the
+current account status in Account Security; do not infer that deployment
+enabled MFA. Never share the QR, secret, password, or OTP.
 
 ## User enrollment
 

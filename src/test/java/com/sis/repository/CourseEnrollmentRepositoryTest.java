@@ -145,6 +145,12 @@ class CourseEnrollmentRepositoryTest {
                 registration(registeredStudent, section, RegistrationStatus.REGISTERED),
                 registration(droppedStudent, section, RegistrationStatus.DROPPED)));
 
+        assertThat(courseUnits.findByStudentIdWithCourse(registeredStudent.getId()))
+                .extracting(CourseUnit::getId).containsExactly(unit.getId());
+        assertThat(courseUnits.findByStudentIdWithCourse(manuallyAssignedStudent.getId()))
+                .extracting(CourseUnit::getId).containsExactly(unit.getId());
+        assertThat(courseUnits.findByStudentIdWithCourse(droppedStudent.getId())).isEmpty();
+
         assertThat(courseUnits.findByTeacherIdWithCourse(unitTeacher.getId()))
                 .extracting(CourseUnit::getId).containsExactly(unit.getId());
         assertThat(courseUnits.findRosterStudentsByUnitId(unit.getId()))

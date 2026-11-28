@@ -8,22 +8,23 @@ separate JavaScript framework build is required.
 ## Current deployment
 
 The Render service is a **test environment**, not a production-ready student
-service. On 24 November 2026, Render reported deployment
-`dep-dc3117h5efls739467gg` live on image/commit
-`sha-a418a654694006fdadb432cb06ce25161455a8ab`. Render reports
-`Deploy succeeded | Live`. The MFA stylesheet, profile-security script, and
-service worker returned HTTP 200; the deployed assets include the hidden-state
-fix and cache v39. On 25 November 2026, `/actuator/health` and
-`/actuator/health/readiness` both returned HTTP 200 with status `UP`. The
-unauthenticated account-security request redirected to
-`/unauthorized.html?reason=login` (HTTP 200 after redirect), as expected for a
-protected page. An approved test-account sign-in succeeded and MFA setup
-returned a QR, but verification returned HTTP 403, so enrollment is not
-confirmed. A source correction for expired-session status handling passes
-focused tests; CI and deployment are pending. Email delivery has not been
-tested.
-See [Security hardening and release checks](docs/SECURITY_HARDENING.md) for
-the evidence and remaining target-environment checks.
+service. On 26 November 2026, Render reported deployment
+`dep-dc3utlt6e07s73dm37vg` live on image/commit
+`sha-4a3f1c1b63ab664704268e61774b15d9ac76a501`. GitHub Actions run
+[141](https://github.com/ciphernelson072/mit_portal/actions/runs/45782376626)
+passed its backend, MySQL migration, frontend, browser, image-build, and image-
+publication gates. Public `/actuator/health` returned HTTP 200 with status
+`UP`; Render's deployment log also recorded the readiness check returning 200.
+The live service worker reports cache v40, and the served authentication script
+clears its cached CSRF token after state-changing requests. The administrator
+reported that the login/MFA flow now works and shared a screenshot showing
+admin-dashboard access. The exact filter that rejected the earlier MFA request
+was not captured, so this is successful post-deployment verification, not proof
+of the original 403's precise cause. Email delivery, Render secret
+configuration, and production readiness remain unverified. See
+[Security hardening and release checks](docs/SECURITY_HARDENING.md) and
+[Render deployment](docs/RENDER_DEPLOYMENT.md) for the evidence and remaining
+target-environment checks.
 
 The homepage is a portal gateway:
 

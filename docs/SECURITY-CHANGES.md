@@ -1,5 +1,25 @@
 # Security Changes Summary
 
+## MFA CSRF refresh and live verification (26 November 2026)
+
+The browser now discards its cached CSRF-token promise after each state-changing
+API request, so the next mutation obtains a fresh token even when the previous
+request failed. Regression coverage verifies a fresh token is used after a
+403. The service-worker cache was bumped to v40 so clients fetch the updated
+authentication script.
+
+GitHub Actions run
+[141](https://github.com/ciphernelson072/mit_portal/actions/runs/45782376626)
+passed the backend, MySQL migration, frontend, browser E2E, image-build, and
+publication gates. Render deployment `dep-dc3utlt6e07s73dm37vg` is Live on
+image/commit `sha-4a3f1c1b63ab664704268e61774b15d9ac76a501`; health and
+readiness returned HTTP 200, and live assets confirm cache v40 and the CSRF
+refresh behavior. The administrator reports that the login/MFA flow now works.
+The original rejecting filter was not captured, so this is a successful
+post-deployment result, not a confirmed root-cause diagnosis. The release does
+not change MFA's optional policy or independently verify the account's
+enrollment state.
+
 ## Security hardening update (23 November 2026, historical checkpoint)
 
 The review confirmed no exploitable vulnerability, but identified four
@@ -37,8 +57,9 @@ frontend tests (29), syntax checks (41 files), and GitHub Actions runs
 and [135](https://github.com/ciphernelson072/mit_portal/actions/runs/45487818308)
 passed. The immutable image is deployed as Render release
 `dep-dc3117h5efls739467gg` and reports Live. Public MFA assets returned HTTP
-200. Authenticated enrollment/sign-in acceptance remains pending. Treat the
-screenshot-exposed pending seed as compromised and replace it.
+200. At that checkpoint, authenticated enrollment/sign-in acceptance remained
+pending; the 26 November release and user report above supersede that status.
+Treat the screenshot-exposed pending seed as compromised and replace it.
 
 ## Permission model
 
@@ -88,8 +109,11 @@ or an explicitly granted academic-operations/registration permission; the base
 teacher role alone does not grant these setup capabilities. Teacher attendance
 reads are restricted to courses assigned to that teacher, while a teacher's
 student-wide attendance requests return only those assigned-course records.
-Student course feeds, assignments, exams, and teacher course rosters include
-active course-section registrations as well as legacy course-roster links.
+Student course feeds, course-unit feeds, assignments, exams, and teacher course
+rosters include registered course-section enrollments as well as legacy roster
+links. A student's units are derived from registered parent courses while
+explicit legacy course-unit assignments remain visible; dropped course
+registrations do not grant access through that registration.
 Custom permission codes cannot reuse built-in role names, and any pre-existing
 role assignment with such an alias is ignored when authorities are loaded. This
 prevents delegated permission naming from shadowing ADMIN, TEACHER, or STUDENT.
