@@ -11,21 +11,35 @@ const teacherScript = fs.readFileSync(
 
 function createTeacherContext(apiGet) {
   const elements = new Map();
-  const rosterBody = { innerHTML: '' };
+  const rosterBodies = new Map();
   const gradeSubmit = { disabled: false };
   const document = {
     addEventListener() {},
     getElementById(id) {
       if (!elements.has(id)) {
-        elements.set(id, {
+        const body = { innerHTML: '' };
+        let innerHTML = '';
+        const element = {
           value: '',
-          innerHTML: '',
           textContent: '',
           className: '',
           hidden: false,
           disabled: false,
-          querySelector: selector => selector === 'tbody' ? rosterBody : null,
+          querySelector: selector => selector === 'tbody' ? body : null,
+        };
+        Object.defineProperty(element, 'innerHTML', {
+          get: () => innerHTML,
+          set: value => {
+            innerHTML = value;
+            if (id.endsWith('Select')) {
+              element.value = value.match(/<option value="([^"]*)"/)?.[1] || '';
+            }
+          },
         });
+        if (id === 'rosterTable' || id === 'teacherCourseUnitRosterTable') {
+          rosterBodies.set(id, body);
+        }
+        elements.set(id, element);
       }
       return elements.get(id);
     },
@@ -40,12 +54,20 @@ function createTeacherContext(apiGet) {
     console,
   };
   vm.runInNewContext(teacherScript, context);
+  document.getElementById('rosterTable');
+  document.getElementById('teacherCourseUnitRosterTable');
 
-  return { context, elements, rosterBody, gradeSubmit };
+  return {
+    context,
+    elements,
+    rosterBody: rosterBodies.get('rosterTable'),
+    courseUnitRosterBody: rosterBodies.get('teacherCourseUnitRosterTable'),
+    gradeSubmit,
+  };
 }
 
-test('course-unit roster remains available when the course endpoint fails', async () => {
-  const { context, elements } = createTeacherContext(path => {
+test('assigned course-unit roster loads automatically when course lookup fails', async () => {
+  const { context, elements, courseUnitRosterBody } = createTeacherContext(path => {
     if (path === '/teacher/my-courses') return Promise.reject(new Error('Course service is unavailable.'));
     if (path === '/teacher/course-units') {
       return Promise.resolve([{ id: 8, unitCode: 'MAT101A', name: 'Algebra', courseCode: 'MAT101' }]);
@@ -63,10 +85,35 @@ test('course-unit roster remains available when the course endpoint fails', asyn
   assert.match(elements.get('rosterCourseSelect').innerHTML, /Unable to load courses/);
   assert.match(elements.get('rosterCourseUnitSelect').innerHTML, /MAT101A/);
   assert.equal(elements.get('rosterStatus').textContent, 'Course service is unavailable.');
-  assert.equal(elements.get('courseUnitRosterStatus').textContent, '');
+  assert.match(elements.get('courseUnitRosterStatus').textContent, /1 enrolled student/);
+  assert.match(courseUnitRosterBody.innerHTML, /Unit Student/);
+});
 
-  elements.get('rosterCourseUnitSelect').value = '8';
-  await context.loadCourseUnitRoster();
+test('unit roster loads separately without resetting the assigned course workspace', async () => {
+  const { context, elements, rosterBody, courseUnitRosterBody } = createTeacherContext(path => {
+    if (path === '/teacher/my-courses') {
+      return Promise.resolve([{ id: 3, courseCode: 'CSC103', name: 'Programming' }]);
+    }
+    if (path === '/teacher/course-units') {
+      return Promise.resolve([{ id: 8, unitCode: 'MAT101A', name: 'Algebra', courseCode: 'MAT101' }]);
+    }
+    if (path === '/teacher/course-units/8/students') {
+      return Promise.resolve([{ id: 81, fullName: 'Unit Student', registrationNumber: 'MIT-81' }]);
+    }
+    throw new Error(`Unexpected API request: ${path}`);
+  });
+  let gradeWorkspaceResets = 0;
+  context.loadRoster = async () => {
+    rosterBody.innerHTML = '<tr><td>Course Student</td><td>MIT-3</td></tr>';
+  };
+  context.loadAttendanceRoster = async () => {};
+  context.resetTeacherGradeWorkspace = () => { gradeWorkspaceResets += 1; };
+
+  await context.loadCourses();
+
+  assert.match(rosterBody.innerHTML, /Course Student/);
+  assert.match(courseUnitRosterBody.innerHTML, /Unit Student/);
+  assert.equal(gradeWorkspaceResets, 0);
   assert.match(elements.get('courseUnitRosterStatus').textContent, /1 enrolled student/);
 });
 

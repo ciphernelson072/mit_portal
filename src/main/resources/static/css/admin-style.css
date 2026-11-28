@@ -1716,9 +1716,12 @@ body {
 .teacher-gradebook-heading { justify-content: space-between; }
 .teacher-gradebook-heading h3 { margin: 0; }
 .teacher-roster-photo { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; vertical-align: middle; }
-.teacher-dashboard #rosterTable { min-width: 0; table-layout: fixed; }
+.teacher-dashboard #rosterTable,
+.teacher-dashboard #teacherCourseUnitRosterTable { min-width: 0; table-layout: fixed; }
 .teacher-dashboard #rosterTable th,
-.teacher-dashboard #rosterTable td { white-space: normal; overflow-wrap: anywhere; }
+.teacher-dashboard #rosterTable td,
+.teacher-dashboard #teacherCourseUnitRosterTable th,
+.teacher-dashboard #teacherCourseUnitRosterTable td { white-space: normal; overflow-wrap: anywhere; }
 .teacher-dashboard .teacher-card[id] { scroll-margin-top: 18px; }
 .admin-csv-exports { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .admin-csv-exports > p { flex-basis: 100%; margin: 0; color: var(--text-secondary); font-size: 13px; }

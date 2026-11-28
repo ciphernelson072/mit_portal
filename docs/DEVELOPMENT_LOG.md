@@ -1,5 +1,17 @@
 # SIS Refactor — Changelog
 
+## Teacher course-unit rosters — 28 November 2026
+
+- The teacher dashboard now loads the selected assigned-unit roster on entry
+  and refreshes it when the teacher changes units. Course and unit rosters use
+  separate tables and request state, so viewing a unit no longer clears the
+  course roster or grade workspace.
+- The manual refresh action remains available, and unit-roster errors remain
+  visible. The existing server-side teacher/unit ownership check is unchanged.
+- Bumped the service-worker cache to v41 so clients fetch the changed dashboard
+  assets. Frontend unit tests and JavaScript syntax validation pass. This is a
+  feature-branch change and is not deployed to Render.
+
 ## Student course-unit visibility — 28 November 2026
 
 - Corrected the student unit feed to return units beneath every course the
