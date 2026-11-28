@@ -2,19 +2,25 @@
 
 ## Current test deployment
 
-On 25 November 2026, Render reported deployment
-`dep-dc3ibj15efls73bv6t6g` live for image/commit
-`sha-e9c590abf6072214ea734a7659ae81f66799ea7b` (`Deploy succeeded | Live`).
-Render's deployment logs show `/actuator/health/readiness` returning HTTP 200.
-The deployment includes the unauthenticated-session 401 correction documented
-in [MFA recovery](./MFA_RECOVERY.md). The earlier approved test-account flow
-reached MFA setup but returned HTTP 403 during verification; enrollment has not
-yet been re-tested against this release. The 90-test `SecurityIntegrationTest`
-run passed locally; the GitHub Actions run status was not independently
-verified during deployment. A direct public probe from the deployment
-environment failed DNS resolution, so external availability was not
-independently confirmed. End-to-end email delivery was not tested. The public
-service is
+On 26 November 2026, Render reported deployment
+[`dep-dc3utlt6e07s73dm37vg`](https://dashboard.render.com/web/srv-dbgdds6tlv9c73dveld0/deploys/dep-dc3utlt6e07s73dm37vg)
+live for image/commit
+`sha-4a3f1c1b63ab664704268e61774b15d9ac76a501` (`Deploy succeeded | Live`).
+The image digest shown by Render was
+`sha256:726de8b63be037c0d42e74edd6706e2048c4ca4c97d1eecf3990eba99aee5935`.
+GitHub Actions run
+[141](https://github.com/ciphernelson072/mit_portal/actions/runs/45782376626)
+passed backend, MySQL migration, frontend unit, JavaScript validation, browser
+E2E, image-build, and publication checks. Public `/actuator/health` returned
+HTTP 200 with status `UP`; Render's deployment logs recorded
+`/actuator/health/readiness` returning HTTP 200. The public service worker
+reports cache v40, and the served `js/auth.js` contains the state-changing
+request CSRF-token invalidation. The administrator reports the login/MFA flow
+now works, with a screenshot showing access to the admin dashboard. The
+specific rejecting filter for the earlier 403 was not captured; the client
+refresh and cache changes are a deployed mitigation, not proof of the exact
+original cause. The MFA account's enrollment state was not independently
+inspected. End-to-end email delivery was not tested. The public service is
 [`https://makerere-institute-of-technology.onrender.com/`](https://makerere-institute-of-technology.onrender.com/).
 This is a test deployment, not production approval.
 
@@ -68,9 +74,9 @@ The Render service consumes a prebuilt Docker Hub image rather than building
 the Git branch directly. The GitHub Actions workflow publishes
 `docker.io/ciphernelson/mit-portal:latest` and a commit-specific tag on pushes
 to `main` and `fix/admin-login-offline-styles`, after the CI gates pass. The
-current 25 November deployment uses
-`docker.io/ciphernelson/mit-portal:sha-e9c590abf6072214ea734a7659ae81f66799ea7b`
-and is recorded as deployment `dep-dc3ibj15efls73bv6t6g`.
+current 26 November deployment uses
+`docker.io/ciphernelson/mit-portal:sha-4a3f1c1b63ab664704268e61774b15d9ac76a501`
+and is recorded as deployment `dep-dc3utlt6e07s73dm37vg`.
 A Git push alone is not deployment evidence: confirm the workflow, the
 deployed release, and service health for each release.
 

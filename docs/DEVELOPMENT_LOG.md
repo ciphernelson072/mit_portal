@@ -1,6 +1,41 @@
 # SIS Refactor — Changelog
 
-## Current source status — 31 October 2026
+## Student course-unit visibility — 28 November 2026
+
+- Corrected the student unit feed to return units beneath every course the
+  student is registered in, while preserving legacy direct unit assignments.
+  Dropped registrations alone do not provide access. No duplicate unit
+  registration table or change to student course registration was introduced.
+- The student dashboard already fetched `/api/student/course-units` and rendered
+  those units under each course; that existing UI now receives registered-course
+  units without a frontend behavior change.
+- Added repository integration assertions for registered, legacy-assigned, and
+  dropped-only students. `CourseEnrollmentRepositoryTest` passes (4 tests);
+  `git diff --check` passes.
+
+## MFA CSRF refresh release — 26 November 2026
+
+- Deployed commit `4a3f1c1b63ab664704268e61774b15d9ac76a501` to the controlled
+  Render test service as immutable image
+  `docker.io/ciphernelson/mit-portal:sha-4a3f1c1b63ab664704268e61774b15d9ac76a501`;
+  Render deployment `dep-dc3utlt6e07s73dm37vg` reports Live.
+- GitHub Actions run
+  [141](https://github.com/ciphernelson072/mit_portal/actions/runs/45782376626)
+  passed backend, MySQL migration, frontend, browser E2E, image build, and
+  publication. Health/readiness returned HTTP 200, and live assets showed
+  service-worker cache v40 and CSRF-token invalidation after state-changing
+  requests.
+- The administrator reports the login/MFA flow works, and the supplied
+  screenshot shows admin-dashboard access. The failed production request was
+  not captured with a filter-level trace; the original 403's exact cause is
+  therefore unconfirmed. This release does not change MFA's optional policy
+  or independently establish the account's enrollment state.
+- The screenshot captured dashboard metrics and pending actions while requests
+  were processing. A follow-up read of the active page showed rendered metrics
+  and recent registrations with no pending actions. Recheck after a Render Free
+  idle/cold start; no persistent dashboard issue has been established.
+
+## Historical source status — 31 October 2026
 
 - Added focused regression coverage proving retake attempts cannot silently
   contribute to CGPA or earned credits without an approved institutional
@@ -570,8 +605,9 @@ end about a mid-session environment reset that required redoing part of this wor
   silently dropping the header to avoid the tradeoff.
   **Superseded 23 November 2026:** the inline allowance and jsDelivr source have
   since been removed; inline scripts, event handlers, and styles were externalized.
-  The updated policy remains pending deployment to the active Render image.
-  See [Security hardening and release checks](./SECURITY_HARDENING.md).
+  Deployment was pending when this historical entry was written; the security
+  hardening image was subsequently deployed on 24 November. See
+  [Security hardening and release checks](./SECURITY_HARDENING.md).
 - **Database indexes**: found and fixed three real gaps - `courses.teacher_id` had no
   index at all despite being the exact column the new `findByTeacherId*` queries
   filter on; `course_students` only had a composite PK covering course-id-first

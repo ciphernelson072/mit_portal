@@ -1,6 +1,6 @@
 # Remaining Work and Render Deployment Runbook
 
-Last reviewed: 25 November 2026
+Last reviewed: 26 November 2026
 
 This document records current release status and remaining production-readiness
 work. Use it with
@@ -10,43 +10,32 @@ the [Render deployment details](./RENDER_DEPLOYMENT.md), the
 The role-by-role cross-workflow findings are recorded in
 [ROLE_WORKFLOW_GAPS.md](./ROLE_WORKFLOW_GAPS.md).
 
-## Current test deployment status (25 November 2026)
+## Current test deployment status (26 November 2026)
 
-Render reports deployment `dep-dc3117h5efls739467gg` live on immutable image
-`docker.io/ciphernelson/mit-portal:sha-a418a654694006fdadb432cb06ce25161455a8ab`
-for commit `a418a654694006fdadb432cb06ce25161455a8ab`. GitHub Actions run
-[135](https://github.com/ciphernelson072/mit_portal/actions/runs/45487818308)
-passed. Render reports `Deploy succeeded | Live`. The account-security page,
-its CSS and JavaScript, and the service worker returned HTTP 200; the expected
-hidden-state fix and cache v39 were present. On 25 November, `/actuator/health`
-and `/actuator/health/readiness` returned HTTP 200 with status `UP`. The
-unauthenticated account-security page redirects to a login-required response;
-authenticated MFA acceptance is still outstanding.
+Render reports deployment `dep-dc3utlt6e07s73dm37vg` Live on immutable image
+`docker.io/ciphernelson/mit-portal:sha-4a3f1c1b63ab664704268e61774b15d9ac76a501`
+for commit `4a3f1c1b63ab664704268e61774b15d9ac76a501`. GitHub Actions run
+[141](https://github.com/ciphernelson072/mit_portal/actions/runs/45782376626)
+passed backend, MySQL migration, frontend, browser E2E, image-build, and
+publication gates. Public `/actuator/health` returned HTTP 200 with status
+`UP`; Render's deployment log recorded `/actuator/health/readiness` returning
+HTTP 200. The served service worker reports cache v40, and the authentication
+script invalidates its cached CSRF token after state-changing requests.
 
-The account-security screenshot then exposed a UI defect: CSS overrode native
-`[hidden]`, showing the “Turn off” action even when MFA was disabled. The
-source now applies a scoped hidden-state rule, adds a regression assertion,
-and increments the service-worker cache to v39. The UI also blocks verification
-before a setup secret exists and disabling when MFA is off; the backend returns
-409 for verification without a setup secret. Focused backend tests (96),
-frontend tests (29), and JavaScript validation (41 files) pass. GitHub Actions
-run [134](https://github.com/ciphernelson072/mit_portal/actions/runs/45484000672)
-passed the code change and run [135](https://github.com/ciphernelson072/mit_portal/actions/runs/45487818308)
-passed the follow-up release. The deployed image and public asset checks are
-recorded above. On 25 November, an approved test-account sign-in succeeded and
-setup returned a QR, but verification returned HTTP 403; MFA is not confirmed
-enabled. The likely cause is an expired one-hour access token being treated as
-an authenticated access denial, so the browser's 401 refresh/retry did not run.
-The response body and authentication cookie were not inspected. A local fix
-now returns 401 for anonymous/unauthenticated authorization failures while
-preserving 403 for authenticated denials; all 90 security integration tests
-pass. CI and deployment of this correction are pending. After deployment, sign
-in again, replace the pending setup key, and rerun MFA enrollment/sign-in
-acceptance. Policy restrictions remain in place. Email delivery, Render secret
-configuration, and production database acceptance have not been verified.
+The administrator reports the login/MFA flow now works and provided a
+screenshot showing admin-dashboard access. The earlier failed request was not
+captured with a filter-level trace, so the exact cause of the 403 is not
+confirmed and the account's MFA enrollment state was not independently
+inspected. The supplied screenshot captured dashboard metrics and pending
+actions while requests were processing. A follow-up read of the active page
+showed the metrics and recent registrations rendered and no pending actions.
+Recheck after a Render Free idle/cold start to determine whether that initial
+loading delay recurs.
 
 This remains a controlled Render Free test deployment. Uploads use ephemeral
-`/tmp/uploads`; do not store real student records there.
+`/tmp/uploads`; do not store real student records there. Email delivery,
+Render private MFA configuration, database isolation, recovery, and production
+readiness have not been verified.
 
 ## Previous test deployment status (20 November 2026)
 
@@ -457,10 +446,9 @@ prerequisites for a production service or campus-user pilot; they are not
 evidence that the current test deployment is production-ready.
 
 - [x] The reviewed release commit
-  `682553db36256d08a93362e22b069776c8c2a096` is on `origin/main`, and its
-  GitHub Actions release run passed. The image-based Render service is
-  identified by the immutable tag above; future source pushes alone are not
-  deployment evidence.
+  `4a3f1c1b63ab664704268e61774b15d9ac76a501` is on `origin/main`; GitHub
+  Actions run 141 passed and Render deployed its immutable image tag above.
+  Future source pushes alone are not deployment evidence.
 - [ ] Before any future deployment, confirm the intended source/image, CI
   result, database backup, migration compatibility, operator, and rollback
   owner. Do not force-push or replace the active Render image without review.

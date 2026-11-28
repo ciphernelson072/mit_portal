@@ -128,6 +128,14 @@ instructors or advance student semesters. Review the assignment summary and
 resolve missing instructors/sections, capacity, financial holds, prior drops,
 and other reported issues.
 
+Student course-unit visibility is derived from the same registered course
+enrollment used by course feeds: all units under a registered parent course are
+returned to that student, and manually linked legacy unit enrollments remain
+visible. Dropped registrations do not grant unit access. This is a read-time
+view, not a second registration record, so staff should manage course
+enrollment through the academic registration workflow rather than manually
+duplicate unit enrollment.
+
 The daily fee and grade reminders run at 09:00 and attendance-risk alerts at
 09:30 in `APP_AUTOMATION_TIME_ZONE` (default `Africa/Nairobi`). The daily
 workers coordinate through the database lock table created by the latest

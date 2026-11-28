@@ -1,6 +1,6 @@
 # Security hardening and release checks
 
-Updated 25 November 2026. This document describes the security changes in the
+Updated 26 November 2026. This document describes the security changes in the
 current working tree and the checks required before relying on them in Render.
 
 ## Changes
@@ -46,6 +46,27 @@ target-environment acceptance.
 
 ## Render status and release gate
 
+### Current live release (26 November 2026)
+
+Render deployment `dep-dc3utlt6e07s73dm37vg` is Live on image/commit
+`sha-4a3f1c1b63ab664704268e61774b15d9ac76a501`. GitHub Actions run
+[141](https://github.com/ciphernelson072/mit_portal/actions/runs/45782376626)
+passed backend, MySQL migration, frontend unit, JavaScript validation, browser
+E2E, image-build, and publication checks. Public `/actuator/health` returned
+HTTP 200 with status `UP`; Render's deployment log recorded
+`/actuator/health/readiness` returning HTTP 200. The served service worker is
+cache v40, and the served authentication script invalidates its cached CSRF
+token after each state-changing request. The administrator reports that the
+login/MFA flow now works and shared a screenshot showing admin-dashboard
+access. The earlier failed MFA request was not captured with a response body or
+filter-level trace, so the exact cause of that 403 is not proven. The client
+token refresh and cache-busting changes are verified as deployed mitigations;
+they should not be described as proof of which server filter rejected the
+earlier request. The account's MFA enrollment state and Render's private MFA
+configuration were not independently inspected.
+
+### Historical release records (24-25 November 2026)
+
 On 24 November 2026, Render reported deployment `dep-dc3117h5efls739467gg`
 as `Deploy succeeded | Live`, using image/commit
 `sha-a418a654694006fdadb432cb06ce25161455a8ab`. GitHub Actions run
@@ -90,10 +111,15 @@ the failed response and cookie were not inspected, so this is not confirmed.
 The source correction returns 401 for anonymous/unauthenticated access-denied
 exceptions while preserving 403 for authenticated authorization failures. All
 90 security integration tests pass. CI, image publication, deployment, and
-authenticated MFA re-test remain pending.
+authenticated MFA re-test were pending at that point. The 26 November release
+above supersedes that deployment status; the administrator subsequently
+reported that the login/MFA flow works, although the exact MFA request was not
+independently correlated in Render logs.
 
-These public checks do **not** establish authenticated sign-in, MFA enrollment
-or recovery, email delivery, database isolation, or production readiness.
+These public checks and the user's report do **not** establish email delivery,
+database isolation, MFA recovery, Render secret configuration, or production
+readiness. The screenshot confirms dashboard access but does not show whether
+MFA is enabled on the account.
 
 Before enabling users on the updated release:
 
@@ -117,9 +143,10 @@ Before enabling users on the updated release:
    cookie-authenticated unsafe requests without the matching token are
    rejected. Do not paste token values into logs or reports.
 7. Test optional MFA enrollment, sign-in, recovery, and session revocation
-   with approved synthetic accounts before broader access. The Render private
-   MFA configuration and encryption-key value were not inspected by the
-   unauthenticated checks above.
+   with approved synthetic accounts before broader access. The administrator
+   reports the sign-in/MFA flow works; a separate synthetic-account recovery
+   acceptance and Render private MFA-configuration review remain outstanding.
+   Never expose the encryption-key value in logs or reports.
 
 Render's image-based release publishes through the CI workflow on its configured
 release branches. Review [Render deployment](./RENDER_DEPLOYMENT.md) before
